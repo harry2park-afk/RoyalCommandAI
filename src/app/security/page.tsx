@@ -7,8 +7,11 @@ import {
   SECURITY_UPDATE_POLICY,
   SECURITY_UX_POLICY,
 } from "@/lib/security/royal-security";
+import { getPasskeyReadiness, PASSKEY_STORAGE_POLICY } from "@/lib/security/passkey-store";
 
 export default function SecurityPage() {
+  const passkey = getPasskeyReadiness();
+
   return (
     <main className="mx-auto min-h-screen w-full max-w-7xl px-4 py-6 md:px-6 md:py-8">
       <header className="mb-7 flex flex-wrap items-start justify-between gap-4">
@@ -58,6 +61,41 @@ export default function SecurityPage() {
             <div>Staged rollout: {SECURITY_UPDATE_POLICY.stagedRollout ? "Yes" : "No"}</div>
             <div>Rollback: {SECURITY_UPDATE_POLICY.rollbackSupported ? "Yes" : "No"}</div>
             <div>Audit every policy change: {SECURITY_UPDATE_POLICY.auditEveryPolicyChange ? "Yes" : "No"}</div>
+          </div>
+        </div>
+      </section>
+
+      <section className="rc-card mb-6 border-[var(--gold)]/25 p-5 md:p-6">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Passkey activation</p>
+            <h2 className="mt-1 text-2xl" style={{ fontFamily: "var(--font-display), serif" }}>Credential storage is prepared safely</h2>
+            <p className="mt-2 max-w-3xl text-sm text-[var(--muted)]">
+              Royal Command stores only verified public WebAuthn credential material. Face, fingerprint, device PIN and private keys are never stored by Royal Command.
+            </p>
+          </div>
+          <div className={`rounded-xl border px-3 py-2 text-xs ${passkey.productionReady ? "border-emerald-500/40 text-emerald-300" : "border-amber-500/40 text-amber-300"}`}>
+            {passkey.productionReady ? "Production ready" : "Safe activation pending"}
+          </div>
+        </div>
+
+        <div className="mt-5 grid gap-3 md:grid-cols-2">
+          <div className="rounded-2xl border border-white/10 bg-black/15 p-4 text-xs text-[var(--muted)]">
+            <div className="font-medium text-[var(--text)]">Storage policy</div>
+            <div className="mt-3 space-y-2">
+              <div>Biometric data stored: {PASSKEY_STORAGE_POLICY.storesBiometricData ? "Yes" : "No"}</div>
+              <div>Private keys stored: {PASSKEY_STORAGE_POLICY.storesPrivateKeys ? "Yes" : "No"}</div>
+              <div>Browser direct writes: {PASSKEY_STORAGE_POLICY.browserDirectWritesAllowed ? "Yes" : "No"}</div>
+              <div>Server verification required: {PASSKEY_STORAGE_POLICY.serverVerificationRequired ? "Yes" : "No"}</div>
+              <div>Recommended registered credentials: {PASSKEY_STORAGE_POLICY.minimumCredentialsRecommended}</div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-black/15 p-4 text-xs text-[var(--muted)]">
+            <div className="font-medium text-[var(--text)]">Before live activation</div>
+            <div className="mt-3 space-y-2">
+              {passkey.blockers.map((item) => <div key={item}>• {item}</div>)}
+            </div>
           </div>
         </div>
       </section>
