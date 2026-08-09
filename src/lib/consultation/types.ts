@@ -6,11 +6,20 @@ export type ConsultationPresenceMode =
   | "voice-only"
   | "chat";
 
+export type ConsultationRoomTheme =
+  | "standard"
+  | "calm"
+  | "child-friendly"
+  | "senior-friendly"
+  | "minimal"
+  | "custom";
+
 export type ConsultationRoomProfile = {
   id: string;
   name: string;
   audience: ConsultationAudience;
   presenceMode: ConsultationPresenceMode;
+  theme: ConsultationRoomTheme;
   largeText: boolean;
   simplifiedControls: boolean;
   reducedVisualLoad: boolean;
@@ -19,6 +28,9 @@ export type ConsultationRoomProfile = {
   allowLiveVideo: boolean;
   allowVoiceOnly: boolean;
   allowChat: boolean;
+  avatarStyle?: string;
+  backgroundStyle?: string;
+  clinicianGreeting?: string;
   notes?: string;
 };
 
@@ -27,4 +39,19 @@ export type ConsultationSessionPreferences = {
   preferredPresenceMode: ConsultationPresenceMode;
   therapistCanCustomize: boolean;
   patientCanRequestChange: boolean;
+};
+
+export type PatientConsultationRoomSettings = {
+  patientKey: string;
+  roomProfileId: string;
+  preferredPresenceMode: ConsultationPresenceMode;
+  theme: ConsultationRoomTheme;
+  largeText: boolean;
+  simplifiedControls: boolean;
+  reducedVisualLoad: boolean;
+  avatarStyle?: string;
+  backgroundStyle?: string;
+  clinicianGreeting?: string;
+  lastUpdatedBy: "clinician" | "patient" | "system";
+  updatedAt: string;
 };
