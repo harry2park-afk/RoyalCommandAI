@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
 import { Fingerprint, KeyRound, Mic, ShieldCheck, Volume2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type GateState =
   | "idle"
@@ -14,6 +15,7 @@ type GateState =
   | "challenge-listening"
   | "challenge-verifying"
   | "challenge-passed"
+  | "passkey-verifying"
   | "biometric-ready"
   | "gate-opening"
   | "fallback";
@@ -36,10 +38,18 @@ const WAKE_PHRASES = [
 
 function normalizeSpeech(value: string) {
   return value
+    .normalize("NFKC")
     .toLowerCase()
     .replace(/[.,!?。、！？，]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function supabaseConfigured() {
+  return Boolean(
+    process.env.NEXT_PUBLIC_SUPABASE_URL &&
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  );
 }
 
 function LoginForm() {
@@ -55,6 +65,7 @@ function LoginForm() {
   const [challengeHeard, setChallengeHeard] = useState("");
   const [platformBiometric, setPlatformBiometric] = useState<boolean | null>(null);
   const [locale, setLocale] = useState("en-AU");
+  const configured = supabaseConfigured();
 
   useEffect(() => {
     setLocale(navigator.language || "en-AU");
@@ -64,7 +75,7 @@ function LoginForm() {
       return;
     }
     PKC.isUserVerifyingPlatformAuthenticatorAvailable()
-      .then((available) => setPlatformBiometric(available))
+      .then(setPlatformBiometric)
       .catch(() => setPlatformBiometric(false));
   }, []);
 
@@ -77,6 +88,41 @@ function LoginForm() {
     if (l.includes("en-au")) return { flag: "🇦🇺", title: "Royal Command Australia Guard" };
     return { flag: "🛡️", title: "Royal Command Guard" };
   }, [locale]);
+
+  function enterAfterGate() {
+    setGateState("gate-opening");
+    setTimeout(() => {
+      router.push(params.get("next") || "/dashboard");
+      router.refresh();
+    }, 900);
+  }
+
+  async function signInWithPasskey() {
+    if (!configured) {
+      setGateState("fallback");
+      setError("Passkey sign-in is waiting for production Supabase configuration.");
+      return false;
+    }
+
+    setError("");
+    setGateState("passkey-verifying");
+    try {
+      const supabase = createClient();
+      const { data, error: passkeyError } = await supabase.auth.signInWithPasskey();
+      if (passkeyError) throw passkeyError;
+      if (!data?.session || !data?.user) throw new Error("Passkey verification did not create a session.");
+      enterAfterGate();
+      return true;
+    } catch (err) {
+      setGateState("fallback");
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Passkey verification was cancelled or unavailable. Use secure account sign-in.",
+      );
+      return false;
+    }
+  }
 
   function createRecognition(
     onTranscript: (text: string) => void,
@@ -115,7 +161,7 @@ function LoginForm() {
     };
     recognition.onerror = () => {
       setGateState("fallback");
-      setError("Microphone verification was interrupted. Use device verification or secure account sign-in.");
+      setError("Microphone verification was interrupted. Use Passkey or secure account sign-in.");
     };
     recognition.onend = () => {
       setGateState((current) => (current === listeningState ? "idle" : current));
@@ -126,9 +172,10 @@ function LoginForm() {
   async function loadVoiceChallenge() {
     setGateState("challenge-loading");
     try {
-      const res = await fetch(`/api/security/voice-challenge?lang=${encodeURIComponent(locale)}`, {
-        cache: "no-store",
-      });
+      const res = await fetch(
+        `/api/security/voice-challenge?lang=${encodeURIComponent(locale)}`,
+        { cache: "no-store" },
+      );
       const data = (await res.json()) as VoiceChallenge & { enabled?: boolean; error?: string };
       if (!res.ok || !data.challengeToken) throw new Error(data.error || "Challenge unavailable");
       setChallenge(data);
@@ -143,29 +190,26 @@ function LoginForm() {
   function beginVoiceGate() {
     setError("");
     setHeard("");
-
     const recognition = createRecognition((transcript) => {
       setHeard(transcript);
       const normalized = normalizeSpeech(transcript);
-      const accepted = WAKE_PHRASES.some((phrase) => normalized.includes(normalizeSpeech(phrase)));
+      const accepted = WAKE_PHRASES.some((phrase) =>
+        normalized.includes(normalizeSpeech(phrase)),
+      );
       if (!accepted) {
         setGateState("idle");
-        setError("The Guard heard you, but the gate command was not recognised. Try “문 열어라” or “Open the gate”.");
+        setError("The Guard heard you, but the command was not recognised. Try “문 열어라” or “Open the gate”.");
         return;
       }
-
       setGateState("command-accepted");
-      setTimeout(() => {
-        void loadVoiceChallenge();
-      }, 450);
+      setTimeout(() => void loadVoiceChallenge(), 400);
     }, "listening");
 
     if (!recognition) {
       setGateState("fallback");
-      setError("Voice command is not supported in this browser. Use device verification or secure account sign-in.");
+      setError("Voice command is not supported in this browser. Use Passkey or secure account sign-in.");
       return;
     }
-
     setGateState("listening");
     recognition.start();
   }
@@ -185,7 +229,7 @@ function LoginForm() {
       const data = (await res.json()) as { verified?: boolean; error?: string };
       if (!res.ok || !data.verified) {
         setGateState("challenge-ready");
-        setError(data.error || "The challenge phrase did not match. Read the exact sentence shown on screen.");
+        setError(data.error || "The challenge phrase did not match. Read the exact sentence shown.");
         return false;
       }
       return true;
@@ -200,37 +244,28 @@ function LoginForm() {
     if (!challenge) return;
     setError("");
     setChallengeHeard("");
-
     const recognition = createRecognition((transcript) => {
       setChallengeHeard(transcript);
       void (async () => {
         const verified = await verifyChallengeTranscript(transcript);
         if (!verified) return;
-
         setGateState("challenge-passed");
-        setTimeout(() => {
-          if (platformBiometric) {
-            setGateState("biometric-ready");
-          } else {
-            setGateState("fallback");
-          }
-        }, 450);
+        await new Promise((resolve) => setTimeout(resolve, 350));
+        if (platformBiometric && configured) {
+          await signInWithPasskey();
+        } else {
+          setGateState(platformBiometric ? "biometric-ready" : "fallback");
+        }
       })();
     }, "challenge-listening");
 
     if (!recognition) {
       setGateState(platformBiometric ? "biometric-ready" : "fallback");
-      setError("Voice challenge is unavailable in this browser. Continue with device verification or secure sign-in.");
+      setError("Voice challenge is unavailable. Continue with Passkey or secure sign-in.");
       return;
     }
-
     setGateState("challenge-listening");
     recognition.start();
-  }
-
-  function previewGateOpen() {
-    setGateState("gate-opening");
-    setTimeout(() => setGateState("fallback"), 1400);
   }
 
   async function onSubmit(e: FormEvent) {
@@ -245,11 +280,7 @@ function LoginForm() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Login failed");
-      setGateState("gate-opening");
-      setTimeout(() => {
-        router.push(params.get("next") || "/dashboard");
-        router.refresh();
-      }, 850);
+      enterAfterGate();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally {
@@ -267,54 +298,30 @@ function LoginForm() {
           <Link href="/" className="mb-7 text-sm text-[var(--muted)]">← RoyalCommand.ai</Link>
 
           <div className="relative h-64 w-64 overflow-hidden rounded-[2.5rem] border border-[var(--gold)]/35 bg-black/30 shadow-2xl md:h-80 md:w-80">
-            <div
-              className="absolute inset-y-0 left-0 w-1/2 border-r border-[var(--gold)]/25 bg-[linear-gradient(90deg,rgba(17,24,39,0.98),rgba(55,45,15,0.88))] transition-transform duration-1000 ease-in-out"
-              style={{ transform: gateOpen ? "translateX(-102%)" : "translateX(0)" }}
-            />
-            <div
-              className="absolute inset-y-0 right-0 w-1/2 border-l border-[var(--gold)]/25 bg-[linear-gradient(270deg,rgba(17,24,39,0.98),rgba(55,45,15,0.88))] transition-transform duration-1000 ease-in-out"
-              style={{ transform: gateOpen ? "translateX(102%)" : "translateX(0)" }}
-            />
+            <div className="absolute inset-y-0 left-0 w-1/2 border-r border-[var(--gold)]/25 bg-[linear-gradient(90deg,rgba(17,24,39,0.98),rgba(55,45,15,0.88))] transition-transform duration-1000" style={{ transform: gateOpen ? "translateX(-102%)" : "translateX(0)" }} />
+            <div className="absolute inset-y-0 right-0 w-1/2 border-l border-[var(--gold)]/25 bg-[linear-gradient(270deg,rgba(17,24,39,0.98),rgba(55,45,15,0.88))] transition-transform duration-1000" style={{ transform: gateOpen ? "translateX(102%)" : "translateX(0)" }} />
             <div className="absolute inset-5 rounded-[2rem] border border-white/10" />
-            <div
-              className="absolute inset-0 grid place-items-center transition-all duration-700"
-              style={{ opacity: gateOpen ? 0 : 1, transform: gateOpen ? "scale(1.08)" : "scale(1)" }}
-            >
+            <div className="absolute inset-0 grid place-items-center transition-all duration-700" style={{ opacity: gateOpen ? 0 : 1, transform: gateOpen ? "scale(1.08)" : "scale(1)" }}>
               <div>
                 <div className="text-7xl md:text-8xl">{guard.flag}</div>
                 <ShieldCheck className="mx-auto mt-4 text-[var(--gold-soft)]" size={44} />
               </div>
             </div>
-            <div
-              className="absolute inset-0 grid place-items-center text-[var(--gold-soft)] transition-opacity duration-700"
-              style={{ opacity: gateOpen ? 1 : 0 }}
-            >
-              <div>
-                <div className="text-5xl">♛</div>
-                <div className="mt-3 text-sm uppercase tracking-[0.28em]">Gate Open</div>
-              </div>
+            <div className="absolute inset-0 grid place-items-center text-[var(--gold-soft)] transition-opacity duration-700" style={{ opacity: gateOpen ? 1 : 0 }}>
+              <div><div className="text-5xl">♛</div><div className="mt-3 text-sm uppercase tracking-[0.28em]">Gate Open</div></div>
             </div>
           </div>
 
           <p className="mt-5 text-xs uppercase tracking-[0.25em] text-[var(--gold-soft)]">{guard.title}</p>
           <h1 className="mt-2 text-4xl md:text-5xl" style={{ fontFamily: "var(--font-display), serif" }}>The Royal Gate</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-            Command the Guard, complete a live voice challenge when requested, then use the strongest device verification available. The system is designed to feel ceremonial, fast and secure rather than like an ordinary password screen.
+            Command the Guard, complete a live voice challenge when requested, then Royal Command asks the device for its Passkey. Face, fingerprint, PIN or security key verification stays with the device.
           </p>
 
           {gateState !== "challenge-ready" && gateState !== "challenge-listening" && gateState !== "challenge-verifying" ? (
-            <button
-              type="button"
-              onClick={beginVoiceGate}
-              className="rc-btn rc-btn-primary mt-6 min-w-56 py-3"
-              disabled={gateState === "listening" || gateState === "challenge-loading" || gateOpen}
-            >
+            <button type="button" onClick={beginVoiceGate} className="rc-btn rc-btn-primary mt-6 min-w-56 py-3" disabled={gateState === "listening" || gateState === "challenge-loading" || gateState === "passkey-verifying" || gateOpen}>
               <Mic size={18} />
-              {gateState === "listening"
-                ? "Listening…"
-                : gateState === "challenge-loading"
-                  ? "Preparing challenge…"
-                  : "Command the Gate"}
+              {gateState === "listening" ? "Listening…" : gateState === "challenge-loading" ? "Preparing challenge…" : gateState === "passkey-verifying" ? "Verifying device…" : "Command the Gate"}
             </button>
           ) : null}
 
@@ -322,19 +329,9 @@ function LoginForm() {
             <div className="mt-6 w-full max-w-xl rounded-3xl border border-[var(--gold)]/30 bg-[var(--gold)]/5 p-5">
               <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Royal Voice Challenge</p>
               <p className="mt-3 text-xl leading-8">“{challenge.phrase}”</p>
-              <p className="mt-2 text-xs text-[var(--muted)]">Read this exact sentence aloud. The phrase changes randomly and expires quickly.</p>
-              <button
-                type="button"
-                onClick={beginChallengeReadback}
-                className="rc-btn rc-btn-primary mt-4"
-                disabled={gateState === "challenge-listening" || gateState === "challenge-verifying"}
-              >
-                <Mic size={17} />
-                {gateState === "challenge-listening"
-                  ? "Listening to challenge…"
-                  : gateState === "challenge-verifying"
-                    ? "Verifying securely…"
-                    : "Read the Challenge"}
+              <p className="mt-2 text-xs text-[var(--muted)]">Read this exact sentence aloud. It changes randomly and expires quickly.</p>
+              <button type="button" onClick={beginChallengeReadback} className="rc-btn rc-btn-primary mt-4" disabled={gateState === "challenge-listening" || gateState === "challenge-verifying"}>
+                <Mic size={17} /> {gateState === "challenge-listening" ? "Listening…" : gateState === "challenge-verifying" ? "Verifying securely…" : "Read the Challenge"}
               </button>
               {challengeHeard ? <div className="mt-3 text-xs text-[var(--muted)]">Heard: “{challengeHeard}”</div> : null}
             </div>
@@ -343,39 +340,42 @@ function LoginForm() {
           <div className="mt-4 min-h-14 text-sm text-[var(--muted)]">
             {gateState === "idle" ? <span>Say: “문 열어라”, “참깨야 문 열어”, or “Open the gate”.</span> : null}
             {gateState === "command-accepted" ? <span className="text-[var(--gold-soft)]">Command accepted.</span> : null}
-            {gateState === "challenge-passed" ? <span className="text-[var(--gold-soft)]">Voice challenge verified by the Royal Command server. Preparing device verification…</span> : null}
-            {gateState === "biometric-ready" ? (
-              <div>
-                <span className="text-[var(--gold-soft)]">Face / fingerprint / device verification is available.</span>
-                <button type="button" onClick={previewGateOpen} className="rc-btn rc-btn-ghost ml-3 mt-2">Preview Gate Open</button>
-              </div>
-            ) : null}
-            {gateState === "fallback" ? <span>Use fingerprint/device verification when available, otherwise use secure account sign-in.</span> : null}
+            {gateState === "challenge-passed" ? <span className="text-[var(--gold-soft)]">Voice challenge verified. Calling device Passkey…</span> : null}
+            {gateState === "passkey-verifying" ? <span className="text-[var(--gold-soft)]">Look at the camera, touch the fingerprint sensor, enter the device PIN, or use your security key.</span> : null}
+            {gateState === "biometric-ready" ? <span className="text-[var(--gold-soft)]">Device verification is available. Use the Passkey button to continue.</span> : null}
+            {gateState === "fallback" ? <span>Use Passkey when available, otherwise use secure account sign-in.</span> : null}
             {heard ? <div className="mt-1 text-xs">Command heard: “{heard}”</div> : null}
           </div>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs text-[var(--muted)]">
-            <span className="rounded-full border border-white/10 px-3 py-2"><Volume2 size={13} className="mr-1 inline" /> Voice command</span>
+            <span className="rounded-full border border-white/10 px-3 py-2"><Volume2 size={13} className="mr-1 inline" /> Voice</span>
             <span className="rounded-full border border-white/10 px-3 py-2"><Fingerprint size={13} className="mr-1 inline" /> Face / fingerprint</span>
             <span className="rounded-full border border-white/10 px-3 py-2"><KeyRound size={13} className="mr-1 inline" /> Passkey</span>
           </div>
         </section>
 
         <section className="rc-card p-6 md:p-8">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Secure fallback</p>
-          <h2 className="mt-1 text-3xl" style={{ fontFamily: "var(--font-display), serif" }}>Account sign in</h2>
+          <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Secure entry</p>
+          <h2 className="mt-1 text-3xl" style={{ fontFamily: "var(--font-display), serif" }}>Passkey or account</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            The Royal Gate experience does not bypass strong authentication. Until production Passkey verification is activated, account credentials remain the secure fallback.
+            A registered Passkey can sign you in without typing an email or password. Password remains a fallback while Royal Command transitions customers safely.
           </p>
-          <form onSubmit={onSubmit} className="mt-7 space-y-4">
+
+          <button type="button" onClick={() => void signInWithPasskey()} className="rc-btn rc-btn-primary mt-6 w-full py-3" disabled={!configured || gateState === "passkey-verifying" || gateOpen}>
+            <Fingerprint size={18} /> {gateState === "passkey-verifying" ? "Verifying Passkey…" : "Enter with Face / Fingerprint / Passkey"}
+          </button>
+
+          {!configured ? <p className="mt-3 text-xs text-[var(--muted)]">Passkey activation is waiting for final Supabase WebAuthn domain settings.</p> : null}
+
+          <div className="my-6 flex items-center gap-3 text-xs text-[var(--muted)]"><div className="h-px flex-1 bg-white/10" />Fallback<div className="h-px flex-1 bg-white/10" /></div>
+
+          <form onSubmit={onSubmit} className="space-y-4">
             <input className="rc-input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
             <input className="rc-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
             {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
-            <button className="rc-btn rc-btn-primary w-full" disabled={loading || gateOpen}>{loading ? "Signing in…" : "Enter Royal Command"}</button>
+            <button className="rc-btn rc-btn-ghost w-full" disabled={loading || gateOpen}>{loading ? "Signing in…" : "Secure account sign in"}</button>
           </form>
-          <div className="mt-5 rounded-2xl border border-white/10 bg-black/15 p-4 text-xs leading-5 text-[var(--muted)]">
-            Personal questions, current location and local-weather questions can be optional conversational risk signals, but they are not treated as the sole security key because they may be guessed, observed or discovered. High-risk actions will use Passkey plus additional verification when required.
-          </div>
+
           <p className="mt-6 text-sm text-[var(--muted)]">New here? <Link href="/signup" className="text-[var(--gold-soft)]">Create account</Link></p>
         </section>
       </div>
