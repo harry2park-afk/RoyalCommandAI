@@ -48,6 +48,22 @@ function normalise(value: string) {
     .trim();
 }
 
+function compact(value: string) {
+  return normalise(value).replace(/\s+/g, "");
+}
+
+function matchesChallenge(expected: string, actual: string, language: LanguageKey) {
+  if (normalise(expected) === normalise(actual)) return true;
+
+  // Korean/Japanese speech recognition often changes spacing or omits punctuation.
+  // The phrase still has to contain the same characters in the same order.
+  if (language === "ko" || language === "ja") {
+    return compact(expected) === compact(actual);
+  }
+
+  return false;
+}
+
 function secret() {
   return (
     process.env.VOICE_CHALLENGE_SECRET ||
@@ -165,7 +181,7 @@ export async function POST(request: Request) {
     );
   }
 
-  const verified = normalise(payload.phrase) === normalise(body.transcript);
+  const verified = matchesChallenge(payload.phrase, body.transcript, payload.language);
   return NextResponse.json(
     {
       verified,
