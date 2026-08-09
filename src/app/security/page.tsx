@@ -1,4 +1,5 @@
 import Link from "next/link";
+import StepUpPanel from "@/components/security/StepUpPanel";
 import {
   BIOMETRIC_POLICY,
   SECURITY_CONTROLS,
@@ -60,6 +61,10 @@ export default function SecurityPage() {
           </div>
         </div>
       </section>
+
+      <div className="mb-6">
+        <StepUpPanel />
+      </div>
 
       <section className="rc-card p-5 md:p-6">
         <div className="flex flex-wrap items-end justify-between gap-3">
