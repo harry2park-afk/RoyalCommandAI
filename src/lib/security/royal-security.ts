@@ -17,7 +17,7 @@ export type SecurityPolicyVersion = {
 };
 
 export const SECURITY_POLICY_VERSION: SecurityPolicyVersion = {
-  version: "2026.08.10-1",
+  version: "2026.08.10-2",
   effectiveDate: "2026-08-10",
   reviewCadenceDays: 30,
   emergencyUpdateAllowed: true,
@@ -71,6 +71,22 @@ export const SECURITY_CONTROLS: SecurityControl[] = [
     priority: "critical",
     status: "required",
     userFriction: "low",
+  },
+  {
+    id: "voice-biometrics",
+    title: "Voice biometrics as an additional security factor",
+    description: "Support voice verification as an optional additional factor for phone and voice workflows. Voice must not be the only factor for high-risk financial actions because recordings, cloning and synthetic speech can be used in spoofing attacks.",
+    priority: "critical",
+    status: "required",
+    userFriction: "low",
+  },
+  {
+    id: "voice-liveness",
+    title: "Voice liveness and anti-spoofing",
+    description: "When voice verification is enabled, require anti-replay and synthetic-voice detection, challenge-response or equivalent presentation-attack controls, risk scoring and fallback to passkey or another strong factor when confidence is insufficient.",
+    priority: "critical",
+    status: "required",
+    userFriction: "step-up-only",
   },
   {
     id: "trusted-device",
@@ -155,7 +171,7 @@ export const SECURITY_CONTROLS: SecurityControl[] = [
   {
     id: "privacy-impact",
     title: "Biometric Privacy Impact Assessment",
-    description: "Any future Royal Command-controlled facial recognition feature must be opt-in, purpose-limited and independently privacy-reviewed before collection because biometric templates are sensitive information in Australia.",
+    description: "Any future Royal Command-controlled biometric feature, including face or voice recognition, must be opt-in, purpose-limited and independently privacy-reviewed before collection because biometric templates are sensitive information in Australia.",
     priority: "critical",
     status: "required",
     userFriction: "invisible",
@@ -187,6 +203,21 @@ export const BIOMETRIC_POLICY = {
   requirePrivacyImpactAssessment: true,
   allowFallback: true,
   fallbackMethods: ["device PIN", "security key", "approved recovery flow"],
+};
+
+export const VOICE_BIOMETRIC_POLICY = {
+  enabledAsOptionalFactor: true,
+  soleFactorForHighRiskActions: false,
+  rawVoiceRecordingRetentionDefault: "off",
+  voiceprintRetentionDefault: "off-until-approved-provider-and-privacy-review",
+  requireExplicitConsent: true,
+  requirePresentationAttackDetection: true,
+  requireReplayDetection: true,
+  requireSyntheticVoiceDetection: true,
+  preferChallengeResponseForHighRisk: true,
+  fallbackToPasskeyWhenLowConfidence: true,
+  useForPhoneIdentityAssurance: true,
+  useForContinuousPassiveMonitoring: false,
 };
 
 export function getSecurityControl(id: string) {
