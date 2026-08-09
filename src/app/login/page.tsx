@@ -12,6 +12,7 @@ type GateState =
   | "challenge-loading"
   | "challenge-ready"
   | "challenge-listening"
+  | "challenge-verifying"
   | "challenge-passed"
   | "biometric-ready"
   | "gate-opening"
@@ -19,6 +20,7 @@ type GateState =
 
 type VoiceChallenge = {
   challengeId: string;
+  challengeToken: string;
   phrase: string;
   language: string;
   expiresInSeconds: number;
@@ -38,18 +40,6 @@ function normalizeSpeech(value: string) {
     .replace(/[.,!?。、！？，]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-function similarityEnough(spoken: string, expected: string) {
-  const a = normalizeSpeech(spoken);
-  const b = normalizeSpeech(expected);
-  if (!a || !b) return false;
-  if (a === b || a.includes(b) || b.includes(a)) return true;
-
-  const wordsA = new Set(a.split(" "));
-  const wordsB = b.split(" ");
-  const matches = wordsB.filter((word) => wordsA.has(word)).length;
-  return matches / Math.max(wordsB.length, 1) >= 0.75;
 }
 
 function LoginForm() {
@@ -139,14 +129,14 @@ function LoginForm() {
       const res = await fetch(`/api/security/voice-challenge?lang=${encodeURIComponent(locale)}`, {
         cache: "no-store",
       });
-      const data = (await res.json()) as VoiceChallenge;
-      if (!res.ok) throw new Error("Challenge unavailable");
+      const data = (await res.json()) as VoiceChallenge & { enabled?: boolean; error?: string };
+      if (!res.ok || !data.challengeToken) throw new Error(data.error || "Challenge unavailable");
       setChallenge(data);
       setChallengeHeard("");
       setGateState("challenge-ready");
-    } catch {
+    } catch (err) {
       setGateState(platformBiometric ? "biometric-ready" : "fallback");
-      setError("Voice challenge could not be loaded. Continue with device verification or secure sign-in.");
+      setError(err instanceof Error ? err.message : "Voice challenge could not be loaded.");
     }
   }
 
@@ -180,6 +170,32 @@ function LoginForm() {
     recognition.start();
   }
 
+  async function verifyChallengeTranscript(transcript: string) {
+    if (!challenge?.challengeToken) return false;
+    setGateState("challenge-verifying");
+    try {
+      const res = await fetch("/api/security/voice-challenge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          challengeToken: challenge.challengeToken,
+          transcript,
+        }),
+      });
+      const data = (await res.json()) as { verified?: boolean; error?: string };
+      if (!res.ok || !data.verified) {
+        setGateState("challenge-ready");
+        setError(data.error || "The challenge phrase did not match. Read the exact sentence shown on screen.");
+        return false;
+      }
+      return true;
+    } catch {
+      setGateState("challenge-ready");
+      setError("Voice challenge could not be verified securely. Please try again.");
+      return false;
+    }
+  }
+
   function beginChallengeReadback() {
     if (!challenge) return;
     setError("");
@@ -187,21 +203,19 @@ function LoginForm() {
 
     const recognition = createRecognition((transcript) => {
       setChallengeHeard(transcript);
-      if (!similarityEnough(transcript, challenge.phrase)) {
-        setGateState("challenge-ready");
-        setError("The challenge phrase did not match closely enough. Read the exact sentence shown on screen.");
-        return;
-      }
+      void (async () => {
+        const verified = await verifyChallengeTranscript(transcript);
+        if (!verified) return;
 
-      setGateState("challenge-passed");
-      setTimeout(() => {
-        if (platformBiometric) {
-          setGateState("biometric-ready");
-        } else {
-          setGateState("gate-opening");
-          setTimeout(() => setGateState("fallback"), 1200);
-        }
-      }, 450);
+        setGateState("challenge-passed");
+        setTimeout(() => {
+          if (platformBiometric) {
+            setGateState("biometric-ready");
+          } else {
+            setGateState("fallback");
+          }
+        }, 450);
+      })();
     }, "challenge-listening");
 
     if (!recognition) {
@@ -288,7 +302,7 @@ function LoginForm() {
             Command the Guard, complete a live voice challenge when requested, then use the strongest device verification available. The system is designed to feel ceremonial, fast and secure rather than like an ordinary password screen.
           </p>
 
-          {gateState !== "challenge-ready" && gateState !== "challenge-listening" ? (
+          {gateState !== "challenge-ready" && gateState !== "challenge-listening" && gateState !== "challenge-verifying" ? (
             <button
               type="button"
               onClick={beginVoiceGate}
@@ -304,18 +318,23 @@ function LoginForm() {
             </button>
           ) : null}
 
-          {challenge && (gateState === "challenge-ready" || gateState === "challenge-listening") ? (
+          {challenge && (gateState === "challenge-ready" || gateState === "challenge-listening" || gateState === "challenge-verifying") ? (
             <div className="mt-6 w-full max-w-xl rounded-3xl border border-[var(--gold)]/30 bg-[var(--gold)]/5 p-5">
               <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Royal Voice Challenge</p>
               <p className="mt-3 text-xl leading-8">“{challenge.phrase}”</p>
-              <p className="mt-2 text-xs text-[var(--muted)]">Read this exact sentence aloud. The phrase changes randomly.</p>
+              <p className="mt-2 text-xs text-[var(--muted)]">Read this exact sentence aloud. The phrase changes randomly and expires quickly.</p>
               <button
                 type="button"
                 onClick={beginChallengeReadback}
                 className="rc-btn rc-btn-primary mt-4"
-                disabled={gateState === "challenge-listening"}
+                disabled={gateState === "challenge-listening" || gateState === "challenge-verifying"}
               >
-                <Mic size={17} /> {gateState === "challenge-listening" ? "Listening to challenge…" : "Read the Challenge"}
+                <Mic size={17} />
+                {gateState === "challenge-listening"
+                  ? "Listening to challenge…"
+                  : gateState === "challenge-verifying"
+                    ? "Verifying securely…"
+                    : "Read the Challenge"}
               </button>
               {challengeHeard ? <div className="mt-3 text-xs text-[var(--muted)]">Heard: “{challengeHeard}”</div> : null}
             </div>
@@ -324,7 +343,7 @@ function LoginForm() {
           <div className="mt-4 min-h-14 text-sm text-[var(--muted)]">
             {gateState === "idle" ? <span>Say: “문 열어라”, “참깨야 문 열어”, or “Open the gate”.</span> : null}
             {gateState === "command-accepted" ? <span className="text-[var(--gold-soft)]">Command accepted.</span> : null}
-            {gateState === "challenge-passed" ? <span className="text-[var(--gold-soft)]">Voice challenge passed. Preparing device verification…</span> : null}
+            {gateState === "challenge-passed" ? <span className="text-[var(--gold-soft)]">Voice challenge verified by the Royal Command server. Preparing device verification…</span> : null}
             {gateState === "biometric-ready" ? (
               <div>
                 <span className="text-[var(--gold-soft)]">Face / fingerprint / device verification is available.</span>
