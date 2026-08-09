@@ -1,5 +1,6 @@
 import Link from "next/link";
 import StepUpPanel from "@/components/security/StepUpPanel";
+import PasskeyManager from "@/components/security/PasskeyManager";
 import {
   BIOMETRIC_POLICY,
   SECURITY_CONTROLS,
@@ -64,6 +65,10 @@ export default function SecurityPage() {
           </div>
         </div>
       </section>
+
+      <div className="mb-6">
+        <PasskeyManager />
+      </div>
 
       <section className="rc-card mb-6 border-[var(--gold)]/25 p-5 md:p-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
