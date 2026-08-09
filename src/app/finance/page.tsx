@@ -24,6 +24,37 @@ type Task = {
   category: string;
 };
 
+type BankRequirement = {
+  id: string;
+  label: string;
+  level: "core" | "often" | "product-specific";
+  note?: string;
+};
+
+type BankProfile = {
+  id: string;
+  name: string;
+  shortName: string;
+  coverage: "major-bank" | "generic";
+  requirements: BankRequirement[];
+  sourceLabel: string;
+  sourceUrl: string;
+  lastVerified: string;
+  note: string;
+};
+
+type FinanceConfig = {
+  cdr: {
+    mode: "not-configured" | "representative" | "accredited-recipient";
+    configured: boolean;
+    providerName: string | null;
+    consentDashboardReady: boolean;
+    liveBankDataEnabled: boolean;
+    message: string;
+  };
+  banks: BankProfile[];
+};
+
 const TASKS: Task[] = [
   { id: "identity", label: "Business identity and ownership details", category: "Business" },
   { id: "abn", label: "ABN / ACN and registration documents", category: "Business" },
@@ -43,50 +74,42 @@ const FEATURES = [
   {
     icon: Landmark,
     title: "Connect My Bank",
-    text: "Designed for Australian Open Banking / CDR connections. Royal Command must never ask for or store a customer's internet-banking password.",
-    status: "Connector integration next",
+    text: "Australian Open Banking / CDR-ready architecture. Royal Command never asks for or stores a customer's internet-banking password.",
   },
   {
     icon: WalletCards,
     title: "My Financial Position",
-    text: "Bring authorised accounts, income, expenses, liabilities and cash flow into one customer-controlled view.",
-    status: "MVP structure ready",
+    text: "Authorised accounts, income, expenses, liabilities and cash flow can be brought into one customer-controlled view when a CDR pathway is activated.",
   },
   {
     icon: TrendingUp,
     title: "Finance Readiness Pathway",
     text: "Do not stop at 'not ready'. Identify missing evidence, create actions, track progress and prepare the customer until finance-ready.",
-    status: "MVP tracker ready",
   },
   {
     icon: FileCheck2,
     title: "Universal Bank Pack",
-    text: "Prepare one clean base pack, then add bank-specific requirements rather than asking the customer to rebuild everything for every lender.",
-    status: "MVP checklist ready",
+    text: "Prepare one clean base pack, then add bank-specific requirements rather than rebuilding the application for every lender.",
   },
   {
     icon: Building2,
     title: "Bank Requirements Engine",
-    text: "Store lender-specific eligibility and document requirements separately so the core customer file remains bank-independent.",
-    status: "Rules database next",
+    text: "Select an Australian bank to see its verified base requirements layered over the universal finance pack.",
   },
   {
     icon: BadgeDollarSign,
     title: "Loan Comparison",
-    text: "Compare total borrowing cost, fees, security, term and conditions. Keep the customer in control of the final choice.",
-    status: "Product-data integration next",
+    text: "Compare total borrowing cost, fees, security, term and conditions while keeping the customer in control of the final choice.",
   },
   {
     icon: ShieldCheck,
     title: "Professional Review",
-    text: "Allow customer-authorised accountants, brokers, lawyers or other qualified professionals to review the finance pack when required.",
-    status: "Permission workflow next",
+    text: "Customer-authorised accountants, brokers, lawyers or other qualified professionals can be added to the review workflow later.",
   },
   {
     icon: LockKeyhole,
     title: "Consent & Privacy",
-    text: "Show what information the customer has authorised, who can access it, and allow consent to be withdrawn or changed.",
-    status: "Governance layer required",
+    text: "The customer must be able to see what data is authorised, who can access it and how consent can be changed or withdrawn.",
   },
 ];
 
@@ -94,18 +117,42 @@ export default function FinancePage() {
   const [completed, setCompleted] = useState<string[]>([]);
   const [targetAmount, setTargetAmount] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [config, setConfig] = useState<FinanceConfig | null>(null);
+  const [selectedBankId, setSelectedBankId] = useState("generic-au");
+  const [bankCompleted, setBankCompleted] = useState<Record<string, string[]>>({});
+  const [configError, setConfigError] = useState("");
 
   useEffect(() => {
     const saved = window.localStorage.getItem("royalcommand:au-finance-readiness");
-    if (!saved) return;
-    try {
-      const parsed = JSON.parse(saved) as { completed?: string[]; targetAmount?: string; purpose?: string };
-      setCompleted(parsed.completed || []);
-      setTargetAmount(parsed.targetAmount || "");
-      setPurpose(parsed.purpose || "");
-    } catch {
-      // Ignore invalid old local data.
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved) as { completed?: string[]; targetAmount?: string; purpose?: string };
+        setCompleted(parsed.completed || []);
+        setTargetAmount(parsed.targetAmount || "");
+        setPurpose(parsed.purpose || "");
+      } catch {
+        // Ignore invalid old local data.
+      }
     }
+
+    const savedBank = window.localStorage.getItem("royalcommand:au-finance-bank-engine");
+    if (savedBank) {
+      try {
+        const parsed = JSON.parse(savedBank) as { selectedBankId?: string; completed?: Record<string, string[]> };
+        setSelectedBankId(parsed.selectedBankId || "generic-au");
+        setBankCompleted(parsed.completed || {});
+      } catch {
+        // Ignore invalid old local data.
+      }
+    }
+
+    fetch("/api/finance/config")
+      .then(async (res) => {
+        if (!res.ok) throw new Error("Finance configuration could not be loaded");
+        return (await res.json()) as FinanceConfig;
+      })
+      .then(setConfig)
+      .catch((error) => setConfigError(error instanceof Error ? error.message : "Configuration error"));
   }, []);
 
   useEffect(() => {
@@ -115,15 +162,41 @@ export default function FinancePage() {
     );
   }, [completed, targetAmount, purpose]);
 
+  useEffect(() => {
+    window.localStorage.setItem(
+      "royalcommand:au-finance-bank-engine",
+      JSON.stringify({ selectedBankId, completed: bankCompleted }),
+    );
+  }, [selectedBankId, bankCompleted]);
+
   const percent = useMemo(
     () => Math.round((completed.length / TASKS.length) * 100),
     [completed],
   );
 
+  const selectedBank = useMemo(
+    () => config?.banks.find((bank) => bank.id === selectedBankId) || config?.banks[0] || null,
+    [config, selectedBankId],
+  );
+
+  const selectedBankDone = selectedBank ? bankCompleted[selectedBank.id] || [] : [];
+  const bankPercent = selectedBank?.requirements.length
+    ? Math.round((selectedBankDone.length / selectedBank.requirements.length) * 100)
+    : 0;
+
   function toggleTask(id: string) {
     setCompleted((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id],
     );
+  }
+
+  function toggleBankRequirement(id: string) {
+    if (!selectedBank) return;
+    setBankCompleted((prev) => {
+      const current = prev[selectedBank.id] || [];
+      const next = current.includes(id) ? current.filter((item) => item !== id) : [...current, id];
+      return { ...prev, [selectedBank.id]: next };
+    });
   }
 
   return (
@@ -159,40 +232,156 @@ export default function FinancePage() {
         </div>
       </section>
 
-      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-        <section className="rc-card p-5 md:p-6">
-          <div className="flex items-center justify-between gap-3">
+      <section className="mb-6 grid gap-4 lg:grid-cols-2">
+        <div className="rc-card p-5 md:p-6">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">My Road to Finance</p>
-              <h2 className="mt-1 text-2xl" style={{ fontFamily: "var(--font-display), serif" }}>Loan Readiness Journey</h2>
-              <p className="mt-2 text-sm text-[var(--muted)]">If finance is not available today, Royal Command keeps preparing the customer until the evidence is stronger.</p>
+              <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Open Banking / CDR</p>
+              <h2 className="mt-1 text-2xl" style={{ fontFamily: "var(--font-display), serif" }}>Bank Connection Status</h2>
             </div>
-            <Banknote className="text-[var(--gold-soft)]" size={28} />
+            <Landmark className="text-[var(--gold-soft)]" size={26} />
           </div>
 
-          <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
-            <div className="h-full bg-[var(--gold)] transition-all" style={{ width: `${percent}%` }} />
+          {configError ? <p className="mt-4 text-sm text-[var(--danger)]">{configError}</p> : null}
+          {!config ? <p className="mt-4 text-sm text-[var(--muted)]">Checking CDR configuration…</p> : (
+            <div className="mt-4 space-y-3">
+              <div className="rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">Participation pathway</span>
+                  <span className={`rounded-full px-2.5 py-1 text-xs ${config.cdr.configured ? "bg-[var(--gold)]/15 text-[var(--gold-soft)]" : "bg-white/5 text-[var(--muted)]"}`}>
+                    {config.cdr.configured ? "Configured" : "Not live yet"}
+                  </span>
+                </div>
+                <p className="mt-2 text-sm text-[var(--muted)]">Mode: {config.cdr.mode}</p>
+                {config.cdr.providerName ? <p className="text-sm text-[var(--muted)]">Provider: {config.cdr.providerName}</p> : null}
+                <p className="mt-3 text-xs leading-5 text-[var(--muted)]">{config.cdr.message}</p>
+              </div>
+
+              <button
+                type="button"
+                disabled={!config.cdr.liveBankDataEnabled}
+                className={`rc-btn w-full ${config.cdr.liveBankDataEnabled ? "rc-btn-primary" : "rc-btn-ghost opacity-60"}`}
+                title={config.cdr.liveBankDataEnabled ? "Provider authorisation flow will be connected next" : "Requires an approved CDR participation pathway and provider credentials"}
+              >
+                {config.cdr.liveBankDataEnabled ? "Connect My Bank" : "Connect My Bank — awaiting CDR provider setup"}
+              </button>
+
+              <div className="rounded-xl border border-[var(--gold)]/20 bg-[var(--gold)]/5 px-3 py-2 text-xs text-[var(--muted)]">
+                Security rule: Royal Command does not collect or store internet-banking passwords. Customer consent and bank/provider authorisation must happen through the approved CDR flow.
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div className="rc-card p-5 md:p-6">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Bank Requirements Engine</p>
+              <h2 className="mt-1 text-2xl" style={{ fontFamily: "var(--font-display), serif" }}>Choose a Bank</h2>
+            </div>
+            <Building2 className="text-[var(--gold-soft)]" size={26} />
           </div>
 
-          <div className="mt-5 space-y-2">
-            {TASKS.map((task) => {
-              const checked = completed.includes(task.id);
-              return (
-                <button
-                  key={task.id}
-                  type="button"
-                  onClick={() => toggleTask(task.id)}
-                  className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${checked ? "border-[var(--gold)]/50 bg-[var(--gold)]/8" : "border-white/10 bg-black/15 hover:border-white/25"}`}
-                >
-                  {checked ? <CheckCircle2 size={19} className="shrink-0 text-[var(--gold-soft)]" /> : <span className="h-[19px] w-[19px] shrink-0 rounded-full border border-white/25" />}
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm">{task.label}</div>
-                    <div className="text-xs text-[var(--muted)]">{task.category}</div>
-                  </div>
-                </button>
-              );
-            })}
+          <label className="mt-4 block text-xs text-[var(--muted)]">Australian lender profile</label>
+          <select
+            className="rc-input mt-2"
+            value={selectedBankId}
+            onChange={(e) => setSelectedBankId(e.target.value)}
+            disabled={!config}
+          >
+            {(config?.banks || []).map((bank) => (
+              <option key={bank.id} value={bank.id}>{bank.shortName}</option>
+            ))}
+          </select>
+
+          {selectedBank ? (
+            <div className="mt-4">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span>{selectedBank.shortName} pack readiness</span>
+                <span className="text-[var(--gold-soft)]">{bankPercent}%</span>
+              </div>
+              <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                <div className="h-full bg-[var(--gold)] transition-all" style={{ width: `${bankPercent}%` }} />
+              </div>
+              <p className="mt-3 text-xs leading-5 text-[var(--muted)]">{selectedBank.note}</p>
+              <p className="mt-2 text-[11px] text-[var(--muted)]">Source checked: {selectedBank.lastVerified} · {selectedBank.sourceLabel}</p>
+            </div>
+          ) : null}
+        </div>
+      </section>
+
+      <div className="grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
+        <section className="space-y-6">
+          <div className="rc-card p-5 md:p-6">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">My Road to Finance</p>
+                <h2 className="mt-1 text-2xl" style={{ fontFamily: "var(--font-display), serif" }}>Loan Readiness Journey</h2>
+                <p className="mt-2 text-sm text-[var(--muted)]">If finance is not available today, Royal Command keeps preparing the customer until the evidence is stronger.</p>
+              </div>
+              <Banknote className="text-[var(--gold-soft)]" size={28} />
+            </div>
+
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full bg-[var(--gold)] transition-all" style={{ width: `${percent}%` }} />
+            </div>
+
+            <div className="mt-5 space-y-2">
+              {TASKS.map((task) => {
+                const checked = completed.includes(task.id);
+                return (
+                  <button
+                    key={task.id}
+                    type="button"
+                    onClick={() => toggleTask(task.id)}
+                    className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition ${checked ? "border-[var(--gold)]/50 bg-[var(--gold)]/8" : "border-white/10 bg-black/15 hover:border-white/25"}`}
+                  >
+                    {checked ? <CheckCircle2 size={19} className="shrink-0 text-[var(--gold-soft)]" /> : <span className="h-[19px] w-[19px] shrink-0 rounded-full border border-white/25" />}
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm">{task.label}</div>
+                      <div className="text-xs text-[var(--muted)]">{task.category}</div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
+
+          {selectedBank ? (
+            <div className="rc-card p-5 md:p-6">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Selected bank pack</p>
+                  <h2 className="mt-1 text-2xl" style={{ fontFamily: "var(--font-display), serif" }}>{selectedBank.shortName} Requirements</h2>
+                </div>
+                <FileCheck2 className="text-[var(--gold-soft)]" size={26} />
+              </div>
+
+              <div className="mt-5 space-y-2">
+                {selectedBank.requirements.map((requirement) => {
+                  const checked = selectedBankDone.includes(requirement.id);
+                  return (
+                    <button
+                      key={requirement.id}
+                      type="button"
+                      onClick={() => toggleBankRequirement(requirement.id)}
+                      className={`flex w-full items-start gap-3 rounded-2xl border px-4 py-3 text-left transition ${checked ? "border-[var(--gold)]/50 bg-[var(--gold)]/8" : "border-white/10 bg-black/15 hover:border-white/25"}`}
+                    >
+                      {checked ? <CheckCircle2 size={19} className="mt-0.5 shrink-0 text-[var(--gold-soft)]" /> : <span className="mt-0.5 h-[19px] w-[19px] shrink-0 rounded-full border border-white/25" />}
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm">{requirement.label}</div>
+                        <div className="mt-1 text-xs capitalize text-[var(--muted)]">{requirement.level.replace("-", " ")}</div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="mt-4 text-xs leading-5 text-[var(--muted)]">
+                This checklist is preparation guidance, not a promise of approval. Exact requirements vary by product, entity structure, security and the bank's current credit assessment.
+              </p>
+            </div>
+          ) : null}
         </section>
 
         <section className="space-y-4">
@@ -209,7 +398,6 @@ export default function FinancePage() {
                       <div>
                         <div className="font-medium">{feature.title}</div>
                         <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{feature.text}</p>
-                        <div className="mt-2 text-[11px] text-[var(--gold-soft)]">{feature.status}</div>
                       </div>
                     </div>
                   </div>
@@ -221,7 +409,7 @@ export default function FinancePage() {
           <div className="rc-card border-[var(--gold)]/25 p-5">
             <div className="flex items-center gap-2 text-[var(--gold-soft)]"><FileText size={19} /><span className="font-medium">Universal Bank Pack</span></div>
             <p className="mt-2 text-sm text-[var(--muted)]">
-              This first version builds the common preparation file. Bank-specific eligibility, live CDR bank connections, credit-assistance workflows and lender applications must only be activated after the relevant Australian compliance and licensed-partner pathways are configured.
+              The common pack and major-bank requirements engine are now wired into the Finance Room. Live CDR bank data remains disabled until Royal Command has an approved CDR representative or accredited-recipient pathway, provider credentials, authorisation flow and required testing.
             </p>
           </div>
         </section>
