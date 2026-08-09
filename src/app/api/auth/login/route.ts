@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { cookies } from "next/headers";
-import { loginSchema, signupSchema } from "@/lib/validations";
+import { loginSchema } from "@/lib/validations";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { localDb } from "@/lib/local-store";
 import { createClient } from "@/lib/supabase/server";
@@ -19,38 +19,40 @@ export async function POST(request: Request) {
         password: data.password,
       });
       if (error) {
-        return NextResponse.json({ error: error.message }, { status: 401 });
+        return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
       }
       return NextResponse.json({
-        user: {
-          id: auth.user?.id,
-          email: auth.user?.email,
-        },
+        user: { id: auth.user?.id, email: auth.user?.email },
         mode: "supabase",
       });
     }
 
-    const user = localDb.findUserByEmail(data.email);
-    if (!user || user.password !== data.password) {
+    const localAllowed =
+      process.env.NODE_ENV !== "production" || process.env.ENABLE_LOCAL_DEMO_AUTH === "true";
+    if (!localAllowed) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
-        { status: 401 },
+        { error: "Production authentication is not configured" },
+        { status: 503 },
       );
     }
+
+    const user = localDb.findUserByEmail(data.email);
+    if (!user || user.password !== data.password) {
+      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+    }
+
     const token = localDb.createSession(user.id);
     const cookieStore = await cookies();
     cookieStore.set("rc_session", token, {
       httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
       path: "/",
+      maxAge: 60 * 60 * 12,
     });
 
     return NextResponse.json({
-      user: {
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-      },
+      user: { id: user.id, email: user.email, fullName: user.fullName },
       mode: "local",
     });
   } catch (error) {
