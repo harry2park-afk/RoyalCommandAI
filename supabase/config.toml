@@ -1,0 +1,9 @@
+project_id = "aygawkavujjmybekswrg"
+
+[auth.passkey]
+enabled = true
+
+[auth.webauthn]
+rp_display_name = "Royal Command"
+rp_id = "royalcommand.ai"
+rp_origins = ["https://royalcommand.ai", "https://www.royalcommand.ai"]
