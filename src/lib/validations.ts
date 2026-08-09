@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AI_PROVIDER_IDS } from "@/lib/ai/types";
 
 export const signupSchema = z.object({
   email: z.string().email(),
@@ -22,9 +23,7 @@ export const chatSchema = z.object({
   roomId: z.string().min(1),
   prompt: z.string().min(1).max(12000),
   language: z.string().min(2).max(12).optional(),
-  providers: z
-    .array(z.enum(["openai", "anthropic", "google", "xai"]))
-    .optional(),
+  providers: z.array(z.enum(AI_PROVIDER_IDS)).optional(),
   history: z
     .array(
       z.object({
