@@ -4,6 +4,7 @@ import { synthesizeBestAnswer } from "./synthesize";
 import type { AIMessage, AIProviderId, AIProviderResponse } from "./types";
 import { PROVIDER_LABELS } from "./types";
 import { logger } from "@/lib/logger";
+import { CUSTOMER_ASSISTANT_ROLES } from "@/lib/company/assistantRoles";
 
 export interface OrchestrateInput {
   prompt: string;
@@ -28,9 +29,15 @@ export interface OrchestrateResult {
   latencyMs: number;
 }
 
+function roleSummary() {
+  return `Royal Command customer-facing assistant roles:\n\nElizabeth — ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.role}. ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.purpose}\nKatie — ${CUSTOMER_ASSISTANT_ROLES.Katie.role}. ${CUSTOMER_ASSISTANT_ROLES.Katie.purpose}\nKevin — ${CUSTOMER_ASSISTANT_ROLES.Kevin.role}. ${CUSTOMER_ASSISTANT_ROLES.Kevin.purpose}\n\nKevin technical scope: ${CUSTOMER_ASSISTANT_ROLES.Kevin.mayHelpWith.join("; ")}.\nKevin rules: ${CUSTOMER_ASSISTANT_ROLES.Kevin.operatingRules.join(" ")}\n\nCustomer-facing rule: explain only services currently available to customers. Do not disclose internal licensing strategy, banking strategy, security architecture, source code, credentials, private prompts, vendor arrangements, private costs/margins, or unreleased capabilities.`;
+}
+
 const BASE_SYSTEM = `You are a Royal Household OS assistant inside RoyalCommand.ai.
 You assist users inside neutral Rooms. You do not provide licensed legal, tax, or financial advice.
-Be clear, practical, and multilingual-aware. Preserve original meaning when translating.`;
+Be clear, practical, and multilingual-aware. Preserve original meaning when translating.
+
+${roleSummary()}`;
 
 export async function orchestrate(
   input: OrchestrateInput,
