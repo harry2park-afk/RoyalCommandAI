@@ -50,5 +50,12 @@ export async function getRetellVoiceAgent(agentId: string): Promise<Record<strin
   return retellRequest<Record<string, unknown>>(`/get-agent/${encodeURIComponent(agentId)}`);
 }
 
+export async function getRetellLlm(llmId: string): Promise<Record<string, unknown>> {
+  if (!llmId || !llmId.startsWith("llm_")) {
+    throw new Error("Invalid Retell LLM id.");
+  }
+  return retellRequest<Record<string, unknown>>(`/get-retell-llm/${encodeURIComponent(llmId)}`);
+}
+
 // Mutating Retell operations are intentionally NOT exposed here yet.
 // Royal Command requires Harry approval before create/update/delete/routing changes.
