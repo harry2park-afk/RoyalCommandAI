@@ -218,18 +218,14 @@ export default function DashboardPage() {
 
       {builderOpen && currentField ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl rounded-3xl border-2 border-[var(--gold)]/55 bg-[#0d1628] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.62)] md:p-8">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.22em] text-[var(--gold-soft)]">{template.name}</p>
-                <h3 className="mt-1 text-3xl" style={{ fontFamily: "var(--font-display), serif" }}>Create Room</h3>
-                <p className="mt-2 text-xs text-[var(--muted)]">{stepIndex + 1} / {fields.length}</p>
-              </div>
+          <div className="w-full max-w-xl rounded-3xl border-2 border-[var(--gold)]/55 bg-[#0d1628] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.62)] md:p-8">
+            <div className="flex items-center justify-between gap-4 border-b border-white/10 pb-4">
+              <p className="text-sm font-semibold uppercase tracking-[0.2em] text-[var(--gold-soft)]">{template.name}</p>
               <button type="button" onClick={() => setBuilderOpen(false)} className="rounded-full border-2 border-white/15 p-2 hover:border-[var(--gold)]" aria-label="Close"><X size={18} /></button>
             </div>
 
-            <div className="mt-8 rounded-2xl border-2 border-[var(--gold)]/35 bg-black/20 p-5 md:p-6">
-              <label className="text-lg font-semibold">{currentField.label}</label>
+            <div className="mt-6">
+              <label className="text-xl font-semibold">{currentField.label}</label>
 
               {currentField.options ? (
                 <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -242,7 +238,6 @@ export default function DashboardPage() {
               ) : (
                 <form onSubmit={handleTextSubmit} className="mt-5">
                   <input ref={textInputRef} className="rc-input text-lg" placeholder={currentField.placeholder || "Type here"} value={answers[currentField.id] || ""} onChange={(e) => setAnswer(currentField.id, e.target.value)} autoFocus />
-                  <p className="mt-3 text-xs text-[var(--muted)]">Press Enter to continue.</p>
                 </form>
               )}
             </div>
