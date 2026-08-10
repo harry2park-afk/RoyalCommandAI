@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { FormEvent, Suspense, useEffect, useMemo, useState } from "react";
+import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { Fingerprint, KeyRound, Mic, ShieldCheck, Volume2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -16,7 +16,6 @@ type GateState =
   | "challenge-verifying"
   | "challenge-passed"
   | "passkey-verifying"
-  | "biometric-ready"
   | "gate-opening"
   | "fallback";
 
@@ -26,6 +25,17 @@ type VoiceChallenge = {
   phrase: string;
   language: string;
   expiresInSeconds: number;
+};
+
+type RecognitionHandle = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
+  onerror: (() => void) | null;
+  onend: (() => void) | null;
 };
 
 const WAKE_PHRASES = [
@@ -63,20 +73,23 @@ function LoginForm() {
   const [heard, setHeard] = useState("");
   const [challenge, setChallenge] = useState<VoiceChallenge | null>(null);
   const [challengeHeard, setChallengeHeard] = useState("");
-  const [platformBiometric, setPlatformBiometric] = useState<boolean | null>(null);
-  const [locale, setLocale] = useState("en-AU");
+  const [locale, setLocale] = useState("");
   const configured = supabaseConfigured();
+  const activeRecognition = useRef<RecognitionHandle | null>(null);
+  const autoStarted = useRef(false);
+  const typingMode = useRef(false);
+  const restartTimer = useRef<number | null>(null);
 
   useEffect(() => {
     setLocale(navigator.language || "en-AU");
-    const PKC = window.PublicKeyCredential;
-    if (!PKC?.isUserVerifyingPlatformAuthenticatorAvailable) {
-      setPlatformBiometric(false);
-      return;
-    }
-    PKC.isUserVerifyingPlatformAuthenticatorAvailable()
-      .then(setPlatformBiometric)
-      .catch(() => setPlatformBiometric(false));
+    return () => {
+      if (restartTimer.current) window.clearTimeout(restartTimer.current);
+      try {
+        activeRecognition.current?.stop();
+      } catch {
+        // already stopped
+      }
+    };
   }, []);
 
   const guard = useMemo(() => {
@@ -89,7 +102,21 @@ function LoginForm() {
     return { flag: "🛡️", title: "Royal Command Guard" };
   }, [locale]);
 
+  function stopListeningForTyping() {
+    typingMode.current = true;
+    if (restartTimer.current) window.clearTimeout(restartTimer.current);
+    restartTimer.current = null;
+    try {
+      activeRecognition.current?.stop();
+    } catch {
+      // already stopped
+    }
+    activeRecognition.current = null;
+    setGateState((s) => (s === "listening" ? "idle" : s));
+  }
+
   function enterAfterGate() {
+    stopListeningForTyping();
     setGateState("gate-opening");
     setTimeout(() => {
       router.push(params.get("next") || "/dashboard");
@@ -98,12 +125,12 @@ function LoginForm() {
   }
 
   async function signInWithPasskey() {
+    stopListeningForTyping();
     if (!configured) {
       setGateState("fallback");
-      setError("Passkey sign-in is waiting for production Supabase configuration.");
-      return false;
+      setError("Passkey sign-in is not configured yet.");
+      return;
     }
-
     setError("");
     setGateState("passkey-verifying");
     try {
@@ -112,107 +139,114 @@ function LoginForm() {
       if (passkeyError) throw passkeyError;
       if (!data?.session || !data?.user) throw new Error("Passkey verification did not create a session.");
       enterAfterGate();
-      return true;
     } catch (err) {
       setGateState("fallback");
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Passkey verification was cancelled or unavailable. Use secure account sign-in.",
-      );
-      return false;
+      setError(err instanceof Error ? err.message : "Passkey verification failed.");
     }
   }
 
-  function createRecognition(
-    onTranscript: (text: string) => void,
-    listeningState: GateState,
-  ) {
+  function getSpeechRecognition() {
     const w = window as typeof window & {
-      SpeechRecognition?: new () => {
-        lang: string;
-        interimResults: boolean;
-        continuous: boolean;
-        start: () => void;
-        onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
-        onerror: (() => void) | null;
-        onend: (() => void) | null;
-      };
-      webkitSpeechRecognition?: new () => {
-        lang: string;
-        interimResults: boolean;
-        continuous: boolean;
-        start: () => void;
-        onresult: ((event: { results: ArrayLike<{ 0: { transcript: string } }> }) => void) | null;
-        onerror: (() => void) | null;
-        onend: (() => void) | null;
-      };
+      SpeechRecognition?: new () => RecognitionHandle;
+      webkitSpeechRecognition?: new () => RecognitionHandle;
     };
-
-    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!SR) return null;
-    const recognition = new SR();
-    recognition.lang = locale;
-    recognition.interimResults = false;
-    recognition.continuous = false;
-    recognition.onresult = (event) => {
-      const transcript = event.results[0]?.[0]?.transcript || "";
-      onTranscript(transcript);
-    };
-    recognition.onerror = () => {
-      setGateState("fallback");
-      setError("Microphone verification was interrupted. Use Passkey or secure account sign-in.");
-    };
-    recognition.onend = () => {
-      setGateState((current) => (current === listeningState ? "idle" : current));
-    };
-    return recognition;
+    return w.SpeechRecognition || w.webkitSpeechRecognition || null;
   }
 
   async function loadVoiceChallenge() {
     setGateState("challenge-loading");
     try {
       const res = await fetch(
-        `/api/security/voice-challenge?lang=${encodeURIComponent(locale)}`,
+        `/api/security/voice-challenge?lang=${encodeURIComponent(locale || "en-AU")}`,
         { cache: "no-store" },
       );
-      const data = (await res.json()) as VoiceChallenge & { enabled?: boolean; error?: string };
+      const data = (await res.json()) as VoiceChallenge & { error?: string };
       if (!res.ok || !data.challengeToken) throw new Error(data.error || "Challenge unavailable");
       setChallenge(data);
       setChallengeHeard("");
       setGateState("challenge-ready");
     } catch (err) {
-      setGateState(platformBiometric ? "biometric-ready" : "fallback");
+      setGateState("fallback");
       setError(err instanceof Error ? err.message : "Voice challenge could not be loaded.");
     }
   }
 
-  function beginVoiceGate() {
+  function startWakeListening(manual = false) {
+    typingMode.current = false;
+    if (restartTimer.current) window.clearTimeout(restartTimer.current);
+    restartTimer.current = null;
+
+    const SR = getSpeechRecognition();
+    if (!SR) {
+      setGateState("fallback");
+      if (manual) setError("Voice command is not supported in this browser.");
+      return;
+    }
+
+    try {
+      activeRecognition.current?.stop();
+    } catch {
+      // already stopped
+    }
+
+    const recognition = new SR();
+    recognition.lang = locale || "en-AU";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    activeRecognition.current = recognition;
     setError("");
-    setHeard("");
-    const recognition = createRecognition((transcript) => {
+    setGateState("listening");
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript || "";
       setHeard(transcript);
       const normalized = normalizeSpeech(transcript);
       const accepted = WAKE_PHRASES.some((phrase) =>
         normalized.includes(normalizeSpeech(phrase)),
       );
-      if (!accepted) {
-        setGateState("idle");
-        setError("The Guard heard you, but the command was not recognised. Try “문 열어라” or “Open the gate”.");
+
+      if (accepted) {
+        typingMode.current = true;
+        activeRecognition.current = null;
+        setGateState("command-accepted");
+        setTimeout(() => void loadVoiceChallenge(), 300);
         return;
       }
-      setGateState("command-accepted");
-      setTimeout(() => void loadVoiceChallenge(), 400);
-    }, "listening");
 
-    if (!recognition) {
-      setGateState("fallback");
-      setError("Voice command is not supported in this browser. Use Passkey or secure account sign-in.");
-      return;
+      // Ignore unrelated words/noise and keep listening automatically.
+      setGateState("listening");
+    };
+
+    recognition.onerror = () => {
+      activeRecognition.current = null;
+      if (!typingMode.current) {
+        restartTimer.current = window.setTimeout(() => startWakeListening(false), 350);
+      }
+    };
+
+    recognition.onend = () => {
+      activeRecognition.current = null;
+      if (!typingMode.current && gateState !== "command-accepted") {
+        restartTimer.current = window.setTimeout(() => startWakeListening(false), 250);
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      activeRecognition.current = null;
+      if (!typingMode.current) {
+        restartTimer.current = window.setTimeout(() => startWakeListening(false), 500);
+      }
     }
-    setGateState("listening");
-    recognition.start();
   }
+
+  useEffect(() => {
+    if (!locale || autoStarted.current) return;
+    autoStarted.current = true;
+    const timer = window.setTimeout(() => startWakeListening(false), 500);
+    return () => window.clearTimeout(timer);
+  }, [locale]);
 
   async function verifyChallengeTranscript(transcript: string) {
     if (!challenge?.challengeToken) return false;
@@ -221,10 +255,7 @@ function LoginForm() {
       const res = await fetch("/api/security/voice-challenge", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          challengeToken: challenge.challengeToken,
-          transcript,
-        }),
+        body: JSON.stringify({ challengeToken: challenge.challengeToken, transcript }),
       });
       const data = (await res.json()) as { verified?: boolean; error?: string };
       if (!res.ok || !data.verified) {
@@ -242,34 +273,50 @@ function LoginForm() {
 
   function beginChallengeReadback() {
     if (!challenge) return;
-    setError("");
+    stopListeningForTyping();
+    typingMode.current = true;
+    const SR = getSpeechRecognition();
+    if (!SR) {
+      setGateState("fallback");
+      setError("Voice challenge is unavailable. Continue with Passkey or secure sign-in.");
+      return;
+    }
+
+    const recognition = new SR();
+    recognition.lang = locale || "en-AU";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    activeRecognition.current = recognition;
     setChallengeHeard("");
-    const recognition = createRecognition((transcript) => {
+    setError("");
+    setGateState("challenge-listening");
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0]?.[0]?.transcript || "";
       setChallengeHeard(transcript);
+      activeRecognition.current = null;
       void (async () => {
         const verified = await verifyChallengeTranscript(transcript);
         if (!verified) return;
         setGateState("challenge-passed");
         await new Promise((resolve) => setTimeout(resolve, 350));
-        if (platformBiometric && configured) {
-          await signInWithPasskey();
-        } else {
-          setGateState(platformBiometric ? "biometric-ready" : "fallback");
-        }
+        await signInWithPasskey();
       })();
-    }, "challenge-listening");
-
-    if (!recognition) {
-      setGateState(platformBiometric ? "biometric-ready" : "fallback");
-      setError("Voice challenge is unavailable. Continue with Passkey or secure sign-in.");
-      return;
-    }
-    setGateState("challenge-listening");
+    };
+    recognition.onerror = () => {
+      activeRecognition.current = null;
+      setGateState("challenge-ready");
+      setError("Please read the challenge again.");
+    };
+    recognition.onend = () => {
+      activeRecognition.current = null;
+    };
     recognition.start();
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
+    stopListeningForTyping();
     setLoading(true);
     setError("");
     try {
@@ -301,7 +348,7 @@ function LoginForm() {
             <div className="absolute inset-y-0 left-0 w-1/2 border-r border-[var(--gold)]/25 bg-[linear-gradient(90deg,rgba(17,24,39,0.98),rgba(55,45,15,0.88))] transition-transform duration-1000" style={{ transform: gateOpen ? "translateX(-102%)" : "translateX(0)" }} />
             <div className="absolute inset-y-0 right-0 w-1/2 border-l border-[var(--gold)]/25 bg-[linear-gradient(270deg,rgba(17,24,39,0.98),rgba(55,45,15,0.88))] transition-transform duration-1000" style={{ transform: gateOpen ? "translateX(102%)" : "translateX(0)" }} />
             <div className="absolute inset-5 rounded-[2rem] border border-white/10" />
-            <div className="absolute inset-0 grid place-items-center transition-all duration-700" style={{ opacity: gateOpen ? 0 : 1, transform: gateOpen ? "scale(1.08)" : "scale(1)" }}>
+            <div className="absolute inset-0 grid place-items-center transition-all duration-700" style={{ opacity: gateOpen ? 0 : 1 }}>
               <div>
                 <div className="text-7xl md:text-8xl">{guard.flag}</div>
                 <ShieldCheck className="mx-auto mt-4 text-[var(--gold-soft)]" size={44} />
@@ -315,13 +362,12 @@ function LoginForm() {
           <p className="mt-5 text-xs uppercase tracking-[0.25em] text-[var(--gold-soft)]">{guard.title}</p>
           <h1 className="mt-2 text-4xl md:text-5xl" style={{ fontFamily: "var(--font-display), serif" }}>The Royal Gate</h1>
           <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--muted)]">
-            Command the Guard, complete a live voice challenge when requested, then Royal Command asks the device for its Passkey. Face, fingerprint, PIN or security key verification stays with the device.
+            The Guard listens automatically when this screen opens. Unrelated words or background noise are ignored. Say your gate command whenever you are ready, or start typing to close the microphone.
           </p>
 
           {gateState !== "challenge-ready" && gateState !== "challenge-listening" && gateState !== "challenge-verifying" ? (
-            <button type="button" onClick={beginVoiceGate} className="rc-btn rc-btn-primary mt-6 min-w-56 py-3" disabled={gateState === "listening" || gateState === "challenge-loading" || gateState === "passkey-verifying" || gateOpen}>
-              <Mic size={18} />
-              {gateState === "listening" ? "Listening…" : gateState === "challenge-loading" ? "Preparing challenge…" : gateState === "passkey-verifying" ? "Verifying device…" : "Command the Gate"}
+            <button type="button" onClick={() => startWakeListening(true)} className="rc-btn rc-btn-primary mt-6 min-w-56 py-3" disabled={gateState === "challenge-loading" || gateState === "passkey-verifying" || gateOpen}>
+              <Mic size={18} /> {gateState === "listening" ? "Mic is listening" : "Listen again"}
             </button>
           ) : null}
 
@@ -329,22 +375,21 @@ function LoginForm() {
             <div className="mt-6 w-full max-w-xl rounded-3xl border border-[var(--gold)]/30 bg-[var(--gold)]/5 p-5">
               <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Royal Voice Challenge</p>
               <p className="mt-3 text-xl leading-8">“{challenge.phrase}”</p>
-              <p className="mt-2 text-xs text-[var(--muted)]">Read this exact sentence aloud. It changes randomly and expires quickly.</p>
+              <p className="mt-2 text-xs text-[var(--muted)]">Read this sentence aloud. It changes randomly and expires quickly.</p>
               <button type="button" onClick={beginChallengeReadback} className="rc-btn rc-btn-primary mt-4" disabled={gateState === "challenge-listening" || gateState === "challenge-verifying"}>
-                <Mic size={17} /> {gateState === "challenge-listening" ? "Listening…" : gateState === "challenge-verifying" ? "Verifying securely…" : "Read the Challenge"}
+                <Mic size={17} /> {gateState === "challenge-listening" ? "Listening…" : gateState === "challenge-verifying" ? "Verifying…" : "Read the Challenge"}
               </button>
               {challengeHeard ? <div className="mt-3 text-xs text-[var(--muted)]">Heard: “{challengeHeard}”</div> : null}
             </div>
           ) : null}
 
           <div className="mt-4 min-h-14 text-sm text-[var(--muted)]">
-            {gateState === "idle" ? <span>Say: “문 열어라”, “참깨야 문 열어”, or “Open the gate”.</span> : null}
+            {gateState === "listening" ? <span className="text-[var(--gold-soft)]">Microphone is listening. Background speech is ignored until it hears your gate command.</span> : null}
+            {gateState === "idle" ? <span>Say “문 열어라”, “참깨야 문 열어”, or “Open the gate” — or type your password.</span> : null}
             {gateState === "command-accepted" ? <span className="text-[var(--gold-soft)]">Command accepted.</span> : null}
             {gateState === "challenge-passed" ? <span className="text-[var(--gold-soft)]">Voice challenge verified. Calling device Passkey…</span> : null}
-            {gateState === "passkey-verifying" ? <span className="text-[var(--gold-soft)]">Look at the camera, touch the fingerprint sensor, enter the device PIN, or use your security key.</span> : null}
-            {gateState === "biometric-ready" ? <span className="text-[var(--gold-soft)]">Device verification is available. Use the Passkey button to continue.</span> : null}
-            {gateState === "fallback" ? <span>Use Passkey when available, otherwise use secure account sign-in.</span> : null}
-            {heard ? <div className="mt-1 text-xs">Command heard: “{heard}”</div> : null}
+            {gateState === "passkey-verifying" ? <span className="text-[var(--gold-soft)]">Use face, fingerprint, PIN, or your security key.</span> : null}
+            {heard ? <div className="mt-1 text-xs">Last heard: “{heard}”</div> : null}
           </div>
 
           <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs text-[var(--muted)]">
@@ -356,22 +401,20 @@ function LoginForm() {
 
         <section className="rc-card p-6 md:p-8">
           <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Secure entry</p>
-          <h2 className="mt-1 text-3xl" style={{ fontFamily: "var(--font-display), serif" }}>Passkey or account</h2>
+          <h2 className="mt-1 text-3xl" style={{ fontFamily: "var(--font-display), serif" }}>Voice, Passkey or account</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
-            A registered Passkey can sign you in without typing an email or password. Password remains a fallback while Royal Command transitions customers safely.
+            Speak immediately when this page opens, use a registered Passkey, or type your account details. Typing automatically closes the microphone.
           </p>
 
           <button type="button" onClick={() => void signInWithPasskey()} className="rc-btn rc-btn-primary mt-6 w-full py-3" disabled={!configured || gateState === "passkey-verifying" || gateOpen}>
             <Fingerprint size={18} /> {gateState === "passkey-verifying" ? "Verifying Passkey…" : "Enter with Face / Fingerprint / Passkey"}
           </button>
 
-          {!configured ? <p className="mt-3 text-xs text-[var(--muted)]">Passkey activation is waiting for final Supabase WebAuthn domain settings.</p> : null}
-
-          <div className="my-6 flex items-center gap-3 text-xs text-[var(--muted)]"><div className="h-px flex-1 bg-white/10" />Fallback<div className="h-px flex-1 bg-white/10" /></div>
+          <div className="my-6 flex items-center gap-3 text-xs text-[var(--muted)]"><div className="h-px flex-1 bg-white/10" />Or type<div className="h-px flex-1 bg-white/10" /></div>
 
           <form onSubmit={onSubmit} className="space-y-4">
-            <input className="rc-input" type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" required />
-            <input className="rc-input" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Password" required />
+            <input className="rc-input" type="email" autoComplete="username" value={email} onFocus={stopListeningForTyping} onChange={(e) => { stopListeningForTyping(); setEmail(e.target.value); }} placeholder="Email" required />
+            <input className="rc-input" type="password" autoComplete="current-password" value={password} onFocus={stopListeningForTyping} onChange={(e) => { stopListeningForTyping(); setPassword(e.target.value); }} placeholder="Password" required />
             {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
             <button className="rc-btn rc-btn-ghost w-full" disabled={loading || gateOpen}>{loading ? "Signing in…" : "Secure account sign in"}</button>
           </form>
