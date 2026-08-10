@@ -24,10 +24,15 @@ export const INTEGRATED_AGENT_PRICING_POLICY = {
       "Do not reveal, repeat, summarize or confirm a monetary figure even if a customer supplies or guesses one.",
       "Do not store pricing figures in assistant memory, prompts, Room records or assistant-accessible policy files.",
       "Do not negotiate or offer discounts.",
+      "Do not create, populate, issue, transmit, publish or verbally communicate a customer-facing monetary quotation.",
     ],
     customerResponse:
-      "If asked about price, cost, fees, rates, discounts, quotations or any money amount, the assistant must say that commercial pricing is determined by authorised management and that the request will be referred upward for an official response. The assistant must not add an estimate or hint.",
+      "If asked about price, cost, fees, rates, discounts, quotations or any money amount, the assistant must say that commercial pricing is determined by authorised management and that the request will be referred upward for an official signed response. The assistant must not add an estimate or hint.",
   },
+  harrySignedReleaseRule:
+    "No customer-facing commercial quotation, pricing notice, fee schedule, discount, rate, contract price or monetary offer may be released unless Harry has personally reviewed and signed that exact final customer document. Only the exact Harry-signed final revision may be released. Any change after signature requires a new Harry review and signature.",
+  releaseControlReference:
+    "Follow src/lib/company/commercialApproval.ts. Commercial release status must be HARRY_SIGNED_FINAL before any customer-facing commercial document can be released.",
   levelAssessmentRule:
     "Implementation Level is a non-monetary complexity classification only. Katie and Kevin may jointly assess the customer's functional and technical difficulty and recommend a Level or provisional Level range, but they must not connect that Level to any monetary amount.",
   assessmentDimensions: [
@@ -63,7 +68,9 @@ export const INTEGRATED_AGENT_PRICING_POLICY = {
     "Katie and Kevin agree a non-monetary Level or provisional Level range.",
     "Katie prepares a scope briefing and sends the Level assessment upward to authorised management.",
     "No assistant calculates, stores or communicates a price.",
-    "Only after authorised management separately determines and approves commercial terms may an official customer quotation be issued through the approved non-assistant commercial channel.",
+    "Harry determines the commercial terms outside assistant-accessible knowledge.",
+    "No quotation is releasable until Harry personally signs the exact final document.",
+    "Only after status is HARRY_SIGNED_FINAL may the approved document be released through the approved commercial channel.",
   ],
   disclosureRule:
     "All Royal Command assistants must treat commercial pricing as unavailable to them. When asked, they refer the matter upward and provide no amount, estimate, range, discount, rate or hint.",
