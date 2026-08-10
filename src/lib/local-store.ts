@@ -112,6 +112,13 @@ export const localDb = {
   getRoom(id: string) {
     return store().rooms.find((r) => r.id === id);
   },
+  deleteRoom(id: string) {
+    const before = store().rooms.length;
+    store().rooms = store().rooms.filter((r) => r.id !== id);
+    store().messages = store().messages.filter((m) => m.roomId !== id);
+    store().documents = store().documents.filter((d) => d.roomId !== id);
+    return store().rooms.length < before;
+  },
   listMessages(roomId: string) {
     return store().messages.filter((m) => m.roomId === roomId);
   },
