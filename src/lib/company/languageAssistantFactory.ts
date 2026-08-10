@@ -1,4 +1,5 @@
 import { CUSTOMER_ASSISTANT_ROLES } from "./assistantRoles";
+import { ELIZABETH_EQUIVALENT_TEMPLATE_VERSION } from "./elizabethLanguageTemplate";
 
 export type LanguageAssistantDefinition = {
   id: string;
@@ -7,6 +8,7 @@ export type LanguageAssistantDefinition = {
   role: typeof CUSTOMER_ASSISTANT_ROLES.Elizabeth.role;
   purpose: typeof CUSTOMER_ASSISTANT_ROLES.Elizabeth.purpose;
   customerServiceEquivalentTo: "Elizabeth";
+  templateVersion: typeof ELIZABETH_EQUIVALENT_TEMPLATE_VERSION;
   pricingConversation: "QUOTE_FORM_GUIDANCE_ONLY";
   monetaryAccess: false;
 };
@@ -17,8 +19,6 @@ export type ExistingLanguageAssistantRegistration = {
   existingLanguages: readonly string[];
 };
 
-// These desks provide broad global language coverage. They are templates/capacity
-// definitions and do not replace or rename the four language assistants already in use.
 export const GLOBAL_LANGUAGE_DESKS = [
   { id: "LANG-001", displayName: "Global Desk 01", languages: ["English", "Korean"] },
   { id: "LANG-002", displayName: "Global Desk 02", languages: ["Mandarin Chinese", "Cantonese", "Taiwanese Mandarin"] },
@@ -56,6 +56,7 @@ export function createLanguageAssistant(
     role: CUSTOMER_ASSISTANT_ROLES.Elizabeth.role,
     purpose: CUSTOMER_ASSISTANT_ROLES.Elizabeth.purpose,
     customerServiceEquivalentTo: "Elizabeth",
+    templateVersion: ELIZABETH_EQUIVALENT_TEMPLATE_VERSION,
     pricingConversation: "QUOTE_FORM_GUIDANCE_ONLY",
     monetaryAccess: false,
   };
@@ -71,6 +72,7 @@ export function adoptExistingLanguageAssistant(
     role: CUSTOMER_ASSISTANT_ROLES.Elizabeth.role,
     purpose: CUSTOMER_ASSISTANT_ROLES.Elizabeth.purpose,
     customerServiceEquivalentTo: "Elizabeth",
+    templateVersion: ELIZABETH_EQUIVALENT_TEMPLATE_VERSION,
     pricingConversation: "QUOTE_FORM_GUIDANCE_ONLY",
     monetaryAccess: false,
   };
@@ -93,11 +95,12 @@ export const EXISTING_FOUR_LANGUAGE_ASSISTANTS_POLICY = {
   noReplacementRule:
     "Do not delete, rename, overwrite or replace the existing four assistants merely to fit a new Global Desk number. Register/adopt them into the factory and use new desks only for additional language coverage.",
   sourceOfTruthRule:
-    "Do not guess the existing four assistants' names, phone mappings or exact language assignments. Read them from the current approved/live assistant or telephony configuration before binding them to factory records.",
+    "Use the verified live Retell registry for identity, language, Agent ID and LLM ID; verify live telephony separately before changing phone routing.",
 } as const;
 
 export const LANGUAGE_ASSISTANT_FACTORY_POLICY = {
   baseRole: "Elizabeth",
+  templateVersion: ELIZABETH_EQUIVALENT_TEMPLATE_VERSION,
   rule:
     "Every language assistant is a full Customer Advisor & Receptionist equivalent to Elizabeth. Language assignment is the only service-role difference.",
   quoteRule:
@@ -105,7 +108,7 @@ export const LANGUAGE_ASSISTANT_FACTORY_POLICY = {
   expansionRule:
     "Add or split language desks by editing GLOBAL_LANGUAGE_DESKS; do not duplicate customer-service logic in separate assistant implementations.",
   existingAssistantRule:
-    "The four existing language assistants must be adopted into this factory and retained; future assistants are added around them rather than replacing them.",
+    "The four existing language assistants are adopted into this factory and retained; future assistants are added around them rather than replacing them.",
   fallbackRule:
     "If a customer's language is not mapped, route to the closest supported language desk or a general multilingual fallback without inventing a language capability.",
 } as const;
