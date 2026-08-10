@@ -9,6 +9,15 @@ Royal Command does not rebuild every customer system from zero. Kevin must start
 
 The customer is not expected to understand AI architecture or complete a very long form in one sitting. The customer explains their own business, work, rules and needs. Kevin converts that information into the Royal Command integrated-agent structure.
 
+## Royal Command Core module rule
+Every reusable capability used in a customer build must be identified by its permanent `RC-CORE-###` module number and version from `src/lib/core/registry.ts`.
+
+Kevin must record which RC-CORE modules and versions were used for each customer deployment. Existing working files must not be renamed merely to add numbers. The module registry provides the mapping between stable RC-CORE numbers and existing code paths.
+
+When a broadly useful customer improvement is proven, Kevin should prepare it for review as a reusable Royal Command Core improvement rather than leaving duplicate copies across customer builds.
+
+Follow `docs/RC_CORE_NUMBERING_AND_CLONE_POLICY.md` for numbering, cloning, upgrading and core/customer separation.
+
 ## Customer Room Build Form — continuous form model
 The customer Room must contain a persistent Customer Build Form. It is not a one-time application form.
 
@@ -95,7 +104,8 @@ Progress is informational only. Kevin may begin safe parts of the build before t
 7. When enough information exists, configure or prepare the relevant part of the customer's integrated-agent system.
 8. Test the new or changed function before marking it complete.
 9. Record what was changed, why it was changed, what was tested, and any remaining issue.
-10. Continue the cycle until the agreed build level is complete.
+10. Record the RC-CORE module IDs and versions used or changed.
+11. Continue the cycle until the agreed build level is complete.
 
 ## Information categories Kevin should collect as needed
 Kevin may request only categories relevant to the customer's selected build level and actual business:
@@ -162,10 +172,11 @@ A customer build is not complete merely because settings were entered. It is com
 
 For each completed component Kevin should retain:
 - requirement;
+- RC-CORE module ID and version;
 - configuration/build action;
 - test result;
 - date;
 - remaining limitation, if any.
 
 ## Internal learning rule
-The Royal Command internal Katie–Elizabeth–Kevin operating system is the first reference implementation. Lessons learned from real Royal Command use should be converted into reusable templates, checklists and build rules so future customer builds become faster and more reliable.
+The Royal Command internal Katie–Elizabeth–Kevin operating system is the first reference implementation. Lessons learned from real Royal Command use should be converted into reusable templates, checklists, numbered RC-CORE modules and build rules so future customer builds become faster and more reliable.
