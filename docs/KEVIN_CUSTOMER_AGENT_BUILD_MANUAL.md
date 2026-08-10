@@ -23,6 +23,68 @@ The customer may provide information by typing, voice, uploaded documents or app
 
 The form must preserve earlier answers and allow additions and corrections without forcing the customer to start again.
 
+## Customer Build Form — numbered working format
+Every form item must have a permanent item number and a short title so both the customer and Kevin can immediately see what has been requested, answered, completed or still waiting.
+
+Example:
+- 001 — Company purpose
+- 002 — Services provided
+- 003 — Staff and departments
+- 004 — Tasks for AI agents
+- 005 — Approval rules
+
+Numbering must remain stable. Kevin must not renumber old items when new questions are added. New follow-up questions receive the next available number or a clearly linked sub-number such as 005.1.
+
+### Colour/status rule
+The form must distinguish who is waiting on whom:
+- RED — Royal Command/Kevin has asked for information and the customer has not yet answered.
+- BLUE — Customer has supplied an answer, voice response, file or other material and it is waiting for Kevin review.
+- GOLD — Kevin has reviewed the response and the item is accepted/complete.
+- GREY — Not required for this customer's selected build level or intentionally deferred.
+
+Colour is a visual aid only. Each item must also show a written status label so accessibility does not depend on colour alone.
+
+### Customer response methods
+For every applicable item, the customer should be able to respond using one or more of these methods:
+1. Type directly into the Room form.
+2. Speak the answer using a microphone; speech is converted to text and remains editable before submission.
+3. Upload files such as PDF, Word, image, spreadsheet or other approved document types.
+4. Add or forward relevant email material into the Room through an approved email intake method.
+5. Add further information later without losing the earlier answer.
+
+The customer must not be forced to complete the whole form at once.
+
+### Document handling rule
+Documents are evidence/supporting material for a numbered item. Each uploaded or emailed document should be linked to the relevant form item number whenever possible.
+
+Kevin must record:
+- source filename or email subject;
+- date received;
+- linked form item number;
+- whether reviewed;
+- whether further information is required.
+
+Kevin must not silently treat an uploaded document as complete acceptance. He must review it and change the item status accordingly.
+
+### Kevin follow-up rule
+When a customer answer is incomplete, Kevin does not replace the original question. He adds a concise follow-up under the same number or as a sub-number.
+
+Example:
+- 012 — Telephone workflow — BLUE: customer answered.
+- 012.1 — Which calls require immediate transfer? — RED: waiting for customer.
+
+This lets the customer see exactly how far the build has progressed and prevents repeated questioning.
+
+### Progress rule
+The Room should show simple progress information such as:
+- total required items;
+- answered items;
+- waiting for customer;
+- waiting for Kevin review;
+- completed items.
+
+Progress is informational only. Kevin may begin safe parts of the build before the whole form is complete.
+
 ## Kevin operating loop
 1. Read all new information added to the Customer Build Form.
 2. Compare it with the existing Royal Command core architecture and the current customer build.
