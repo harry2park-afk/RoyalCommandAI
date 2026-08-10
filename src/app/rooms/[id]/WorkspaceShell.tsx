@@ -8,10 +8,17 @@ import { Check, GripVertical, Plus, Trash2 } from "lucide-react";
 type Room = { id: string; name: string; status?: string };
 type Task = { id: string; text: string; done: boolean };
 
+function isTask(value: unknown): value is Task {
+  if (!value || typeof value !== "object") return false;
+  const task = value as Record<string, unknown>;
+  return typeof task.id === "string" && typeof task.text === "string" && typeof task.done === "boolean";
+}
+
 export default function WorkspaceShell({ children }: { children: ReactNode }) {
-  const params = useParams<{ id: string }>();
+  const params = useParams<{ id: string | string[] }>();
   const router = useRouter();
-  const roomId = params.id;
+  const rawRoomId = params?.id;
+  const roomId = Array.isArray(rawRoomId) ? rawRoomId[0] : rawRoomId || "";
   const [rooms, setRooms] = useState<Room[]>([]);
   const [leftWidth, setLeftWidth] = useState(250);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -19,21 +26,36 @@ export default function WorkspaceShell({ children }: { children: ReactNode }) {
   const dragging = useRef(false);
 
   useEffect(() => {
-    const savedWidth = Number(window.localStorage.getItem("royalcommand:left-panel-width") || 250);
-    if (Number.isFinite(savedWidth)) setLeftWidth(Math.min(420, Math.max(190, savedWidth)));
-    const savedTasks = window.localStorage.getItem("royalcommand:work-board");
-    if (savedTasks) {
-      try { setTasks(JSON.parse(savedTasks)); } catch { /* keep empty */ }
+    try {
+      const savedWidth = Number(window.localStorage.getItem("royalcommand:left-panel-width") || 250);
+      if (Number.isFinite(savedWidth)) setLeftWidth(Math.min(420, Math.max(190, savedWidth)));
+
+      const savedTasks = window.localStorage.getItem("royalcommand:work-board");
+      if (savedTasks) {
+        const parsed: unknown = JSON.parse(savedTasks);
+        if (Array.isArray(parsed)) setTasks(parsed.filter(isTask));
+        else window.localStorage.removeItem("royalcommand:work-board");
+      }
+    } catch {
+      window.localStorage.removeItem("royalcommand:work-board");
     }
     void loadRooms();
   }, []);
 
   useEffect(() => {
-    window.localStorage.setItem("royalcommand:left-panel-width", String(leftWidth));
+    try {
+      window.localStorage.setItem("royalcommand:left-panel-width", String(leftWidth));
+    } catch {
+      // Workspace still works if browser storage is blocked.
+    }
   }, [leftWidth]);
 
   useEffect(() => {
-    window.localStorage.setItem("royalcommand:work-board", JSON.stringify(tasks));
+    try {
+      window.localStorage.setItem("royalcommand:work-board", JSON.stringify(tasks));
+    } catch {
+      // Workspace still works if browser storage is blocked.
+    }
   }, [tasks]);
 
   useEffect(() => {
@@ -51,10 +73,14 @@ export default function WorkspaceShell({ children }: { children: ReactNode }) {
   }, []);
 
   async function loadRooms() {
-    const res = await fetch("/api/rooms", { cache: "no-store" });
-    if (!res.ok) return;
-    const data = await res.json();
-    setRooms(data.rooms || []);
+    try {
+      const res = await fetch("/api/rooms", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setRooms(Array.isArray(data.rooms) ? data.rooms : []);
+    } catch {
+      setRooms([]);
+    }
   }
 
   async function deleteRoom(id: string) {
@@ -68,7 +94,10 @@ export default function WorkspaceShell({ children }: { children: ReactNode }) {
   function addTask() {
     const text = newTask.trim();
     if (!text) return;
-    setTasks((prev) => [{ id: crypto.randomUUID(), text, done: false }, ...prev]);
+    const id = typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setTasks((prev) => [{ id, text, done: false }, ...prev]);
     setNewTask("");
   }
 
