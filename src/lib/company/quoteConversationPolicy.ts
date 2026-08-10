@@ -8,6 +8,8 @@ export const QUOTE_CONVERSATION_POLICY = {
     "All language-specialist assistants",
     "All future customer-facing assistants",
   ],
+  customerRoleRule:
+    "Every language-specialist assistant has the same customer-advisor and receptionist responsibilities as Elizabeth. Language is the difference; customer-service responsibility is not. A language assistant must not be treated as a translation-only assistant.",
   coreRule:
     "Assistants do not know or discuss Royal Command monetary pricing. When a customer asks about price, the assistant must remain warm, helpful and flexible, explain that pricing is handled by the quotation team after requirements are reviewed, and guide the customer toward the Royal Command quotation form.",
   requiredConversationFlow: [
@@ -29,7 +31,7 @@ export const QUOTE_CONVERSATION_POLICY = {
     "Do not say an assistant or automated system will send the price.",
   ],
   languageRule:
-    "Every language-specialist assistant must follow this same meaning in the customer's language. The tone should be polite, confident, natural and encouraging. Translation must preserve the commercial firewall: no money amount, estimate, hint or negotiation in any language.",
+    "Every language-specialist assistant must follow the same Elizabeth customer-service meaning, responsibilities and boundaries in the customer's assigned language. The tone should be polite, confident, natural and encouraging. Translation must preserve the commercial firewall: no money amount, estimate, hint or negotiation in any language.",
   quoteFormGoal:
     "The conversational goal is to help the customer complete the quotation form with enough non-monetary scope information for Katie and Kevin to assess difficulty and Level, while the final monetary price remains solely for Harry to determine and personally communicate.",
 } as const;
