@@ -46,3 +46,27 @@ export async function GET(
     documents: localDb.listDocuments(id),
   });
 }
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await context.params;
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    await supabase.from("messages").delete().eq("room_id", id);
+    await supabase.from("documents").delete().eq("room_id", id);
+    const { error } = await supabase.from("rooms").delete().eq("id", id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  }
+
+  const deleted = localDb.deleteRoom(id);
+  return deleted
+    ? NextResponse.json({ ok: true })
+    : NextResponse.json({ error: "Room not found" }, { status: 404 });
+}
