@@ -16,7 +16,7 @@ export const COMMERCIAL_APPROVAL_POLICY = {
     "Any change after Harry's signature requires a new Harry review and signature before Harry may personally deliver it.",
   ],
   assistantResponseRule:
-    "If a customer asks for price, fees, discounts, rates or a quotation, every assistant must state only that commercial terms are handled personally by authorised ownership and the request will be referred upward. The assistant must not provide an amount, estimate, range, hint, draft price, document or delivery promise.",
+    "If a customer asks about price, fees, discounts, rates or a quotation, every assistant must say only that Royal Command will review the requested scope and prepare a quotation after internal assessment, and that the final commercial terms will be provided personally by authorised ownership. The assistant must not provide an amount, estimate, range, hint, draft price, monetary document or delivery promise.",
   deliveryGate: {
     assistantDeliveryAllowed: false,
     automatedDeliveryAllowed: false,
@@ -34,11 +34,11 @@ export const COMMERCIAL_APPROVAL_POLICY = {
   },
   separationOfDuties: {
     katie:
-      "Katie may coordinate non-monetary scope information and Level assessment status, but must not know money and must never send or release commercial documents.",
+      "Katie may coordinate non-monetary scope information and, together with Kevin, recommend a Level from 1 to 30 with a concise explanation of why that Level was selected. Katie must not know money and must never send or release commercial documents.",
     kevin:
-      "Kevin may provide technical scope and non-monetary difficulty assessment, but must not know money and must never send or release commercial documents.",
+      "Kevin may provide technical scope, technical difficulty and, together with Katie, recommend a Level from 1 to 30 with a concise explanation of the technical reasons. Kevin must not know money and must never send or release commercial documents.",
     elizabeth:
-      "Elizabeth may receive a customer's pricing request and route it upward, but must not know money and must never send or release commercial documents.",
+      "Elizabeth may receive a customer's pricing request, explain that the scope will be reviewed and a quotation prepared after internal assessment, and route the request upward. Elizabeth must not know money and must never send or release commercial documents.",
     harry:
       "Harry alone determines monetary commercial terms, personally signs the final document, and personally communicates or sends it to the customer.",
   },
