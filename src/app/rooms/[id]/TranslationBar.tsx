@@ -36,7 +36,7 @@ export default function TranslationBar() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Translation failed");
-      setTranslated(data.translation || "");
+      setTranslated(data.translated || "");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Translation failed");
     } finally {
