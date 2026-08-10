@@ -1,8 +1,8 @@
 export const INTEGRATED_AGENT_PRICING_POLICY = {
   currency: "AUD",
-  model: "Room subscription + one-time Integrated Agent implementation fee + ongoing maintenance/support",
+  model: "Room subscription + one-time Integrated Agent implementation fee + ongoing maintenance/support + usage-based telecommunications charges",
   purpose:
-    "Royal Command provides a Room first, then recommends an Integrated Agent implementation level based on the customer's required scale, complexity, integrations, workflow, permissions and customization.",
+    "Royal Command provides a Room first, then Katie and Kevin jointly recommend an Integrated Agent implementation level based on the customer's required scale, technical difficulty, complexity, integrations, workflow, permissions, customization and testing requirements.",
   customerSelectionRule:
     "Customers should not be expected to understand or configure complex agent architecture themselves. They describe their business and requirements in writing or by voice using the relevant Royal Command manual. Royal Command then recommends the appropriate implementation level.",
   coreReuseRule:
@@ -17,10 +17,13 @@ export const INTEGRATED_AGENT_PRICING_POLICY = {
     "Languages and customer communication channels",
     "Workflow count and workflow complexity",
     "Customer-specific code or configuration beyond the reusable core",
+    "Technical difficulty and implementation risk assessed by Kevin",
     "Testing, acceptance and deployment requirements",
     "Private-domain / white-label requirements",
     "Enterprise ownership, handover or independent-operation requirements",
   ],
+  jointLevelAssessmentRule:
+    "Katie must not determine a final build Level alone. Katie evaluates business scope, service model, commercial structure and customer requirements; Kevin evaluates technical difficulty, RC-CORE reuse, integrations, security, implementation risk, custom code and testing effort. The final recommended Level or Level range is produced jointly by Katie and Kevin and then submitted for authorised approval before a binding quotation is issued.",
   serviceModels: [
     {
       name: "Royal Command Room Membership",
@@ -35,6 +38,18 @@ export const INTEGRATED_AGENT_PRICING_POLICY = {
       rule: "A separately priced enterprise build may be designed for independent customer operation and handover. Customer-specific deliverables and handover scope must be stated in the contract while Royal Command reusable core IP is protected unless expressly sold or licensed otherwise.",
     },
   ],
+  telecommunicationsPolicy: {
+    numberProvisioning:
+      "Where Royal Command purchases or provisions telephone numbers for customer use, the number remains part of the Royal Command managed service unless the customer's contract expressly provides otherwise.",
+    subscriptionSeparationRule:
+      "The monthly Room or service subscription covers the agreed platform, management and support service. Variable telecommunications usage must be tracked separately rather than silently absorbed into the base subscription unless a specific plan includes an approved allowance.",
+    usageBillingRule:
+      "Customer telephone usage is billed according to actual or metered usage and applicable provider charges, including relevant inbound/outbound call minutes, destinations, number rental, messaging or other carrier usage where applicable. Royal Command may apply an approved service/administration margin only when it is clearly disclosed in the customer plan or contract.",
+    billingTransparencyRule:
+      "Katie must be able to show the customer a clear monthly split between subscription/management fees and telecommunications usage charges. Kevin is responsible for confirming that the technical phone system records usage by customer/Room/number accurately enough for billing.",
+    providerCostRule:
+      "Carrier and AI-telephony provider rates can change. Do not hard-code a permanent per-minute price into Royal Command policy unless it is tied to a dated approved rate table. Current usage pricing should come from the active provider tariff or Royal Command approved rate schedule.",
+  },
   levels: [
     {
       range: "Level 1-10",
@@ -57,20 +72,22 @@ export const INTEGRATED_AGENT_PRICING_POLICY = {
       pricingGuidance: "A$286,000+",
     },
   ],
-  katieAssessmentWorkflow: [
-    "Read the customer's numbered Customer Build Form and all linked documents, voice answers and approved email material.",
-    "Map requested functions to the RC-CORE registry and identify which components can be reused without rebuilding.",
-    "List customer-specific differences, integrations, permissions, deployment requirements and testing requirements.",
-    "Identify the appropriate implementation Level or Level range from 1 to 30.",
-    "Prepare a concise scope summary showing reusable RC-CORE modules, customer-specific work, dependencies and unresolved questions.",
-    "Apply only approved Royal Command pricing policy. Do not invent an individual Level price that has not been approved.",
-    "If information is incomplete, provide a provisional Level range and clearly mark what must be confirmed before a final quotation.",
-    "Prepare the recommended Level, pricing basis and quote briefing for Harry / the authorised approver before a binding customer quotation is issued.",
+  jointAssessmentWorkflow: [
+    "Katie reads the customer's numbered Customer Build Form and all linked documents, voice answers and approved email material.",
+    "Katie maps the business requirement, service model, customer priorities and commercial scope.",
+    "Kevin maps requested functions to the RC-CORE registry and identifies which components can be reused without rebuilding.",
+    "Kevin assesses integrations, custom code, security, technical difficulty, implementation risk, testing and deployment effort.",
+    "Katie and Kevin compare their assessments and agree a recommended Level or provisional Level range from 1 to 30.",
+    "Katie prepares a concise scope and pricing briefing showing reusable RC-CORE modules, customer-specific work, telecommunications needs, dependencies and unresolved questions.",
+    "If information is incomplete, only a provisional Level range may be given and the missing information must be identified.",
+    "A binding customer quotation requires Royal Command authorised approval.",
   ],
   pricingRule:
     "The + sign on Level 30 is intentional. The final price is not capped or predetermined and must be quoted according to actual enterprise scope, integrations, security, customization, testing and implementation requirements.",
   disclosureRule:
     "Do not present an estimated level as a guaranteed final price. Final implementation scope and price require Royal Command review and quotation.",
   katieInstruction:
-    "Katie must know the RC-CORE structure and this pricing policy, assess what the customer actually needs, recommend the appropriate build Level, distinguish reusable core from customer-specific work, prepare the pricing basis for Harry, and never invent unapproved individual Level prices.",
+    "Katie must know the RC-CORE structure and this pricing policy, assess business/commercial scope together with Kevin's technical difficulty assessment, prepare the pricing basis for authorised approval, and separately account for variable telecommunications usage.",
+  kevinInstruction:
+    "Kevin must provide the technical difficulty assessment used for Level selection and ensure customer telephone numbers and call usage can be attributed to the correct customer/Room for usage-based billing.",
 } as const;
