@@ -178,7 +178,6 @@ export default function DashboardPage() {
                 </div>
               ))}
               {error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}
-              <button className="rc-btn rc-btn-primary w-full py-3 text-base">Create My Room</button>
             </form>
           </div>
         </div>
