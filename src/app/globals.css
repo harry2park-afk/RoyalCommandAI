@@ -235,3 +235,40 @@ main section.rc-card > form > div[class~="overflow-x-auto"]::-webkit-scrollbar {
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-up { animation: fade-up 0.55s ease both; }
+
+/* Room viewport fit: keep header, conversation, composer and controls inside one desktop screen. */
+@media (min-width: 901px) {
+  main.flex.min-h-screen.w-full.max-w-none.flex-col {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+  main.flex.min-h-screen.w-full.max-w-none.flex-col > header {
+    flex: 0 0 48px !important;
+    margin-bottom: 8px !important;
+  }
+  main.flex.min-h-screen.w-full.max-w-none.flex-col > header + button + div.grid {
+    min-height: 0 !important;
+    height: calc(100dvh - 72px) !important;
+    overflow: hidden !important;
+  }
+  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card {
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card > div.flex-1 {
+    min-height: 0 !important;
+  }
+  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card > form {
+    flex: 0 0 auto !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+  }
+  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card > form > textarea {
+    min-height: 108px !important;
+    max-height: 18vh !important;
+    resize: none !important;
+  }
+}
