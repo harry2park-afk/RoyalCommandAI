@@ -32,6 +32,7 @@ export default function RootLayout({
         {children}
         <Script src="/rc-language-picker.js" strategy="afterInteractive" />
         <Script src="/rc-room-ui.js" strategy="afterInteractive" />
+        <Script src="/rc-room-width-fix.js" strategy="afterInteractive" />
       </body>
     </html>
   );
