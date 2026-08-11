@@ -7,9 +7,10 @@ import { ChevronLeft, ChevronRight, GripVertical, Trash2 } from "lucide-react";
 
 type Room = { id: string; name: string };
 
-const MIN_WIDTH = 56;
+const MIN_WIDTH = 12;
 const DEFAULT_WIDTH = 240;
 const MAX_WIDTH = 420;
+const COLLAPSED_WIDTH = 8;
 
 export default function ChatHistorySidebar() {
   const pathname = usePathname();
@@ -40,7 +41,7 @@ export default function ChatHistorySidebar() {
       const savedCollapsed = window.localStorage.getItem("royalcommand:chat-sidebar-collapsed") === "1";
       if (Number.isFinite(savedWidth) && savedWidth >= MIN_WIDTH && savedWidth <= MAX_WIDTH) {
         setWidth(savedWidth);
-        if (savedWidth > MIN_WIDTH) previousExpandedWidth.current = savedWidth;
+        if (savedWidth > 80) previousExpandedWidth.current = savedWidth;
       }
       setCollapsed(savedCollapsed);
     } catch {
@@ -54,7 +55,7 @@ export default function ChatHistorySidebar() {
       const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, event.clientX));
       setCollapsed(false);
       setWidth(next);
-      if (next > MIN_WIDTH + 20) previousExpandedWidth.current = next;
+      if (next > 80) previousExpandedWidth.current = next;
     }
     function onUp() {
       if (!dragging.current) return;
@@ -85,7 +86,7 @@ export default function ChatHistorySidebar() {
   function toggleCollapsed() {
     const nextCollapsed = !collapsed;
     if (nextCollapsed) {
-      if (width > MIN_WIDTH + 20) previousExpandedWidth.current = width;
+      if (width > 80) previousExpandedWidth.current = width;
       setCollapsed(true);
     } else {
       setCollapsed(false);
@@ -106,65 +107,75 @@ export default function ChatHistorySidebar() {
     if (id === currentId) router.push("/dashboard");
   }
 
-  const actualWidth = collapsed ? 28 : width;
+  const actualWidth = collapsed ? COLLAPSED_WIDTH : width;
 
   return (
     <aside
       className="relative hidden shrink-0 border-r border-white/10 bg-black/20 lg:flex lg:min-h-screen lg:flex-col"
       style={{ width: actualWidth }}
     >
-      <div className="flex items-center justify-between border-b border-white/10 px-2 py-2">
-        {!collapsed ? <div className="text-sm font-semibold text-[var(--gold-soft)]">채팅 목록</div> : null}
+      {collapsed ? (
         <button
           type="button"
           onClick={toggleCollapsed}
-          className="ml-auto rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5 hover:text-[var(--gold-soft)]"
-          title={collapsed ? "채팅 목록 열기" : "채팅 목록 숨기기"}
-          aria-label={collapsed ? "채팅 목록 열기" : "채팅 목록 숨기기"}
+          className="absolute left-0 top-3 z-30 flex h-8 w-5 translate-x-0 items-center justify-center rounded-r-md border border-l-0 border-white/10 bg-black/70 text-[var(--muted)] hover:text-[var(--gold-soft)]"
+          title="채팅 목록 열기"
+          aria-label="채팅 목록 열기"
         >
-          {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
+          <ChevronRight size={13} />
         </button>
-      </div>
-
-      {!collapsed ? (
-        <div className="flex-1 space-y-1 overflow-y-auto p-2">
-          {rooms.map((room) => (
-            <div
-              key={room.id}
-              className={`group flex items-center rounded-lg border ${room.id === currentId ? "border-[var(--gold)]/60 bg-[var(--gold)]/10" : "border-transparent hover:bg-white/[0.03]"}`}
+      ) : (
+        <>
+          <div className="flex items-center justify-between border-b border-white/10 px-2 py-2">
+            <div className="text-sm font-semibold text-[var(--gold-soft)]">채팅 목록</div>
+            <button
+              type="button"
+              onClick={toggleCollapsed}
+              className="ml-auto rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5 hover:text-[var(--gold-soft)]"
+              title="채팅 목록 숨기기"
+              aria-label="채팅 목록 숨기기"
             >
-              <Link
-                href={`/rooms/${room.id}`}
-                className="min-w-0 flex-1 truncate px-3 py-2 text-sm"
-                title={room.name}
-              >
-                {room.name}
-              </Link>
-              <button
-                type="button"
-                onClick={() => void removeRoom(room.id)}
-                className="mr-1 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300"
-                title="채팅 삭제"
-                aria-label={`${room.name} 삭제`}
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-          ))}
-        </div>
-      ) : null}
+              <ChevronLeft size={15} />
+            </button>
+          </div>
 
-      {!collapsed ? (
-        <button
-          type="button"
-          onMouseDown={startResize}
-          className="absolute right-0 top-0 z-20 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"
-          title="좌우로 끌어서 채팅 목록 폭 조절"
-          aria-label="채팅 목록 폭 조절"
-        >
-          <GripVertical size={14} className="text-white/30" />
-        </button>
-      ) : null}
+          <div className="flex-1 space-y-1 overflow-y-auto p-2">
+            {rooms.map((room) => (
+              <div
+                key={room.id}
+                className={`group flex items-center rounded-lg border ${room.id === currentId ? "border-[var(--gold)]/60 bg-[var(--gold)]/10" : "border-transparent hover:bg-white/[0.03]"}`}
+              >
+                <Link
+                  href={`/rooms/${room.id}`}
+                  className="min-w-0 flex-1 truncate px-3 py-2 text-sm"
+                  title={room.name}
+                >
+                  {room.name}
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => void removeRoom(room.id)}
+                  className="mr-1 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300"
+                  title="채팅 삭제"
+                  aria-label={`${room.name} 삭제`}
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+
+          <button
+            type="button"
+            onMouseDown={startResize}
+            className="absolute right-0 top-0 z-20 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"
+            title="좌우로 끌어서 채팅 목록 폭 조절"
+            aria-label="채팅 목록 폭 조절"
+          >
+            <GripVertical size={14} className="text-white/30" />
+          </button>
+        </>
+      )}
     </aside>
   );
 }
