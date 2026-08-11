@@ -32,6 +32,29 @@ export default function ChatHistorySidebar() {
   const dragging = useRef(false);
   const previousExpandedWidth = useRef(DEFAULT_WIDTH);
 
+  function historyCacheKey() {
+    return `royalcommand:room:${currentId}:history-boxes`;
+  }
+
+  function saveHistoryCache(boxes: HistoryBox[]) {
+    if (!currentId) return;
+    try {
+      window.localStorage.setItem(historyCacheKey(), JSON.stringify(boxes));
+    } catch {}
+  }
+
+  function readHistoryCache(): HistoryBox[] {
+    if (!currentId) return [];
+    try {
+      const raw = window.localStorage.getItem(historyCacheKey());
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
   async function loadSidebar() {
     try {
       const [roomsRes, roomRes] = await Promise.all([
@@ -70,17 +93,33 @@ export default function ChatHistorySidebar() {
         if (current) boxes.push(current);
         const nextBoxes = boxes.reverse();
 
-        // Never let a later transient empty response erase history that was already loaded.
-        setHistoryBoxes((prev) => (nextBoxes.length === 0 && prev.length > 0 ? prev : nextBoxes));
+        if (nextBoxes.length > 0) {
+          setHistoryBoxes(nextBoxes);
+          saveHistoryCache(nextBoxes);
+        } else {
+          const cached = readHistoryCache();
+          if (cached.length > 0) setHistoryBoxes(cached);
+        }
         setHistoryLoaded(true);
       }
     } catch {
-      // Keep the history already visible if a refresh request fails.
+      const cached = readHistoryCache();
+      if (cached.length > 0) {
+        setHistoryBoxes(cached);
+        setHistoryLoaded(true);
+      }
     }
   }
 
   useEffect(() => {
-    setHistoryLoaded(false);
+    const cached = readHistoryCache();
+    if (cached.length > 0) {
+      setHistoryBoxes(cached);
+      setHistoryLoaded(true);
+    } else {
+      setHistoryLoaded(false);
+    }
+
     void loadSidebar();
     const onChanged = () => void loadSidebar();
     window.addEventListener("royalcommand:history-changed", onChanged);
@@ -139,6 +178,8 @@ export default function ChatHistorySidebar() {
     } else {
       setCollapsed(false);
       setWidth(Math.max(180, previousExpandedWidth.current));
+      const cached = readHistoryCache();
+      if (cached.length > 0) setHistoryBoxes(cached);
       window.setTimeout(() => void loadSidebar(), 50);
     }
     try {
@@ -162,7 +203,11 @@ export default function ChatHistorySidebar() {
       body: JSON.stringify({ ids: box.ids }),
     });
     if (!res.ok) return;
-    setHistoryBoxes((prev) => prev.filter((item) => item !== box));
+    setHistoryBoxes((prev) => {
+      const next = prev.filter((item) => item !== box);
+      saveHistoryCache(next);
+      return next;
+    });
     window.dispatchEvent(new Event("royalcommand:history-changed"));
   }
 
