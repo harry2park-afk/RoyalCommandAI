@@ -67,8 +67,6 @@
     const warehouse = findWarehouseButton(bar);
     if (!warehouse) return;
 
-    /* Native selected-provider pills remain the source of truth, but are hidden so
-       the visible eight-box strip never loses a box when selection changes. */
     FEATURED_AI.forEach((ai) => {
       const native = nativeButtonFor(bar, ai.name);
       if (native instanceof HTMLElement) native.style.display = "none";
@@ -97,7 +95,6 @@
       setFeaturedSelected(btn, selected);
     });
 
-    /* Remove right-side check/tick icons from provider pills. */
     bar.querySelectorAll("button").forEach((button) => {
       button.style.fontWeight = "400";
       button.querySelectorAll("span").forEach((span) => {
@@ -130,9 +127,87 @@
     });
   }
 
+  function setupGrowingComposer() {
+    const textarea = document.querySelector('textarea[placeholder*="Royal Command"]');
+    if (!(textarea instanceof HTMLTextAreaElement)) return;
+
+    const section = textarea.closest("section");
+    if (section instanceof HTMLElement && window.innerWidth >= 900) {
+      section.style.height = "calc(100vh - 112px)";
+      section.style.maxHeight = "calc(100vh - 112px)";
+    }
+
+    if (textarea.dataset.rcAutoGrow !== "1") {
+      textarea.dataset.rcAutoGrow = "1";
+      textarea.style.resize = "none";
+      textarea.style.overflowY = "hidden";
+      textarea.style.maxHeight = "48vh";
+
+      const resize = () => {
+        const minimum = 176;
+        const maximum = Math.max(minimum, Math.floor(window.innerHeight * 0.48));
+        textarea.style.height = "auto";
+        const next = Math.min(Math.max(textarea.scrollHeight, minimum), maximum);
+        textarea.style.height = `${next}px`;
+        textarea.style.overflowY = textarea.scrollHeight > maximum ? "auto" : "hidden";
+      };
+
+      textarea.addEventListener("input", resize);
+      textarea.addEventListener("change", resize);
+      window.addEventListener("resize", resize);
+      resize();
+    } else if (!textarea.value) {
+      textarea.style.height = "176px";
+      textarea.style.overflowY = "hidden";
+    }
+  }
+
+  function setupCollapsibleUserMessages() {
+    const textarea = document.querySelector('textarea[placeholder*="Royal Command"]');
+    const section = textarea?.closest("section");
+    if (!(section instanceof HTMLElement)) return;
+
+    const messagePane = [...section.children].find(
+      (el) => el instanceof HTMLElement && el.classList.contains("flex-1") && el.classList.contains("overflow-y-auto"),
+    );
+    if (!(messagePane instanceof HTMLElement)) return;
+
+    [...messagePane.children].forEach((bubble) => {
+      if (!(bubble instanceof HTMLElement)) return;
+      const label = bubble.firstElementChild;
+      if (!(label instanceof HTMLElement) || label.textContent?.trim().toLowerCase() !== "user") return;
+      if (bubble.dataset.rcCollapsible === "1") return;
+
+      bubble.dataset.rcCollapsible = "1";
+      bubble.dataset.rcExpanded = "0";
+      bubble.title = "Click to expand or collapse";
+      bubble.style.cursor = "pointer";
+      bubble.style.transition = "max-height .18s ease, padding .18s ease";
+
+      const applyState = () => {
+        const expanded = bubble.dataset.rcExpanded === "1";
+        label.style.display = expanded ? "block" : "none";
+        bubble.style.maxHeight = expanded ? "60vh" : "34px";
+        bubble.style.overflow = expanded ? "auto" : "hidden";
+        bubble.style.whiteSpace = expanded ? "pre-wrap" : "nowrap";
+        bubble.style.textOverflow = expanded ? "clip" : "ellipsis";
+        bubble.style.paddingTop = expanded ? "12px" : "7px";
+        bubble.style.paddingBottom = expanded ? "12px" : "7px";
+      };
+
+      bubble.addEventListener("click", () => {
+        bubble.dataset.rcExpanded = bubble.dataset.rcExpanded === "1" ? "0" : "1";
+        applyState();
+      });
+      applyState();
+    });
+  }
+
   function apply() {
     styleAiBar();
     styleLanguagePicker();
+    setupGrowingComposer();
+    setupCollapsibleUserMessages();
   }
 
   apply();
