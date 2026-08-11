@@ -378,40 +378,6 @@ export default function RoomPage() {
         </div>
       </header>
 
-      <div className="mb-3 flex min-h-10 items-center gap-2 overflow-x-auto rounded-2xl border border-white/10 bg-black/20 px-2 py-2">
-        {selectedProviders.map((p) => (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => toggleProvider(p.id)}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl border border-[var(--gold)] bg-[var(--gold)]/10 px-2.5 py-1.5 text-xs text-[var(--gold-soft)]"
-            title={`${p.name} selected — click to remove`}
-          >
-            <span className="grid h-5 w-5 place-items-center rounded-full bg-white/10 text-[9px] font-semibold">
-              {initials(p.name)}
-            </span>
-            <span>{p.name}</span>
-            <Check size={12} />
-          </button>
-        ))}
-        {hiddenSelectedCount > 0 ? (
-          <button
-            type="button"
-            onClick={() => setWarehouseOpen(true)}
-            className="shrink-0 rounded-xl border border-white/10 px-2.5 py-1.5 text-xs text-[var(--muted)]"
-          >
-            +{hiddenSelectedCount} more
-          </button>
-        ) : null}
-        <button
-          type="button"
-          onClick={() => setWarehouseOpen(true)}
-          className="ml-auto flex shrink-0 items-center gap-1.5 rounded-xl border border-white/15 px-3 py-1.5 text-xs text-[var(--muted)] hover:border-[var(--gold)] hover:text-[var(--gold-soft)]"
-        >
-          <Warehouse size={15} /> AI Warehouse ({providers.length})
-        </button>
-      </div>
-
       <div className="grid flex-1 gap-4 lg:grid-cols-[1fr_320px]">
         <section className="rc-card flex min-h-[72vh] flex-col overflow-hidden">
           {mode === "voice" ? (
@@ -468,6 +434,40 @@ export default function RoomPage() {
           </div>
 
           <form onSubmit={send} className="border-t border-[var(--line)] p-2 md:p-2.5">
+            <div className="mb-1 flex min-h-7 flex-nowrap items-center gap-1 overflow-x-auto rounded-lg border border-white/10 bg-black/25 px-1.5 py-1">
+              {selectedProviders.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => toggleProvider(p.id)}
+                  className="flex h-6 shrink-0 items-center gap-1 rounded-md border border-[var(--gold)]/70 bg-[var(--gold)]/10 px-1.5 text-[10px] text-[var(--gold-soft)]"
+                  title={`${p.name} selected — click to remove`}
+                >
+                  <span className="grid h-3.5 w-3.5 place-items-center rounded-full bg-white/10 text-[7px] font-semibold">
+                    {initials(p.name)}
+                  </span>
+                  <span>{p.name}</span>
+                  <Check size={9} />
+                </button>
+              ))}
+              {hiddenSelectedCount > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setWarehouseOpen(true)}
+                  className="h-6 shrink-0 rounded-md border border-white/10 px-1.5 text-[10px] text-[var(--muted)]"
+                >
+                  +{hiddenSelectedCount}
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => setWarehouseOpen(true)}
+                className="ml-auto flex h-6 shrink-0 items-center gap-1 rounded-md border border-white/10 px-1.5 text-[10px] text-[var(--muted)] hover:border-[var(--gold)] hover:text-[var(--gold-soft)]"
+              >
+                <Warehouse size={11} /> AI ({providers.length})
+              </button>
+            </div>
+
             <textarea
               ref={textRef}
               className="rc-input min-h-44 resize-y text-base"
