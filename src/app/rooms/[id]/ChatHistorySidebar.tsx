@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { GripVertical, Trash2 } from "lucide-react";
 
 type Room = { id: string; name: string };
 
@@ -12,6 +12,8 @@ export default function ChatHistorySidebar() {
   const router = useRouter();
   const currentId = pathname.split("/").filter(Boolean).pop() || "";
   const [rooms, setRooms] = useState<Room[]>([]);
+  const [width, setWidth] = useState(240);
+  const dragging = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,6 +28,47 @@ export default function ChatHistorySidebar() {
     };
   }, []);
 
+  useEffect(() => {
+    try {
+      const saved = Number(window.localStorage.getItem("royalcommand:chat-sidebar-width"));
+      if (Number.isFinite(saved) && saved >= 180 && saved <= 420) setWidth(saved);
+    } catch {
+      // Keep default width if browser storage is unavailable.
+    }
+  }, []);
+
+  useEffect(() => {
+    function onMove(event: MouseEvent) {
+      if (!dragging.current) return;
+      const next = Math.min(420, Math.max(180, event.clientX));
+      setWidth(next);
+    }
+    function onUp() {
+      if (!dragging.current) return;
+      dragging.current = false;
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+      try {
+        window.localStorage.setItem("royalcommand:chat-sidebar-width", String(width));
+      } catch {
+        // Ignore storage failure.
+      }
+    }
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [width]);
+
+  function startResize(event: React.MouseEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    dragging.current = true;
+    document.body.style.cursor = "col-resize";
+    document.body.style.userSelect = "none";
+  }
+
   async function removeRoom(id: string) {
     if (!window.confirm("이 채팅을 삭제하시겠습니까?")) return;
     const res = await fetch(`/api/rooms/${id}`, { method: "DELETE" });
@@ -35,7 +78,10 @@ export default function ChatHistorySidebar() {
   }
 
   return (
-    <aside className="hidden w-60 shrink-0 border-r border-white/10 bg-black/20 lg:flex lg:min-h-screen lg:flex-col">
+    <aside
+      className="relative hidden shrink-0 border-r border-white/10 bg-black/20 lg:flex lg:min-h-screen lg:flex-col"
+      style={{ width }}
+    >
       <div className="border-b border-white/10 px-3 py-3">
         <div className="text-sm font-semibold text-[var(--gold-soft)]">채팅 목록</div>
       </div>
@@ -64,6 +110,15 @@ export default function ChatHistorySidebar() {
           </div>
         ))}
       </div>
+      <button
+        type="button"
+        onMouseDown={startResize}
+        className="absolute right-0 top-0 z-20 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"
+        title="좌우로 끌어서 채팅 목록 폭 조절"
+        aria-label="채팅 목록 폭 조절"
+      >
+        <GripVertical size={14} className="text-white/30" />
+      </button>
     </aside>
   );
 }
