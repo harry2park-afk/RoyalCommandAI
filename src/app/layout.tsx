@@ -31,6 +31,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased" style={{ fontFamily: "var(--font-mono), system-ui, sans-serif" }}>
         {children}
         <Script src="/rc-language-picker.js" strategy="afterInteractive" />
+        <Script src="/rc-room-ui.js" strategy="afterInteractive" />
       </body>
     </html>
   );
