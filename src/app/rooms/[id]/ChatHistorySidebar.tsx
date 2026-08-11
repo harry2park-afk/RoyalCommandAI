@@ -101,11 +101,11 @@ export default function ChatHistorySidebar() {
       <button
         type="button"
         onClick={toggleCollapsed}
-        className="fixed left-0 top-1/2 z-40 flex h-12 w-5 -translate-y-1/2 items-center justify-center rounded-r-md border border-l-0 border-white/15 bg-black/80 text-[var(--muted)] shadow-lg hover:text-[var(--gold-soft)]"
+        className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10"
         title="채팅 목록 열기"
         aria-label="채팅 목록 열기"
       >
-        <ChevronRight size={14} />
+        <ChevronRight size={22} />
       </button>
     );
   }
@@ -117,15 +117,6 @@ export default function ChatHistorySidebar() {
     >
       <div className="flex items-center justify-between border-b border-white/10 px-2 py-2">
         <div className="text-sm font-semibold text-[var(--gold-soft)]">채팅 목록</div>
-        <button
-          type="button"
-          onClick={toggleCollapsed}
-          className="ml-auto rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5 hover:text-[var(--gold-soft)]"
-          title="채팅 목록 완전히 숨기기"
-          aria-label="채팅 목록 완전히 숨기기"
-        >
-          <ChevronLeft size={15} />
-        </button>
       </div>
 
       <div className="flex-1 space-y-1 overflow-y-auto p-2">
@@ -145,11 +136,21 @@ export default function ChatHistorySidebar() {
         type="button"
         onMouseDown={startResize}
         onDoubleClick={toggleCollapsed}
-        className="absolute right-0 top-0 z-20 flex h-full w-4 translate-x-1/2 cursor-col-resize items-center justify-center"
+        className="absolute right-0 top-0 z-20 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"
         title="끌어서 폭 조절 · 더블클릭하면 완전히 숨기기"
         aria-label="채팅 목록 폭 조절 또는 숨기기"
       >
         <GripVertical size={14} className="text-white/35" />
+      </button>
+
+      <button
+        type="button"
+        onClick={toggleCollapsed}
+        className="absolute right-0 top-1/2 z-40 flex h-16 w-9 translate-x-full -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10"
+        title="왼쪽 채팅 목록 완전히 숨기기"
+        aria-label="왼쪽 채팅 목록 완전히 숨기기"
+      >
+        <ChevronLeft size={22} />
       </button>
     </aside>
   );
