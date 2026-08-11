@@ -122,6 +122,14 @@ export const localDb = {
   listMessages(roomId: string) {
     return store().messages.filter((m) => m.roomId === roomId);
   },
+  deleteMessages(roomId: string, ids: string[]) {
+    const idSet = new Set(ids);
+    const before = store().messages.length;
+    store().messages = store().messages.filter(
+      (m) => m.roomId !== roomId || !idSet.has(m.id),
+    );
+    return before - store().messages.length;
+  },
   addMessage(msg: Omit<LocalMessage, "id" | "createdAt">) {
     const full: LocalMessage = {
       ...msg,
