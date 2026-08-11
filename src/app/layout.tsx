@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Script from "next/script";
 import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
+import "./room-viewport-tight.css";
 
 const display = Cormorant_Garamond({
   variable: "--font-display",
