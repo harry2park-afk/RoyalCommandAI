@@ -78,7 +78,9 @@ main > header > h1 {
   transform: translate(-50%, -50%) !important;
   white-space: nowrap;
   z-index: 1;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
+  -webkit-text-stroke: 0.25px currentColor;
+  text-shadow: 0 0 0 currentColor;
 }
 main > header > div:last-child {
   position: relative;
