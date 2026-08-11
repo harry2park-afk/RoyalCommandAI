@@ -68,28 +68,23 @@ export default function ChatHistorySidebar() {
           }
         }
         if (current) boxes.push(current);
-        setHistoryBoxes(boxes.reverse());
+        const nextBoxes = boxes.reverse();
+
+        // Never let a later transient empty response erase history that was already loaded.
+        setHistoryBoxes((prev) => (nextBoxes.length === 0 && prev.length > 0 ? prev : nextBoxes));
         setHistoryLoaded(true);
       }
     } catch {
-      // Keep the current sidebar visible and retry shortly.
+      // Keep the history already visible if a refresh request fails.
     }
   }
 
   useEffect(() => {
     setHistoryLoaded(false);
     void loadSidebar();
-
-    const retry1 = window.setTimeout(() => void loadSidebar(), 1200);
-    const retry2 = window.setTimeout(() => void loadSidebar(), 3000);
-    const retry3 = window.setTimeout(() => void loadSidebar(), 6000);
     const onChanged = () => void loadSidebar();
     window.addEventListener("royalcommand:history-changed", onChanged);
-
     return () => {
-      window.clearTimeout(retry1);
-      window.clearTimeout(retry2);
-      window.clearTimeout(retry3);
       window.removeEventListener("royalcommand:history-changed", onChanged);
     };
   }, [currentId]);
