@@ -28,50 +28,70 @@ export default function ChatHistorySidebar() {
   const [historyBoxes, setHistoryBoxes] = useState<HistoryBox[]>([]);
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [collapsed, setCollapsed] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
   const dragging = useRef(false);
   const previousExpandedWidth = useRef(DEFAULT_WIDTH);
 
   async function loadSidebar() {
-    const [roomsRes, roomRes] = await Promise.all([
-      fetch("/api/rooms", { cache: "no-store" }),
-      currentId ? fetch(`/api/rooms/${currentId}`, { cache: "no-store" }) : Promise.resolve(null),
-    ]);
+    try {
+      const [roomsRes, roomRes] = await Promise.all([
+        fetch("/api/rooms", { cache: "no-store" }),
+        currentId ? fetch(`/api/rooms/${currentId}`, { cache: "no-store" }) : Promise.resolve(null),
+      ]);
 
-    if (roomsRes.ok) {
-      const data = await roomsRes.json();
-      if (Array.isArray(data.rooms)) setRooms(data.rooms);
-    }
+      if (roomsRes.ok) {
+        const data = await roomsRes.json();
+        if (Array.isArray(data.rooms)) setRooms(data.rooms);
+      }
 
-    if (roomRes?.ok) {
-      const data = await roomRes.json();
-      const messages: Message[] = Array.isArray(data.messages) ? data.messages : [];
-      const boxes: HistoryBox[] = [];
-      let current: HistoryBox | null = null;
+      if (roomRes?.ok) {
+        const data = await roomRes.json();
+        const messages: Message[] = Array.isArray(data.messages) ? data.messages : [];
+        const boxes: HistoryBox[] = [];
+        let current: HistoryBox | null = null;
 
-      for (const message of messages) {
-        const type = message.authorType || message.author_type || "";
-        if (type === "user") {
-          if (current) boxes.push(current);
-          const clean = message.content.replace(/\s+/g, " ").trim();
-          current = {
-            ids: [message.id],
-            title: clean.slice(0, 34) || "지난 대화",
-            preview: clean.slice(0, 90),
-          };
-        } else if (current) {
-          current.ids.push(message.id);
-          if (!current.preview && message.content) {
-            current.preview = message.content.replace(/\s+/g, " ").trim().slice(0, 90);
+        for (const message of messages) {
+          const type = message.authorType || message.author_type || "";
+          if (type === "user") {
+            if (current) boxes.push(current);
+            const clean = message.content.replace(/\s+/g, " ").trim();
+            current = {
+              ids: [message.id],
+              title: clean.slice(0, 34) || "지난 대화",
+              preview: clean.slice(0, 90),
+            };
+          } else if (current) {
+            current.ids.push(message.id);
+            if (!current.preview && message.content) {
+              current.preview = message.content.replace(/\s+/g, " ").trim().slice(0, 90);
+            }
           }
         }
+        if (current) boxes.push(current);
+        setHistoryBoxes(boxes.reverse());
+        setHistoryLoaded(true);
       }
-      if (current) boxes.push(current);
-      setHistoryBoxes(boxes.reverse());
+    } catch {
+      // Keep the current sidebar visible and retry shortly.
     }
   }
 
   useEffect(() => {
+    setHistoryLoaded(false);
     void loadSidebar();
+
+    const retry1 = window.setTimeout(() => void loadSidebar(), 1200);
+    const retry2 = window.setTimeout(() => void loadSidebar(), 3000);
+    const retry3 = window.setTimeout(() => void loadSidebar(), 6000);
+    const onChanged = () => void loadSidebar();
+    window.addEventListener("royalcommand:history-changed", onChanged);
+
+    return () => {
+      window.clearTimeout(retry1);
+      window.clearTimeout(retry2);
+      window.clearTimeout(retry3);
+      window.removeEventListener("royalcommand:history-changed", onChanged);
+    };
   }, [currentId]);
 
   useEffect(() => {
@@ -124,6 +144,7 @@ export default function ChatHistorySidebar() {
     } else {
       setCollapsed(false);
       setWidth(Math.max(180, previousExpandedWidth.current));
+      window.setTimeout(() => void loadSidebar(), 50);
     }
     try {
       window.localStorage.setItem("royalcommand:chat-sidebar-collapsed", nextCollapsed ? "1" : "0");
@@ -192,7 +213,8 @@ export default function ChatHistorySidebar() {
               </button>
             </div>
           ))}
-          {historyBoxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">지난 대화가 여기에 쌓입니다.</p> : null}
+          {historyLoaded && historyBoxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">아직 저장된 지난 대화가 없습니다.</p> : null}
+          {!historyLoaded ? <p className="p-2 text-xs text-[var(--muted)]">지난 대화를 불러오는 중…</p> : null}
         </div>
 
         <div className="my-3 border-t border-white/10" />
