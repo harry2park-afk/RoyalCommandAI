@@ -196,9 +196,9 @@ export default function ChatHistorySidebar() {
   }
 
   return (
-    <aside className="relative hidden shrink-0 border-r border-white/10 bg-black/20 lg:flex lg:min-h-screen lg:flex-col" style={{ width }}>
-      <div className="border-b border-white/10 px-3 py-3"><div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div></div>
-      <div className="flex-1 overflow-y-auto p-2">
+    <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-hidden border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
+      <div className="shrink-0 border-b border-white/10 px-3 py-3"><div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div></div>
+      <div className="min-h-0 flex-1 overflow-y-auto p-2">
         <div className="space-y-2">
           {historyBoxes.map((box, index) => (
             <div key={`${box.ids[0]}-${index}`} className="flex items-start gap-1 rounded-xl border border-white/10 bg-black/20 p-2">
