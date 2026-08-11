@@ -63,12 +63,12 @@
     overlay.style.bottom="34px";
     overlay.style.alignItems="flex-start";
     overlay.style.justifyContent="center";
-    overlay.style.padding="52px 10px 16px";
+    overlay.style.padding="185px 10px 12px";
     overlay.style.background="rgba(0,0,0,.54)";
     overlay.style.overflow="hidden";
     const panel=[...overlay.children].find(el=>el instanceof HTMLElement);
-    if(panel instanceof HTMLElement){panel.style.width="min(1100px,96vw)";panel.style.maxWidth="96vw";panel.style.maxHeight="72vh";panel.style.margin="0 auto";panel.style.overflow="hidden";panel.style.border="1px solid rgba(212,175,55,.65)";panel.style.boxShadow="0 14px 44px rgba(0,0,0,.58)"}
-    const scroll=overlay.querySelector('[class*="overflow-y-auto"]');if(scroll instanceof HTMLElement){scroll.style.maxHeight="56vh";scroll.style.overflowY="auto";scroll.style.paddingBottom="12px"}
+    if(panel instanceof HTMLElement){panel.style.width="min(1100px,96vw)";panel.style.maxWidth="96vw";panel.style.maxHeight="56vh";panel.style.margin="0 auto";panel.style.overflow="hidden";panel.style.border="1px solid rgba(212,175,55,.65)";panel.style.boxShadow="0 14px 44px rgba(0,0,0,.58)"}
+    const scroll=overlay.querySelector('[class*="overflow-y-auto"]');if(scroll instanceof HTMLElement){scroll.style.maxHeight="40vh";scroll.style.overflowY="auto";scroll.style.paddingBottom="12px"}
   }
 
   function syncNewlySelectedProviders(bar){const hidden=readHiddenIds(),order=readStoredIds();if(order.length>=MAX_SLOTS)return;const nativeNames=[...bar.querySelectorAll("button")].filter(b=>!b.dataset.rcAiSlot&&!b.dataset.rcWarehouseExtra&&!b.textContent?.includes("AI (")).map(b=>b.textContent?.trim()||"");const candidates=currentProviderCatalog().filter(ai=>!order.includes(ai.id)&&!hidden.includes(ai.id)&&nativeNames.some(text=>text.includes(ai.name)));if(candidates.length)writeStoredIds([...order,...candidates.map(x=>x.id)].slice(0,MAX_SLOTS))}
