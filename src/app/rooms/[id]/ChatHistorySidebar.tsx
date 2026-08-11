@@ -11,8 +11,6 @@ type Message = {
   content: string;
   authorType?: string;
   author_type?: string;
-  createdAt?: string;
-  created_at?: string;
 };
 type HistoryBox = { ids: string[]; title: string; preview: string };
 
@@ -38,9 +36,7 @@ export default function ChatHistorySidebar() {
 
   function saveHistoryCache(boxes: HistoryBox[]) {
     if (!currentId) return;
-    try {
-      window.localStorage.setItem(historyCacheKey(), JSON.stringify(boxes));
-    } catch {}
+    try { window.localStorage.setItem(historyCacheKey(), JSON.stringify(boxes)); } catch {}
   }
 
   function readHistoryCache(): HistoryBox[] {
@@ -50,82 +46,66 @@ export default function ChatHistorySidebar() {
       if (!raw) return [];
       const parsed = JSON.parse(raw);
       return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
+    } catch { return []; }
   }
 
-  async function loadSidebar() {
-    try {
-      const [roomsRes, roomRes] = await Promise.all([
-        fetch("/api/rooms", { cache: "no-store" }),
-        currentId ? fetch(`/api/rooms/${currentId}`, { cache: "no-store" }) : Promise.resolve(null),
-      ]);
-
-      if (roomsRes.ok) {
-        const data = await roomsRes.json();
-        if (Array.isArray(data.rooms)) setRooms(data.rooms);
-      }
-
-      if (roomRes?.ok) {
-        const data = await roomRes.json();
-        const messages: Message[] = Array.isArray(data.messages) ? data.messages : [];
-        const boxes: HistoryBox[] = [];
-        let current: HistoryBox | null = null;
-
-        for (const message of messages) {
-          const type = message.authorType || message.author_type || "";
-          if (type === "user") {
-            if (current) boxes.push(current);
-            const clean = message.content.replace(/\s+/g, " ").trim();
-            current = {
-              ids: [message.id],
-              title: clean.slice(0, 34) || "지난 대화",
-              preview: clean.slice(0, 90),
-            };
-          } else if (current) {
-            current.ids.push(message.id);
-            if (!current.preview && message.content) {
-              current.preview = message.content.replace(/\s+/g, " ").trim().slice(0, 90);
-            }
-          }
-        }
+  function buildHistory(messages: Message[]) {
+    const boxes: HistoryBox[] = [];
+    let current: HistoryBox | null = null;
+    for (const message of messages) {
+      const type = message.authorType || message.author_type || "";
+      if (type === "user") {
         if (current) boxes.push(current);
-        const nextBoxes = boxes.reverse();
-
-        if (nextBoxes.length > 0) {
-          setHistoryBoxes(nextBoxes);
-          saveHistoryCache(nextBoxes);
-        } else {
-          const cached = readHistoryCache();
-          if (cached.length > 0) setHistoryBoxes(cached);
-        }
-        setHistoryLoaded(true);
-      }
-    } catch {
-      const cached = readHistoryCache();
-      if (cached.length > 0) {
-        setHistoryBoxes(cached);
-        setHistoryLoaded(true);
+        const clean = message.content.replace(/\s+/g, " ").trim();
+        current = { ids: [message.id], title: clean.slice(0, 34) || "지난 대화", preview: clean.slice(0, 90) };
+      } else if (current) {
+        current.ids.push(message.id);
       }
     }
+    if (current) boxes.push(current);
+    return boxes.reverse();
+  }
+
+  async function loadRooms() {
+    try {
+      const res = await fetch("/api/rooms", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.rooms)) setRooms(data.rooms);
+    } catch {}
+  }
+
+  async function refreshHistory() {
+    if (!currentId) return;
+    try {
+      const res = await fetch(`/api/rooms/${currentId}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const messages: Message[] = Array.isArray(data.messages) ? data.messages : [];
+      const next = buildHistory(messages);
+      if (next.length > 0) {
+        setHistoryBoxes(next);
+        saveHistoryCache(next);
+      }
+      setHistoryLoaded(true);
+    } catch {}
   }
 
   useEffect(() => {
+    void loadRooms();
     const cached = readHistoryCache();
     if (cached.length > 0) {
       setHistoryBoxes(cached);
       setHistoryLoaded(true);
     } else {
+      setHistoryBoxes([]);
       setHistoryLoaded(false);
+      void refreshHistory();
     }
 
-    void loadSidebar();
-    const onChanged = () => void loadSidebar();
+    const onChanged = () => void refreshHistory();
     window.addEventListener("royalcommand:history-changed", onChanged);
-    return () => {
-      window.removeEventListener("royalcommand:history-changed", onChanged);
-    };
+    return () => window.removeEventListener("royalcommand:history-changed", onChanged);
   }, [currentId]);
 
   useEffect(() => {
@@ -180,11 +160,8 @@ export default function ChatHistorySidebar() {
       setWidth(Math.max(180, previousExpandedWidth.current));
       const cached = readHistoryCache();
       if (cached.length > 0) setHistoryBoxes(cached);
-      window.setTimeout(() => void loadSidebar(), 50);
     }
-    try {
-      window.localStorage.setItem("royalcommand:chat-sidebar-collapsed", nextCollapsed ? "1" : "0");
-    } catch {}
+    try { window.localStorage.setItem("royalcommand:chat-sidebar-collapsed", nextCollapsed ? "1" : "0"); } catch {}
   }
 
   async function removeRoom(id: string) {
@@ -208,32 +185,19 @@ export default function ChatHistorySidebar() {
       saveHistoryCache(next);
       return next;
     });
-    window.dispatchEvent(new Event("royalcommand:history-changed"));
   }
 
   if (collapsed) {
     return (
-      <button
-        type="button"
-        onClick={toggleCollapsed}
-        className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10"
-        title="채팅 목록 열기"
-        aria-label="채팅 목록 열기"
-      >
+      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10">
         <ChevronRight size={22} />
       </button>
     );
   }
 
   return (
-    <aside
-      className="relative hidden shrink-0 border-r border-white/10 bg-black/20 lg:flex lg:min-h-screen lg:flex-col"
-      style={{ width }}
-    >
-      <div className="border-b border-white/10 px-3 py-3">
-        <div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div>
-      </div>
-
+    <aside className="relative hidden shrink-0 border-r border-white/10 bg-black/20 lg:flex lg:min-h-screen lg:flex-col" style={{ width }}>
+      <div className="border-b border-white/10 px-3 py-3"><div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div></div>
       <div className="flex-1 overflow-y-auto p-2">
         <div className="space-y-2">
           {historyBoxes.map((box, index) => (
@@ -242,57 +206,25 @@ export default function ChatHistorySidebar() {
                 <div className="truncate text-sm font-medium text-[var(--gold-soft)]" title={box.title}>{box.title}</div>
                 <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--muted)]">{box.preview}</div>
               </div>
-              <button
-                type="button"
-                onClick={() => void removeHistoryBox(box)}
-                className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300"
-                title="지난 대화 삭제"
-                aria-label="지난 대화 삭제"
-              >
-                <Trash2 size={14} />
-              </button>
+              <button type="button" onClick={() => void removeHistoryBox(box)} className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="지난 대화 삭제"><Trash2 size={14} /></button>
             </div>
           ))}
           {historyLoaded && historyBoxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">아직 저장된 지난 대화가 없습니다.</p> : null}
           {!historyLoaded ? <p className="p-2 text-xs text-[var(--muted)]">지난 대화를 불러오는 중…</p> : null}
         </div>
-
         <div className="my-3 border-t border-white/10" />
         <div className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">채팅방</div>
         <div className="space-y-1">
           {rooms.map((room) => (
             <div key={room.id} className={`group flex items-center rounded-lg border ${room.id === currentId ? "border-[var(--gold)]/60 bg-[var(--gold)]/10" : "border-transparent hover:bg-white/[0.03]"}`}>
-              <Link href={`/rooms/${room.id}`} className="min-w-0 flex-1 truncate px-3 py-2 text-sm" title={room.name}>
-                {room.name}
-              </Link>
-              <button type="button" onClick={() => void removeRoom(room.id)} className="mr-1 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="채팅방 삭제" aria-label={`${room.name} 삭제`}>
-                <Trash2 size={14} />
-              </button>
+              <Link href={`/rooms/${room.id}`} className="min-w-0 flex-1 truncate px-3 py-2 text-sm" title={room.name}>{room.name}</Link>
+              <button type="button" onClick={() => void removeRoom(room.id)} className="mr-1 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="채팅방 삭제"><Trash2 size={14} /></button>
             </div>
           ))}
         </div>
       </div>
-
-      <button
-        type="button"
-        onMouseDown={startResize}
-        onDoubleClick={toggleCollapsed}
-        className="absolute right-0 top-0 z-20 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"
-        title="끌어서 폭 조절 · 더블클릭하면 완전히 숨기기"
-        aria-label="채팅 목록 폭 조절 또는 숨기기"
-      >
-        <GripVertical size={14} className="text-white/35" />
-      </button>
-
-      <button
-        type="button"
-        onClick={toggleCollapsed}
-        className="absolute right-0 top-1/2 z-40 flex h-16 w-9 translate-x-full -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10"
-        title="왼쪽 채팅 목록 완전히 숨기기"
-        aria-label="왼쪽 채팅 목록 완전히 숨기기"
-      >
-        <ChevronLeft size={22} />
-      </button>
+      <button type="button" onMouseDown={startResize} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-20 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"><GripVertical size={14} className="text-white/35" /></button>
+      <button type="button" onClick={toggleCollapsed} className="absolute right-0 top-1/2 z-40 flex h-16 w-9 translate-x-full -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10"><ChevronLeft size={22} /></button>
     </aside>
   );
 }
