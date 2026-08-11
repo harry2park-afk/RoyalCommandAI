@@ -467,44 +467,10 @@ export default function RoomPage() {
             <div ref={bottomRef} />
           </div>
 
-          <form onSubmit={send} className="border-t border-[var(--line)] p-3 md:p-4">
-            <div className="mb-2 flex flex-wrap items-center gap-1 rounded-xl border border-white/10 bg-black/20 p-1.5">
-              <button type="button" className="rounded-lg p-2 text-[var(--muted)] hover:bg-white/5" onClick={() => wrapSelection("**")} title="Bold">
-                <Bold size={15} />
-              </button>
-              <button type="button" className="rounded-lg p-2 text-[var(--muted)] hover:bg-white/5" onClick={() => prefixLines("• ")} title="Bullet list">
-                <List size={15} />
-              </button>
-              <button type="button" className="rounded-lg p-2 text-[var(--muted)] hover:bg-white/5" onClick={() => prefixLines("1. ")} title="Numbered list">
-                <ListOrdered size={15} />
-              </button>
-              <button type="button" className="rounded-lg p-2 text-[var(--muted)] hover:bg-white/5" onClick={() => wrapSelection("[", "](https://)")} title="Insert link">
-                <Link2 size={15} />
-              </button>
-              <span className="mx-1 h-5 w-px bg-white/10" />
-              <button type="button" className="rounded-lg p-2 text-[var(--muted)] hover:bg-white/5" onClick={copyPrompt} title="Copy">
-                <Copy size={15} />
-              </button>
-              <button type="button" className="rounded-lg p-2 text-[var(--muted)] hover:bg-white/5" onClick={pastePrompt} title="Paste">
-                <ClipboardPaste size={15} />
-              </button>
-              <button type="button" className="rounded-lg p-2 text-[var(--muted)] hover:bg-white/5" onClick={() => fileRef.current?.click()} title="Attach file">
-                <Paperclip size={15} />
-              </button>
-              <button
-                type="button"
-                className={`rounded-lg p-2 hover:bg-white/5 ${listening ? "text-red-300" : "text-[var(--muted)]"}`}
-                onClick={toggleListen}
-                title="Voice input"
-              >
-                <Mic size={16} />
-              </button>
-              <span className="ml-auto text-[10px] text-[var(--muted)]">Spellcheck on · Shift+Enter for new line</span>
-            </div>
-
+          <form onSubmit={send} className="border-t border-[var(--line)] p-2 md:p-2.5">
             <textarea
               ref={textRef}
-              className="rc-input min-h-32 resize-y text-base"
+              className="rc-input min-h-44 resize-y text-base"
               placeholder="Type or speak what you want Royal Command to do…"
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
@@ -519,17 +485,63 @@ export default function RoomPage() {
               }}
             />
 
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button type="submit" className="rc-btn rc-btn-primary flex items-center gap-2" disabled={loading || selected.length === 0}>
-                <Send size={16} /> Send to {selected.length} AI{selected.length === 1 ? "" : "s"}
+            <div className="mt-1.5 flex min-h-9 flex-nowrap items-center gap-0.5 overflow-x-auto rounded-xl border border-white/10 bg-black/20 px-1 py-1">
+              <button type="button" className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5" onClick={() => wrapSelection("**")} title="Bold">
+                <Bold size={14} />
               </button>
-              <button type="button" className="rc-btn rc-btn-ghost flex items-center gap-2" onClick={() => setWarehouseOpen(true)}>
-                <Warehouse size={16} /> Choose AI
+              <button type="button" className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5" onClick={() => prefixLines("• ")} title="Bullet list">
+                <List size={14} />
               </button>
-              <button type="button" className="rc-btn rc-btn-ghost flex items-center gap-2" onClick={toggleSpeaker}>
-                {speakerEnabled ? <Volume2 size={16} /> : <VolumeX size={16} />}
-                {speakerEnabled ? "Voice on" : "Voice off"}
+              <button type="button" className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5" onClick={() => prefixLines("1. ")} title="Numbered list">
+                <ListOrdered size={14} />
               </button>
+              <button type="button" className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5" onClick={() => wrapSelection("[", "](https://)")} title="Insert link">
+                <Link2 size={14} />
+              </button>
+              <span className="mx-0.5 h-4 w-px shrink-0 bg-white/10" />
+              <button type="button" className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5" onClick={copyPrompt} title="Copy">
+                <Copy size={14} />
+              </button>
+              <button type="button" className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5" onClick={pastePrompt} title="Paste">
+                <ClipboardPaste size={14} />
+              </button>
+              <button type="button" className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-white/5" onClick={() => fileRef.current?.click()} title="Attach file">
+                <Paperclip size={14} />
+              </button>
+              <button
+                type="button"
+                className={`shrink-0 rounded-md p-1.5 hover:bg-white/5 ${listening ? "text-red-300" : "text-[var(--muted)]"}`}
+                onClick={toggleListen}
+                title="Voice input"
+              >
+                <Mic size={14} />
+              </button>
+
+              <div className="ml-auto flex shrink-0 items-center gap-1 pl-2">
+                <button
+                  type="submit"
+                  className="flex items-center gap-1 rounded-full bg-[var(--gold)] px-3 py-1.5 text-xs font-bold text-black disabled:opacity-50"
+                  disabled={loading || selected.length === 0}
+                >
+                  <Send size={14} /> Send to {selected.length} AI{selected.length === 1 ? "" : "s"}
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-full border border-[var(--line)] px-2.5 py-1.5 text-xs"
+                  onClick={() => setWarehouseOpen(true)}
+                >
+                  <Warehouse size={14} /> Choose AI
+                </button>
+                <button
+                  type="button"
+                  className="flex items-center gap-1 rounded-full border border-[var(--line)] px-2.5 py-1.5 text-xs"
+                  onClick={toggleSpeaker}
+                >
+                  {speakerEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                  {speakerEnabled ? "Voice on" : "Voice off"}
+                </button>
+              </div>
+
               <input
                 ref={fileRef}
                 type="file"
@@ -540,7 +552,7 @@ export default function RoomPage() {
                 }}
               />
             </div>
-            {error ? <p className="mt-2 text-sm text-[var(--danger)]">{error}</p> : null}
+            {error ? <p className="mt-1.5 text-sm text-[var(--danger)]">{error}</p> : null}
           </form>
         </section>
 
