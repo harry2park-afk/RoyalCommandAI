@@ -83,18 +83,18 @@
     ensureWarehouseExtra(bar,warehouse);styleFixedDock(bar,warehouse);
   }
 
-  function setupGrowingComposer(){const t=document.querySelector('textarea[placeholder*="Royal Command"]');if(!(t instanceof HTMLTextAreaElement))return;const s=t.closest("section");if(s instanceof HTMLElement&&window.innerWidth>=900){s.style.height="calc(100vh - 78px)";s.style.maxHeight="calc(100vh - 78px)"}if(t.dataset.rcAutoGrow!=="1"){t.dataset.rcAutoGrow="1";t.style.resize="none";t.style.overflowY="hidden";t.style.maxHeight="48vh";const resize=()=>{const min=176,max=Math.max(min,Math.floor(window.innerHeight*.48));t.style.height="auto";t.style.height=`${Math.min(Math.max(t.scrollHeight,min),max)}px`;t.style.overflowY=t.scrollHeight>max?"auto":"hidden"};t.addEventListener("input",resize);t.addEventListener("change",resize);window.addEventListener("resize",resize);resize()}else if(!t.value){t.style.height="176px";t.style.overflowY="hidden"}}
+  function setupGrowingComposer(){const t=document.querySelector('textarea[placeholder*="Royal Command"]');if(!(t instanceof HTMLTextAreaElement))return;const s=t.closest("section");if(s instanceof HTMLElement&&window.innerWidth>=900){s.style.height="calc(100vh - 44px)";s.style.minHeight="calc(100vh - 44px)";s.style.maxHeight="calc(100vh - 44px)"}if(t.dataset.rcAutoGrow!=="1"){t.dataset.rcAutoGrow="1";t.style.resize="none";t.style.overflowY="hidden";t.style.maxHeight="48vh";const resize=()=>{const min=176,max=Math.max(min,Math.floor(window.innerHeight*.48));t.style.height="auto";t.style.height=`${Math.min(Math.max(t.scrollHeight,min),max)}px`;t.style.overflowY=t.scrollHeight>max?"auto":"hidden"};t.addEventListener("input",resize);t.addEventListener("change",resize);window.addEventListener("resize",resize);resize()}else if(!t.value){t.style.height="176px";t.style.overflowY="hidden"}}
 
   function styleComposerToolbar(){
     const t=document.querySelector('textarea[placeholder*="Royal Command"]');
     const f=t?.closest("form");
     if(!(f instanceof HTMLElement))return;
-    f.style.paddingTop="2px";f.style.paddingBottom="2px";
+    f.style.paddingTop="1px";f.style.paddingBottom="0";f.style.marginBottom="0";
     const toolbar=[...f.children].find(el=>el instanceof HTMLElement&&el!==t&&el.classList.contains("mt-1")&&el.querySelector("button"));
     if(!(toolbar instanceof HTMLElement))return;
-    toolbar.style.minHeight="14px";toolbar.style.height="14px";toolbar.style.padding="0 2px";toolbar.style.marginTop="1px";toolbar.style.borderRadius="5px";toolbar.style.overflow="hidden";
-    toolbar.querySelectorAll("button").forEach(b=>{if(b instanceof HTMLElement){b.style.height="13px";b.style.minHeight="13px";b.style.padding="0 3px";b.style.fontSize="7px";b.style.lineHeight="1";b.style.borderRadius="4px"}});
-    toolbar.querySelectorAll("svg").forEach(svg=>{if(svg instanceof SVGElement){svg.style.width="8px";svg.style.height="8px"}});
+    toolbar.style.minHeight="9px";toolbar.style.height="9px";toolbar.style.padding="0 1px";toolbar.style.marginTop="0";toolbar.style.marginBottom="0";toolbar.style.borderRadius="3px";toolbar.style.overflow="hidden";
+    toolbar.querySelectorAll("button").forEach(b=>{if(b instanceof HTMLElement){b.style.height="8px";b.style.minHeight="8px";b.style.padding="0 2px";b.style.fontSize="6px";b.style.lineHeight="1";b.style.borderRadius="3px"}});
+    toolbar.querySelectorAll("svg").forEach(svg=>{if(svg instanceof SVGElement){svg.style.width="5px";svg.style.height="5px"}});
   }
 
   function setupCollapsibleUserMessages(){const t=document.querySelector('textarea[placeholder*="Royal Command"]'),s=t?.closest("section");if(!(s instanceof HTMLElement))return;const pane=[...s.children].find(el=>el instanceof HTMLElement&&el.classList.contains("flex-1")&&el.classList.contains("overflow-y-auto"));if(!(pane instanceof HTMLElement))return;[...pane.children].forEach(b=>{if(!(b instanceof HTMLElement))return;const l=b.firstElementChild;if(!(l instanceof HTMLElement)||l.textContent?.trim().toLowerCase()!=="user"||b.dataset.rcCollapsible==="1")return;b.dataset.rcCollapsible="1";b.dataset.rcExpanded="0";b.style.cursor="pointer";const apply=()=>{const ex=b.dataset.rcExpanded==="1";l.style.display=ex?"block":"none";b.style.maxHeight=ex?"60vh":"34px";b.style.overflow=ex?"auto":"hidden";b.style.whiteSpace=ex?"pre-wrap":"nowrap";b.style.textOverflow=ex?"clip":"ellipsis";b.style.paddingTop=ex?"12px":"7px";b.style.paddingBottom=ex?"12px":"7px"};b.addEventListener("click",()=>{b.dataset.rcExpanded=b.dataset.rcExpanded==="1"?"0":"1";apply()});apply()})}
