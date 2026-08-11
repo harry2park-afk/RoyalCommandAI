@@ -189,16 +189,16 @@ export default function ChatHistorySidebar() {
 
   if (collapsed) {
     return (
-      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10">
+      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 채팅 목록 열기">
         <ChevronRight size={22} />
       </button>
     );
   }
 
   return (
-    <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-hidden border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
+    <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
       <div className="shrink-0 border-b border-white/10 px-3 py-3"><div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div></div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
         <div className="space-y-2">
           {historyBoxes.map((box, index) => (
             <div key={`${box.ids[0]}-${index}`} className="flex items-start gap-1 rounded-xl border border-white/10 bg-black/20 p-2">
@@ -223,8 +223,10 @@ export default function ChatHistorySidebar() {
           ))}
         </div>
       </div>
-      <button type="button" onMouseDown={startResize} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-20 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"><GripVertical size={14} className="text-white/35" /></button>
-      <button type="button" onClick={toggleCollapsed} className="absolute right-0 top-1/2 z-40 flex h-16 w-9 translate-x-full -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10"><ChevronLeft size={22} /></button>
+      <button type="button" onMouseDown={startResize} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-30 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center" title="끌어서 폭 조절 · 더블클릭하면 숨기기"><GripVertical size={14} className="text-white/35" /></button>
+      <button type="button" onClick={toggleCollapsed} className="absolute right-0 top-1/2 z-50 flex h-16 w-9 translate-x-full -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 채팅 목록 완전히 숨기기">
+        <ChevronLeft size={22} />
+      </button>
     </aside>
   );
 }
