@@ -76,6 +76,12 @@ button, input, textarea, select { font: inherit; }
 }
 .rc-input:focus { border-color: rgba(212, 175, 55, 0.55); box-shadow: 0 0 0 3px rgba(212, 175, 55, 0.12); }
 
+/* AI Warehouse: no search box — direct visual selection is faster. */
+input[placeholder="Search AI Warehouse…"],
+input[placeholder="Search AI Warehouse..."] {
+  display: none !important;
+}
+
 /* Room top bar: keep title exactly at the notebook/page center, independent of left/right controls. */
 main > header {
   position: relative;
