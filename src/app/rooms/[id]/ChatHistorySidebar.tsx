@@ -247,8 +247,8 @@ export default function ChatHistorySidebar() {
     if (id === currentId) router.push("/dashboard");
   }
 
-  async function removeHistoryBox(box: HistoryBox) {
-    if (!window.confirm("이 지난 대화를 삭제하시겠습니까?")) return;
+  async function removeHistoryBox(box: HistoryBox, askConfirm = true) {
+    if (askConfirm && !window.confirm("이 지난 대화를 삭제하시겠습니까?")) return;
     const res = await fetch(`/api/rooms/${currentId}/messages`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
@@ -281,12 +281,17 @@ export default function ChatHistorySidebar() {
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
         <div className="space-y-2">
           {historyBoxes.map((box, index) => (
-            <div key={`${box.ids[0]}-${index}`} className={`flex items-start gap-1 rounded-xl border p-2 ${selectedBoxId === box.ids[0] ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/20"}`}>
-              <button type="button" onClick={() => openHistoryBox(box)} className="min-w-0 flex-1 text-left" title="이 지난 대화를 가운데에서 보기">
+            <div
+              key={`${box.ids[0]}-${index}`}
+              onDoubleClick={() => void removeHistoryBox(box, false)}
+              className={`flex items-start gap-1 rounded-xl border p-2 ${selectedBoxId === box.ids[0] ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/20"}`}
+              title="한 번 클릭: 보기 · 더블클릭: 바로 삭제"
+            >
+              <button type="button" onClick={() => openHistoryBox(box)} className="min-w-0 flex-1 text-left" title="한 번 클릭하면 가운데에서 보기 · 더블클릭하면 삭제">
                 <div className="truncate text-sm font-medium text-[var(--gold-soft)]" title={box.title}>{box.title}</div>
                 <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--muted)]">{box.preview}</div>
               </button>
-              <button type="button" onClick={() => void removeHistoryBox(box)} className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="지난 대화 삭제"><Trash2 size={14} /></button>
+              <button type="button" onClick={(event) => { event.stopPropagation(); void removeHistoryBox(box, true); }} className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="지난 대화 삭제"><Trash2 size={14} /></button>
             </div>
           ))}
           {historyLoaded && historyBoxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">아직 저장된 지난 대화가 없습니다.</p> : null}
