@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import "./globals.css";
 
@@ -29,6 +30,7 @@ export default function RootLayout({
     <html lang="en" className={`${display.variable} ${body.variable} h-full`}>
       <body className="min-h-full antialiased" style={{ fontFamily: "var(--font-mono), system-ui, sans-serif" }}>
         {children}
+        <Script src="/rc-language-picker.js" strategy="afterInteractive" />
       </body>
     </html>
   );
