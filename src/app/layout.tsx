@@ -33,6 +33,7 @@ export default function RootLayout({
         <Script src="/rc-language-picker.js" strategy="afterInteractive" />
         <Script src="/rc-room-ui.js" strategy="afterInteractive" />
         <Script src="/rc-disable-legacy-right.js" strategy="afterInteractive" />
+        <Script src="/rc-right-resizer.js" strategy="afterInteractive" />
       </body>
     </html>
   );
