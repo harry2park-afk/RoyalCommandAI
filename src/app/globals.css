@@ -152,6 +152,41 @@ main section.rc-card > form > div.mt-3 .rc-btn {
   font-size: 0.75rem;
 }
 
+/* Current unified composer toolbar. Keep it very low so the textarea can extend downward.
+   This intentionally reduces the toolbar and the three action buttons by about 40%. */
+main section.rc-card > form > div[class~="mt-1.5"] {
+  min-height: 24px !important;
+  padding: 2px 4px !important;
+  gap: 1px !important;
+  border-radius: 8px !important;
+}
+
+main section.rc-card > form > div[class~="mt-1.5"] > button {
+  width: 22px !important;
+  height: 22px !important;
+  padding: 0 !important;
+  border-radius: 5px !important;
+}
+
+main section.rc-card > form > div[class~="mt-1.5"] > div {
+  gap: 3px !important;
+  padding-left: 5px !important;
+}
+
+main section.rc-card > form > div[class~="mt-1.5"] > div > button {
+  height: 22px !important;
+  min-height: 22px !important;
+  padding: 0 7px !important;
+  gap: 3px !important;
+  font-size: 10px !important;
+  line-height: 1 !important;
+}
+
+main section.rc-card > form > div[class~="mt-1.5"] svg {
+  width: 12px !important;
+  height: 12px !important;
+}
+
 @media (max-width: 900px) {
   main section.rc-card > form {
     grid-template-columns: 1fr;
