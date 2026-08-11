@@ -4,6 +4,7 @@
   ];
 
   const ORDER_KEY = "royalcommand:language-order-v3";
+  const HIDDEN_KEY = "royalcommand:hidden-languages";
   const SELECTED_KEY = "royalcommand:selected-language";
   const byValue = new Map(LANGS.map((x) => [x[0], x]));
   const flagUrl = (cc) => `https://flagcdn.com/w40/${cc}.png`;
@@ -20,6 +21,8 @@
     }catch{return [...DEFAULT_ORDER];}
   }
   function saveOrder(order){localStorage.setItem(ORDER_KEY,JSON.stringify(order));}
+  function loadHidden(){try{return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY)||"[]").filter(v=>byValue.has(v)));}catch{return new Set();}}
+  function saveHidden(hidden){localStorage.setItem(HIDDEN_KEY,JSON.stringify([...hidden]));}
 
   function setReactSelect(select,value){
     if(![...select.options].some(o=>o.value===value)){const o=document.createElement("option");o.value=value;o.textContent=value;select.appendChild(o);}
@@ -34,50 +37,57 @@
 
     const wrap=document.createElement("div");wrap.className="rc-lang-picker";wrap.style.cssText="position:relative;flex:0 0 auto;margin-left:auto;z-index:2147483646";
     const button=document.createElement("button");button.type="button";button.style.cssText="height:32px;min-width:112px;display:flex;align-items:center;justify-content:space-between;gap:7px;padding:0 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;cursor:pointer";
-    const menu=document.createElement("div");menu.style.cssText="display:none;position:fixed;width:370px;overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:#0b1220;box-shadow:0 22px 70px rgba(0,0,0,.8);z-index:2147483647;flex-direction:column";
-    const hint=document.createElement("div");hint.textContent="Drag anywhere, or use ↑ ↓. Your order is saved.";hint.style.cssText="padding:7px 10px 0;color:#9aa6b2;font-size:10px;flex:0 0 auto";
-    const search=document.createElement("input");search.type="text";search.placeholder="Search country or language…";search.style.cssText="display:block;flex:0 0 auto;width:calc(100% - 16px);margin:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#070b14;color:#fff;font-size:12px;outline:none";
+    const menu=document.createElement("div");menu.style.cssText="display:none;position:fixed;width:380px;overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:#0b1220;box-shadow:0 22px 70px rgba(0,0,0,.8);z-index:2147483647;flex-direction:column";
+    const hint=document.createElement("div");hint.textContent="Drag to reorder, or hide countries you do not use.";hint.style.cssText="padding:7px 10px 0;color:#9aa6b2;font-size:10px;flex:0 0 auto";
+    const tools=document.createElement("div");tools.style.cssText="display:flex;gap:6px;padding:8px;flex:0 0 auto";
+    const search=document.createElement("input");search.type="text";search.placeholder="Search country or language…";search.style.cssText="flex:1;min-width:0;padding:8px 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#070b14;color:#fff;font-size:12px;outline:none";
+    const hiddenToggle=document.createElement("button");hiddenToggle.type="button";hiddenToggle.style.cssText="border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#111827;color:#fff;padding:0 10px;font-size:11px;cursor:pointer;white-space:nowrap";
+    tools.append(search,hiddenToggle);
     const list=document.createElement("div");list.style.cssText="flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 7px;scroll-behavior:smooth";
 
     const selectValue=select.value==="ko"?"ko-KR":select.value==="en"?"en-AU":select.value;
     const remembered=localStorage.getItem(SELECTED_KEY);
     let current=byValue.get(remembered)||byValue.get(selectValue)||LANGS[0];
     let order=loadOrder();
-    localStorage.setItem(SELECTED_KEY,current[0]);setReactSelect(select,current[0]);
+    let hidden=loadHidden();
+    let showHidden=false;
+    hidden.delete(current[0]); saveHidden(hidden);
+    localStorage.setItem(SELECTED_KEY,current[0]); setReactSelect(select,current[0]);
 
     function renderButton(){button.innerHTML=`<span style="display:flex;align-items:center;gap:7px"><img src="${flagUrl(current[2])}" width="22" height="15" style="width:22px;height:15px;object-fit:cover;border-radius:2px"><strong>${current[1]}</strong></span><span style="opacity:.8">⌄</span>`;}
     function positionMenu(){const rect=button.getBoundingClientRect();const top=Math.max(4,rect.bottom+4);const right=Math.max(8,window.innerWidth-rect.right);const available=Math.max(220,window.innerHeight-top-8);menu.style.top=`${top}px`;menu.style.right=`${right}px`;menu.style.height=`${available}px`;menu.style.maxHeight=`${available}px`;}
     function moveTo(dragValue,targetValue,after=false){if(!dragValue||!targetValue||dragValue===targetValue)return;const next=order.filter(v=>v!==dragValue);let i=next.indexOf(targetValue);if(i<0)i=next.length;if(after)i+=1;next.splice(i,0,dragValue);order=next;saveOrder(order);}
-    function moveStep(value,delta){const i=order.indexOf(value);const j=i+delta;if(i<0||j<0||j>=order.length)return;[order[i],order[j]]=[order[j],order[i]];saveOrder(order);renderList(search.value);setTimeout(()=>list.querySelector(`[data-value="${value}"]`)?.scrollIntoView({block:"center"}),0);}
 
     function renderList(query=""){
-      list.innerHTML="";const q=query.trim().toLowerCase();
-      const items=order.map(v=>byValue.get(v)).filter(Boolean).filter(x=>!q||`${x[1]} ${x[3]} ${x[0]}`.toLowerCase().includes(q));
+      list.innerHTML="";
+      hiddenToggle.textContent=showHidden?`Visible list`:`Hidden (${hidden.size})`;
+      const q=query.trim().toLowerCase();
+      const items=order.map(v=>byValue.get(v)).filter(Boolean).filter(x=>(showHidden?hidden.has(x[0]):!hidden.has(x[0])) && (!q||`${x[1]} ${x[3]} ${x[0]}`.toLowerCase().includes(q)));
       items.forEach(x=>{
-        const row=document.createElement("div");row.draggable=!q;row.dataset.value=x[0];row.style.cssText=`width:100%;display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:7px;background:${x[0]===current[0]?"rgba(212,175,55,.12)":"transparent"};color:#fff;font-size:12px;cursor:${q?"default":"grab"};user-select:none`;
-        row.innerHTML=`<span style="width:14px;color:#7f8c9d">↕</span><img src="${flagUrl(x[2])}" width="24" height="16" style="width:24px;height:16px;object-fit:cover;border-radius:2px"><strong style="width:30px;color:var(--gold-soft)">${x[1]}</strong><span class="rc-lang-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${x[3]}</span><button type="button" data-up style="border:1px solid rgba(255,255,255,.12);background:#111827;color:#fff;border-radius:5px;width:24px;height:24px;cursor:pointer">↑</button><button type="button" data-down style="border:1px solid rgba(255,255,255,.12);background:#111827;color:#fff;border-radius:5px;width:24px;height:24px;cursor:pointer">↓</button>${x[0]===current[0]?'<span style="font-size:9px;color:var(--gold-soft);width:52px">SELECTED</span>':'<span style="width:52px"></span>'}`;
-        row.querySelector("[data-up]").onclick=e=>{e.stopPropagation();moveStep(x[0],-1)};
-        row.querySelector("[data-down]").onclick=e=>{e.stopPropagation();moveStep(x[0],1)};
-        row.querySelector(".rc-lang-name").onclick=()=>{current=x;localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
-        row.ondblclick=()=>{current=x;localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
-        row.ondragstart=e=>{if(q)return;e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",x[0]);row.style.opacity=".45";};
+        const row=document.createElement("div");row.draggable=!q&&!showHidden;row.dataset.value=x[0];row.style.cssText=`width:100%;display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:7px;background:${x[0]===current[0]?"rgba(212,175,55,.12)":"transparent"};color:#fff;font-size:12px;cursor:${row.draggable?"grab":"default"};user-select:none`;
+        const actionLabel=showHidden?"Show":"Hide";
+        const actionDisabled=!showHidden&&x[0]===current[0];
+        row.innerHTML=`<span style="width:14px;color:#7f8c9d">${showHidden?"":"↕"}</span><img src="${flagUrl(x[2])}" width="24" height="16" style="width:24px;height:16px;object-fit:cover;border-radius:2px"><strong style="width:30px;color:var(--gold-soft)">${x[1]}</strong><span class="rc-lang-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${x[3]}</span><button type="button" data-hide ${actionDisabled?"disabled":""} style="border:1px solid rgba(255,255,255,.12);background:${actionDisabled?"#1a1f2a":"#111827"};color:${actionDisabled?"#657080":"#fff"};border-radius:6px;min-width:52px;height:26px;padding:0 8px;cursor:${actionDisabled?"not-allowed":"pointer"};font-size:10px">${actionLabel}</button>${x[0]===current[0]?'<span style="font-size:9px;color:var(--gold-soft);width:52px">SELECTED</span>':'<span style="width:52px"></span>'}`;
+        row.querySelector("[data-hide]").onclick=e=>{e.stopPropagation();if(actionDisabled)return;if(showHidden)hidden.delete(x[0]);else hidden.add(x[0]);saveHidden(hidden);renderList(search.value);};
+        row.querySelector(".rc-lang-name").onclick=()=>{current=x;hidden.delete(x[0]);saveHidden(hidden);localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
+        row.ondragstart=e=>{if(!row.draggable)return;e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",x[0]);row.style.opacity=".45";};
         row.ondragend=()=>{row.style.opacity="1";};
-        row.ondragover=e=>{if(q)return;e.preventDefault();e.dataTransfer.dropEffect="move";const r=row.getBoundingClientRect();row.style.outline=e.clientY>r.top+r.height/2?"0 0 0 1px #d4af37 inset":"0 0 0 1px #d4af37 inset";};
+        row.ondragover=e=>{if(!row.draggable)return;e.preventDefault();e.dataTransfer.dropEffect="move";row.style.outline="0 0 0 1px #d4af37 inset";};
         row.ondragleave=()=>{row.style.outline="none";};
-        row.ondrop=e=>{if(q)return;e.preventDefault();row.style.outline="none";const r=row.getBoundingClientRect();moveTo(e.dataTransfer.getData("text/plain"),x[0],e.clientY>r.top+r.height/2);renderList();};
-        row.onclick=e=>{if(e.target.closest("button"))return;current=x;localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
+        row.ondrop=e=>{if(!row.draggable)return;e.preventDefault();row.style.outline="none";const r=row.getBoundingClientRect();moveTo(e.dataTransfer.getData("text/plain"),x[0],e.clientY>r.top+r.height/2);renderList();};
+        row.onclick=e=>{if(e.target.closest("button"))return;current=x;hidden.delete(x[0]);saveHidden(hidden);localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
         list.appendChild(row);
       });
     }
 
-    list.addEventListener("dragover",e=>{if(search.value)return;e.preventDefault();const r=list.getBoundingClientRect();const edge=80;const speed=22;if(e.clientY<r.top+edge)list.scrollTop-=speed;else if(e.clientY>r.bottom-edge)list.scrollTop+=speed;});
-
-    button.onclick=e=>{e.stopPropagation();const opening=menu.style.display!=="flex";menu.style.display=opening?"flex":"none";if(opening){order=loadOrder();positionMenu();search.value="";renderList();setTimeout(()=>search.focus(),0);}};
+    list.addEventListener("dragover",e=>{if(search.value||showHidden)return;e.preventDefault();const r=list.getBoundingClientRect();const edge=80;const speed=22;if(e.clientY<r.top+edge)list.scrollTop-=speed;else if(e.clientY>r.bottom-edge)list.scrollTop+=speed;});
+    hiddenToggle.onclick=e=>{e.stopPropagation();showHidden=!showHidden;search.value="";renderList();};
+    button.onclick=e=>{e.stopPropagation();const opening=menu.style.display!=="flex";menu.style.display=opening?"flex":"none";if(opening){order=loadOrder();hidden=loadHidden();showHidden=false;positionMenu();search.value="";renderList();setTimeout(()=>search.focus(),0);}};
     search.oninput=()=>renderList(search.value);
     window.addEventListener("resize",()=>{if(menu.style.display==="flex")positionMenu();});
     window.addEventListener("scroll",()=>{if(menu.style.display==="flex")positionMenu();},true);
     document.addEventListener("click",e=>{if(!wrap.contains(e.target)&&!menu.contains(e.target))menu.style.display="none";});
-    renderButton();renderList();menu.append(hint,search,list);document.body.appendChild(menu);wrap.append(button);select.insertAdjacentElement("afterend",wrap);
+    renderButton();renderList();menu.append(hint,tools,list);document.body.appendChild(menu);wrap.append(button);select.insertAdjacentElement("afterend",wrap);
   }
   function scan(){document.querySelectorAll('select[aria-label="Language"]').forEach(enhance);}
   scan();new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});
