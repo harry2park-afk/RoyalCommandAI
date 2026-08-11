@@ -78,8 +78,9 @@ main > header > h1 {
   transform: translate(-50%, -50%) !important;
   white-space: nowrap;
   z-index: 1;
+  font-size: 1.65rem !important;
   font-weight: 700 !important;
-  -webkit-text-stroke: 0.25px currentColor;
+  -webkit-text-stroke: 0.35px currentColor;
   text-shadow: 0 0 0 currentColor;
 }
 main > header > div:last-child {
@@ -89,6 +90,19 @@ main > header > div:last-child {
 main > header > a {
   position: relative;
   z-index: 2;
+}
+
+/* Compact top Chat button by about 30%, without changing Voice. */
+main > header > div:last-child > div:first-child > button:first-child {
+  height: 23px !important;
+  padding-left: 7px !important;
+  padding-right: 7px !important;
+  font-size: 10px !important;
+  gap: 3px !important;
+}
+main > header > div:last-child > div:first-child > button:first-child svg {
+  width: 11px !important;
+  height: 11px !important;
 }
 
 /* Room composer */
