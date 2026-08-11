@@ -180,11 +180,14 @@ export default function ChatHistorySidebar() {
       body: JSON.stringify({ ids: box.ids }),
     });
     if (!res.ok) return;
-    setHistoryBoxes((prev) => {
-      const next = prev.filter((item) => item !== box);
-      saveHistoryCache(next);
-      return next;
-    });
+
+    const next = historyBoxes.filter((item) => item !== box);
+    setHistoryBoxes(next);
+    saveHistoryCache(next);
+
+    // The center chat keeps its own message state. Reload only after a confirmed
+    // server deletion so the deleted exchange disappears from both places.
+    window.location.reload();
   }
 
   if (collapsed) {
