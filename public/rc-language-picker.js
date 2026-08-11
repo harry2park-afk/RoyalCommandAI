@@ -30,27 +30,38 @@
 
     const wrap = document.createElement("div");
     wrap.className = "rc-lang-picker";
-    wrap.style.cssText = "position:relative;flex:0 0 auto;margin-left:auto;z-index:60";
+    wrap.style.cssText = "position:relative;flex:0 0 auto;margin-left:auto;z-index:2147483646";
 
     const button = document.createElement("button");
     button.type = "button";
     button.style.cssText = "height:32px;min-width:112px;display:flex;align-items:center;justify-content:space-between;gap:7px;padding:0 9px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;cursor:pointer";
 
     const menu = document.createElement("div");
-    menu.style.cssText = "display:none;position:absolute;right:0;top:38px;width:290px;max-height:430px;overflow:hidden;border:1px solid rgba(255,255,255,.14);border-radius:12px;background:#0b1220;box-shadow:0 18px 50px rgba(0,0,0,.55);z-index:9999";
+    menu.style.cssText = "display:none;position:fixed;width:330px;overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:#0b1220;box-shadow:0 22px 70px rgba(0,0,0,.8);z-index:2147483647;flex-direction:column";
 
     const search = document.createElement("input");
     search.type = "text";
     search.placeholder = "Search country or language…";
-    search.style.cssText = "display:block;width:calc(100% - 16px);margin:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#070b14;color:#fff;font-size:12px;outline:none";
+    search.style.cssText = "display:block;flex:0 0 auto;width:calc(100% - 16px);margin:8px;padding:8px 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#070b14;color:#fff;font-size:12px;outline:none";
 
     const list = document.createElement("div");
-    list.style.cssText = "max-height:375px;overflow-y:auto;padding:0 6px 7px";
+    list.style.cssText = "flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 7px";
 
     let current = byValue.get(select.value) || byValue.get(select.value === "ko" ? "ko-KR" : select.value === "en" ? "en-AU" : `${select.value}-${select.value.toUpperCase()}`) || LANGS[0];
 
     function renderButton() {
       button.innerHTML = `<span style="display:flex;align-items:center;gap:7px"><img src="${flagUrl(current[2])}" alt="" width="22" height="15" style="width:22px;height:15px;object-fit:cover;border-radius:2px"><strong>${current[1]}</strong></span><span style="opacity:.8">⌄</span>`;
+    }
+
+    function positionMenu() {
+      const rect = button.getBoundingClientRect();
+      const top = Math.max(4, rect.bottom + 4);
+      const right = Math.max(8, window.innerWidth - rect.right);
+      const available = Math.max(220, window.innerHeight - top - 8);
+      menu.style.top = `${top}px`;
+      menu.style.right = `${right}px`;
+      menu.style.height = `${available}px`;
+      menu.style.maxHeight = `${available}px`;
     }
 
     function renderList(query = "") {
@@ -75,14 +86,25 @@
 
     button.onclick = (e) => {
       e.stopPropagation();
-      menu.style.display = menu.style.display === "block" ? "none" : "block";
-      if (menu.style.display === "block") { search.value = ""; renderList(); setTimeout(() => search.focus(), 0); }
+      const opening = menu.style.display !== "flex";
+      menu.style.display = opening ? "flex" : "none";
+      if (opening) {
+        positionMenu();
+        search.value = "";
+        renderList();
+        setTimeout(() => search.focus(), 0);
+      }
     };
     search.oninput = () => renderList(search.value);
-    document.addEventListener("click", (e) => { if (!wrap.contains(e.target)) menu.style.display = "none"; });
+    window.addEventListener("resize", () => { if (menu.style.display === "flex") positionMenu(); });
+    window.addEventListener("scroll", () => { if (menu.style.display === "flex") positionMenu(); }, true);
+    document.addEventListener("click", (e) => { if (!wrap.contains(e.target) && !menu.contains(e.target)) menu.style.display = "none"; });
 
     renderButton(); renderList();
-    menu.append(search, list); wrap.append(button, menu); select.insertAdjacentElement("afterend", wrap);
+    menu.append(search, list);
+    document.body.appendChild(menu);
+    wrap.append(button);
+    select.insertAdjacentElement("afterend", wrap);
   }
 
   function scan() {
