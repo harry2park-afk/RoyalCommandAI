@@ -27,8 +27,11 @@ export default function ChatHistorySidebar() {
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [collapsed, setCollapsed] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
+  const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
   const dragging = useRef(false);
   const previousExpandedWidth = useRef(DEFAULT_WIDTH);
+  const messageOrderRef = useRef<string[]>([]);
+  const messageTypesRef = useRef<string[]>([]);
 
   function historyCacheKey() {
     return `royalcommand:room:${currentId}:history-boxes`;
@@ -50,6 +53,9 @@ export default function ChatHistorySidebar() {
   }
 
   function buildHistory(messages: Message[]) {
+    messageOrderRef.current = messages.map((message) => message.id);
+    messageTypesRef.current = messages.map((message) => message.authorType || message.author_type || "");
+
     const boxes: HistoryBox[] = [];
     let current: HistoryBox | null = null;
     for (const message of messages) {
@@ -64,6 +70,53 @@ export default function ChatHistorySidebar() {
     }
     if (current) boxes.push(current);
     return boxes.reverse();
+  }
+
+  function getMessageContainer(): HTMLElement | null {
+    const candidates = Array.from(document.querySelectorAll<HTMLElement>("main div"));
+    return candidates.find((element) => {
+      const classes = element.className;
+      return typeof classes === "string" && classes.includes("space-y-4") && classes.includes("overflow-y-auto");
+    }) || null;
+  }
+
+  function applyMainView(ids: string[] | null) {
+    const container = getMessageContainer();
+    if (!container) return;
+
+    const order = messageOrderRef.current;
+    const types = messageTypesRef.current;
+    const children = Array.from(container.children) as HTMLElement[];
+    const wanted = ids ? new Set(ids) : null;
+
+    let latestUserIndex = -1;
+    if (!wanted) {
+      for (let i = types.length - 1; i >= 0; i -= 1) {
+        if (types[i] === "user") {
+          latestUserIndex = i;
+          break;
+        }
+      }
+    }
+
+    children.forEach((child, index) => {
+      if (index >= order.length) {
+        child.style.display = "";
+        return;
+      }
+      const visible = wanted ? wanted.has(order[index]) : latestUserIndex < 0 || index >= latestUserIndex;
+      child.style.display = visible ? "" : "none";
+    });
+  }
+
+  function openHistoryBox(box: HistoryBox) {
+    setSelectedBoxId(box.ids[0] || null);
+    applyMainView(box.ids);
+  }
+
+  function showLatestConversation() {
+    setSelectedBoxId(null);
+    applyMainView(null);
   }
 
   async function loadRooms() {
@@ -88,6 +141,15 @@ export default function ChatHistorySidebar() {
         saveHistoryCache(next);
       }
       setHistoryLoaded(true);
+      window.setTimeout(() => {
+        if (selectedBoxId) {
+          const selected = next.find((box) => box.ids[0] === selectedBoxId);
+          if (selected) applyMainView(selected.ids);
+          else showLatestConversation();
+        } else {
+          applyMainView(null);
+        }
+      }, 60);
     } catch {}
   }
 
@@ -100,13 +162,26 @@ export default function ChatHistorySidebar() {
     } else {
       setHistoryBoxes([]);
       setHistoryLoaded(false);
-      void refreshHistory();
     }
 
-    const onChanged = () => void refreshHistory();
-    window.addEventListener("royalcommand:history-changed", onChanged);
-    return () => window.removeEventListener("royalcommand:history-changed", onChanged);
+    void refreshHistory();
   }, [currentId]);
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      window.setTimeout(() => {
+        if (selectedBoxId) {
+          const selected = historyBoxes.find((box) => box.ids[0] === selectedBoxId);
+          if (selected) applyMainView(selected.ids);
+        } else {
+          applyMainView(null);
+        }
+      }, 0);
+    });
+    const main = document.querySelector("main");
+    if (main) observer.observe(main, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [selectedBoxId, historyBoxes]);
 
   useEffect(() => {
     try {
@@ -180,13 +255,10 @@ export default function ChatHistorySidebar() {
       body: JSON.stringify({ ids: box.ids }),
     });
     if (!res.ok) return;
-
-    const next = historyBoxes.filter((item) => item !== box);
+    const next = historyBoxes.filter((item) => item.ids[0] !== box.ids[0]);
     setHistoryBoxes(next);
     saveHistoryCache(next);
-
-    // The center chat keeps its own message state. Reload only after a confirmed
-    // server deletion so the deleted exchange disappears from both places.
+    if (selectedBoxId === box.ids[0]) showLatestConversation();
     window.location.reload();
   }
 
@@ -200,15 +272,20 @@ export default function ChatHistorySidebar() {
 
   return (
     <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
-      <div className="shrink-0 border-b border-white/10 px-3 py-3"><div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div></div>
+      <div className="shrink-0 border-b border-white/10 px-3 py-3">
+        <div className="flex items-center justify-between gap-2">
+          <div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div>
+          <button type="button" onClick={showLatestConversation} className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--gold-soft)]" title="현재 대화 보기">현재</button>
+        </div>
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
         <div className="space-y-2">
           {historyBoxes.map((box, index) => (
-            <div key={`${box.ids[0]}-${index}`} className="flex items-start gap-1 rounded-xl border border-white/10 bg-black/20 p-2">
-              <div className="min-w-0 flex-1">
+            <div key={`${box.ids[0]}-${index}`} className={`flex items-start gap-1 rounded-xl border p-2 ${selectedBoxId === box.ids[0] ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/20"}`}>
+              <button type="button" onClick={() => openHistoryBox(box)} className="min-w-0 flex-1 text-left" title="이 지난 대화를 가운데에서 보기">
                 <div className="truncate text-sm font-medium text-[var(--gold-soft)]" title={box.title}>{box.title}</div>
                 <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--muted)]">{box.preview}</div>
-              </div>
+              </button>
               <button type="button" onClick={() => void removeHistoryBox(box)} className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="지난 대화 삭제"><Trash2 size={14} /></button>
             </div>
           ))}
