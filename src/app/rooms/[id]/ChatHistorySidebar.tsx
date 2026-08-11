@@ -101,8 +101,6 @@ export default function ChatHistorySidebar() {
       const data = await res.json();
       const messages: Message[] = Array.isArray(data.messages) ? data.messages : [];
       const next = buildHistory(messages);
-      // Always replace the cache, including with an empty list. This prevents deleted
-      // conversations from coming back from stale localStorage after a refresh.
       setHistoryBoxes(next);
       saveHistoryCache(next);
       setHistoryLoaded(true);
@@ -180,7 +178,6 @@ export default function ChatHistorySidebar() {
   }
 
   async function removeHistoryBox(box: HistoryBox) {
-    // Remove from the screen immediately. No confirmation dialog.
     const nextLocal = historyBoxes.filter((item) => item.ids[0] !== box.ids[0]);
     setHistoryBoxes(nextLocal);
     saveHistoryCache(nextLocal);
@@ -193,13 +190,14 @@ export default function ChatHistorySidebar() {
         body: JSON.stringify({ ids: box.ids }),
       });
       if (!res.ok) {
-        // Restore only if the server truly rejected the delete.
         setHistoryBoxes(historyBoxes);
         saveHistoryCache(historyBoxes);
         return;
       }
-      // Do not reload the page: reload was restoring stale cached boxes.
-      void refreshHistory();
+      // Database deletion is now authorised. Reload from the server so the centre
+      // panel and the left history always show the same source of truth.
+      saveHistoryCache(nextLocal);
+      window.location.reload();
     } catch {
       setHistoryBoxes(historyBoxes);
       saveHistoryCache(historyBoxes);
