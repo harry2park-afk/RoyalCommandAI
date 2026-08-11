@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import ChatHistorySidebar from "./ChatHistorySidebar";
+import RightWorkSidebar from "./RightWorkSidebar";
 
 export default function RoomLayout({ children }: { children: ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
         <style>{`.royal-room-main > main { max-width: none !important; margin-left: 0 !important; margin-right: 0 !important; }`}</style>
         {children}
       </div>
+      <RightWorkSidebar />
     </div>
   );
 }
