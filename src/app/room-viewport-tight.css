@@ -1,0 +1,47 @@
+/* Desktop-only vertical fit for Royal Command AI Room. */
+@media (min-width: 901px) {
+  main.flex.min-h-screen.w-full.max-w-none.flex-col {
+    height: 100dvh !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    padding-top: 2px !important;
+    padding-bottom: 2px !important;
+  }
+
+  main.flex.min-h-screen.w-full.max-w-none.flex-col > header {
+    flex: 0 0 40px !important;
+    height: 40px !important;
+    margin-bottom: 4px !important;
+  }
+
+  main.flex.min-h-screen.w-full.max-w-none.flex-col > header + button + div.grid {
+    min-height: 0 !important;
+    height: calc(100dvh - 48px) !important;
+    overflow: hidden !important;
+  }
+
+  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card {
+    min-height: 0 !important;
+    height: 100% !important;
+  }
+
+  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card > div.flex-1 {
+    min-height: 0 !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card > form {
+    flex: 0 0 auto !important;
+    padding-top: 3px !important;
+    padding-bottom: 3px !important;
+  }
+
+  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card > form > textarea {
+    min-height: 84px !important;
+    max-height: 12vh !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    resize: none !important;
+  }
+}
