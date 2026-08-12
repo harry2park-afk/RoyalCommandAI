@@ -243,7 +243,7 @@ function Orbit({ size = 340, nodeCount = 48, compact = false }) {
 function LanguageSwitcher({ locale, onChange, markets = [] }: any) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
-  const current = markets.find((m) => m.locale === locale) || markets[0] || { code: "KR", label: "대한민국 · 한국어", locale: "ko" };
+  const current = markets.find((m: any) => m.locale === locale) || markets[0] || { code: "KR", label: "대한민국 · 한국어", locale: "ko" };
 
   useEffect(() => {
     function onClick(e) {
