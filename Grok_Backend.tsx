@@ -240,7 +240,7 @@ function Orbit({ size = 340, nodeCount = 48, compact = false }) {
 }
 
 /* ---------------------------- Language switcher ---------------------------- */
-function LanguageSwitcher({ locale, onChange, markets = [] }) {
+function LanguageSwitcher({ locale, onChange, markets = [] }: any) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const current = markets.find((m) => m.locale === locale) || markets[0] || { code: "KR", label: "대한민국 · 한국어", locale: "ko" };
