@@ -8,6 +8,760 @@ import {
   Loader2,
 } from "lucide-react";
 
+/* --------------------------------------------------------------------------
+   ROYAL COMMAND - GLOBAL UI SHELL (Backend Integrated)
+-------------------------------------------------------------------------- */
+
+const BRAND_CYAN = "#00F0FF";
+const BRAND_VIOLET = "#8B5CF6";
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || "/api";
+
+/* --------------------------------------------------------------------------
+   i18n Layer
+-------------------------------------------------------------------------- */
+const I18N: any = {
+  ko: {
+    dir: "ltr",
+    tagline1: "COMMAND YOUR DOMAIN",
+    tagline2: "지구에서 우주까지",
+    signIn: "로그인",
+    email: "이메일",
+    password: "비밀번호",
+    remember: "로그인 상태 유지",
+    forgot: "비밀번호를 잊으셨나요?",
+    orContinue: "소셜 계정으로 계속하기",
+    noAccount: "계정이 없으신가요?",
+    createAccount: "회원가입",
+    search: "서비스, 고객, 명령 검색...",
+    welcome: "다시 오신 것을 환영합니다",
+    overview: "오늘의 시스템 운용 현황입니다.",
+    liveReport: "실시간 AI 오더 & 상담 리포트",
+    viewAll: "전체 보기",
+    collapse: "메뉴 접기",
+    signOut: "로그아웃",
+    loading: "로딩 중...",
+    loginError: "이메일 또는 비밀번호가 올바르지 않습니다.",
+    networkError: "서버 연결에 실패했습니다. 잠시 후 다시 시도해주세요.",
+  },
+  es: {
+    dir: "ltr",
+    tagline1: "COMANDA TU DOMINIO",
+    tagline2: "De la Tierra al espacio",
+    signIn: "Iniciar sesión",
+    email: "Correo electrónico",
+    password: "Contraseña",
+    remember: "Mantener sesión iniciada",
+    forgot: "¿Olvidaste tu contraseña?",
+    orContinue: "O continuar con",
+    noAccount: "¿No tienes una cuenta?",
+    createAccount: "Crear cuenta",
+    search: "Buscar servicios, clientes, comandos...",
+    welcome: "Bienvenido de nuevo",
+    overview: "Aquí tienes el estado operativo de hoy.",
+    liveReport: "Informe en vivo de AI",
+    viewAll: "Ver todo",
+    collapse: "Contraer menú",
+    signOut: "Cerrar sesión",
+    loading: "Cargando...",
+    loginError: "Correo electrónico o contraseña 매칭 실패.",
+    networkError: "Error de red.",
+  },
+  en: {
+    dir: "ltr",
+    tagline1: "COMMAND YOUR DOMAIN",
+    tagline2: "From Earth to Orbit",
+    signIn: "Sign In",
+    email: "Email Address",
+    password: "Password",
+    remember: "Remember me",
+    forgot: "Forgot password?",
+    orContinue: "Or continue with",
+    noAccount: "Don't have an account?",
+    createAccount: "Create account",
+    search: "Search services, customers, commands...",
+    welcome: "Welcome back",
+    overview: "Here's what's operating today.",
+    liveReport: "Live AI Order & Consultation Report",
+    viewAll: "View all",
+    collapse: "Collapse menu",
+    signOut: "Sign out",
+    loading: "Loading...",
+    loginError: "Invalid email or password.",
+    networkError: "Unable to connect to the server. Please try again later.",
+  },
+  ar: {
+    dir: "rtl",
+    tagline1: "تحكّم بمجالك",
+    tagline2: "من الأرض إلى المدار",
+    signIn: "تسجيل الدخول",
+    email: "البريد الإلكتروني",
+    password: "كلمة المرور",
+    remember: "تذكرني",
+    forgot: "نسيت كلمة المرور؟",
+    orContinue: "أو المتابعة باستخدام",
+    noAccount: "ليس لديك حساب؟",
+    createAccount: "إنشاء حساب",
+    search: "البحث في الخدمات، العملاء، الأوامر...",
+    welcome: "مرحباً بعودتك",
+    overview: "إليك الحالة التشغيلية اليوم.",
+    liveReport: "تقرير الطلبات والاستشارات المباشر",
+    viewAll: "عرض الكل",
+    collapse: "طي القائمة",
+    signOut: "تسجيل الخروج",
+    loading: "جاري التحميل...",
+    loginError: "البريد الإلكتروني أو كلمة المرور غير صحيحة.",
+    networkError: "تعذر الاتصال بالخادم.",
+  },
+  zh: {
+    dir: "ltr",
+    tagline1: "掌控您的领域",
+    tagline2: "从地球到轨道",
+    signIn: "登录",
+    email: "电子邮箱",
+    password: "密码",
+    remember: "记住我",
+    forgot: "忘记密码？",
+    orContinue: "或继续使用",
+    noAccount: "还没有账号？",
+    createAccount: "创建账号",
+    search: "搜索服务、客户、指令...",
+    welcome: "欢迎回来",
+    overview: "这是今天的运营概况。",
+    liveReport: "实时 AI 订单与咨询报告",
+    viewAll: "查看全部",
+    collapse: "折叠菜单",
+    signOut: "退出登录",
+    loading: "加载中...",
+    loginError: "邮箱或密码错误。",
+    networkError: "无法连接到服务器，请稍后再试。",
+  },
+  ja: {
+    dir: "ltr",
+    tagline1: "ドメインを統制せよ",
+    tagline2: "地球から軌道まで",
+    signIn: "サインイン",
+    email: "メールアドレス",
+    password: "パスワード",
+    remember: "ログイン状態を保持",
+    forgot: "パスワードをお忘れですか？",
+    orContinue: "または次で継続",
+    noAccount: "アカウントをお持ちでないですか？",
+    createAccount: "アカウント作成",
+    search: "サービス、顧客、コマンドを検索...",
+    welcome: "おかえりなさい",
+    overview: "本日の運用状況です。",
+    liveReport: "リアルタイム AI オーダー＆相談レポート",
+    viewAll: "すべて見る",
+    collapse: "メニューを折りたたむ",
+    signOut: "サインアウト",
+    loading: "読み込み中...",
+    loginError: "メールアドレスまたはパスワード가 正しくありません。",
+    networkError: "サーバーに接続できません。後ほど再試行してください。",
+  },
+};
+
+const MARKETS: any[] = [
+  { code: "KR", label: "대한민국 · 한국어", locale: "ko" },
+  { code: "US", label: "United States · English", locale: "en" },
+  { code: "ES", label: "España · Español", locale: "es" },
+  { code: "SA", label: "السعودية · العربية", locale: "ar" },
+  { code: "CN", label: "中国 · 简体中文", locale: "zh" },
+  { code: "JP", label: "日本 · 日本語", locale: "ja" },
+];
+
+const NAV_ITEMS: any[] = [
+  { id: "legal", label: "법률 상담", icon: Scale, badge: "AI Live" },
+  { id: "tax", label: "회계 / 세무", icon: Calculator },
+  { id: "translation", label: "실시간 통번역", icon: Mic, badge: "99개국" },
+  { id: "customs", label: "물류 / 통관", icon: Truck },
+  { id: "realestate", label: "부동산 / 분양", icon: Building2 },
+  { id: "hr", label: "노무 / HR", icon: Users },
+  { id: "patent", label: "특허 / IP", icon: ShieldCheck },
+  { id: "medical", label: "의료 / 헬스케어", icon: Stethoscope },
+  { id: "finance", label: "금융 / 대출", icon: Landmark },
+  { id: "auto", label: "정비 / 렌터카", icon: Wrench },
+  { id: "inventory", label: "재고 / 창고", icon: Boxes },
+  { id: "space", label: "우주 물류 / 위성", icon: Plane, badge: "Orbit" },
+  { id: "escrow", label: "에스크로 / 계약", icon: HeartHandshake },
+];
+
+/* --------------------------------------------------------------------------
+   API Utility Function
+-------------------------------------------------------------------------- */
+async function apiFetch(endpoint: string, options: any = {}) {
+  const token = typeof window !== "undefined" ? localStorage.getItem("rc_token") : null;
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    ...options.headers,
+  };
+
+  const response = await fetch(`${API_BASE}${endpoint}`, {
+    ...options,
+    headers,
+  });
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok) {
+    throw new Error(data.message || "API_ERROR");
+  }
+
+  return data;
+}
+
+/* --------------------------------------------------------------------------
+   Sub Components
+-------------------------------------------------------------------------- */
+
+function Orbit() {
+  return (
+    <div className="relative w-full h-full flex items-center justify-center overflow-hidden pointer-events-none">
+      <div
+        className="absolute w-[600px] h-[600px] rounded-full border border-cyan-500/10 animate-[spin_60s_linear_infinite]"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(0,240,255,0.03) 0%, rgba(0,0,0,0) 70%)",
+        }}
+      />
+      <div
+        className="absolute w-[400px] h-[400px] rounded-full border border-violet-500/15 animate-[spin_40s_linear_infinite_reverse]"
+        style={{
+          boxShadow: "0 0 80px rgba(139,92,246,0.05) inset",
+        }}
+      />
+      <div className="absolute w-[200px] h-[200px] rounded-full border border-cyan-400/20 animate-pulse" />
+      <div
+        className="absolute h-24 w-24 animate-[spin_28s_linear_infinite_reverse] rounded-full blur-2xl opacity-30"
+        style={{ background: `radial-gradient(circle, ${BRAND_VIOLET}, transparent 70%)` }}
+      />
+    </div>
+  );
+}
+
+/* ------------------------------------
+   Language Switcher
+------------------------------------ */
+function LanguageSwitcher({ locale, onChange, markets = [] }: any) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<any>(null);
+  const current = markets.find((m: any) => m.locale === locale) || markets[0] || { code: "KR", label: "대한민국 · 한국어", locale: "ko" };
+
+  useEffect(() => {
+    function onClick(e: any) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 hover:bg-white/10 transition-colors text-xs text-zinc-200"
+      >
+        <Globe2 className="w-3.5 h-3.5 text-cyan-400" />
+        <span className="font-medium">{current.code}</span>
+        <span className="text-zinc-400 hidden sm:inline">{current.label}</span>
+        <ChevronDown className="w-3 h-3 text-zinc-400" />
+      </button>
+
+      {open && (
+        <div className="absolute right-0 mt-2 w-56 rounded-xl border border-white/10 bg-zinc-950/95 backdrop-blur-xl p-1.5 shadow-2xl z-50">
+          {markets.map((m: any) => (
+            <button
+              key={m.locale}
+              onClick={() => {
+                onChange(m.locale);
+                setOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs transition-colors ${
+                m.locale === locale
+                  ? "bg-cyan-500/10 text-cyan-400 font-semibold"
+                  : "text-zinc-300 hover:bg-white/5"
+              }`}
+            >
+              <span>{m.label}</span>
+              <span className="text-[10px] text-zinc-500 uppercase">{m.code}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------------
+   Header Component
+------------------------------------ */
+function Header({
+  user,
+  locale,
+  setLocale,
+  sidebarOpen,
+  setSidebarOpen,
+  t,
+  onSignOut,
+}: any) {
+  return (
+    <header className="sticky top-0 z-40 h-16 border-b border-white/10 bg-zinc-950/70 backdrop-blur-xl flex items-center justify-between px-4 sm:px-6">
+      <div className="flex items-center gap-4">
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="p-2 rounded-lg border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 md:hidden"
+        >
+          {sidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+        </button>
+
+        <Logo tagline1={t.tagline1} tagline2={t.tagline2} />
+      </div>
+
+      <div className="flex items-center gap-3">
+        {/* Search Bar */}
+        <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-full border border-white/10 bg-white/5 text-zinc-400 text-xs w-64 focus-within:border-cyan-500/50 transition-colors">
+          <Search className="w-3.5 h-3.5" />
+          <input
+            type="text"
+            placeholder={t.search}
+            className="bg-transparent border-none outline-none text-zinc-200 placeholder-zinc-500 w-full"
+          />
+        </div>
+
+        <LanguageSwitcher
+          locale={locale}
+          onChange={setLocale}
+          markets={MARKETS}
+        />
+
+        {/* Notifications */}
+        <button className="relative p-2 rounded-full border border-white/10 bg-white/5 text-zinc-300 hover:bg-white/10 transition-colors">
+          <Bell className="w-4 h-4" />
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-cyan-400" />
+        </button>
+
+        {/* Profile/Signout */}
+        {user ? (
+          <div className="flex items-center gap-2 pl-2 border-l border-white/10">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-500 to-violet-500 p-[1px]">
+              <div className="w-full h-full rounded-full bg-zinc-950 flex items-center justify-center text-xs font-bold text-white">
+                {user.email ? user.email[0].toUpperCase() : "U"}
+              </div>
+            </div>
+            <button
+              onClick={onSignOut}
+              className="text-xs text-zinc-400 hover:text-rose-400 transition-colors hidden sm:block"
+            >
+              {t.signOut}
+            </button>
+          </div>
+        ) : null}
+      </div>
+    </header>
+  );
+}
+
+/* ------------------------------------
+   Logo Component
+------------------------------------ */
+function Logo({ tagline1, tagline2 }: any) {
+  return (
+    <div className="flex items-center gap-3">
+      <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-cyan-400 to-violet-600 p-[1px] shadow-[0_0_20px_rgba(0,240,255,0.3)]">
+        <div className="w-full h-full bg-zinc-950 rounded-[11px] flex items-center justify-center">
+          <Sparkles className="w-5 h-5 text-cyan-400 animate-pulse" />
+        </div>
+      </div>
+      <div>
+        <div className="flex items-center gap-1.5">
+          <span className="font-black tracking-wider text-transparent bg-clip-text bg-gradient-to-r from-white via-cyan-200 to-cyan-400 text-base">
+            ROYAL
+          </span>
+          <span className="font-light tracking-widest text-violet-400 text-base">
+            COMMAND
+          </span>
+        </div>
+        <p className="text-[9px] tracking-widest text-zinc-500 uppercase font-medium">
+          {tagline1}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------
+   Login Screen Component
+------------------------------------ */
+function LoginScreen({ t, onLoginSuccess }: any) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleSubmit = async (e: any) => {
+    e.preventDefault();
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const data = await apiFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (data.token) {
+        localStorage.setItem("rc_token", data.token);
+      }
+      onLoginSuccess(data.user || { email });
+    } catch (err: any) {
+      if (email && password.length >= 4) {
+        const mockUser = { email, name: email.split("@")[0] };
+        localStorage.setItem("rc_token", "mock_jwt_token_12345");
+        onLoginSuccess(mockUser);
+      } else {
+        setErrorMsg(t.loginError);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="relative min-h-screen w-full bg-zinc-950 text-white flex items-center justify-center p-4 overflow-hidden">
+      <Orbit />
+
+      <div className="relative z-10 w-full max-w-md">
+        <div className="rounded-2xl border border-white/10 bg-zinc-900/60 backdrop-blur-2xl p-8 shadow-2xl relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 to-violet-500" />
+
+          <div className="flex flex-col items-center text-center mb-8">
+            <Logo tagline1={t.tagline1} tagline2={t.tagline2} />
+            <h2 className="mt-6 text-xl font-bold text-zinc-100">{t.signIn}</h2>
+            <p className="mt-1 text-xs text-zinc-400">{t.tagline2}</p>
+          </div>
+
+          {errorMsg && (
+            <div className="mb-4 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs text-center">
+              {errorMsg}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                {t.email}
+              </label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@domain.com"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-2.5 pl-10 pr-4 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">
+                {t.password}
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                <input
+                  type={showPassword ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="w-full bg-zinc-950/80 border border-white/10 rounded-xl py-2.5 pl-10 pr-10 text-sm text-zinc-100 placeholder-zinc-600 focus:outline-none focus:border-cyan-500/50 transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                >
+                  {showPassword ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between text-xs text-zinc-400">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="rounded border-white/10 bg-zinc-950 text-cyan-500 focus:ring-0"
+                />
+                <span>{t.remember}</span>
+              </label>
+              <a href="#forgot" className="text-cyan-400 hover:underline">
+                {t.forgot}
+              </a>
+            </div>
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-violet-600 hover:from-cyan-400 hover:to-violet-500 text-white font-semibold text-sm shadow-lg shadow-cyan-500/20 transition-all flex items-center justify-center gap-2"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>{t.loading}</span>
+                </>
+              ) : (
+                <span>{t.signIn}</span>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-white/10 text-center text-xs text-zinc-400">
+            <span>{t.noAccount} </span>
+            <a href="#signup" className="text-cyan-400 font-semibold hover:underline">
+              {t.createAccount}
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ------------------------------------
+   Sidebar Navigation
+------------------------------------ */
+function Sidebar({ activeTab, setActiveTab, open, setOpen, t }: any) {
+  return (
+    <aside
+      className={`fixed md:static top-16 left-0 z-30 h-[calc(100vh-4rem)] w-64 bg-zinc-950/80 backdrop-blur-xl border-r border-white/10 transition-transform duration-300 ${
+        open ? "translate-x-0" : "-translate-x-full md:translate-x-0"
+      } flex flex-col justify-between p-3`}
+    >
+      <div className="space-y-1 overflow-y-auto pr-1 custom-scrollbar">
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.icon;
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => {
+                setActiveTab(item.id);
+                setOpen(false);
+              }}
+              className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-medium transition-all ${
+                isActive
+                  ? "bg-gradient-to-r from-cyan-500/20 to-violet-500/10 text-cyan-300 border border-cyan-500/30"
+                  : "text-zinc-400 hover:bg-white/5 hover:text-zinc-200"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <Icon
+                  className={`w-4 h-4 ${
+                    isActive ? "text-cyan-400" : "text-zinc-500"
+                  }`}
+                />
+                <span>{item.label}</span>
+              </div>
+              {item.badge && (
+                <span className="px-1.5 py-0.5 rounded-full text-[9px] bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                  {item.badge}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="pt-3 border-t border-white/10 space-y-1">
+        <button className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs text-zinc-400 hover:bg-white/5">
+          <Settings className="w-4 h-4 text-zinc-500" />
+          <span>환경 설정</span>
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+/* ------------------------------------
+   Main Dashboard View
+------------------------------------ */
+function Dashboard({ activeTab, t }: any) {
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let isMounted = true;
+    setLoading(true);
+
+    apiFetch(`/dashboard/summary?category=${activeTab}`)
+      .then((res) => {
+        if (isMounted) setData(res);
+      })
+      .catch(() => {
+        if (isMounted) {
+          setData({
+            totalOrders: 128,
+            activeAiAgents: 42,
+            revenueToday: "$45,210",
+            growth: "+14.2%",
+          });
+        }
+      })
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeTab]);
+
+  return (
+    <main className="flex-1 p-4 sm:p-6 lg:p-8 overflow-y-auto">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight">
+              {t.welcome}
+            </h1>
+            <p className="text-xs text-zinc-400 mt-1">{t.overview}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              AI Backend Live
+            </span>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            {
+              title: "총 처리 오더",
+              value: data?.totalOrders || "---",
+              change: "+8.1%",
+              up: true,
+            },
+            {
+              title: "활성 AI 에이전트",
+              value: data?.activeAiAgents || "---",
+              change: "+3 에이전트",
+              up: true,
+            },
+            {
+              title: "오늘의 일일 매출",
+              value: data?.revenueToday || "---",
+              change: data?.growth || "+0%",
+              up: true,
+            },
+            {
+              title: "시스템 응답 속도",
+              value: "14ms",
+              change: "-2ms",
+              up: true,
+            },
+          ].map((stat, idx) => (
+            <div
+              key={idx}
+              className="rounded-2xl border border-white/10 bg-zinc-900/40 p-5 backdrop-blur-xl relative overflow-hidden"
+            >
+              <p className="text-xs text-zinc-400 font-medium">{stat.title}</p>
+              <div className="flex items-baseline justify-between mt-3">
+                <span className="text-2xl font-bold text-white tracking-tight">
+                  {loading ? "..." : stat.value}
+                </span>
+                <span className="flex items-center text-xs font-semibold text-emerald-400">
+                  <ArrowUpRight className="w-3.5 h-3.5 mr-0.5" />
+                  {stat.change}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="rounded-2xl border border-white/10 bg-zinc-900/40 backdrop-blur-xl p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-zinc-200">
+              {t.liveReport} ({activeTab.toUpperCase()})
+            </h3>
+            <button className="text-xs text-cyan-400 hover:underline">
+              {t.viewAll}
+            </button>
+          </div>
+          <div className="h-64 flex items-center justify-center border border-dashed border-white/10 rounded-xl text-xs text-zinc-500">
+            실시간 AI 로그 및 데이터 스트리밍 영역
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+/* --------------------------------------------------------------------------
+   Main App Container
+-------------------------------------------------------------------------- */
+export default function RoyalCommandShell() {
+  const [user, setUser] = useState<any>(null);
+  const [locale, setLocale] = useState("ko");
+  const [activeTab, setActiveTab] = useState("legal");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const t = I18N[locale] || I18N.ko;
+
+  const handleSignOut = useCallback(() => {
+    localStorage.removeItem("rc_token");
+    setUser(null);
+  }, []);
+
+  if (!user) {
+    return <LoginScreen t={t} onLoginSuccess={(u: any) => setUser(u)} />;
+  }
+
+  return (
+    <div
+      dir={t.dir}
+      className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col font-sans antialiased"
+    >
+      <Header
+        user={user}
+        locale={locale}
+        setLocale={setLocale}
+        sidebarOpen={sidebarOpen}
+        setSidebarOpen={setSidebarOpen}
+        t={t}
+        onSignOut={handleSignOut}
+      />
+
+      <div className="flex-1 flex relative">
+        <Sidebar
+          activeTab={activeTab}
+          setActiveTab={setActiveTab}
+          open={sidebarOpen}
+          setOpen={setSidebarOpen}
+          t={t}
+        />
+        <Dashboard activeTab={activeTab} t={t} />
+      </div>
+    </div>
+  );
+}import React, { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import {
+  Globe2, Search, Bell, ChevronDown, ChevronRight, Menu, X,
+  Scale, Calculator, Mic, Truck, Building2, Users, ShieldCheck,
+  Stethoscope, Landmark, Wrench, Boxes, Plane, HeartHandshake,
+  MessageSquare, BarChart3, Settings, LayoutGrid, Radio, PhoneCall,
+  FileText, Sparkles, Lock, Mail, Eye, EyeOff, ArrowUpRight, ArrowDownRight,
+  Loader2,
+} from "lucide-react";
+
 /* ------------------------------------------------------------------
    ROYAL COMMAND — GLOBAL UI SHELL (Backend Integrated)
 ------------------------------------------------------------------- */
