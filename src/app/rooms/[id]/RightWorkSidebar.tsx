@@ -4,11 +4,24 @@ import { FormEvent, useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, Code2, GripVertical, Plus, Trash2 } from "lucide-react";
 
 type Task = { id: string; text: string; done: boolean };
-type DevFile = { path: string; content: string };
+type DevAction = {
+  path: string;
+  operation: "create" | "update" | "delete";
+  content?: string;
+  reason?: string;
+};
+type DevStatus = {
+  developer: boolean;
+  geminiConfigured: boolean;
+  githubConfigured: boolean;
+  developerAccessConfigured: boolean;
+  repo?: string;
+  branch?: string;
+};
 
 const MIN_WIDTH = 0;
-const DEFAULT_WIDTH = 300;
-const MAX_WIDTH = 520;
+const DEFAULT_WIDTH = 320;
+const MAX_WIDTH = 560;
 const AUTO_COLLAPSE_AT = 64;
 
 export default function RightWorkSidebar() {
@@ -18,9 +31,10 @@ export default function RightWorkSidebar() {
   const [text, setText] = useState("");
   const [devInstruction, setDevInstruction] = useState("");
   const [devSummary, setDevSummary] = useState("");
-  const [devFiles, setDevFiles] = useState<DevFile[]>([]);
+  const [devActions, setDevActions] = useState<DevAction[]>([]);
   const [devBusy, setDevBusy] = useState(false);
   const [devError, setDevError] = useState("");
+  const [devStatus, setDevStatus] = useState<DevStatus | null>(null);
   const dragging = useRef(false);
   const previousExpandedWidth = useRef(DEFAULT_WIDTH);
 
@@ -50,6 +64,10 @@ export default function RightWorkSidebar() {
       // Ignore storage failure.
     }
   }, [tasks]);
+
+  useEffect(() => {
+    void loadDevStatus();
+  }, []);
 
   useEffect(() => {
     function onMove(event: MouseEvent) {
@@ -90,6 +108,16 @@ export default function RightWorkSidebar() {
     };
   }, [width]);
 
+  async function loadDevStatus() {
+    try {
+      const res = await fetch("/api/dev/gemini", { cache: "no-store" });
+      const data = await res.json();
+      if (res.ok) setDevStatus(data);
+    } catch {
+      // The status card will simply remain unavailable.
+    }
+  }
+
   function startResize(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
     dragging.current = true;
@@ -104,7 +132,7 @@ export default function RightWorkSidebar() {
       setCollapsed(true);
     } else {
       setCollapsed(false);
-      setWidth(Math.max(220, previousExpandedWidth.current));
+      setWidth(Math.max(240, previousExpandedWidth.current));
     }
     try {
       window.localStorage.setItem("royalcommand:right-sidebar-collapsed", next ? "1" : "0");
@@ -127,7 +155,7 @@ export default function RightWorkSidebar() {
     setDevBusy(true);
     setDevError("");
     setDevSummary("");
-    setDevFiles([]);
+    setDevActions([]);
     try {
       const res = await fetch("/api/dev/gemini", {
         method: "POST",
@@ -137,7 +165,8 @@ export default function RightWorkSidebar() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gemini development review failed");
       setDevSummary(data.summary || "변경안을 준비했습니다.");
-      setDevFiles(Array.isArray(data.files) ? data.files : []);
+      setDevActions(Array.isArray(data.actions) ? data.actions : []);
+      void loadDevStatus();
     } catch (error) {
       setDevError(error instanceof Error ? error.message : "Gemini development review failed");
     } finally {
@@ -146,20 +175,23 @@ export default function RightWorkSidebar() {
   }
 
   async function executeGeminiDev() {
-    if (!devFiles.length || !devInstruction.trim() || devBusy) return;
+    if (!devActions.length || !devInstruction.trim() || devBusy) return;
     setDevBusy(true);
     setDevError("");
     try {
       const res = await fetch("/api/dev/gemini", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ instruction: devInstruction.trim(), execute: true, files: devFiles }),
+        body: JSON.stringify({ instruction: devInstruction.trim(), execute: true, actions: devActions }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gemini development execution failed");
-      const ids = Array.isArray(data.commits) ? data.commits.map((c: { commit?: string }) => c.commit?.slice(0, 8)).filter(Boolean).join(", ") : "";
-      setDevSummary(`수정 및 GitHub Commit 완료${ids ? ` · ${ids}` : ""}`);
-      setDevFiles([]);
+      const ids = Array.isArray(data.commits)
+        ? data.commits.map((commit: { commit?: string }) => commit.commit?.slice(0, 8)).filter(Boolean).join(", ")
+        : "";
+      setDevSummary(`Gemini 수정 및 GitHub Commit 완료${ids ? ` · ${ids}` : ""}`);
+      setDevActions([]);
+      void loadDevStatus();
     } catch (error) {
       setDevError(error instanceof Error ? error.message : "Gemini development execution failed");
     } finally {
@@ -229,7 +261,7 @@ export default function RightWorkSidebar() {
             </div>
           </form>
 
-          <div className="max-h-[38vh] flex-1 space-y-2 overflow-y-auto p-2">
+          <div className="max-h-[32vh] flex-1 space-y-2 overflow-y-auto p-2">
             {tasks.map((task) => (
               <div key={task.id} className="flex min-w-0 items-start gap-2 rounded-xl border border-white/10 bg-black/20 p-2.5">
                 <input
@@ -253,15 +285,25 @@ export default function RightWorkSidebar() {
             {tasks.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">여기에 할 일과 지시사항을 계속 적어둘 수 있습니다.</p> : null}
           </div>
 
-          <div className="border-t border-white/10 p-2">
+          <div className="min-h-0 flex-1 overflow-y-auto border-t border-white/10 p-2">
             <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--gold-soft)]">
               <Code2 size={16} /> Gemini 개발 Agent
             </div>
+
+            {devStatus ? (
+              <div className="mb-2 rounded-lg border border-white/10 bg-black/20 p-2 text-[11px] leading-5 text-[var(--muted)]">
+                <div>Gemini API: <span className={devStatus.geminiConfigured ? "text-emerald-300" : "text-red-300"}>{devStatus.geminiConfigured ? "연결" : "미연결"}</span></div>
+                <div>GitHub 실행: <span className={devStatus.githubConfigured ? "text-emerald-300" : "text-red-300"}>{devStatus.githubConfigured ? "연결" : "GITHUB_TOKEN 필요"}</span></div>
+                <div>개발자 권한: <span className={devStatus.developer ? "text-emerald-300" : "text-amber-300"}>{devStatus.developer ? "허용" : "ROYAL_COMMAND_DEV_EMAILS 확인 필요"}</span></div>
+                {devStatus.repo ? <div className="truncate">저장소: {devStatus.repo} · {devStatus.branch}</div> : null}
+              </div>
+            ) : null}
+
             <textarea
               value={devInstruction}
               onChange={(e) => setDevInstruction(e.target.value)}
               rows={4}
-              placeholder="예: 오른쪽 사이드바 폭을 340px로 바꾸고 모바일에서도 열리게 고쳐줘"
+              placeholder="예: 화면을 점검해서 문제를 직접 수정하고 필요한 파일도 만들어줘"
               className="rc-input w-full resize-y !py-2 text-xs"
             />
             <div className="mt-2 flex gap-2">
@@ -271,19 +313,29 @@ export default function RightWorkSidebar() {
                 disabled={devBusy || !devInstruction.trim()}
                 className="flex-1 rounded-lg border border-white/10 px-2 py-2 text-xs font-semibold disabled:opacity-40"
               >
-                {devBusy ? "작업 중…" : "Gemini 검토"}
+                {devBusy ? "작업 중…" : "Gemini 작업 준비"}
               </button>
               <button
                 type="button"
                 onClick={executeGeminiDev}
-                disabled={devBusy || !devFiles.length}
+                disabled={devBusy || !devActions.length}
                 className="flex-1 rounded-lg bg-[var(--gold-soft)] px-2 py-2 text-xs font-semibold text-black disabled:opacity-40"
               >
                 승인 실행
               </button>
             </div>
+
             {devSummary ? <p className="mt-2 whitespace-pre-wrap text-xs text-emerald-300">{devSummary}</p> : null}
-            {devFiles.length ? <p className="mt-1 break-words text-[11px] text-[var(--muted)]">수정 예정: {devFiles.map((f) => f.path).join(", ")}</p> : null}
+            {devActions.length ? (
+              <div className="mt-2 space-y-1 rounded-lg border border-white/10 p-2 text-[11px] text-[var(--muted)]">
+                {devActions.map((action, index) => (
+                  <div key={`${action.path}-${index}`} className="break-words">
+                    <span className="font-semibold text-white/80">{action.operation.toUpperCase()}</span> · {action.path}
+                    {action.reason ? <span> — {action.reason}</span> : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
             {devError ? <p className="mt-2 whitespace-pre-wrap text-xs text-red-300">{devError}</p> : null}
           </div>
         </>
