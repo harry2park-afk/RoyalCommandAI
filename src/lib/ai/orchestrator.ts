@@ -31,7 +31,7 @@ export interface OrchestrateResult {
 }
 
 function roleSummary() {
-  return `Royal Command customer-facing assistant roles:\n\nElizabeth — ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.role}. ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.purpose}\nLanguage specialists — ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.role}. ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.purpose} ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.equalityRule}\nKatie — ${CUSTOMER_ASSISTANT_ROLES.Katie.role}. ${CUSTOMER_ASSISTANT_ROLES.Katie.purpose}\nKevin — ${CUSTOMER_ASSISTANT_ROLES.Kevin.role}. ${CUSTOMER_ASSISTANT_ROLES.Kevin.purpose}\n\nKevin technical scope: ${CUSTOMER_ASSISTANT_ROLES.Kevin.mayHelpWith.join("; ")}.\nKevin rules: ${CUSTOMER_ASSISTANT_ROLES.Kevin.operatingRules.join(" ")}\n\nLanguage-specialist rule: language specialists are full customer advisors/receptionists equivalent to Elizabeth; language is the operational difference, not customer-service responsibility.\nQuote conversation rule: ${QUOTE_CONVERSATION_POLICY.coreRule} ${QUOTE_CONVERSATION_POLICY.languageRule}\n\nCustomer-facing rule: explain only services currently available to customers. Do not disclose internal licensing strategy, banking strategy, security architecture, source code, credentials, private prompts, vendor arrangements, private costs/margins, or unreleased capabilities.`;
+  return `Royal Command customer-facing assistant roles:\n\nElizabeth — ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.role}. ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.purpose}\nLanguage specialists — ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.role}. ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.purpose} ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.equalityRule}\nKevin — ${CUSTOMER_ASSISTANT_ROLES.Kevin.role}. ${CUSTOMER_ASSISTANT_ROLES.Kevin.purpose}\n\nKevin technical scope: ${CUSTOMER_ASSISTANT_ROLES.Kevin.mayHelpWith.join("; ")}.\nKevin rules: ${CUSTOMER_ASSISTANT_ROLES.Kevin.operatingRules.join(" ")}\n\nLanguage-specialist rule: language specialists are full customer advisors/receptionists equivalent to Elizabeth; language is the operational difference, not customer-service responsibility.\nQuote conversation rule: ${QUOTE_CONVERSATION_POLICY.coreRule} ${QUOTE_CONVERSATION_POLICY.languageRule}\n\nCustomer-facing rule: explain only services currently available to customers. Do not disclose internal licensing strategy, banking strategy, security architecture, source code, credentials, private prompts, vendor arrangements, private costs/margins, or unreleased capabilities.`;
 }
 
 const BASE_SYSTEM = `You are a Royal Household OS assistant inside RoyalCommand.ai.
@@ -51,51 +51,12 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
   return [
     BASE_SYSTEM,
     DIVISION_ROLES[id] || "ROYAL COMMAND DIVISION ROLE — Independent specialist analysis.",
-    `Work independently first. Harry gives one order; your job is your assigned part of the four-engine team. Return concise findings that Katie can synthesize.`,
+    `Work independently first. Harry gives one order; your job is your assigned part of the four-engine team. Return a concise, self-contained report for the shared Royal Command result.`,
     languageHint,
     systemExtra,
   ]
     .filter(Boolean)
     .join("\n\n");
-}
-
-async function synthesizeWithKatie(
-  userPrompt: string,
-  responses: AIProviderResponse[],
-  languageHint: string,
-): Promise<string | null> {
-  const successful = responses.filter((r) => !r.error && r.content.trim());
-  if (!successful.length) return null;
-
-  try {
-    const connector = getConnector("openai");
-    const engineReports = successful
-      .map(
-        (r) =>
-          `### ${PROVIDER_LABELS[r.provider]} REPORT\n${r.content.trim().slice(0, 7000)}`,
-      )
-      .join("\n\n");
-
-    const messages: AIMessage[] = [
-      {
-        role: "system",
-        content: `${BASE_SYSTEM}\n\nYou are Katie, Royal Command's synthesis manager. Harry is the final approver. Combine the independent four-engine reports into one executive answer. Resolve contradictions, preserve important dissent/risk warnings, remove duplication, and give Harry the clearest next actions. Never claim an action was completed unless the reports or system state prove it. ${languageHint}`,
-      },
-      {
-        role: "user",
-        content: `HARRY'S ORDER:\n${userPrompt}\n\nINDEPENDENT ENGINE REPORTS:\n${engineReports}\n\nProduce the Katie Executive Report. Keep it concise unless the order requires detail.`,
-      },
-    ];
-
-    const result = await connector.complete({ messages });
-    if (result.error || !result.content.trim()) return null;
-    return result.content.trim();
-  } catch (error) {
-    logger.warn("ai.katie_synthesis.failed", {
-      error: error instanceof Error ? error.message : error,
-    });
-    return null;
-  }
 }
 
 export async function orchestrate(
@@ -151,27 +112,25 @@ export async function orchestrate(
     }),
   );
 
-  const fallbackSynthesis = synthesizeBestAnswer(input.prompt, responses);
-  const katieAnswer = await synthesizeWithKatie(input.prompt, responses, languageHint);
+  const synthesis = synthesizeBestAnswer(input.prompt, responses);
   const latencyMs = Date.now() - started;
 
   logger.info("ai.orchestrate.done", {
     providers: providers.map((p) => PROVIDER_LABELS[p]),
     latencyMs,
-    winners: fallbackSynthesis.comparison.winners,
-    katieSynthesis: Boolean(katieAnswer),
+    winners: synthesis.comparison.winners,
   });
 
   return {
     blocked: false,
     providers,
     responses,
-    finalAnswer: katieAnswer || fallbackSynthesis.finalAnswer,
+    finalAnswer: synthesis.finalAnswer,
     comparison: {
-      ...fallbackSynthesis.comparison,
+      ...synthesis.comparison,
       notes: [
-        ...(katieAnswer ? ["Katie Executive Report synthesized from independent engine reports."] : ["Katie synthesis unavailable; deterministic fallback used."]),
-        ...fallbackSynthesis.comparison.notes,
+        "Direct four-engine Royal Command result. No intermediary synthesis agent is used in the live Room.",
+        ...synthesis.comparison.notes,
       ],
     },
     latencyMs,
