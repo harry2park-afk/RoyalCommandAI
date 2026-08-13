@@ -73,9 +73,8 @@ export async function POST(request: Request) {
     const language = data.language || user.defaultLanguage;
 
     let result: any;
-    const geminiSelected = Array.isArray(data.providers) && data.providers.includes("google");
 
-    if (geminiSelected && looksLikeDevelopmentInstruction(data.prompt)) {
+    if (looksLikeDevelopmentInstruction(data.prompt)) {
       try {
         const dev = await runGeminiDeveloper(request, data.prompt);
         const changed = dev.actions.map((action: { operation?: string; path?: string }) => `${action.operation || "update"}: ${action.path || ""}`);
