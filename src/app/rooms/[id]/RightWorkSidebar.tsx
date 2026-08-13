@@ -1,9 +1,10 @@
 "use client";
 
 import { FormEvent, useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, GripVertical, Plus, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, Code2, GripVertical, Plus, Trash2 } from "lucide-react";
 
 type Task = { id: string; text: string; done: boolean };
+type DevFile = { path: string; content: string };
 
 const MIN_WIDTH = 0;
 const DEFAULT_WIDTH = 300;
@@ -15,6 +16,11 @@ export default function RightWorkSidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [text, setText] = useState("");
+  const [devInstruction, setDevInstruction] = useState("");
+  const [devSummary, setDevSummary] = useState("");
+  const [devFiles, setDevFiles] = useState<DevFile[]>([]);
+  const [devBusy, setDevBusy] = useState(false);
+  const [devError, setDevError] = useState("");
   const dragging = useRef(false);
   const previousExpandedWidth = useRef(DEFAULT_WIDTH);
 
@@ -115,6 +121,52 @@ export default function RightWorkSidebar() {
     setText("");
   }
 
+  async function askGeminiDev() {
+    const instruction = devInstruction.trim();
+    if (!instruction || devBusy) return;
+    setDevBusy(true);
+    setDevError("");
+    setDevSummary("");
+    setDevFiles([]);
+    try {
+      const res = await fetch("/api/dev/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instruction }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gemini development review failed");
+      setDevSummary(data.summary || "변경안을 준비했습니다.");
+      setDevFiles(Array.isArray(data.files) ? data.files : []);
+    } catch (error) {
+      setDevError(error instanceof Error ? error.message : "Gemini development review failed");
+    } finally {
+      setDevBusy(false);
+    }
+  }
+
+  async function executeGeminiDev() {
+    if (!devFiles.length || !devInstruction.trim() || devBusy) return;
+    setDevBusy(true);
+    setDevError("");
+    try {
+      const res = await fetch("/api/dev/gemini", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ instruction: devInstruction.trim(), execute: true, files: devFiles }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gemini development execution failed");
+      const ids = Array.isArray(data.commits) ? data.commits.map((c: { commit?: string }) => c.commit?.slice(0, 8)).filter(Boolean).join(", ") : "";
+      setDevSummary(`수정 및 GitHub Commit 완료${ids ? ` · ${ids}` : ""}`);
+      setDevFiles([]);
+    } catch (error) {
+      setDevError(error instanceof Error ? error.message : "Gemini development execution failed");
+    } finally {
+      setDevBusy(false);
+    }
+  }
+
   if (collapsed) {
     return (
       <button
@@ -177,7 +229,7 @@ export default function RightWorkSidebar() {
             </div>
           </form>
 
-          <div className="flex-1 space-y-2 overflow-y-auto p-2">
+          <div className="max-h-[38vh] flex-1 space-y-2 overflow-y-auto p-2">
             {tasks.map((task) => (
               <div key={task.id} className="flex min-w-0 items-start gap-2 rounded-xl border border-white/10 bg-black/20 p-2.5">
                 <input
@@ -199,6 +251,40 @@ export default function RightWorkSidebar() {
               </div>
             ))}
             {tasks.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">여기에 할 일과 지시사항을 계속 적어둘 수 있습니다.</p> : null}
+          </div>
+
+          <div className="border-t border-white/10 p-2">
+            <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-[var(--gold-soft)]">
+              <Code2 size={16} /> Gemini 개발 Agent
+            </div>
+            <textarea
+              value={devInstruction}
+              onChange={(e) => setDevInstruction(e.target.value)}
+              rows={4}
+              placeholder="예: 오른쪽 사이드바 폭을 340px로 바꾸고 모바일에서도 열리게 고쳐줘"
+              className="rc-input w-full resize-y !py-2 text-xs"
+            />
+            <div className="mt-2 flex gap-2">
+              <button
+                type="button"
+                onClick={askGeminiDev}
+                disabled={devBusy || !devInstruction.trim()}
+                className="flex-1 rounded-lg border border-white/10 px-2 py-2 text-xs font-semibold disabled:opacity-40"
+              >
+                {devBusy ? "작업 중…" : "Gemini 검토"}
+              </button>
+              <button
+                type="button"
+                onClick={executeGeminiDev}
+                disabled={devBusy || !devFiles.length}
+                className="flex-1 rounded-lg bg-[var(--gold-soft)] px-2 py-2 text-xs font-semibold text-black disabled:opacity-40"
+              >
+                승인 실행
+              </button>
+            </div>
+            {devSummary ? <p className="mt-2 whitespace-pre-wrap text-xs text-emerald-300">{devSummary}</p> : null}
+            {devFiles.length ? <p className="mt-1 break-words text-[11px] text-[var(--muted)]">수정 예정: {devFiles.map((f) => f.path).join(", ")}</p> : null}
+            {devError ? <p className="mt-2 whitespace-pre-wrap text-xs text-red-300">{devError}</p> : null}
           </div>
         </>
       ) : null}
