@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { actionSchemaInstruction, decodeActionContent, parseJsonObject, type EncodedDevAction } from "@/lib/ai/devAgentCodec";
 
 const REPO = process.env.ROYAL_COMMAND_GITHUB_REPO || "harry2park-afk/RoyalCommandAI";
 const BRANCH = process.env.ROYAL_COMMAND_GITHUB_BRANCH || "master";
@@ -46,11 +47,6 @@ function explicitSensitiveInstruction(instruction: string) {
 
 function pathForApi(path: string) {
   return encodeURIComponent(path).replace(/%2F/g, "/");
-}
-
-function parseJsonText(text: string) {
-  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
-  return JSON.parse(cleaned || "{}");
 }
 
 async function github(path: string, init?: RequestInit) {
@@ -109,7 +105,7 @@ async function geminiDirect(prompt: string) {
     throw new Error(`${data?.error?.message || `Gemini HTTP ${response.status}`}${reason ? ` [${reason}]` : ""}`);
   }
   const text = data.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("") || "{}";
-  return parseJsonText(text);
+  return parseJsonObject(text);
 }
 
 async function resolveOpenRouterGeminiModel(key: string) {
@@ -149,7 +145,7 @@ async function geminiViaOpenRouter(prompt: string) {
       messages: [
         {
           role: "system",
-          content: "You are Gemini operating as the Royal Command senior autonomous developer. Return strict JSON only, with no markdown fences or prose outside JSON.",
+          content: "You are Gemini operating as the Royal Command senior autonomous developer. Return strict JSON only, with no markdown fences or prose outside JSON. When returning file contents, always Base64-encode the complete UTF-8 file and place it in contentBase64. Never place raw source code inside a JSON string.",
         },
         { role: "user", content: prompt },
       ],
@@ -163,7 +159,7 @@ async function geminiViaOpenRouter(prompt: string) {
   if (!response.ok) throw new Error(data?.error?.message || `OpenRouter Gemini request failed (${response.status})`);
   const content = data?.choices?.[0]?.message?.content;
   if (typeof content !== "string" || !content.trim()) throw new Error("OpenRouter Gemini returned an empty response");
-  return parseJsonText(content);
+  return parseJsonObject(content);
 }
 
 async function gemini(prompt: string) {
@@ -277,7 +273,7 @@ export async function POST(request: Request) {
       const actions: DevAction[] = proposed.slice(0, MAX_FILES).map((item: any) => ({
         path: String(item.path || ""),
         operation: item.operation === "create" || item.operation === "delete" ? item.operation : "update",
-        content: typeof item.content === "string" ? item.content : undefined,
+        content: typeof item.content === "string" ? item.content : typeof item.contentBase64 === "string" ? Buffer.from(item.contentBase64, "base64").toString("utf8") : undefined,
         reason: typeof item.reason === "string" ? item.reason : undefined,
       }));
 
@@ -309,14 +305,14 @@ export async function POST(request: Request) {
       if (file.exists) snapshots.push({ path, content: file.content });
     }
 
-    const patch = await gemini(`You are the Royal Command senior autonomous developer. Produce a safe, minimal implementation plan as executable file actions. Return JSON only in this exact shape: {"summary":"short Korean summary","actions":[{"path":"src/...","operation":"create|update|delete","content":"complete file content for create/update","reason":"short reason"}]}. Use at most ${MAX_FILES} actions. For update/create, content MUST be the entire final file, not a diff. Do not expose or create secrets. Do not weaken authentication, authorization, or security controls. Only touch sensitive auth/security files when the user's instruction explicitly asks for that work. Preserve existing features unless the instruction requires change.\n\nUSER INSTRUCTION:\n${instruction}\n\nPOSSIBLE NEW FILES:\n${newPaths.join("\n")}\n\nCURRENT FILES:\n${snapshots.map((file) => `\n--- ${file.path} ---\n${file.content}`).join("\n")}`);
+    const patch = await gemini(`You are the Royal Command senior autonomous developer. Produce a safe, minimal implementation plan as executable file actions. ${actionSchemaInstruction()} Use at most ${MAX_FILES} actions. Do not expose or create secrets. Do not weaken authentication, authorization, or security controls. Only touch sensitive auth/security files when the user's instruction explicitly asks for that work. Preserve existing features unless the instruction requires change.\n\nUSER INSTRUCTION:\n${instruction}\n\nPOSSIBLE NEW FILES:\n${newPaths.join("\n")}\n\nCURRENT FILES:\n${snapshots.map((file) => `\n--- ${file.path} ---\n${file.content}`).join("\n")}`);
 
     const actions: DevAction[] = Array.isArray(patch.actions)
       ? patch.actions
-          .map((item: any) => ({
+          .map((item: EncodedDevAction) => ({
             path: String(item.path || ""),
             operation: item.operation === "create" || item.operation === "delete" ? item.operation : "update",
-            content: typeof item.content === "string" ? item.content : undefined,
+            content: decodeActionContent(item),
             reason: typeof item.reason === "string" ? item.reason : undefined,
           }))
           .filter((item: DevAction) => safePath(item.path))
