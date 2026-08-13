@@ -4,7 +4,6 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Bot, Mic, Paperclip, Send, Volume2, VolumeX } from "lucide-react";
-import RightWorkSidebar from "./RightWorkSidebar";
 
 type Message = {
   id: string;
@@ -52,7 +51,7 @@ export default function RoomV3() {
   const selectionReady = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const messagesViewportRef = useRef<HTMLDivElement>(null);
 
   const history = useMemo(
     () => messages
@@ -100,7 +99,11 @@ export default function RoomV3() {
     localStorage.setItem(`royalcommand:room:${roomId}:selected-ai`, JSON.stringify(selected));
   }, [roomId, selected]);
 
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
+  useEffect(() => {
+    const viewport = messagesViewportRef.current;
+    if (!viewport) return;
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
+  }, [messages, loading]);
 
   function isAvailable(id: string) {
     return providers.some((p) => p.id === id && p.available);
@@ -192,10 +195,10 @@ export default function RoomV3() {
   }
 
   return (
-    <main className="flex min-h-screen overflow-x-hidden bg-[#07101d] text-[#f4f0e7]">
-      <div className="min-w-0 flex-1">
-        <div className="mx-auto flex min-h-screen max-w-[1500px] flex-col px-4 py-4 md:px-6">
-          <header className="flex flex-wrap items-center gap-3 border-b border-white/10 pb-4">
+    <main className="flex h-[100dvh] min-h-0 overflow-hidden bg-[#07101d] text-[#f4f0e7]">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div className="mx-auto flex h-full min-h-0 max-w-[1500px] flex-col px-4 py-4 md:px-6">
+          <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-3 border-b border-white/10 bg-[#07101d] pb-4">
             <Link href="/dashboard" className="text-sm text-[#b8b6b0]">← Dashboard</Link>
             <div className="flex-1">
               <div className="text-[11px] uppercase tracking-[0.32em] text-[#d7b64d]">Royal Command</div>
@@ -210,7 +213,7 @@ export default function RoomV3() {
             </button>
           </header>
 
-          <div className="py-4">
+          <div className="relative z-20 shrink-0 bg-[#07101d] py-4">
             <div className="mb-2 text-xs uppercase tracking-[0.22em] text-[#9ca5b2]">AI OPEN / OFF — only OPEN AIs work</div>
             <div className="flex flex-wrap gap-2">
               {CORE_AI.map((id) => {
@@ -227,8 +230,8 @@ export default function RoomV3() {
             <div className="mt-2 text-sm text-[#9ca5b2]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
           </div>
 
-          <section className="flex min-h-[70vh] flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b1524]">
-            <div className="flex-1 space-y-4 overflow-y-auto px-4 py-5 md:px-6">
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b1524]">
+            <div ref={messagesViewportRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-5 md:px-6">
               {!messages.length && !loading && (
                 <div className="mx-auto mt-16 max-w-xl text-center">
                   <Bot className="mx-auto text-[#d7b64d]" size={38} />
@@ -248,10 +251,9 @@ export default function RoomV3() {
               })}
 
               {loading && <div className="text-sm text-[#d7b64d]">Working: {selected.filter(isAvailable).map((id) => LABELS[id]).join(" + ")}…</div>}
-              <div ref={bottomRef} />
             </div>
 
-            <form onSubmit={send} className="border-t border-white/10 p-3 md:p-4">
+            <form onSubmit={send} className="shrink-0 border-t border-white/10 bg-[#0b1524] p-3 md:p-4">
               {error && <div className="mb-2 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">{error}</div>}
               {lastResult?.responses?.length ? (
                 <div className="mb-2 text-xs text-[#9ca5b2]">Last run: {lastResult.responses.map((r) => `${LABELS[r.provider] || r.provider}${r.error ? " ✕" : " ✓"}`).join(" · ")}</div>
@@ -272,7 +274,6 @@ export default function RoomV3() {
           </section>
         </div>
       </div>
-      <RightWorkSidebar />
     </main>
   );
 }
