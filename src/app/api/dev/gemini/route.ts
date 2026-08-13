@@ -6,6 +6,7 @@ const BRANCH = process.env.ROYAL_COMMAND_GITHUB_BRANCH || "master";
 const GOOGLE_MODEL = process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash";
 const MAX_FILES = 8;
 const MAX_FILE_BYTES = 180_000;
+const OWNER_DEV_EMAILS = ["harry2park@gmail.com", "harry@royalcommand.ai"];
 
 type DevAction = {
   path: string;
@@ -15,10 +16,11 @@ type DevAction = {
 };
 
 function developerEmails() {
-  return (process.env.ROYAL_COMMAND_DEV_EMAILS || "")
+  const configured = (process.env.ROYAL_COMMAND_DEV_EMAILS || "")
     .split(",")
     .map((value) => value.trim().toLowerCase())
     .filter(Boolean);
+  return Array.from(new Set([...OWNER_DEV_EMAILS, ...configured]));
 }
 
 function isDeveloper(email: string) {
