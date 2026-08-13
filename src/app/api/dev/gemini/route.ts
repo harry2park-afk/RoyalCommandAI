@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 
 const REPO = process.env.ROYAL_COMMAND_GITHUB_REPO || "harry2park-afk/RoyalCommandAI";
 const BRANCH = process.env.ROYAL_COMMAND_GITHUB_BRANCH || "master";
-const GOOGLE_MODEL = process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash";
+const GOOGLE_MODEL = process.env.GOOGLE_AI_MODEL || "gemini-3.6-flash";
 const MAX_FILES = 8;
 const MAX_FILE_BYTES = 180_000;
 const OWNER_DEV_EMAILS = ["harry2park@gmail.com", "harry@royalcommand.ai"];
@@ -48,6 +48,11 @@ function pathForApi(path: string) {
   return encodeURIComponent(path).replace(/%2F/g, "/");
 }
 
+function parseJsonText(text: string) {
+  const cleaned = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
+  return JSON.parse(cleaned || "{}");
+}
+
 async function github(path: string, init?: RequestInit) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN is not configured in the Royal Command server environment");
@@ -75,7 +80,7 @@ async function github(path: string, init?: RequestInit) {
   return data;
 }
 
-async function gemini(prompt: string) {
+async function geminiDirect(prompt: string) {
   const key = process.env.GOOGLE_AI_API_KEY;
   if (!key) throw new Error("GOOGLE_AI_API_KEY is not configured");
 
@@ -99,9 +104,81 @@ async function gemini(prompt: string) {
   );
 
   const data = await response.json();
-  if (!response.ok) throw new Error(data?.error?.message || `Gemini HTTP ${response.status}`);
+  if (!response.ok) {
+    const reason = data?.error?.details?.find?.((item: any) => item?.reason)?.reason;
+    throw new Error(`${data?.error?.message || `Gemini HTTP ${response.status}`}${reason ? ` [${reason}]` : ""}`);
+  }
   const text = data.candidates?.[0]?.content?.parts?.map((part: { text?: string }) => part.text || "").join("") || "{}";
-  return JSON.parse(text);
+  return parseJsonText(text);
+}
+
+async function resolveOpenRouterGeminiModel(key: string) {
+  const preferred = process.env.OPENROUTER_GEMINI_MODEL;
+  if (preferred) return preferred;
+
+  const url = new URL("https://openrouter.ai/api/v1/models");
+  url.searchParams.set("q", "gemini");
+  url.searchParams.set("sort", "most-popular");
+  const response = await fetch(url, {
+    headers: { Authorization: `Bearer ${key}` },
+    cache: "no-store",
+  });
+  const data = await response.json();
+  if (!response.ok) throw new Error(data?.error?.message || `OpenRouter model lookup failed (${response.status})`);
+  const models = Array.isArray(data?.data) ? data.data : [];
+  const model = models.find((item: any) => typeof item?.id === "string" && item.id.startsWith("google/gemini"))?.id;
+  if (!model) throw new Error("No Gemini model is currently available through OpenRouter");
+  return model;
+}
+
+async function geminiViaOpenRouter(prompt: string) {
+  const key = process.env.OPENROUTER_API_KEY;
+  if (!key) throw new Error("OPENROUTER_API_KEY is not configured for Gemini fallback");
+  const model = await resolveOpenRouterGeminiModel(key);
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${key}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://royalcommand.ai",
+      "X-Title": "RoyalCommand.ai Gemini Developer Agent",
+    },
+    body: JSON.stringify({
+      model,
+      messages: [
+        {
+          role: "system",
+          content: "You are Gemini operating as the Royal Command senior autonomous developer. Return strict JSON only, with no markdown fences or prose outside JSON.",
+        },
+        { role: "user", content: prompt },
+      ],
+      temperature: 0.1,
+      max_tokens: 12000,
+      response_format: { type: "json_object" },
+    }),
+  });
+
+  const data = await response.json();
+  if (!response.ok) throw new Error(data?.error?.message || `OpenRouter Gemini request failed (${response.status})`);
+  const content = data?.choices?.[0]?.message?.content;
+  if (typeof content !== "string" || !content.trim()) throw new Error("OpenRouter Gemini returned an empty response");
+  return parseJsonText(content);
+}
+
+async function gemini(prompt: string) {
+  try {
+    return await geminiDirect(prompt);
+  } catch (directError) {
+    if (!process.env.OPENROUTER_API_KEY) throw directError;
+    try {
+      return await geminiViaOpenRouter(prompt);
+    } catch (fallbackError) {
+      const directMessage = directError instanceof Error ? directError.message : String(directError);
+      const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : String(fallbackError);
+      throw new Error(`Google Gemini direct failed: ${directMessage}; OpenRouter Gemini fallback failed: ${fallbackMessage}`);
+    }
+  }
 }
 
 async function getFile(path: string) {
@@ -172,6 +249,7 @@ export async function GET() {
     authenticated: true,
     developer: isDeveloper(user.email),
     geminiConfigured: Boolean(process.env.GOOGLE_AI_API_KEY),
+    geminiFallbackConfigured: Boolean(process.env.OPENROUTER_API_KEY),
     githubConfigured: Boolean(process.env.GITHUB_TOKEN),
     developerAccessConfigured: developerEmails().length > 0,
     repo: REPO,
