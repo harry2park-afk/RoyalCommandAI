@@ -8,6 +8,59 @@ import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
+function looksLikeDevelopmentInstruction(prompt: string) {
+  return /(코드|개발|수정|고쳐|고치|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능 추가|기능을 추가|파일 생성|파일 삭제|github|commit|push|배포|vercel|component|tsx|typescript|css)/i.test(prompt);
+}
+
+function asksToExecute(prompt: string) {
+  return /(수정해|고쳐|고치세요|진행해|진행하세요|실행해|실행하세요|반영해|반영하세요|만들어|추가해|삭제해|배포해|승인|해줘|해주세요)/i.test(prompt);
+}
+
+async function runGeminiDeveloper(request: Request, instruction: string) {
+  const cookie = request.headers.get("cookie") || "";
+  const url = new URL("/api/dev/gemini", request.url);
+  const headers = { "Content-Type": "application/json", cookie };
+
+  const reviewResponse = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ instruction }),
+    cache: "no-store",
+  });
+  const review = await reviewResponse.json();
+  if (!reviewResponse.ok) {
+    throw new Error(review.error || "Gemini development review failed");
+  }
+
+  const actions = Array.isArray(review.actions) ? review.actions : [];
+  if (!asksToExecute(instruction)) {
+    return {
+      executed: false,
+      summary: review.summary || "Gemini가 수정안을 준비했습니다.",
+      actions,
+      commits: [],
+    };
+  }
+
+  const executeResponse = await fetch(url, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({ instruction, execute: true, actions }),
+    cache: "no-store",
+  });
+  const executed = await executeResponse.json();
+  if (!executeResponse.ok) {
+    throw new Error(executed.error || "Gemini development execution failed");
+  }
+
+  return {
+    executed: true,
+    summary: review.summary || "Gemini 개발 작업을 실행했습니다.",
+    actions,
+    commits: Array.isArray(executed.commits) ? executed.commits : [],
+  };
+}
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -19,12 +72,56 @@ export async function POST(request: Request) {
     const data = chatSchema.parse(body);
     const language = data.language || user.defaultLanguage;
 
-    const result = await orchestrate({
-      prompt: data.prompt,
-      history: data.history,
-      providers: data.providers,
-      language,
-    });
+    let result: any;
+    const geminiSelected = Array.isArray(data.providers) && data.providers.includes("google");
+
+    if (geminiSelected && looksLikeDevelopmentInstruction(data.prompt)) {
+      try {
+        const dev = await runGeminiDeveloper(request, data.prompt);
+        const changed = dev.actions.map((action: { operation?: string; path?: string }) => `${action.operation || "update"}: ${action.path || ""}`);
+        const commitIds = dev.commits.map((item: { commit?: string }) => item.commit).filter(Boolean);
+        const finalAnswer = dev.executed
+          ? `Gemini 개발 Agent가 실제 작업을 완료했습니다.\n\n${dev.summary}${changed.length ? `\n\n작업 파일:\n- ${changed.join("\n- ")}` : ""}${commitIds.length ? `\n\nGitHub Commit:\n- ${commitIds.join("\n- ")}` : ""}\n\nVercel Git 연동이 활성화되어 있으면 이 커밋으로 자동 배포가 진행됩니다.`
+          : `Gemini 개발 Agent가 수정안을 준비했습니다.\n\n${dev.summary}${changed.length ? `\n\n수정 예정:\n- ${changed.join("\n- ")}` : ""}\n\n실행을 원하시면 ‘승인, 진행해’라고 지시해 주세요.`;
+
+        result = {
+          finalAnswer,
+          responses: [{
+            provider: "google",
+            model: process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash",
+            content: finalAnswer,
+            latencyMs: 0,
+          }],
+          providers: ["google"],
+          comparison: { winners: ["google"], notes: ["Gemini developer agent route"] },
+          blocked: false,
+          latencyMs: 0,
+        };
+      } catch (devError) {
+        const message = devError instanceof Error ? devError.message : "Gemini development agent failed";
+        result = {
+          finalAnswer: `Gemini 개발 Agent 실행 통로는 연결되어 있지만 현재 실행할 수 없습니다. 원인: ${message}`,
+          responses: [{
+            provider: "google",
+            model: process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash",
+            content: "",
+            latencyMs: 0,
+            error: message,
+          }],
+          providers: ["google"],
+          comparison: { winners: [], notes: [message] },
+          blocked: false,
+          latencyMs: 0,
+        };
+      }
+    } else {
+      result = await orchestrate({
+        prompt: data.prompt,
+        history: data.history,
+        providers: data.providers,
+        language,
+      });
+    }
 
     if (isSupabaseConfigured()) {
       const supabase = await createClient();
@@ -66,7 +163,7 @@ export async function POST(request: Request) {
         comparison: result.comparison,
         status: result.blocked
           ? "completed"
-          : result.responses.some((r) => r.error)
+          : result.responses.some((r: { error?: string }) => r.error)
             ? "partial"
             : "completed",
         latency_ms: result.latencyMs,
@@ -95,7 +192,7 @@ export async function POST(request: Request) {
         blocked: result.blocked,
         comparison: result.comparison,
         providers: result.providers,
-        responses: result.responses.map((r) => ({
+        responses: result.responses.map((r: { provider: string; model?: string; content: string; latencyMs: number; error?: string }) => ({
           provider: r.provider,
           model: r.model,
           content: r.content,
