@@ -49,7 +49,7 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
           }
           .royal-room-layout > aside:last-child {
             display: flex !important;
-            min-height: 100vh !important;
+            min-height: 0 !important;
             flex-direction: column !important;
             border-left: 0 !important;
           }
