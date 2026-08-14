@@ -189,7 +189,7 @@ export default function RightWorkSidebar() {
     <aside className="relative z-40 flex h-screen shrink-0 flex-col bg-[#07111f]" style={{ width }}>
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
       <button type="button" onMouseDown={startResize} className="absolute left-0 top-0 z-50 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center" title="폭 조절"><GripVertical size={12} className="text-white/35" /></button>
-      <button type="button" onClick={toggle} className="fixed top-1/2 z-[100] flex h-12 w-7 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" style={{ right: width }} title="오른쪽 패널 닫기"><ChevronRight size={18} /></button>
+      <button type="button" onClick={toggle} className="fixed right-0 top-1/2 z-[100] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 앱 패널 닫기"><ChevronRight size={18} /></button>
 
       <div className="shrink-0 border-b border-white/10 p-2">
         <div className="relative">
