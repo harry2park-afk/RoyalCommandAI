@@ -186,7 +186,7 @@ export default function RightWorkSidebar() {
   }
 
   return (
-    <aside className="relative z-40 flex h-screen shrink-0 flex-col border-l border-white/10 bg-[#07111f]" style={{ width }}>
+    <aside className="relative z-40 flex h-screen shrink-0 flex-col bg-[#07111f]" style={{ width }}>
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
       <button type="button" onMouseDown={startResize} className="absolute left-0 top-0 z-50 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center" title="폭 조절"><GripVertical size={12} className="text-white/35" /></button>
       <button type="button" onClick={toggle} className="absolute left-0 top-1/2 z-50 flex h-12 w-7 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 패널 닫기"><ChevronRight size={18} /></button>
@@ -223,10 +223,10 @@ export default function RightWorkSidebar() {
         </div>}
       </div>
 
-      <a href="/" className="m-2 mt-0 block shrink-0 rounded-xl border border-[var(--gold)]/25 bg-[var(--gold)]/5 p-2 text-left hover:bg-[var(--gold)]/10" aria-label="스폰서 광고 영역">
-        <div className="text-[8px] font-semibold uppercase tracking-[0.14em] text-[var(--gold-soft)]">Sponsored</div>
-        <div className="mt-0.5 text-[11px] font-semibold">광고 영역</div>
-        <div className="mt-0.5 text-[9px] leading-3 text-[var(--muted)]">고객 맞춤 광고 자리</div>
+      <a href="/" className="mx-auto mb-2 block min-h-[104px] w-[210px] shrink-0 rounded-2xl border border-[var(--gold)]/25 bg-[#07111f]/95 p-3 text-left shadow-xl hover:bg-[var(--gold)]/10" aria-label="오른쪽 스폰서 광고 영역">
+        <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--gold-soft)]">Sponsored</div>
+        <div className="mt-1 text-sm font-semibold">광고 영역</div>
+        <div className="mt-1 text-[10px] leading-4 text-[var(--muted)]">광고 네트워크 연결 후 고객이 눌러 상품·서비스를 확인하는 자리입니다.</div>
       </a>
     </aside>
   );
