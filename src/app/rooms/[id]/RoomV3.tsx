@@ -197,8 +197,8 @@ export default function RoomV3() {
   return (
     <main className="flex h-[100dvh] min-h-0 overflow-hidden bg-[#07101d] text-[#f4f0e7]">
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-        <div className="mx-auto flex h-full min-h-0 max-w-[1500px] flex-col px-4 py-4 md:px-6">
-          <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-3 border-b border-white/10 bg-[#07101d] pb-4">
+        <div className="flex h-full min-h-0 max-w-none flex-col px-0 pt-2 pb-0">
+          <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-3 border-b border-white/10 bg-[#07101d] px-2 pb-3 md:px-3">
             <Link href="/dashboard" className="text-sm text-[#b8b6b0]">← Dashboard</Link>
             <div className="flex-1">
               <div className="text-[11px] uppercase tracking-[0.32em] text-[#d7b64d]">Royal Command</div>
@@ -213,7 +213,7 @@ export default function RoomV3() {
             </button>
           </header>
 
-          <div className="relative z-20 shrink-0 bg-[#07101d] py-4">
+          <div className="relative z-20 shrink-0 bg-[#07101d] px-2 py-3 md:px-3">
             <div className="mb-2 text-xs uppercase tracking-[0.22em] text-[#9ca5b2]">AI OPEN / OFF — only OPEN AIs work</div>
             <div className="flex flex-wrap gap-2">
               {CORE_AI.map((id) => {
@@ -230,8 +230,8 @@ export default function RoomV3() {
             <div className="mt-2 text-sm text-[#9ca5b2]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
           </div>
 
-          <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-3xl border border-white/10 bg-[#0b1524]">
-            <div ref={messagesViewportRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-4 py-5 md:px-6">
+          <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0b1524]">
+            <div ref={messagesViewportRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-3 py-4 md:px-4">
               {!messages.length && !loading && (
                 <div className="mx-auto mt-16 max-w-xl text-center">
                   <Bot className="mx-auto text-[#d7b64d]" size={38} />
@@ -243,7 +243,7 @@ export default function RoomV3() {
                 const type = m.authorType || m.author_type || "user";
                 const user = type === "user";
                 return (
-                  <article key={m.id} className={`max-w-[88%] rounded-2xl px-4 py-3 whitespace-pre-wrap ${user ? "ml-auto bg-[#d7b64d] text-[#111827]" : "border border-white/10 bg-[#0f1b2c]"}`}>
+                  <article key={m.id} className={`max-w-[92%] rounded-2xl px-4 py-3 whitespace-pre-wrap ${user ? "ml-auto bg-[#d7b64d] text-[#111827]" : "border border-white/10 bg-[#0f1b2c]"}`}>
                     <div className={`mb-1 text-[10px] font-bold uppercase tracking-[0.18em] ${user ? "text-black/60" : "text-[#d7b64d]"}`}>{user ? "You" : "Royal Command AI Council"}</div>
                     {m.content}
                   </article>
@@ -253,17 +253,17 @@ export default function RoomV3() {
               {loading && <div className="text-sm text-[#d7b64d]">Working: {selected.filter(isAvailable).map((id) => LABELS[id]).join(" + ")}…</div>}
             </div>
 
-            <form onSubmit={send} className="shrink-0 border-t border-white/10 bg-[#0b1524] p-3 md:p-4">
+            <form onSubmit={send} className="shrink-0 border-t border-white/10 bg-[#0b1524] p-2">
               {error && <div className="mb-2 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">{error}</div>}
               {lastResult?.responses?.length ? (
                 <div className="mb-2 text-xs text-[#9ca5b2]">Last run: {lastResult.responses.map((r) => `${LABELS[r.provider] || r.provider}${r.error ? " ✕" : " ✓"}`).join(" · ")}</div>
               ) : null}
               <div className="rounded-2xl border border-[#d7b64d]/30 bg-[#07101d] p-2">
-                <textarea ref={textRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3}
+                <textarea ref={textRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                   placeholder="Type or speak your order…"
                   className="w-full resize-none bg-transparent px-3 py-2 text-base outline-none placeholder:text-[#667085]" />
-                <div className="flex items-center gap-2 px-1 pb-1">
+                <div className="flex items-center gap-2 px-1 pb-0">
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.currentTarget.value = ""; }} />
                   <button type="button" onClick={() => fileRef.current?.click()} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10"><Paperclip size={18} /></button>
                   <button type="button" onClick={toggleMic} className={`grid h-10 w-10 place-items-center rounded-xl border ${listening ? "border-[#d7b64d] text-[#f4d66c]" : "border-white/10"}`}><Mic size={18} /></button>
