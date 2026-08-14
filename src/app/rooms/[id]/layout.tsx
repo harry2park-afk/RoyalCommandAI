@@ -4,7 +4,7 @@ import RightWorkSidebar from "./RightWorkSidebar";
 
 export default function RoomLayout({ children }: { children: ReactNode }) {
   return (
-    <div className="flex min-h-screen w-full">
+    <div className="royal-room-layout flex min-h-screen w-full">
       <ChatHistorySidebar />
       <div className="royal-room-main min-w-0 flex-1">
         <style>{`
@@ -18,6 +18,11 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
           }
           .royal-room-main > main > div.grid > aside {
             display: none !important;
+          }
+          .royal-room-layout > aside:last-child {
+            display: flex !important;
+            min-height: 100vh !important;
+            flex-direction: column !important;
           }
         `}</style>
         {children}
