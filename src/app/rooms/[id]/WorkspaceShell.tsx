@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { ReactNode, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { Check, GripVertical, Plus, Trash2 } from "lucide-react";
 
 type Room = { id: string; name: string; status?: string };
