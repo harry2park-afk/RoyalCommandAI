@@ -198,44 +198,43 @@ export default function RoomV3() {
     <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] text-[#f4f0e7]">
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className="flex h-full min-h-0 w-full max-w-none flex-col p-0">
-          <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-3 border-b border-white/10 bg-[#07101d] px-0 pb-3 pt-2">
+          <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#07101d] px-0 pb-1 pt-1">
             <Link href="/dashboard" className="text-sm text-[#b8b6b0]">← Dashboard</Link>
             <div className="flex-1">
-              <div className="text-[11px] uppercase tracking-[0.32em] text-[#d7b64d]">Royal Command</div>
-              <h1 className="text-2xl font-semibold">Command Room</h1>
+              <div className="text-[10px] uppercase tracking-[0.28em] text-[#d7b64d]">Royal Command</div>
+              <h1 className="text-xl font-semibold leading-tight">Command Room</h1>
             </div>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="rounded-xl border border-white/10 bg-[#0b1524] px-3 py-2 text-sm">
+            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="rounded-lg border border-white/10 bg-[#0b1524] px-2 py-1.5 text-xs">
               <option value="ko">🇰🇷 한국어</option>
               <option value="en">🇦🇺 English</option>
             </select>
-            <button type="button" onClick={() => setSpeakerEnabled((v) => !v)} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 bg-[#0b1524]">
-              {speakerEnabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
+            <button type="button" onClick={() => setSpeakerEnabled((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-[#0b1524]">
+              {speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
             </button>
           </header>
 
-          <div className="relative z-20 shrink-0 bg-[#07101d] px-0 py-3">
-            <div className="mb-2 text-xs uppercase tracking-[0.22em] text-[#9ca5b2]">AI OPEN / OFF — only OPEN AIs work</div>
-            <div className="flex flex-wrap gap-2">
+          <div className="relative z-20 shrink-0 bg-[#07101d] px-0 py-1">
+            <div className="flex flex-wrap gap-1">
               {CORE_AI.map((id) => {
                 const available = isAvailable(id);
                 const active = selected.includes(id) && available;
                 return (
                   <button key={id} type="button" onClick={() => toggleProvider(id)} disabled={!available}
-                    className={`rounded-full border px-4 py-2 text-sm font-semibold ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}>
-                    {LABELS[id]} · {available ? (active ? "OPEN" : "OFF") : "NOT CONNECTED"}
+                    className={`rounded-full border px-2 py-1 text-xs font-semibold leading-none ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}>
+                    {LABELS[id]}
                   </button>
                 );
               })}
             </div>
-            <div className="mt-2 text-sm text-[#9ca5b2]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
+            <div className="mt-1 text-[11px] leading-4 text-[#9ca5b2]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
           </div>
 
           <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0b1524]">
-            <div ref={messagesViewportRef} className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-2 py-4">
+            <div ref={messagesViewportRef} className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 py-2">
               {!messages.length && !loading && (
-                <div className="mx-auto mt-16 max-w-xl text-center">
-                  <Bot className="mx-auto text-[#d7b64d]" size={38} />
-                  <h2 className="mt-4 text-2xl font-semibold">Give one order. Your OPEN AIs work together.</h2>
+                <div className="mx-auto mt-8 max-w-xl text-center">
+                  <Bot className="mx-auto text-[#d7b64d]" size={30} />
+                  <h2 className="mt-2 text-xl font-semibold">Give one order. Your OPEN AIs work together.</h2>
                 </div>
               )}
 
