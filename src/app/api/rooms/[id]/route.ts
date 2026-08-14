@@ -12,6 +12,10 @@ export async function GET(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
+  const currentUser = {
+    fullName: user.fullName,
+    defaultLanguage: user.defaultLanguage,
+  };
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
@@ -33,7 +37,7 @@ export async function GET(
       .select("*")
       .eq("room_id", id)
       .order("created_at", { ascending: false });
-    return NextResponse.json({ room, messages: messages || [], documents: documents || [] });
+    return NextResponse.json({ room, messages: messages || [], documents: documents || [], user: currentUser });
   }
 
   const room = localDb.getRoom(id);
@@ -44,6 +48,7 @@ export async function GET(
     room,
     messages: localDb.listMessages(id),
     documents: localDb.listDocuments(id),
+    user: currentUser,
   });
 }
 
