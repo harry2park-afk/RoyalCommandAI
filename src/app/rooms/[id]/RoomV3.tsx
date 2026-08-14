@@ -48,6 +48,7 @@ export default function RoomV3() {
   const [speakerEnabled, setSpeakerEnabled] = useState(false);
   const [listening, setListening] = useState(false);
   const [lastResult, setLastResult] = useState<ChatResult | null>(null);
+  const [expandedUserMessage, setExpandedUserMessage] = useState<Message | null>(null);
   const selectionReady = useRef(false);
   const fileRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
@@ -241,9 +242,24 @@ export default function RoomV3() {
               {messages.map((m) => {
                 const type = m.authorType || m.author_type || "user";
                 const user = type === "user";
+                if (user) {
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setExpandedUserMessage(m)}
+                      className="flex h-11 w-full max-w-none items-center gap-3 overflow-hidden rounded-2xl bg-[#d7b64d] px-4 text-left text-[#111827]"
+                      title="클릭하면 전체 내용을 봅니다"
+                    >
+                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-black/60">You</span>
+                      <span className="min-w-0 flex-1 truncate text-base">{m.content.replace(/\s+/g, " ")}</span>
+                    </button>
+                  );
+                }
+
                 return (
-                  <article key={m.id} className={`w-full max-w-none rounded-2xl px-4 py-3 whitespace-pre-wrap ${user ? "bg-[#d7b64d] text-[#111827]" : "border border-white/10 bg-[#0f1b2c]"}`}>
-                    <div className={`mb-1 text-[10px] font-bold uppercase tracking-[0.18em] ${user ? "text-black/60" : "text-[#d7b64d]"}`}>{user ? "You" : "Royal Command AI Council"}</div>
+                  <article key={m.id} className="w-full max-w-none rounded-2xl border border-white/10 bg-[#0f1b2c] px-4 py-3 whitespace-pre-wrap">
+                    <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#d7b64d]">Royal Command AI Council</div>
                     {m.content}
                   </article>
                 );
@@ -252,16 +268,16 @@ export default function RoomV3() {
               {loading && <div className="text-sm text-[#d7b64d]">Working: {selected.filter(isAvailable).map((id) => LABELS[id]).join(" + ")}…</div>}
             </div>
 
-            <form onSubmit={send} className="w-full min-w-0 shrink-0 border-t border-white/10 bg-[#0b1524] p-0">
+            <form onSubmit={send} className="w-full min-w-0 shrink-0 border-t border-white/10 bg-[#0b1524] p-0 lg:mb-[112px]">
               {error && <div className="mb-2 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">{error}</div>}
               {lastResult?.responses?.length ? (
                 <div className="mb-2 text-xs text-[#9ca5b2]">Last run: {lastResult.responses.map((r) => `${LABELS[r.provider] || r.provider}${r.error ? " ✕" : " ✓"}`).join(" · ")}</div>
               ) : null}
-              <div className="w-full min-w-0 rounded-t-2xl border border-[#d7b64d]/30 bg-[#07101d] p-2">
-                <textarea ref={textRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2}
+              <div className="w-full min-w-0 rounded-2xl border border-[#d7b64d]/30 bg-[#07101d] p-2">
+                <textarea ref={textRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={3}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                   placeholder="Type or speak your order…"
-                  className="block w-full min-w-0 resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-[#667085]" />
+                  className="block min-h-[76px] w-full min-w-0 resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-[#667085]" />
                 <div className="flex min-w-0 items-center gap-2 px-0 pb-0 lg:pl-[220px] lg:pr-[220px]">
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.currentTarget.value = ""; }} />
                   <button type="button" onClick={() => fileRef.current?.click()} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-[#07101d]" title="파일 첨부"><Paperclip size={18} /></button>
@@ -273,6 +289,25 @@ export default function RoomV3() {
           </section>
         </div>
       </div>
+
+      {expandedUserMessage && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4"
+          onClick={() => setExpandedUserMessage(null)}
+          role="presentation"
+        >
+          <div
+            className="max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[#d7b64d]/50 bg-[#d7b64d] p-5 text-[#111827] shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-2 flex items-center justify-between gap-4">
+              <div className="text-xs font-bold uppercase tracking-[0.18em] text-black/60">You</div>
+              <button type="button" onClick={() => setExpandedUserMessage(null)} className="rounded-lg border border-black/20 px-3 py-1 text-sm font-semibold">닫기</button>
+            </div>
+            <div className="whitespace-pre-wrap break-words text-base leading-7">{expandedUserMessage.content}</div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }
