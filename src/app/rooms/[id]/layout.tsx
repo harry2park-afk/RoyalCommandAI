@@ -41,11 +41,25 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
           .royal-room-layout > aside:first-child {
             border-right: 0 !important;
           }
+          .royal-room-layout > aside:first-child > button:last-child {
+            right: 4px !important;
+            transform: translateY(-50%) !important;
+            border-left: 1px solid rgb(255 255 255 / 0.2) !important;
+            border-radius: 12px !important;
+          }
           .royal-room-layout > aside:last-child {
             display: flex !important;
             min-height: 100vh !important;
             flex-direction: column !important;
             border-left: 0 !important;
+          }
+          .royal-room-layout button[title="오른쪽 패널 닫기"] {
+            position: absolute !important;
+            left: 4px !important;
+            right: auto !important;
+            transform: translateY(-50%) !important;
+            border-right: 1px solid rgb(255 255 255 / 0.2) !important;
+            border-radius: 12px !important;
           }
         `}</style>
         {children}
