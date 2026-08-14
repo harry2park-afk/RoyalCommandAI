@@ -15,6 +15,8 @@ const DEV_PROVIDER_NAMES: Record<string, string> = {
   xai: "Grok",
 };
 
+const COUNTRY_BUILD_ORDER = `ROYAL COMMAND COUNTRY BUILD ORDER — HARRY PARK APPROVED\nStart: 2026-08-15 Australia/Sydney.\nMission: Build Royal Command country-by-country as one cooperating AI engineering team. One lead AI owns one country, while all AIs help each other with their strongest capabilities. Reuse the latest approved common Royal Command base frame; do not rebuild from scratch.\nPhase 1 assignments:\n- ChatGPT: Australia lead. Finish and stabilise the common/base app frame first, and continue helping every other country lead with architecture, integration, debugging, security and shared components.\n- Gemini: United States lead.\n- Claude: United Kingdom lead.\n- Grok: Canada lead.\nCooperation rule: the country lead is accountable for completion, but must freely request and use help from other AIs. Avoid duplicate work. Shared improvements go back into the common frame for reuse by every country.\nCountry rule: clone/reuse the approved base frame and isolate only country-specific configuration, legal text, language, payments, telephony, identity, tax/compliance and integrations. Use a country-specific official Royal Command domain only after verifying Royal Command controls that domain and its DNS/hosting. Never invent domain ownership.\nSecurity: no universal master credential, no secrets in source, use least-privilege service credentials, preserve auditability, reversible deployments and Harry Park approval gates for material production changes.\nScale target: establish this pattern in Australia, USA, UK and Canada, then expand toward approximately 100 countries.\nPersistent reference: docs/ROYAL_COMMAND_COUNTRY_BUILD_ORDER.md.`;
+
 function looksLikeDevelopmentInstruction(prompt: string) {
   return /(코드|개발|수정|고쳐|고치|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능 추가|기능을 추가|파일 생성|파일 삭제|github|commit|push|배포|vercel|component|tsx|typescript|css)/i.test(prompt);
 }
@@ -45,11 +47,12 @@ async function runDeveloper(request: Request, instruction: string, provider: str
   const url = new URL(path, request.url);
   const headers = { "Content-Type": "application/json", cookie };
   const agentName = DEV_PROVIDER_NAMES[provider] || provider;
+  const assignedInstruction = `${COUNTRY_BUILD_ORDER}\n\nCURRENT USER INSTRUCTION:\n${instruction}`;
 
   const reviewResponse = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({ instruction, provider }),
+    body: JSON.stringify({ instruction: assignedInstruction, provider }),
     cache: "no-store",
   });
   const review = await reviewResponse.json();
@@ -70,7 +73,7 @@ async function runDeveloper(request: Request, instruction: string, provider: str
   const executeResponse = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({ instruction, provider, execute: true, actions }),
+    body: JSON.stringify({ instruction: assignedInstruction, provider, execute: true, actions }),
     cache: "no-store",
   });
   const executed = await executeResponse.json();
