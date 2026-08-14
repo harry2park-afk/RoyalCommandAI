@@ -24,32 +24,35 @@ type AppItem = {
 type LocalFile = { name: string; size: number; url: string };
 
 const APP_CATALOG: AppItem[] = [
-  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT 열기", url: "https://chatgpt.com", brandLabel: "ChatGPT", brandSlug: "openai", brandColor: "FFFFFF", brandBg: "#10a37f", brandText: "#ffffff" },
-  { id: "email", title: "Email", description: "내 이메일 열기", url: "https://mail.google.com", brandLabel: "Gmail", brandSlug: "gmail", brandBg: "#ffffff", brandText: "#202124" },
-  { id: "instagram", title: "Instagram", description: "내 Instagram 열기", url: "https://www.instagram.com", brandLabel: "Instagram", brandSlug: "instagram", brandColor: "FFFFFF", brandBg: "linear-gradient(135deg,#833AB4,#E1306C,#F77737)", brandText: "#ffffff" },
-  { id: "youtube", title: "YouTube", description: "내 YouTube 열기", url: "https://www.youtube.com", brandLabel: "YouTube", brandSlug: "youtube", brandColor: "FF0000", brandBg: "#ffffff", brandText: "#111111" },
-  { id: "drive", title: "Google Drive", description: "내 Drive 열기", url: "https://drive.google.com", brandLabel: "Google Drive", brandSlug: "googledrive", brandBg: "#ffffff", brandText: "#202124" },
-  { id: "calendar", title: "Google Calendar", description: "내 Calendar 열기", url: "https://calendar.google.com", brandLabel: "Calendar", brandSlug: "googlecalendar", brandBg: "#ffffff", brandText: "#202124" },
+  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT", url: "https://chatgpt.com", brandLabel: "ChatGPT", brandSlug: "openai", brandColor: "FFFFFF", brandBg: "#10a37f", brandText: "#ffffff" },
+  { id: "email", title: "Email", description: "내 이메일", url: "https://mail.google.com", brandLabel: "Gmail", brandSlug: "gmail", brandBg: "#ffffff", brandText: "#202124" },
+  { id: "instagram", title: "Instagram", description: "내 Instagram", url: "https://www.instagram.com", brandLabel: "Instagram", brandSlug: "instagram", brandColor: "FFFFFF", brandBg: "linear-gradient(135deg,#833AB4,#E1306C,#F77737)", brandText: "#ffffff" },
+  { id: "youtube", title: "YouTube", description: "내 YouTube", url: "https://www.youtube.com", brandLabel: "YouTube", brandSlug: "youtube", brandColor: "FF0000", brandBg: "#ffffff", brandText: "#111111" },
+  { id: "drive", title: "Google Drive", description: "내 Drive", url: "https://drive.google.com", brandLabel: "Google Drive", brandSlug: "googledrive", brandBg: "#ffffff", brandText: "#202124" },
+  { id: "calendar", title: "Google Calendar", description: "내 Calendar", url: "https://calendar.google.com", brandLabel: "Calendar", brandSlug: "googlecalendar", brandBg: "#ffffff", brandText: "#202124" },
   { id: "files", title: "My Files", description: "내 컴퓨터 파일", brandLabel: "My Files", brandBg: "#f6c453", brandText: "#111827" },
-  { id: "netflix", title: "Netflix", description: "내 Netflix 열기", url: "https://www.netflix.com", brandLabel: "NETFLIX", brandSlug: "netflix", brandColor: "E50914", brandBg: "#080808", brandText: "#E50914" },
+  { id: "netflix", title: "Netflix", description: "내 Netflix", url: "https://www.netflix.com", brandLabel: "NETFLIX", brandSlug: "netflix", brandColor: "E50914", brandBg: "#080808", brandText: "#E50914" },
   { id: "tasks", title: "Tasks", description: "내 할 일 관리", brandLabel: "Tasks", brandBg: "#6d5dfc", brandText: "#ffffff" },
   { id: "approval", title: "Approval", description: "승인 작업 보기", brandLabel: "Approval", brandBg: "#16845b", brandText: "#ffffff" },
   { id: "docs", title: "Documents", description: "문서 작업", url: "https://docs.google.com", brandLabel: "Google Docs", brandSlug: "googledocs", brandBg: "#ffffff", brandText: "#202124" },
-  { id: "claude", title: "Claude", description: "내 Claude 열기", url: "https://claude.ai", brandLabel: "Claude", brandSlug: "claude", brandColor: "D97757", brandBg: "#f5eee6", brandText: "#3b2f2a" },
-  { id: "gemini", title: "Gemini", description: "내 Gemini 열기", url: "https://gemini.google.com", brandLabel: "Gemini", brandSlug: "googlegemini", brandColor: "8E75B2", brandBg: "#ffffff", brandText: "#3f51b5" },
-  { id: "grok", title: "Grok", description: "내 Grok 열기", url: "https://grok.com", brandLabel: "Grok", brandBg: "#ffffff", brandText: "#111111" },
+  { id: "claude", title: "Claude", description: "내 Claude", url: "https://claude.ai", brandLabel: "Claude", brandSlug: "claude", brandColor: "D97757", brandBg: "#f5eee6", brandText: "#3b2f2a" },
+  { id: "gemini", title: "Gemini", description: "내 Gemini", url: "https://gemini.google.com", brandLabel: "Gemini", brandSlug: "googlegemini", brandColor: "8E75B2", brandBg: "#ffffff", brandText: "#3f51b5" },
+  { id: "grok", title: "Grok", description: "내 Grok", url: "https://grok.com", brandLabel: "Grok", brandBg: "#ffffff", brandText: "#111111" },
 ];
 
-function BrandBadge({ app }: { app: AppItem }) {
+function BrandBadge({ app, onClick }: { app: AppItem; onClick?: () => void }) {
   const iconUrl = app.brandSlug
     ? `https://cdn.simpleicons.org/${app.brandSlug}${app.brandColor ? `/${app.brandColor}` : ""}`
     : undefined;
 
   return (
-    <span
-      className="flex h-9 w-[78px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-white/15 px-2 shadow-sm"
+    <button
+      type="button"
+      onClick={onClick}
+      className="flex h-9 w-[78px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-white/15 px-2 shadow-sm transition hover:brightness-110"
       style={{ background: app.brandBg, color: app.brandText }}
-      title={`${app.title} 로고`}
+      title={app.title}
+      aria-label={app.title}
     >
       {iconUrl ? (
         <img src={iconUrl} alt="" className="h-5 w-5 shrink-0 object-contain" draggable={false} />
@@ -59,7 +62,7 @@ function BrandBadge({ app }: { app: AppItem }) {
         </span>
       )}
       <span className="min-w-0 truncate text-[9px] font-black leading-none tracking-tight">{app.brandLabel}</span>
-    </span>
+    </button>
   );
 }
 
@@ -204,12 +207,11 @@ export default function RightWorkSidebar() {
       <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
         {selectedApps.map((app) => (
           <div key={app.id} draggable onDragStart={() => setDragId(app.id)} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(app.id)} className={`group flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-1.5 py-1.5 transition hover:border-[var(--gold)]/30 hover:bg-white/[0.04] ${dragId === app.id ? "opacity-45" : ""}`}>
-            <BrandBadge app={app} />
-            <button type="button" onClick={() => openApp(app)} className="min-w-0 flex-1 text-left">
+            <BrandBadge app={app} onClick={() => openApp(app)} />
+            <div className="min-w-0 flex-1">
               <span className="block truncate text-[11px] font-semibold">{app.title}</span>
               <span className="block truncate text-[8px] leading-3 text-[var(--muted)]">{app.description}</span>
-            </button>
-            <button type="button" onClick={() => openApp(app)} className="rounded-md border border-white/10 px-1 py-1 text-[8px] text-[var(--gold-soft)] hover:bg-white/5" title="열기">열기</button>
+            </div>
             <button type="button" onClick={() => removeApp(app.id)} className="rounded p-0.5 text-white/25 hover:bg-red-500/10 hover:text-red-300" title="삭제"><Trash2 size={10} /></button>
             <GripVertical size={11} className="shrink-0 cursor-grab text-white/30 active:cursor-grabbing" />
           </div>
