@@ -274,15 +274,14 @@ export default function ChatHistorySidebar() {
     <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
       <div className="shrink-0 border-b border-white/10 px-3 py-3"><div className="flex items-center justify-between gap-2"><div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div><button type="button" onClick={showLatestConversation} className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--gold-soft)]">현재</button></div></div>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
-        <div className="space-y-2">
+        <div className="space-y-1">
           {historyBoxes.map((box, index) => (
-            <div key={`${box.ids[0]}-${index}`} onClick={() => handleBoxClick(box)} onDoubleClick={(event) => handleBoxDoubleClick(event, box)} className={`flex cursor-pointer items-start gap-1 rounded-xl border p-2 ${selectedBoxId === box.ids[0] ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/20"}`} title="한 번 클릭: 보기 · 더블클릭: 즉시 삭제">
-              <div className="min-w-0 flex-1 text-left">
-                <div className="mb-1 text-[10px] font-medium text-[var(--muted)]">{box.date}</div>
-                <div className="truncate text-sm font-medium text-[var(--gold-soft)]">{box.title}</div>
-                <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--muted)]">{box.preview}</div>
+            <div key={`${box.ids[0]}-${index}`} onClick={() => handleBoxClick(box)} onDoubleClick={(event) => handleBoxDoubleClick(event, box)} className={`flex h-9 cursor-pointer items-center gap-1 rounded-lg border px-2 ${selectedBoxId === box.ids[0] ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/20"}`} title={`${box.date} · ${box.title} · 한 번 클릭: 보기 · 더블클릭: 즉시 삭제`}>
+              <div className="min-w-0 flex flex-1 items-center gap-1.5 text-left">
+                <span className="shrink-0 text-[9px] font-medium text-[var(--muted)]">{box.date}</span>
+                <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--gold-soft)]">{box.title}</span>
               </div>
-              <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void removeHistoryBox(box); }} onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); }} className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="즉시 삭제"><Trash2 size={14} /></button>
+              <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void removeHistoryBox(box); }} onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); }} className="shrink-0 rounded-md p-1 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="즉시 삭제"><Trash2 size={13} /></button>
             </div>
           ))}
           {historyLoaded && historyBoxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">아직 저장된 지난 대화가 없습니다.</p> : null}
