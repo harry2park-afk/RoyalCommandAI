@@ -259,7 +259,6 @@ export default function RoomV3() {
 
                 return (
                   <article key={m.id} className="w-full max-w-none rounded-2xl border border-white/10 bg-[#0f1b2c] px-4 py-3 whitespace-pre-wrap">
-                    <div className="mb-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[#d7b64d]">Royal Command AI Council</div>
                     {m.content}
                   </article>
                 );
