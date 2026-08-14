@@ -202,7 +202,6 @@ export default function RoomV3() {
           <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#07101d] px-0 pb-1 pt-1">
             <Link href="/dashboard" className="text-sm text-[#b8b6b0]">← Dashboard</Link>
             <div className="flex-1">
-              <div className="text-[10px] uppercase tracking-[0.28em] text-[#d7b64d]">Royal Command</div>
               <h1 className="text-xl font-semibold leading-tight">Command Room</h1>
             </div>
             <select value={language} onChange={(e) => setLanguage(e.target.value)} className="rounded-lg border border-white/10 bg-[#0b1524] px-2 py-1.5 text-xs">
