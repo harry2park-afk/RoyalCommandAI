@@ -243,7 +243,7 @@ export default function RoomV3() {
                 const type = m.authorType || m.author_type || "user";
                 const user = type === "user";
                 return (
-                  <article key={m.id} className={`max-w-[94%] rounded-2xl px-4 py-3 whitespace-pre-wrap ${user ? "ml-auto bg-[#d7b64d] text-[#111827]" : "border border-white/10 bg-[#0f1b2c]"}`}>
+                  <article key={m.id} className={`w-full max-w-none rounded-2xl px-4 py-3 whitespace-pre-wrap ${user ? "bg-[#d7b64d] text-[#111827]" : "border border-white/10 bg-[#0f1b2c]"}`}>
                     <div className={`mb-1 text-[10px] font-bold uppercase tracking-[0.18em] ${user ? "text-black/60" : "text-[#d7b64d]"}`}>{user ? "You" : "Royal Command AI Council"}</div>
                     {m.content}
                   </article>
