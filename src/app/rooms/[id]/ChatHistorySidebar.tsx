@@ -6,12 +6,20 @@ import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, GripVertical, Trash2 } from "lucide-react";
 
 type Room = { id: string; name: string };
-type Message = { id: string; content: string; authorType?: string; author_type?: string };
-type HistoryBox = { ids: string[]; title: string; preview: string };
+type Message = {
+  id: string;
+  content: string;
+  authorType?: string;
+  author_type?: string;
+  created_at?: string;
+  createdAt?: string;
+};
+type HistoryBox = { ids: string[]; title: string; preview: string; date: string };
 
 const MIN_WIDTH = 12;
 const DEFAULT_WIDTH = 240;
 const MAX_WIDTH = 420;
+const SESSION_GAP_MS = 60 * 60 * 1000;
 
 export default function ChatHistorySidebar() {
   const pathname = usePathname();
@@ -29,7 +37,7 @@ export default function ChatHistorySidebar() {
   const messageTypesRef = useRef<string[]>([]);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function historyCacheKey() { return `royalcommand:room:${currentId}:history-boxes`; }
+  function historyCacheKey() { return `royalcommand:room:${currentId}:history-boxes-v2`; }
   function saveHistoryCache(boxes: HistoryBox[]) {
     if (!currentId) return;
     try { window.localStorage.setItem(historyCacheKey(), JSON.stringify(boxes)); } catch {}
@@ -44,19 +52,65 @@ export default function ChatHistorySidebar() {
     } catch { return []; }
   }
 
+  function getMessageTime(message: Message): number | null {
+    const raw = message.created_at || message.createdAt;
+    if (!raw) return null;
+    const value = new Date(raw).getTime();
+    return Number.isFinite(value) ? value : null;
+  }
+
+  function formatHistoryDate(time: number | null) {
+    const date = time ? new Date(time) : new Date();
+    return new Intl.DateTimeFormat("ko-KR", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).format(date);
+  }
+
   function buildHistory(messages: Message[]) {
     messageOrderRef.current = messages.map((m) => m.id);
     messageTypesRef.current = messages.map((m) => m.authorType || m.author_type || "");
+
     const boxes: HistoryBox[] = [];
     let current: HistoryBox | null = null;
+    let lastMessageTime: number | null = null;
+
     for (const message of messages) {
       const type = message.authorType || message.author_type || "";
+      const messageTime = getMessageTime(message);
+      const hasLongGap =
+        current &&
+        lastMessageTime !== null &&
+        messageTime !== null &&
+        messageTime - lastMessageTime > SESSION_GAP_MS;
+
+      if (hasLongGap && current) {
+        boxes.push(current);
+        current = null;
+      }
+
       if (type === "user") {
-        if (current) boxes.push(current);
         const clean = message.content.replace(/\s+/g, " ").trim();
-        current = { ids: [message.id], title: clean.slice(0, 34) || "지난 대화", preview: clean.slice(0, 90) };
-      } else if (current) current.ids.push(message.id);
+
+        if (!current) {
+          current = {
+            ids: [message.id],
+            title: clean.slice(0, 34) || "지난 대화",
+            preview: clean.slice(0, 90),
+            date: formatHistoryDate(messageTime),
+          };
+        } else {
+          current.ids.push(message.id);
+          current.preview = clean.slice(0, 90) || current.preview;
+        }
+      } else if (current) {
+        current.ids.push(message.id);
+      }
+
+      if (messageTime !== null) lastMessageTime = messageTime;
     }
+
     if (current) boxes.push(current);
     return boxes.reverse();
   }
@@ -194,8 +248,6 @@ export default function ChatHistorySidebar() {
         saveHistoryCache(historyBoxes);
         return;
       }
-      // Database deletion is now authorised. Reload from the server so the centre
-      // panel and the left history always show the same source of truth.
       saveHistoryCache(nextLocal);
       window.location.reload();
     } catch {
@@ -225,7 +277,11 @@ export default function ChatHistorySidebar() {
         <div className="space-y-2">
           {historyBoxes.map((box, index) => (
             <div key={`${box.ids[0]}-${index}`} onClick={() => handleBoxClick(box)} onDoubleClick={(event) => handleBoxDoubleClick(event, box)} className={`flex cursor-pointer items-start gap-1 rounded-xl border p-2 ${selectedBoxId === box.ids[0] ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/20"}`} title="한 번 클릭: 보기 · 더블클릭: 즉시 삭제">
-              <div className="min-w-0 flex-1 text-left"><div className="truncate text-sm font-medium text-[var(--gold-soft)]">{box.title}</div><div className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--muted)]">{box.preview}</div></div>
+              <div className="min-w-0 flex-1 text-left">
+                <div className="mb-1 text-[10px] font-medium text-[var(--muted)]">{box.date}</div>
+                <div className="truncate text-sm font-medium text-[var(--gold-soft)]">{box.title}</div>
+                <div className="mt-1 line-clamp-2 text-[11px] leading-4 text-[var(--muted)]">{box.preview}</div>
+              </div>
               <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void removeHistoryBox(box); }} onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); }} className="shrink-0 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="즉시 삭제"><Trash2 size={14} /></button>
             </div>
           ))}
