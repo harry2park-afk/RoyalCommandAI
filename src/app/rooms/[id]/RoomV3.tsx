@@ -65,6 +65,25 @@ const LABELS: Record<string, string> = {
   moonshot: "Kimi",
 };
 
+const AI_LOGOS: Record<string, string> = {
+  openai: "https://cdn.simpleicons.org/openai/FFFFFF",
+  anthropic: "https://cdn.simpleicons.org/anthropic/FFFFFF",
+  google: "https://cdn.simpleicons.org/googlegemini/FFFFFF",
+  xai: "https://cdn.simpleicons.org/x/FFFFFF",
+  deepseek: "https://cdn.simpleicons.org/deepseek/FFFFFF",
+  perplexity: "https://cdn.simpleicons.org/perplexity/FFFFFF",
+  mistral: "https://cdn.simpleicons.org/mistralai/FFFFFF",
+  meta: "https://cdn.simpleicons.org/meta/FFFFFF",
+  qwen: "https://cdn.simpleicons.org/alibabacloud/FFFFFF",
+  cohere: "https://cdn.simpleicons.org/cohere/FFFFFF",
+  copilot: "https://cdn.simpleicons.org/githubcopilot/FFFFFF",
+  amazon: "https://cdn.simpleicons.org/amazonwebservices/FFFFFF",
+  nvidia: "https://cdn.simpleicons.org/nvidia/FFFFFF",
+  yi: "https://cdn.simpleicons.org/01/FFFFFF",
+  minimax: "https://cdn.simpleicons.org/minimax/FFFFFF",
+  moonshot: "https://cdn.simpleicons.org/moonshot/FFFFFF",
+};
+
 export default function RoomV3() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -226,13 +245,13 @@ export default function RoomV3() {
   }
 
   return (
-    <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] pt-[138px] text-[#f4f0e7]">
+    <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] pt-[92px] text-[#f4f0e7]">
       <style>{`
         @media (min-width: 1024px) {
           .royal-room-layout > aside {
-            top: 138px !important;
-            height: calc(100vh - 138px) !important;
-            min-height: calc(100vh - 138px) !important;
+            top: 92px !important;
+            height: calc(100vh - 92px) !important;
+            min-height: calc(100vh - 92px) !important;
           }
         }
       `}</style>
@@ -251,20 +270,34 @@ export default function RoomV3() {
         </div>
       </header>
 
-      <div className="fixed inset-x-0 top-[42px] z-[165] h-24 border-b border-[#d7b64d]/30 bg-[#07101d]/98 px-2 py-2 shadow-lg backdrop-blur">
-        <div className="grid grid-cols-8 gap-1.5">
+      <div className="fixed inset-x-0 top-[42px] z-[165] h-[50px] border-b border-[#d7b64d]/30 bg-[#07101d]/98 px-2 py-1.5 shadow-lg backdrop-blur">
+        <div className="flex h-full w-full items-center gap-1 overflow-hidden">
           {CORE_AI.map((id) => {
             const available = isAvailable(id);
             const active = selected.includes(id) && available;
             return (
-              <button key={id} type="button" onClick={() => toggleProvider(id)} disabled={!available}
-                className={`h-8 min-w-0 truncate rounded-lg border px-2 text-xs font-semibold ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}>
-                {LABELS[id]}
+              <button
+                key={id}
+                type="button"
+                onClick={() => toggleProvider(id)}
+                disabled={!available}
+                title={LABELS[id]}
+                className={`flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-1 text-[10px] font-semibold leading-none ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}
+              >
+                <span className={`grid h-5 w-5 shrink-0 place-items-center rounded bg-black/20 ${active ? "bg-black/10" : ""}`}>
+                  <img
+                    src={AI_LOGOS[id]}
+                    alt=""
+                    className="h-4 w-4 object-contain"
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  />
+                  <span className="absolute text-[8px] font-bold">{LABELS[id]?.slice(0, 1)}</span>
+                </span>
+                <span className="min-w-0 truncate">{LABELS[id]}</span>
               </button>
             );
           })}
         </div>
-        <div className="mt-1 truncate text-center text-[11px] leading-4 text-[#aeb7c5]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
