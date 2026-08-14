@@ -8,7 +8,7 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
       <ChatHistorySidebar />
       <a
         href="/"
-        className="fixed bottom-3 left-3 z-40 hidden w-[210px] rounded-2xl border border-[var(--gold)]/25 bg-[#07111f]/95 p-3 shadow-xl backdrop-blur lg:block"
+        className="fixed bottom-2 left-3 z-40 hidden min-h-[104px] w-[210px] rounded-2xl border border-[var(--gold)]/25 bg-[#07111f]/95 p-3 shadow-xl backdrop-blur lg:block"
         aria-label="왼쪽 스폰서 광고 영역"
       >
         <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--gold-soft)]">Sponsored</div>
@@ -28,10 +28,14 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
           .royal-room-main > main > div.grid > aside {
             display: none !important;
           }
+          .royal-room-layout > aside:first-child {
+            border-right: 0 !important;
+          }
           .royal-room-layout > aside:last-child {
             display: flex !important;
             min-height: 100vh !important;
             flex-direction: column !important;
+            border-left: 0 !important;
           }
         `}</style>
         {children}
