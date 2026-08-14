@@ -6,6 +6,15 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
   return (
     <div className="royal-room-layout flex min-h-screen w-full">
       <ChatHistorySidebar />
+      <a
+        href="/"
+        className="fixed bottom-3 left-3 z-40 hidden w-[210px] rounded-2xl border border-[var(--gold)]/25 bg-[#07111f]/95 p-3 shadow-xl backdrop-blur lg:block"
+        aria-label="왼쪽 스폰서 광고 영역"
+      >
+        <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--gold-soft)]">Sponsored</div>
+        <div className="mt-1 text-sm font-semibold">광고 영역</div>
+        <div className="mt-1 text-[10px] leading-4 text-[var(--muted)]">광고 네트워크 연결 후 고객이 눌러 상품·서비스를 확인하는 자리입니다.</div>
+      </a>
       <div className="royal-room-main min-w-0 flex-1">
         <style>{`
           .royal-room-main > main {
