@@ -256,22 +256,33 @@ export default function RoomV3() {
         }
       `}</style>
 
-      <header className="fixed inset-x-0 top-0 z-[170] flex h-[42px] items-center gap-2 border-b border-white/10 bg-[#07101d]/98 px-3 shadow-sm backdrop-blur">
-        <Link href="/dashboard" className="shrink-0 text-sm text-[#d7b64d]">← Dashboard</Link>
-        <h1 className="text-xl font-semibold leading-none">Command Room</h1>
-        <div className="ml-auto flex items-center gap-2">
-          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="rounded-lg border border-white/10 bg-[#0b1524] px-2 py-1.5 text-xs">
-            <option value="ko">🇰🇷 한국어</option>
-            <option value="en">🇦🇺 English</option>
-          </select>
-          <button type="button" onClick={() => setSpeakerEnabled((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-[#0b1524]">
-            {speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-          </button>
+      <div className="fixed inset-x-0 top-0 z-[170] h-[92px] border-b border-[#d7b64d]/30 bg-[#07101d]/98 shadow-lg backdrop-blur">
+        <div className="flex h-[42px] items-center gap-2 border-b border-white/10 px-3">
+          <Link href="/dashboard" className="shrink-0 text-sm text-[#d7b64d]">← Dashboard</Link>
+          <h1 className="shrink-0 text-xl font-semibold leading-none">Command Room</h1>
+          <div className="min-w-0 flex-1 text-center text-sm font-semibold text-[#f4f0e7]">Harry Park</div>
+          <div className="flex shrink-0 items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setLanguage("ko")}
+              className={`rounded-md border px-2 py-1 text-xs ${language === "ko" ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/10 bg-[#0b1524] text-[#d6d9df]"}`}
+            >
+              🇰🇷 한국어
+            </button>
+            <button
+              type="button"
+              onClick={() => setLanguage("en")}
+              className={`rounded-md border px-2 py-1 text-xs ${language === "en" ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/10 bg-[#0b1524] text-[#d6d9df]"}`}
+            >
+              🇦🇺 English
+            </button>
+            <button type="button" onClick={() => setSpeakerEnabled((v) => !v)} className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-[#0b1524]">
+              {speakerEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
+            </button>
+          </div>
         </div>
-      </header>
 
-      <div className="fixed inset-x-0 top-[42px] z-[165] h-[50px] border-b border-[#d7b64d]/30 bg-[#07101d]/98 px-2 py-1.5 shadow-lg backdrop-blur">
-        <div className="flex h-full w-full items-center gap-1 overflow-hidden">
+        <div className="flex h-[50px] w-full items-center gap-1 overflow-hidden px-2 py-1.5">
           {CORE_AI.map((id) => {
             const available = isAvailable(id);
             const active = selected.includes(id) && available;
