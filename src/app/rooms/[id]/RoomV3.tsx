@@ -94,6 +94,7 @@ export default function RoomV3() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [language, setLanguage] = useState("ko");
+  const [displayName, setDisplayName] = useState("User");
   const [speakerEnabled, setSpeakerEnabled] = useState(false);
   const [listening, setListening] = useState(false);
   const [lastResult, setLastResult] = useState<ChatResult | null>(null);
@@ -117,7 +118,13 @@ export default function RoomV3() {
   async function loadRoom() {
     const res = await fetch(`/api/rooms/${roomId}`, { cache: "no-store" });
     const data = await res.json();
-    if (res.ok) setMessages(data.messages || []);
+    if (res.ok) {
+      setMessages(data.messages || []);
+      if (data.user?.fullName) setDisplayName(data.user.fullName);
+      if (data.user?.defaultLanguage === "ko" || data.user?.defaultLanguage === "en") {
+        setLanguage(data.user.defaultLanguage);
+      }
+    }
   }
 
   async function loadProviders() {
@@ -260,22 +267,17 @@ export default function RoomV3() {
         <div className="flex h-[42px] items-center gap-2 border-b border-white/10 px-3">
           <Link href="/dashboard" className="shrink-0 text-sm text-[#d7b64d]">← Dashboard</Link>
           <h1 className="shrink-0 text-xl font-semibold leading-none">Command Room</h1>
-          <div className="min-w-0 flex-1 text-center text-sm font-semibold text-[#f4f0e7]">Harry Park</div>
+          <div className="min-w-0 flex-1 text-center text-sm font-semibold text-[#f4f0e7]">{displayName}</div>
           <div className="flex shrink-0 items-center gap-1">
-            <button
-              type="button"
-              onClick={() => setLanguage("ko")}
-              className={`rounded-md border px-2 py-1 text-xs ${language === "ko" ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/10 bg-[#0b1524] text-[#d6d9df]"}`}
+            <select
+              value={language}
+              onChange={(e) => setLanguage(e.target.value)}
+              className="rounded-md border border-white/10 bg-[#0b1524] px-2 py-1 text-xs text-[#d6d9df]"
+              aria-label="언어 선택"
             >
-              🇰🇷 한국어
-            </button>
-            <button
-              type="button"
-              onClick={() => setLanguage("en")}
-              className={`rounded-md border px-2 py-1 text-xs ${language === "en" ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/10 bg-[#0b1524] text-[#d6d9df]"}`}
-            >
-              🇦🇺 English
-            </button>
+              <option value="ko">🇰🇷 한국어</option>
+              <option value="en">🇦🇺 English</option>
+            </select>
             <button type="button" onClick={() => setSpeakerEnabled((v) => !v)} className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-[#0b1524]">
               {speakerEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
             </button>
