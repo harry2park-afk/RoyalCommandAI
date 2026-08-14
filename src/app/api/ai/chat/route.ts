@@ -8,6 +8,13 @@ import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
+const DEV_PROVIDER_NAMES: Record<string, string> = {
+  openai: "ChatGPT",
+  anthropic: "Claude",
+  google: "Gemini",
+  xai: "Grok",
+};
+
 function looksLikeDevelopmentInstruction(prompt: string) {
   return /(코드|개발|수정|고쳐|고치|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능 추가|기능을 추가|파일 생성|파일 삭제|github|commit|push|배포|vercel|component|tsx|typescript|css)/i.test(prompt);
 }
@@ -16,27 +23,45 @@ function asksToExecute(prompt: string) {
   return /(수정해|고쳐|고치세요|진행해|진행하세요|실행해|실행하세요|반영해|반영하세요|만들어|추가해|삭제해|배포해|승인|해줘|해주세요)/i.test(prompt);
 }
 
-async function runGeminiDeveloper(request: Request, instruction: string) {
+function chooseDeveloperProvider(prompt: string, providers?: string[]) {
+  if (/(claude|클로드)/i.test(prompt)) return "anthropic";
+  if (/(gemini|제미나이)/i.test(prompt)) return "google";
+  if (/(grok|그록)/i.test(prompt)) return "xai";
+  if (/(chatgpt|openai|챗지피티)/i.test(prompt)) return "openai";
+  const selected = (providers || []).find((id) => DEV_PROVIDER_NAMES[id]);
+  return selected || "openai";
+}
+
+function developerModelName(provider: string) {
+  if (provider === "anthropic") return process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
+  if (provider === "google") return process.env.GOOGLE_AI_MODEL || "gemini-2.5-flash";
+  if (provider === "xai") return process.env.XAI_MODEL || "grok-2-latest";
+  return process.env.OPENAI_MODEL || "gpt-4o-mini";
+}
+
+async function runDeveloper(request: Request, instruction: string, provider: string) {
   const cookie = request.headers.get("cookie") || "";
-  const url = new URL("/api/dev/gemini", request.url);
+  const path = provider === "google" ? "/api/dev/gemini" : "/api/dev/agent";
+  const url = new URL(path, request.url);
   const headers = { "Content-Type": "application/json", cookie };
+  const agentName = DEV_PROVIDER_NAMES[provider] || provider;
 
   const reviewResponse = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({ instruction }),
+    body: JSON.stringify({ instruction, provider }),
     cache: "no-store",
   });
   const review = await reviewResponse.json();
   if (!reviewResponse.ok) {
-    throw new Error(review.error || "Gemini development review failed");
+    throw new Error(review.error || `${agentName} development review failed`);
   }
 
   const actions = Array.isArray(review.actions) ? review.actions : [];
   if (!asksToExecute(instruction)) {
     return {
       executed: false,
-      summary: review.summary || "Gemini가 수정안을 준비했습니다.",
+      summary: review.summary || `${agentName}가 수정안을 준비했습니다.`,
       actions,
       commits: [],
     };
@@ -45,17 +70,17 @@ async function runGeminiDeveloper(request: Request, instruction: string) {
   const executeResponse = await fetch(url, {
     method: "POST",
     headers,
-    body: JSON.stringify({ instruction, execute: true, actions }),
+    body: JSON.stringify({ instruction, provider, execute: true, actions }),
     cache: "no-store",
   });
   const executed = await executeResponse.json();
   if (!executeResponse.ok) {
-    throw new Error(executed.error || "Gemini development execution failed");
+    throw new Error(executed.error || `${agentName} development execution failed`);
   }
 
   return {
     executed: true,
-    summary: review.summary || "Gemini 개발 작업을 실행했습니다.",
+    summary: review.summary || `${agentName} 개발 작업을 실행했습니다.`,
     actions,
     commits: Array.isArray(executed.commits) ? executed.commits : [],
   };
@@ -75,39 +100,41 @@ export async function POST(request: Request) {
     let result: any;
 
     if (looksLikeDevelopmentInstruction(data.prompt)) {
+      const provider = chooseDeveloperProvider(data.prompt, data.providers);
+      const agentName = DEV_PROVIDER_NAMES[provider] || provider;
       try {
-        const dev = await runGeminiDeveloper(request, data.prompt);
+        const dev = await runDeveloper(request, data.prompt, provider);
         const changed = dev.actions.map((action: { operation?: string; path?: string }) => `${action.operation || "update"}: ${action.path || ""}`);
         const commitIds = dev.commits.map((item: { commit?: string }) => item.commit).filter(Boolean);
         const finalAnswer = dev.executed
-          ? `Gemini 개발 Agent가 실제 작업을 완료했습니다.\n\n${dev.summary}${changed.length ? `\n\n작업 파일:\n- ${changed.join("\n- ")}` : ""}${commitIds.length ? `\n\nGitHub Commit:\n- ${commitIds.join("\n- ")}` : ""}\n\nVercel Git 연동이 활성화되어 있으면 이 커밋으로 자동 배포가 진행됩니다.`
-          : `Gemini 개발 Agent가 수정안을 준비했습니다.\n\n${dev.summary}${changed.length ? `\n\n수정 예정:\n- ${changed.join("\n- ")}` : ""}\n\n실행을 원하시면 ‘승인, 진행해’라고 지시해 주세요.`;
+          ? `${agentName} 개발 Agent가 실제 작업을 완료했습니다.\n\n${dev.summary}${changed.length ? `\n\n작업 파일:\n- ${changed.join("\n- ")}` : ""}${commitIds.length ? `\n\nGitHub Commit:\n- ${commitIds.join("\n- ")}` : ""}\n\nVercel Git 연동으로 자동 배포가 진행됩니다.`
+          : `${agentName} 개발 Agent가 수정안을 준비했습니다.\n\n${dev.summary}${changed.length ? `\n\n수정 예정:\n- ${changed.join("\n- ")}` : ""}\n\n실행을 원하시면 ‘승인, 진행해’라고 지시해 주세요.`;
 
         result = {
           finalAnswer,
           responses: [{
-            provider: "google",
-            model: process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash",
+            provider,
+            model: developerModelName(provider),
             content: finalAnswer,
             latencyMs: 0,
           }],
-          providers: ["google"],
-          comparison: { winners: ["google"], notes: ["Gemini developer agent route"] },
+          providers: [provider],
+          comparison: { winners: [provider], notes: [`${agentName} developer agent route`] },
           blocked: false,
           latencyMs: 0,
         };
       } catch (devError) {
-        const message = devError instanceof Error ? devError.message : "Gemini development agent failed";
+        const message = devError instanceof Error ? devError.message : `${agentName} development agent failed`;
         result = {
-          finalAnswer: `Gemini 개발 Agent 실행 통로는 연결되어 있지만 현재 실행할 수 없습니다. 원인: ${message}`,
+          finalAnswer: `${agentName} 개발 Agent 실행 통로는 연결되어 있지만 현재 실행할 수 없습니다. 원인: ${message}`,
           responses: [{
-            provider: "google",
-            model: process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash",
+            provider,
+            model: developerModelName(provider),
             content: "",
             latencyMs: 0,
             error: message,
           }],
-          providers: ["google"],
+          providers: [provider],
           comparison: { winners: [], notes: [message] },
           blocked: false,
           latencyMs: 0,
