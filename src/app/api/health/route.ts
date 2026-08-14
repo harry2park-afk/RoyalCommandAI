@@ -1,9 +1,16 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  return NextResponse.json({
-    status: "ok",
-    service: "RoyalCommand.ai",
-    time: new Date().toISOString(),
-  });
+  return NextResponse.json(
+    {
+      ok: true,
+      service: "royal-command-web",
+      region: process.env.RC_REGION || process.env.VERCEL_REGION || "unknown",
+      timestamp: new Date().toISOString(),
+    },
+    {
+      status: 200,
+      headers: { "Cache-Control": "no-store" },
+    },
+  );
 }
