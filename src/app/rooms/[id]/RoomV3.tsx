@@ -27,12 +27,42 @@ type ChatResult = {
   comparison?: { winners?: string[]; notes?: string[]; providerScores?: Record<string, number> };
 };
 
-const CORE_AI = ["openai", "anthropic", "google", "xai"];
+const CORE_AI = [
+  "openai",
+  "anthropic",
+  "google",
+  "xai",
+  "deepseek",
+  "perplexity",
+  "mistral",
+  "meta",
+  "qwen",
+  "cohere",
+  "copilot",
+  "amazon",
+  "nvidia",
+  "yi",
+  "minimax",
+  "moonshot",
+];
+
 const LABELS: Record<string, string> = {
   openai: "ChatGPT",
   anthropic: "Claude",
   google: "Gemini",
   xai: "Grok",
+  deepseek: "DeepSeek",
+  perplexity: "Perplexity",
+  mistral: "Mistral",
+  meta: "Llama",
+  qwen: "Qwen",
+  cohere: "Cohere",
+  copilot: "Copilot",
+  amazon: "Nova",
+  nvidia: "NVIDIA",
+  yi: "Yi",
+  minimax: "MiniMax",
+  moonshot: "Kimi",
 };
 
 export default function RoomV3() {
@@ -196,49 +226,49 @@ export default function RoomV3() {
   }
 
   return (
-    <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] pt-14 text-[#f4f0e7]">
+    <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] pt-[138px] text-[#f4f0e7]">
       <style>{`
         @media (min-width: 1024px) {
           .royal-room-layout > aside {
-            top: 56px !important;
-            height: calc(100vh - 56px) !important;
-            min-height: calc(100vh - 56px) !important;
+            top: 138px !important;
+            height: calc(100vh - 138px) !important;
+            min-height: calc(100vh - 138px) !important;
           }
         }
       `}</style>
 
-      <div className="fixed inset-x-0 top-0 z-[160] flex h-14 items-center gap-3 border-b border-[#d7b64d]/25 bg-[#07101d]/98 px-3 shadow-lg backdrop-blur">
-        <div className="flex shrink-0 items-center gap-1.5">
+      <header className="fixed inset-x-0 top-0 z-[170] flex h-[42px] items-center gap-2 border-b border-white/10 bg-[#07101d]/98 px-3 shadow-sm backdrop-blur">
+        <Link href="/dashboard" className="shrink-0 text-sm text-[#d7b64d]">← Dashboard</Link>
+        <h1 className="text-xl font-semibold leading-none">Command Room</h1>
+        <div className="ml-auto flex items-center gap-2">
+          <select value={language} onChange={(e) => setLanguage(e.target.value)} className="rounded-lg border border-white/10 bg-[#0b1524] px-2 py-1.5 text-xs">
+            <option value="ko">🇰🇷 한국어</option>
+            <option value="en">🇦🇺 English</option>
+          </select>
+          <button type="button" onClick={() => setSpeakerEnabled((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-[#0b1524]">
+            {speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
+          </button>
+        </div>
+      </header>
+
+      <div className="fixed inset-x-0 top-[42px] z-[165] h-24 border-b border-[#d7b64d]/30 bg-[#07101d]/98 px-2 py-2 shadow-lg backdrop-blur">
+        <div className="grid grid-cols-8 gap-1.5">
           {CORE_AI.map((id) => {
             const available = isAvailable(id);
             const active = selected.includes(id) && available;
             return (
               <button key={id} type="button" onClick={() => toggleProvider(id)} disabled={!available}
-                className={`rounded-full border px-3 py-2 text-sm font-semibold leading-none ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}>
+                className={`h-8 min-w-0 truncate rounded-lg border px-2 text-xs font-semibold ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}>
                 {LABELS[id]}
               </button>
             );
           })}
         </div>
-        <div className="min-w-0 flex-1 truncate text-xs text-[#aeb7c5]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
+        <div className="mt-1 truncate text-center text-[11px] leading-4 text-[#aeb7c5]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className="flex h-full min-h-0 w-full max-w-none flex-col p-0">
-          <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#07101d] px-0 pb-1 pt-1">
-            <Link href="/dashboard" className="text-sm text-[#b8b6b0]">← Dashboard</Link>
-            <div className="flex-1">
-              <h1 className="text-xl font-semibold leading-tight">Command Room</h1>
-            </div>
-            <select value={language} onChange={(e) => setLanguage(e.target.value)} className="rounded-lg border border-white/10 bg-[#0b1524] px-2 py-1.5 text-xs">
-              <option value="ko">🇰🇷 한국어</option>
-              <option value="en">🇦🇺 English</option>
-            </select>
-            <button type="button" onClick={() => setSpeakerEnabled((v) => !v)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10 bg-[#0b1524]">
-              {speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
-            </button>
-          </header>
-
           <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0b1524]">
             <div ref={messagesViewportRef} className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 py-2">
               {!messages.length && !loading && (
