@@ -2,19 +2,29 @@ import type { ReactNode } from "react";
 import ChatHistorySidebar from "./ChatHistorySidebar";
 import RightWorkSidebar from "./RightWorkSidebar";
 
+function SponsoredCard({ side }: { side: "left" | "right" }) {
+  const sideClass = side === "left"
+    ? "left-0 rounded-r-2xl border-l-0"
+    : "right-0 rounded-l-2xl border-r-0";
+
+  return (
+    <a
+      href="/"
+      className={`fixed bottom-2 z-[120] hidden min-h-[104px] w-[210px] border border-[var(--gold)]/25 bg-[#07111f]/95 p-3 shadow-xl backdrop-blur lg:block ${sideClass}`}
+      aria-label={`${side === "left" ? "왼쪽" : "오른쪽"} 스폰서 광고 영역`}
+    >
+      <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--gold-soft)]">Sponsored</div>
+      <div className="mt-1 text-sm font-semibold">광고 영역</div>
+      <div className="mt-1 text-[10px] leading-4 text-[var(--muted)]">광고 네트워크 연결 후 고객이 눌러 상품·서비스를 확인하는 자리입니다.</div>
+    </a>
+  );
+}
+
 export default function RoomLayout({ children }: { children: ReactNode }) {
   return (
     <div className="royal-room-layout flex min-h-screen w-full">
       <ChatHistorySidebar />
-      <a
-        href="/"
-        className="fixed bottom-2 left-0 z-40 hidden min-h-[104px] w-[210px] rounded-r-2xl border border-l-0 border-[var(--gold)]/25 bg-[#07111f]/95 p-3 shadow-xl backdrop-blur lg:block"
-        aria-label="왼쪽 스폰서 광고 영역"
-      >
-        <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--gold-soft)]">Sponsored</div>
-        <div className="mt-1 text-sm font-semibold">광고 영역</div>
-        <div className="mt-1 text-[10px] leading-4 text-[var(--muted)]">광고 네트워크 연결 후 고객이 눌러 상품·서비스를 확인하는 자리입니다.</div>
-      </a>
+      <SponsoredCard side="left" />
       <div className="royal-room-main min-w-0 flex-1">
         <style>{`
           .royal-room-main > main {
@@ -41,6 +51,7 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
         {children}
       </div>
       <RightWorkSidebar />
+      <SponsoredCard side="right" />
     </div>
   );
 }
