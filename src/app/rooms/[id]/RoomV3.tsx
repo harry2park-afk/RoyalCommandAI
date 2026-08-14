@@ -273,7 +273,7 @@ export default function RoomV3() {
               value={language}
               onChange={(e) => setLanguage(e.target.value)}
               className="rounded-md border border-white/10 bg-[#0b1524] px-2 py-1 text-xs text-[#d6d9df]"
-              aria-label="언어 선택"
+              aria-label="Language"
             >
               <option value="ko">🇰🇷 한국어</option>
               <option value="en">🇦🇺 English</option>
