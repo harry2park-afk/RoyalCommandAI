@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, GripVertical, Plus, Search, Trash2 } from "lucide-react";
 
 const DEFAULT_WIDTH = 225;
-const MIN_WIDTH = 175;
+const MIN_WIDTH = 225;
 const MAX_WIDTH = 390;
 
 const DEFAULT_APPS = ["chatgpt", "email", "instagram", "youtube", "drive", "calendar", "files", "netflix", "tasks", "approval"];
@@ -186,7 +186,7 @@ export default function RightWorkSidebar() {
   }
 
   return (
-    <aside className="relative z-40 flex h-screen shrink-0 flex-col bg-[#07111f]" style={{ width }}>
+    <aside className="relative z-40 flex h-screen shrink-0 flex-col overflow-hidden bg-[#07111f]" style={{ width }}>
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
       <button type="button" onMouseDown={startResize} className="absolute left-0 top-0 z-50 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center" title="폭 조절"><GripVertical size={12} className="text-white/35" /></button>
       <button type="button" onClick={toggle} className="absolute left-0 top-1/2 z-50 flex h-12 w-7 -translate-x-full -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 패널 닫기"><ChevronRight size={18} /></button>
@@ -204,7 +204,7 @@ export default function RightWorkSidebar() {
         </div>}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2 pb-1">
         {selectedApps.map((app) => (
           <div key={app.id} draggable onDragStart={() => setDragId(app.id)} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(app.id)} className={`group flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-1.5 py-1.5 transition hover:border-[var(--gold)]/30 hover:bg-white/[0.04] ${dragId === app.id ? "opacity-45" : ""}`}>
             <BrandBadge app={app} onClick={() => openApp(app)} />
@@ -223,11 +223,13 @@ export default function RightWorkSidebar() {
         </div>}
       </div>
 
-      <a href="/" className="mx-auto mb-2 block min-h-[104px] w-[210px] shrink-0 rounded-2xl border border-[var(--gold)]/25 bg-[#07111f]/95 p-3 text-left shadow-xl hover:bg-[var(--gold)]/10" aria-label="오른쪽 스폰서 광고 영역">
-        <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--gold-soft)]">Sponsored</div>
-        <div className="mt-1 text-sm font-semibold">광고 영역</div>
-        <div className="mt-1 text-[10px] leading-4 text-[var(--muted)]">광고 네트워크 연결 후 고객이 눌러 상품·서비스를 확인하는 자리입니다.</div>
-      </a>
+      <div className="shrink-0 px-2 pb-2 pt-1">
+        <a href="/" className="block min-h-[104px] w-full max-w-[210px] rounded-2xl border border-[var(--gold)]/25 bg-[#07111f]/95 p-3 text-left shadow-xl hover:bg-[var(--gold)]/10" aria-label="오른쪽 스폰서 광고 영역">
+          <div className="text-[9px] font-semibold uppercase tracking-[0.18em] text-[var(--gold-soft)]">Sponsored</div>
+          <div className="mt-1 text-sm font-semibold">광고 영역</div>
+          <div className="mt-1 text-[10px] leading-4 text-[var(--muted)]">광고 네트워크 연결 후 고객이 눌러 상품·서비스를 확인하는 자리입니다.</div>
+        </a>
+      </div>
     </aside>
   );
 }
