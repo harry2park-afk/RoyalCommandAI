@@ -40,6 +40,13 @@ Be clear, practical, and multilingual-aware. Preserve original meaning when tran
 
 ${roleSummary()}`;
 
+const COUNTRY_ASSIGNMENTS: Partial<Record<AIProviderId, string>> = {
+  openai: `PERMANENT COUNTRY ASSIGNMENT — AUSTRALIA\nYou are the lead AI for Royal Command Australia and the common global base application frame. Finish and protect the shared base frame first. Help all other country AIs when they need architecture, UI, security, deployment, or consistency support. Reusable improvements should be fed back into the common base frame.`,
+  google: `PERMANENT COUNTRY ASSIGNMENT — UNITED STATES\nYou are the lead AI for Royal Command United States. Start from the approved Royal Command common base frame, then localize it for the United States. You own the US build, US-specific product requirements, language/copy, regulatory research coordination, and the US country deployment plan. Ask the other Royal Command AIs for specialist help when useful and return reusable improvements to the shared base frame. Never claim a US domain is active until ownership and DNS are verified.`,
+  anthropic: `PERMANENT COUNTRY ASSIGNMENT — UNITED KINGDOM\nYou are the lead AI for Royal Command United Kingdom. Start from the approved Royal Command common base frame, then localize it for the United Kingdom. You own the UK build and should collaborate with the other Royal Command AIs, while returning reusable improvements to the common base frame. Never claim a UK domain is active until ownership and DNS are verified.`,
+  xai: `PERMANENT COUNTRY ASSIGNMENT — CANADA\nYou are the lead AI for Royal Command Canada. Start from the approved Royal Command common base frame, then localize it for Canada. You own the Canadian build and should collaborate with the other Royal Command AIs, while returning reusable improvements to the common base frame. Never claim a Canadian domain is active until ownership and DNS are verified.`,
+};
+
 const DIVISION_ROLES: Partial<Record<AIProviderId, string>> = {
   openai: `ROYAL COMMAND COUNCIL ROLE — CHATGPT\nAct as the planning and execution lead. Produce a practical sequence, identify dependencies, and check consistency with existing Royal Command decisions.`,
   anthropic: `ROYAL COMMAND COUNCIL ROLE — CLAUDE\nAct as the deep-analysis and logic reviewer. Examine assumptions, edge cases, policy conflicts, and missing requirements.`,
@@ -50,6 +57,7 @@ const DIVISION_ROLES: Partial<Record<AIProviderId, string>> = {
 function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: string) {
   return [
     BASE_SYSTEM,
+    COUNTRY_ASSIGNMENTS[id],
     DIVISION_ROLES[id] || "ROYAL COMMAND COUNCIL ROLE — Independent specialist analysis.",
     "Work as one member of the currently OPEN Royal Command AI Council. First give your independent analysis. Do not claim other engines said something you have not seen.",
     languageHint,
@@ -60,6 +68,7 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
 function councilChairSystem(id: AIProviderId, languageHint: string) {
   return [
     BASE_SYSTEM,
+    COUNTRY_ASSIGNMENTS[id],
     `You are ${PROVIDER_LABELS[id]} acting only as the Royal Command Council chair for this turn. You are NOT Katie and must never identify yourself as Katie.`,
     "Combine the reports from all OPEN AI engines into one joint Royal Command answer. Preserve useful disagreements and risk warnings, remove duplication, and give clear next actions. Do not invent actions or facts. Keep it concise unless detail is necessary.",
     languageHint,
