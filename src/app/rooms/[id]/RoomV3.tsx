@@ -195,9 +195,9 @@ export default function RoomV3() {
   }
 
   return (
-    <main className="flex h-[100dvh] min-h-0 overflow-hidden bg-[#07101d] text-[#f4f0e7]">
+    <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] text-[#f4f0e7]">
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
-        <div className="flex h-full min-h-0 max-w-none flex-col p-0">
+        <div className="flex h-full min-h-0 w-full max-w-none flex-col p-0">
           <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-3 border-b border-white/10 bg-[#07101d] px-0 pb-3 pt-2">
             <Link href="/dashboard" className="text-sm text-[#b8b6b0]">← Dashboard</Link>
             <div className="flex-1">
@@ -230,8 +230,8 @@ export default function RoomV3() {
             <div className="mt-2 text-sm text-[#9ca5b2]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
           </div>
 
-          <section className="flex min-h-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0b1524]">
-            <div ref={messagesViewportRef} className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-2 py-4">
+          <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0b1524]">
+            <div ref={messagesViewportRef} className="min-h-0 min-w-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-2 py-4">
               {!messages.length && !loading && (
                 <div className="mx-auto mt-16 max-w-xl text-center">
                   <Bot className="mx-auto text-[#d7b64d]" size={38} />
@@ -253,21 +253,21 @@ export default function RoomV3() {
               {loading && <div className="text-sm text-[#d7b64d]">Working: {selected.filter(isAvailable).map((id) => LABELS[id]).join(" + ")}…</div>}
             </div>
 
-            <form onSubmit={send} className="shrink-0 border-t border-white/10 bg-[#0b1524] p-0">
+            <form onSubmit={send} className="w-full min-w-0 shrink-0 border-t border-white/10 bg-[#0b1524] p-0">
               {error && <div className="mb-2 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">{error}</div>}
               {lastResult?.responses?.length ? (
                 <div className="mb-2 text-xs text-[#9ca5b2]">Last run: {lastResult.responses.map((r) => `${LABELS[r.provider] || r.provider}${r.error ? " ✕" : " ✓"}`).join(" · ")}</div>
               ) : null}
-              <div className="rounded-t-2xl border border-[#d7b64d]/30 bg-[#07101d] p-2">
+              <div className="w-full min-w-0 rounded-t-2xl border border-[#d7b64d]/30 bg-[#07101d] p-2">
                 <textarea ref={textRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                   placeholder="Type or speak your order…"
-                  className="w-full resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-[#667085]" />
-                <div className="flex items-center gap-2 px-0 pb-0">
+                  className="block w-full min-w-0 resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-[#667085]" />
+                <div className="flex min-w-0 items-center gap-2 px-0 pb-0 lg:pl-[220px] lg:pr-[220px]">
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.currentTarget.value = ""; }} />
-                  <button type="button" onClick={() => fileRef.current?.click()} className="grid h-10 w-10 place-items-center rounded-xl border border-white/10"><Paperclip size={18} /></button>
-                  <button type="button" onClick={toggleMic} className={`grid h-10 w-10 place-items-center rounded-xl border ${listening ? "border-[#d7b64d] text-[#f4d66c]" : "border-white/10"}`}><Mic size={18} /></button>
-                  <button type="submit" disabled={!prompt.trim() || loading} className="ml-auto flex h-10 items-center gap-2 rounded-xl bg-[#d7b64d] px-6 font-semibold text-[#111827] disabled:opacity-40"><Send size={17} /> Send</button>
+                  <button type="button" onClick={() => fileRef.current?.click()} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-[#07101d]" title="파일 첨부"><Paperclip size={18} /></button>
+                  <button type="button" onClick={toggleMic} className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border bg-[#07101d] ${listening ? "border-[#d7b64d] text-[#f4d66c]" : "border-white/10"}`} title="마이크"><Mic size={18} /></button>
+                  <button type="submit" disabled={!prompt.trim() || loading} className="ml-auto flex h-10 shrink-0 items-center gap-2 rounded-xl bg-[#d7b64d] px-6 font-semibold text-[#111827] disabled:opacity-40"><Send size={17} /> Send</button>
                 </div>
               </div>
             </form>
