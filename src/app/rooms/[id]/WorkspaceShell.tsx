@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import { Check, GripVertical, Plus, Trash2 } from "lucide-react";
 
 type Room = { id: string; name: string; status?: string };
@@ -190,4 +190,3 @@ export default function WorkspaceShell({ children }: { children: ReactNode }) {
     </div>
   );
 }
-��B����	�ث� ���w&�fW'F�6�6��S׳G�6�74��S�'FW�B�v��FR�#"����'WGF�����6�FSࠢ�F�b6�74��S�&֖��r�f�W���fW&f��rג�WF�#�6���G&V����F�c���F�c����Р
