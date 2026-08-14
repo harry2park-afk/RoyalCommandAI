@@ -196,7 +196,33 @@ export default function RoomV3() {
   }
 
   return (
-    <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] text-[#f4f0e7]">
+    <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] pt-14 text-[#f4f0e7]">
+      <style>{`
+        @media (min-width: 1024px) {
+          .royal-room-layout > aside {
+            top: 56px !important;
+            height: calc(100vh - 56px) !important;
+            min-height: calc(100vh - 56px) !important;
+          }
+        }
+      `}</style>
+
+      <div className="fixed inset-x-0 top-0 z-[160] flex h-14 items-center gap-3 border-b border-[#d7b64d]/25 bg-[#07101d]/98 px-3 shadow-lg backdrop-blur">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {CORE_AI.map((id) => {
+            const available = isAvailable(id);
+            const active = selected.includes(id) && available;
+            return (
+              <button key={id} type="button" onClick={() => toggleProvider(id)} disabled={!available}
+                className={`rounded-full border px-3 py-2 text-sm font-semibold leading-none ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}>
+                {LABELS[id]}
+              </button>
+            );
+          })}
+        </div>
+        <div className="min-w-0 flex-1 truncate text-xs text-[#aeb7c5]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
+      </div>
+
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className="flex h-full min-h-0 w-full max-w-none flex-col p-0">
           <header className="relative z-20 flex shrink-0 flex-wrap items-center gap-2 border-b border-white/10 bg-[#07101d] px-0 pb-1 pt-1">
@@ -212,22 +238,6 @@ export default function RoomV3() {
               {speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}
             </button>
           </header>
-
-          <div className="relative z-20 shrink-0 bg-[#07101d] px-0 py-1">
-            <div className="flex flex-wrap gap-1">
-              {CORE_AI.map((id) => {
-                const available = isAvailable(id);
-                const active = selected.includes(id) && available;
-                return (
-                  <button key={id} type="button" onClick={() => toggleProvider(id)} disabled={!available}
-                    className={`rounded-full border px-2 py-1 text-xs font-semibold leading-none ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}>
-                    {LABELS[id]}
-                  </button>
-                );
-              })}
-            </div>
-            <div className="mt-1 text-[11px] leading-4 text-[#9ca5b2]">When 2 or more AIs are OPEN, Royal Command runs them as one council and returns one joint answer.</div>
-          </div>
 
           <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0b1524]">
             <div ref={messagesViewportRef} className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 py-2">
