@@ -3,52 +3,45 @@ import RoyalGateBackground from "@/components/RoyalGateBackground";
 
 export default function HomePage() {
   return (
-    <main className="relative min-h-screen overflow-hidden bg-[#070b12]">
+    <main className="relative min-h-screen overflow-hidden bg-[#05070b]">
       <RoyalGateBackground />
 
-      <header className="relative z-10 mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
-        <div
-          className="text-2xl tracking-[0.08em] text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.8)]"
-          style={{ fontFamily: "var(--font-display), serif" }}
-        >
-          RoyalCommand<span className="text-[var(--gold)]">.ai</span>
-        </div>
-        <nav className="flex items-center gap-3">
-          <Link href="/login" className="rc-btn rc-btn-ghost text-sm">
-            Sign in
-          </Link>
-          <Link href="/signup" className="rc-btn rc-btn-primary text-sm">
-            Enter Household
-          </Link>
-        </nav>
-      </header>
+      <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/20 via-black/5 to-black/70" />
 
-      <section className="relative z-10 mx-auto flex min-h-[78vh] w-full max-w-6xl flex-col justify-center px-6 pb-20 pt-8">
-        <p className="animate-fade-up mb-4 text-sm uppercase tracking-[0.28em] text-[var(--gold-soft)] drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-          Royal Household OS
-        </p>
-        <h1
-          className="animate-fade-up max-w-4xl text-5xl leading-[1.05] text-white drop-shadow-[0_3px_14px_rgba(0,0,0,0.9)] md:text-7xl"
-          style={{ fontFamily: "var(--font-display), serif", animationDelay: "0.08s" }}
-        >
-          A secure AI operating system for people, families and businesses.
-        </h1>
-        <p
-          className="animate-fade-up mt-6 max-w-2xl text-lg text-white/80 drop-shadow-[0_2px_10px_rgba(0,0,0,0.95)] md:text-xl"
-          style={{ animationDelay: "0.16s" }}
-        >
-          Open a neutral Room. Connect ChatGPT, Claude, Gemini and Grok at once.
-          Compare every answer. Keep one final best response — with memory, voice and files.
-        </p>
-        <div className="animate-fade-up mt-10 flex flex-wrap gap-4" style={{ animationDelay: "0.24s" }}>
-          <Link href="/signup" className="rc-btn rc-btn-primary">
-            Start Command
-          </Link>
-          <Link href="/login" className="rc-btn rc-btn-ghost">
-            Open existing Household
-          </Link>
+      <div className="relative z-10 flex min-h-screen flex-col items-center justify-between px-5 py-7 text-center">
+        <div className="pt-2">
+          <div
+            className="text-2xl tracking-[0.14em] text-white drop-shadow-[0_3px_12px_rgba(0,0,0,0.95)] md:text-3xl"
+            style={{ fontFamily: "var(--font-display), serif" }}
+          >
+            ROYAL COMMAND<span className="text-[var(--gold)]"> AI</span>
+          </div>
         </div>
-      </section>
+
+        <div className="mb-8 w-full max-w-2xl rounded-2xl border border-[#c9a84f]/45 bg-black/50 p-5 shadow-2xl backdrop-blur-sm md:p-7">
+          <p className="mb-5 text-sm tracking-[0.14em] text-[#f1d889] md:text-base">
+            Welcome to Royal Command
+          </p>
+
+          <div className="grid gap-3 md:grid-cols-2 md:gap-4">
+            <Link
+              href="/login"
+              className="rounded-xl border border-[#d7b64d]/75 bg-[#0b0d12]/90 px-5 py-4 text-white transition hover:border-[#f3d36b] hover:bg-[#151923]"
+            >
+              <span className="block text-lg font-semibold">Existing Member</span>
+              <span className="mt-1 block text-sm text-white/70">Sign in</span>
+            </Link>
+
+            <Link
+              href="/signup"
+              className="rounded-xl border border-[#d7b64d] bg-[#d7b64d] px-5 py-4 text-[#17120a] shadow-[0_0_24px_rgba(215,182,77,0.22)] transition hover:bg-[#ead07a]"
+            >
+              <span className="block text-lg font-semibold">New Customer</span>
+              <span className="mt-1 block text-sm text-black/70">Submit Application</span>
+            </Link>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }
