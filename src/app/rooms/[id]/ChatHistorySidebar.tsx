@@ -272,7 +272,6 @@ export default function ChatHistorySidebar() {
 
   return (
     <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
-      <div className="shrink-0 border-b border-white/10 px-3 py-3"><div className="flex items-center justify-between gap-2"><div className="text-sm font-semibold text-[var(--gold-soft)]">지난 대화</div><button type="button" onClick={showLatestConversation} className="rounded-md border border-white/10 px-2 py-1 text-[10px] text-[var(--muted)] hover:text-[var(--gold-soft)]">현재</button></div></div>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
         <div className="space-y-1">
           {historyBoxes.map((box, index) => (
