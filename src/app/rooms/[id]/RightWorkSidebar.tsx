@@ -17,7 +17,6 @@ import {
   Search,
   Trash2,
   Tv,
-  Youtube,
 } from "lucide-react";
 
 const DEFAULT_WIDTH = 320;
@@ -57,7 +56,7 @@ function AppIcon({ icon }: { icon: AppItem["icon"] }) {
   const props = { size: 22, strokeWidth: 1.8 };
   if (icon === "mail") return <Mail {...props} />;
   if (icon === "instagram") return <Instagram {...props} />;
-  if (icon === "youtube") return <Youtube {...props} />;
+  if (icon === "youtube") return <Tv {...props} />;
   if (icon === "drive") return <HardDrive {...props} />;
   if (icon === "calendar") return <CalendarDays {...props} />;
   if (icon === "files") return <FolderOpen {...props} />;
@@ -119,9 +118,8 @@ export default function RightWorkSidebar() {
     return () => {
       window.removeEventListener("mousemove", move);
       window.removeEventListener("mouseup", up);
-      localFiles.forEach((file) => URL.revokeObjectURL(file.url));
     };
-  }, [localFiles]);
+  }, []);
 
   const selectedApps = selectedIds.map((id) => APP_CATALOG.find((app) => app.id === id)).filter(Boolean) as AppItem[];
   const searchResults = useMemo(() => {
