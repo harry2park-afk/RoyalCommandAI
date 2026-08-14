@@ -11,7 +11,6 @@ import {
   FolderOpen,
   GripVertical,
   HardDrive,
-  Instagram,
   Mail,
   Plus,
   Search,
@@ -55,14 +54,14 @@ const APP_CATALOG: AppItem[] = [
 function AppIcon({ icon }: { icon: AppItem["icon"] }) {
   const props = { size: 22, strokeWidth: 1.8 };
   if (icon === "mail") return <Mail {...props} />;
-  if (icon === "instagram") return <Instagram {...props} />;
+  if (icon === "instagram") return <span className="text-xs font-bold tracking-tight">IG</span>;
   if (icon === "youtube") return <Tv {...props} />;
   if (icon === "drive") return <HardDrive {...props} />;
   if (icon === "calendar") return <CalendarDays {...props} />;
   if (icon === "files") return <FolderOpen {...props} />;
   if (icon === "tasks") return <CheckSquare {...props} />;
   if (icon === "approval") return <CheckSquare {...props} />;
-  if (icon === "netflix") return <Tv {...props} />;
+  if (icon === "netflix") return <span className="text-sm font-black">N</span>;
   if (icon === "docs") return <FileText {...props} />;
   return <Bot {...props} />;
 }
