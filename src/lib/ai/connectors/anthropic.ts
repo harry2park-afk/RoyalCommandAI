@@ -10,7 +10,7 @@ export class AnthropicConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
+    const model = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
     try {
       const system = request.messages
         .filter((m) => m.role === "system")
