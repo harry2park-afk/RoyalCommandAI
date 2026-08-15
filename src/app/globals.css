@@ -18,6 +18,7 @@ main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{displ
 .royal-room-layout section article{font-size:10pt!important;line-height:1.45!important}
 .royal-room-layout section form textarea{font-size:10pt!important;line-height:1.45!important;height:56px!important;min-height:56px!important;max-height:56px!important;overflow-y:auto!important;resize:none!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
 .royal-room-layout section form textarea::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+.royal-room-main main>div.min-h-0.min-w-0.flex-1.overflow-hidden{padding-left:8px!important}
 .royal-room-main main section>div.flex-1{scrollbar-width:none!important;-ms-overflow-style:none!important;padding-right:2px!important}
 .royal-room-main main section>div.flex-1::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;background:transparent!important}
 .royal-room-layout>aside:last-child{flex:0 0 225px!important;width:225px!important;min-width:225px!important;max-width:225px!important;margin-top:0!important;height:calc(100dvh - 92px)!important;min-height:calc(100dvh - 92px)!important;border-left:1px solid rgba(255,255,255,.12)!important;overflow:hidden!important}
