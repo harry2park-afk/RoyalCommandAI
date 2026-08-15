@@ -1,5 +1,5 @@
 @import "tailwindcss";
-:root{--bg:#0b1220;--bg-elevated:#121a2b;--panel:#162033;--line:rgba(212,175,55,.22);--text:#f3efe6;--muted:#9aa6b2;--gold:#d4af37;--gold-soft:#f0d78c;--navy:#1e3a5f;--danger:#e35d6a;--ok:#3ecf8e}
+:root{--bg:#0b1220;--bg-elevated:#121a2b;--panel:#162033;--line:rgba(212,175,55,.22);--text:#f3efe6;--muted:#9aa6b2;--gold:#d4af37;--gold-soft:#f0d78c;--navy:#1e3a5f;--danger:#e35d6a;--ok:#3ecf8e;--font-display:Georgia,"Times New Roman",serif;--font-mono:Arial,"Helvetica Neue",sans-serif}
 @theme inline{--color-background:var(--bg);--color-foreground:var(--text);--font-sans:var(--font-display);--font-mono:var(--font-mono)}
 *{box-sizing:border-box}
 html,body{min-height:100%;overflow-x:hidden!important}
