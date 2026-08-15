@@ -61,7 +61,8 @@ const AI_CATALOG: CatalogAI[] = [
   { id: "tencent", name: "Tencent Hunyuan", shortName: "Hunyuan" },
 ];
 
-const DEFAULT_SLOTS = AI_CATALOG.slice(0, 15).map((ai) => ai.id);
+const TOP_SLOT_COUNT = 10;
+const DEFAULT_SLOTS = AI_CATALOG.slice(0, TOP_SLOT_COUNT).map((ai) => ai.id);
 const CATALOG_BY_ID = Object.fromEntries(AI_CATALOG.map((ai) => [ai.id, ai])) as Record<string, CatalogAI>;
 
 const AI_LOGOS: Record<string, string> = {
@@ -82,6 +83,10 @@ const AI_LOGOS: Record<string, string> = {
   nvidia: "https://cdn.simpleicons.org/nvidia/FFFFFF",
 };
 
+function messageText(value: unknown) {
+  return typeof value === "string" ? value : String(value ?? "");
+}
+
 export default function RoomV3() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -91,7 +96,7 @@ export default function RoomV3() {
   const [slots, setSlots] = useState<string[]>(DEFAULT_SLOTS);
   const [warehouseOpen, setWarehouseOpen] = useState(false);
   const [warehouseSearch, setWarehouseSearch] = useState("");
-  const [replaceSlot, setReplaceSlot] = useState(14);
+  const [replaceSlot, setReplaceSlot] = useState(TOP_SLOT_COUNT - 1);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -113,7 +118,7 @@ export default function RoomV3() {
       .slice(-12)
       .map((m) => ({
         role: (m.authorType || m.author_type) === "user" ? ("user" as const) : ("assistant" as const),
-        content: m.content,
+        content: messageText(m.content),
       })),
     [messages],
   );
@@ -127,7 +132,8 @@ export default function RoomV3() {
     const res = await fetch(`/api/rooms/${roomId}`, { cache: "no-store" });
     const data = await res.json();
     if (res.ok) {
-      setMessages(data.messages || []);
+      const incoming = Array.isArray(data.messages) ? data.messages : [];
+      setMessages(incoming.slice(-250).map((m: Message) => ({ ...m, content: messageText(m?.content) })));
       if (data.user?.fullName) setDisplayName(data.user.fullName);
       if (data.user?.defaultLanguage === "ko" || data.user?.defaultLanguage === "en") {
         setLanguage(data.user.defaultLanguage);
@@ -144,9 +150,9 @@ export default function RoomV3() {
 
     if (!slotsReady.current) {
       try {
-        const saved = JSON.parse(localStorage.getItem(`royalcommand:room:${roomId}:ai-slots-v1`) || "[]") as string[];
+        const saved = JSON.parse(localStorage.getItem(`royalcommand:room:${roomId}:ai-slots-v2`) || "[]") as string[];
         const valid = saved.filter((id) => CATALOG_BY_ID[id]);
-        if (valid.length === 15 && new Set(valid).size === 15) setSlots(valid);
+        if (valid.length === TOP_SLOT_COUNT && new Set(valid).size === TOP_SLOT_COUNT) setSlots(valid);
       } catch {}
       slotsReady.current = true;
     }
@@ -176,7 +182,7 @@ export default function RoomV3() {
 
   useEffect(() => {
     if (!slotsReady.current) return;
-    localStorage.setItem(`royalcommand:room:${roomId}:ai-slots-v1`, JSON.stringify(slots));
+    localStorage.setItem(`royalcommand:room:${roomId}:ai-slots-v2`, JSON.stringify(slots));
   }, [roomId, slots]);
 
   useEffect(() => {
@@ -268,7 +274,7 @@ export default function RoomV3() {
         authorType: "ai",
       };
 
-      setMessages((prev) => [...prev.filter((m) => m.id !== tempUserId), userMessage, aiMessage]);
+      setMessages((prev) => [...prev.filter((m) => m.id !== tempUserId), { ...userMessage, content: messageText(userMessage.content) }, { ...aiMessage, content: messageText(aiMessage.content) }]);
       setLastResult(data);
 
       if (speakerEnabled && data.finalAnswer && "speechSynthesis" in window) {
@@ -307,7 +313,7 @@ export default function RoomV3() {
       <div className="fixed inset-x-0 top-0 z-[170] h-[92px] border-b border-[#d7b64d]/30 bg-[#07101d]/98 shadow-lg backdrop-blur">
         <div className="flex h-[42px] items-center gap-2 border-b border-white/10 px-3">
           <Link href="/dashboard" className="shrink-0 text-sm text-[#d7b64d]">← Dashboard</Link>
-          <h1 className="shrink-0 text-xl font-semibold leading-none">Command Room</h1>
+          <h1 className="ml-8 shrink-0 text-xl font-semibold leading-none">Command Room</h1>
           <div className="min-w-0 flex-1 text-center text-sm font-semibold text-[#f4f0e7]">{displayName}</div>
           <div className="flex shrink-0 items-center gap-1">
             <select
@@ -337,15 +343,15 @@ export default function RoomV3() {
                 onClick={() => toggleProvider(id)}
                 disabled={!available}
                 title={`${ai.name}${available ? "" : " — not connected"}`}
-                className={`flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border px-1 text-[10px] font-semibold leading-none ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/15 bg-[#0b1524] text-[#a8afba]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}
+                className={`flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border-[3px] border-[#FFD700] px-1 font-[Times_New_Roman] text-[12px] font-normal leading-none text-[#FFD700] ${active ? "bg-[#7A0C2E] text-[#FFF3D6]" : "bg-[#1E3A8A]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}
               >
-                <span className={`relative grid h-5 w-5 shrink-0 place-items-center rounded bg-black/20 ${active ? "bg-black/10" : ""}`}>
+                <span className="relative grid h-5 w-5 shrink-0 place-items-center rounded bg-black/20">
                   {AI_LOGOS[id] ? (
                     <img src={AI_LOGOS[id]} alt="" className="h-4 w-4 object-contain" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                   ) : null}
                   <span className="absolute text-[8px] font-bold">{ai.shortName.slice(0, 1)}</span>
                 </span>
-                <span className="min-w-0 truncate">{ai.shortName}</span>
+                <span className="min-w-0 truncate [transform:scaleX(.8)]">{ai.shortName}</span>
               </button>
             );
           })}
@@ -353,18 +359,18 @@ export default function RoomV3() {
           <button
             type="button"
             onClick={() => setWarehouseOpen(true)}
-            className="flex h-8 min-w-[88px] shrink-0 items-center justify-center gap-1 rounded-md border border-[#d7b64d]/70 bg-[#d7b64d]/10 px-2 text-[10px] font-semibold text-[#f4d66c]"
+            className="flex h-8 min-w-[116px] shrink-0 items-center justify-center gap-1 rounded-md border-[2px] border-[#FFD700]/80 bg-[#0b1524] px-3 text-[10px] font-semibold text-[#f4d66c]"
             title="AI Warehouse — search and replace top AI slots"
           >
             <Warehouse size={14} />
-            <span>AI 창고</span>
+            <span>AI Warehouse</span>
           </button>
         </div>
       </div>
 
       <div className="min-h-0 min-w-0 flex-1 overflow-hidden">
         <div className="flex h-full min-h-0 w-full max-w-none flex-col p-0">
-          <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0b1524]">
+          <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0B1524]">
             <div ref={messagesViewportRef} className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 py-2">
               {!messages.length && !loading && (
                 <div className="mx-auto mt-8 max-w-xl text-center">
@@ -376,24 +382,24 @@ export default function RoomV3() {
               {messages.map((m) => {
                 const type = m.authorType || m.author_type || "user";
                 const user = type === "user";
+                const content = messageText(m.content);
                 if (user) {
                   return (
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setExpandedUserMessage(m)}
-                      className="flex h-11 w-full max-w-none items-center gap-3 overflow-hidden rounded-2xl bg-[#d7b64d] px-4 text-left text-[#111827]"
+                      onClick={() => setExpandedUserMessage({ ...m, content })}
+                      className="flex h-[33px] w-full max-w-none items-center overflow-hidden rounded-[7px] border-[3px] border-[#FFD700] bg-[#1E3A8A] px-[9px] text-left text-white"
                       title="클릭하면 전체 내용을 봅니다"
                     >
-                      <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.18em] text-black/60">You</span>
-                      <span className="min-w-0 flex-1 truncate text-base">{m.content.replace(/\s+/g, " ")}</span>
+                      <span className="min-w-0 flex-1 truncate text-[12px] leading-[1.2]">{content.replace(/\s+/g, " ")}</span>
                     </button>
                   );
                 }
 
                 return (
-                  <article key={m.id} className="w-full max-w-none rounded-2xl border border-white/10 bg-[#0f1b2c] px-4 py-3 whitespace-pre-wrap">
-                    {m.content}
+                  <article key={m.id} className="w-full max-w-none rounded-[7px] border-2 border-[#2A3B6E] bg-[#14224D] px-4 py-3 whitespace-pre-wrap text-[#E8E6DD]">
+                    {content}
                   </article>
                 );
               })}
@@ -407,7 +413,7 @@ export default function RoomV3() {
                 <textarea ref={textRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                   placeholder="Type or speak your order…"
-                  className="block w-full min-w-0 resize-none bg-transparent px-2 py-2 text-base outline-none placeholder:text-[#667085]" />
+                  className="block w-full min-w-0 resize-none bg-transparent px-2 py-2 text-base text-[#E8E6DD] outline-none placeholder:text-[#7C8BC4]" />
                 <div className="flex min-w-0 items-center gap-2 px-0 pb-0 lg:pl-[220px] lg:pr-[220px]">
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.currentTarget.value = ""; }} />
                   <button type="button" onClick={() => fileRef.current?.click()} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-[#07101d]" title="파일 첨부"><Paperclip size={18} /></button>
@@ -485,12 +491,11 @@ export default function RoomV3() {
 
       {expandedUserMessage && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 p-4" onClick={() => setExpandedUserMessage(null)} role="presentation">
-          <div className="max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-[#d7b64d]/50 bg-[#d7b64d] p-5 text-[#111827] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-            <div className="mb-2 flex items-center justify-between gap-4">
-              <div className="text-xs font-bold uppercase tracking-[0.18em] text-black/60">You</div>
-              <button type="button" onClick={() => setExpandedUserMessage(null)} className="rounded-lg border border-black/20 px-3 py-1 text-sm font-semibold">닫기</button>
+          <div className="max-h-[80vh] w-full max-w-3xl overflow-y-auto rounded-xl border-[3px] border-[#FFD700] bg-[#1E3A8A] p-5 text-white shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-2 flex items-center justify-end gap-4">
+              <button type="button" onClick={() => setExpandedUserMessage(null)} className="rounded-lg border border-white/25 px-3 py-1 text-sm font-semibold">닫기</button>
             </div>
-            <div className="whitespace-pre-wrap break-words text-base leading-7">{expandedUserMessage.content}</div>
+            <div className="whitespace-pre-wrap break-words text-base leading-7">{messageText(expandedUserMessage.content)}</div>
           </div>
         </div>
       )}
