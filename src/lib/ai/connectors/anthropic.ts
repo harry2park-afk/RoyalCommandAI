@@ -1,5 +1,6 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 import { logger } from "@/lib/logger";
+import { OpenRouterCatalogConnector } from "./openrouter";
 
 const RETIRED_CLAUDE_MODELS = new Set([
   "claude-3-5-haiku-latest",
@@ -7,12 +8,18 @@ const RETIRED_CLAUDE_MODELS = new Set([
   "claude-3-haiku-20240307",
 ]);
 
+const openRouterClaude = new OpenRouterCatalogConnector(
+  "anthropic",
+  "Claude",
+  "anthropic claude",
+);
+
 export class AnthropicConnector implements AIConnector {
   id = "anthropic" as const;
   displayName = "Claude";
 
   isConfigured() {
-    return Boolean(process.env.ANTHROPIC_API_KEY);
+    return Boolean(process.env.ANTHROPIC_API_KEY || process.env.OPENROUTER_API_KEY);
   }
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
@@ -21,6 +28,47 @@ export class AnthropicConnector implements AIConnector {
     const model = !configuredModel || RETIRED_CLAUDE_MODELS.has(configuredModel)
       ? "claude-haiku-4-5"
       : configuredModel;
+
+    const fallback = async (reason: string): Promise<AIProviderResponse> => {
+      if (!process.env.OPENROUTER_API_KEY) {
+        return {
+          provider: this.id,
+          model,
+          content: "",
+          latencyMs: Date.now() - started,
+          error: reason,
+        };
+      }
+
+      logger.warn("ai.provider.fallback", {
+        provider: this.displayName,
+        from: "Anthropic direct",
+        to: "OpenRouter",
+        reason: reason.slice(0, 500),
+      });
+
+      try {
+        return await openRouterClaude.complete(request);
+      } catch (fallbackError) {
+        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Claude fallback failed";
+        logger.warn("ai.provider.fallback.failed", {
+          provider: this.displayName,
+          error: fallbackMessage.slice(0, 500),
+        });
+        return {
+          provider: this.id,
+          model,
+          content: "",
+          latencyMs: Date.now() - started,
+          error: `${reason}; OpenRouter fallback failed: ${fallbackMessage}`,
+        };
+      }
+    };
+
+    if (!process.env.ANTHROPIC_API_KEY) {
+      return fallback("ANTHROPIC_API_KEY is not configured");
+    }
+
     try {
       const system = request.messages
         .filter((m) => m.role === "system")
@@ -33,7 +81,7 @@ export class AnthropicConnector implements AIConnector {
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
-          "x-api-key": process.env.ANTHROPIC_API_KEY!,
+          "x-api-key": process.env.ANTHROPIC_API_KEY,
           "anthropic-version": "2023-06-01",
           "Content-Type": "application/json",
         },
@@ -55,7 +103,7 @@ export class AnthropicConnector implements AIConnector {
           status: res.status,
           error: String(message).slice(0, 500),
         });
-        throw new Error(message);
+        return fallback(String(message));
       }
 
       const content =
@@ -81,13 +129,7 @@ export class AnthropicConnector implements AIConnector {
         model,
         error: message.slice(0, 500),
       });
-      return {
-        provider: this.id,
-        model,
-        content: "",
-        latencyMs: Date.now() - started,
-        error: message,
-      };
+      return fallback(message);
     }
   }
 }
