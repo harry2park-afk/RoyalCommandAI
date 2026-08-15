@@ -26,6 +26,8 @@
       img.style.setProperty('flex-shrink', '0', 'important');
       img.style.setProperty('filter', 'none', 'important');
       img.style.setProperty('opacity', '1', 'important');
+      img.style.setProperty('transform', 'scaleX(.75)', 'important');
+      img.style.setProperty('transform-origin', 'center', 'important');
     });
   }
 
