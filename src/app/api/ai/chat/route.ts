@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { orchestrate } from "@/lib/ai/orchestrator";
+import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
 import { chatSchema } from "@/lib/validations";
 import { localDb } from "@/lib/local-store";
 import { isSupabaseConfigured } from "@/lib/utils";
@@ -144,7 +144,7 @@ export async function POST(request: Request) {
         };
       }
     } else {
-      result = await orchestrate({
+      result = await orchestrateRoom(data.roomId, {
         prompt: data.prompt,
         history: data.history,
         providers: data.providers,
