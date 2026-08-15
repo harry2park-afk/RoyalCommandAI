@@ -1,11 +1,12 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, GripVertical, Plus, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, File, GripVertical, Search, Trash2 } from "lucide-react";
 
 const DEFAULT_WIDTH = 225;
 const MIN_WIDTH = 225;
-const MAX_WIDTH = 390;
+const MAX_WIDTH = 300;
+const ROW_HEIGHT = 28;
 
 const DEFAULT_APPS = ["chatgpt", "email", "instagram", "youtube", "drive", "calendar", "files", "netflix", "tasks", "approval"];
 
@@ -14,56 +15,51 @@ type AppItem = {
   title: string;
   description: string;
   url?: string;
-  brandLabel: string;
   brandSlug?: string;
   brandColor?: string;
-  brandBg: string;
-  brandText: string;
+  fallback?: string;
+  localLogo?: string;
 };
 
 type LocalFile = { name: string; size: number; url: string };
 
+type SearchItem =
+  | { type: "app"; id: string; title: string; app: AppItem }
+  | { type: "file"; id: string; title: string; file: LocalFile };
+
 const APP_CATALOG: AppItem[] = [
-  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT", url: "https://chatgpt.com", brandLabel: "ChatGPT", brandSlug: "openai", brandColor: "FFFFFF", brandBg: "#10a37f", brandText: "#ffffff" },
-  { id: "email", title: "Email", description: "내 이메일", url: "https://mail.google.com", brandLabel: "Gmail", brandSlug: "gmail", brandBg: "#ffffff", brandText: "#202124" },
-  { id: "instagram", title: "Instagram", description: "내 Instagram", url: "https://www.instagram.com", brandLabel: "Instagram", brandSlug: "instagram", brandColor: "FFFFFF", brandBg: "linear-gradient(135deg,#833AB4,#E1306C,#F77737)", brandText: "#ffffff" },
-  { id: "youtube", title: "YouTube", description: "내 YouTube", url: "https://www.youtube.com", brandLabel: "YouTube", brandSlug: "youtube", brandColor: "FF0000", brandBg: "#ffffff", brandText: "#111111" },
-  { id: "drive", title: "Google Drive", description: "내 Drive", url: "https://drive.google.com", brandLabel: "Google Drive", brandSlug: "googledrive", brandBg: "#ffffff", brandText: "#202124" },
-  { id: "calendar", title: "Google Calendar", description: "내 Calendar", url: "https://calendar.google.com", brandLabel: "Calendar", brandSlug: "googlecalendar", brandBg: "#ffffff", brandText: "#202124" },
-  { id: "files", title: "My Files", description: "내 컴퓨터 파일", brandLabel: "My Files", brandBg: "#f6c453", brandText: "#111827" },
-  { id: "netflix", title: "Netflix", description: "내 Netflix", url: "https://www.netflix.com", brandLabel: "NETFLIX", brandSlug: "netflix", brandColor: "E50914", brandBg: "#080808", brandText: "#E50914" },
-  { id: "tasks", title: "Tasks", description: "내 할 일 관리", brandLabel: "Tasks", brandBg: "#6d5dfc", brandText: "#ffffff" },
-  { id: "approval", title: "Approval", description: "승인 작업 보기", brandLabel: "Approval", brandBg: "#16845b", brandText: "#ffffff" },
-  { id: "docs", title: "Documents", description: "문서 작업", url: "https://docs.google.com", brandLabel: "Google Docs", brandSlug: "googledocs", brandBg: "#ffffff", brandText: "#202124" },
-  { id: "claude", title: "Claude", description: "내 Claude", url: "https://claude.ai", brandLabel: "Claude", brandSlug: "claude", brandColor: "D97757", brandBg: "#f5eee6", brandText: "#3b2f2a" },
-  { id: "gemini", title: "Gemini", description: "내 Gemini", url: "https://gemini.google.com", brandLabel: "Gemini", brandSlug: "googlegemini", brandColor: "8E75B2", brandBg: "#ffffff", brandText: "#3f51b5" },
-  { id: "grok", title: "Grok", description: "내 Grok", url: "https://grok.com", brandLabel: "Grok", brandBg: "#ffffff", brandText: "#111111" },
+  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/chatgpt.svg", brandSlug: "openai", brandColor: "FFFFFF", fallback: "◎" },
+  { id: "email", title: "Email", description: "내 이메일", url: "https://mail.google.com", brandSlug: "gmail", fallback: "M" },
+  { id: "instagram", title: "Instagram", description: "내 Instagram", url: "https://www.instagram.com", brandSlug: "instagram", fallback: "I" },
+  { id: "youtube", title: "YouTube", description: "내 YouTube", url: "https://www.youtube.com", brandSlug: "youtube", brandColor: "FF0000", fallback: "▶" },
+  { id: "drive", title: "Google Drive", description: "내 Drive", url: "https://drive.google.com", brandSlug: "googledrive", fallback: "D" },
+  { id: "calendar", title: "Google Calendar", description: "내 Calendar", url: "https://calendar.google.com", brandSlug: "googlecalendar", fallback: "31" },
+  { id: "files", title: "My Files", description: "내 컴퓨터 파일", fallback: "F" },
+  { id: "netflix", title: "Netflix", description: "내 Netflix", url: "https://www.netflix.com", brandSlug: "netflix", brandColor: "E50914", fallback: "N" },
+  { id: "tasks", title: "Tasks", description: "내 할 일 관리", fallback: "✓" },
+  { id: "approval", title: "Approval", description: "승인 작업 보기", fallback: "A" },
+  { id: "docs", title: "Documents", description: "문서 작업", url: "https://docs.google.com", brandSlug: "googledocs", fallback: "D" },
+  { id: "claude", title: "Claude", description: "내 Claude", url: "https://claude.ai", brandSlug: "claude", brandColor: "D97757", fallback: "C" },
+  { id: "gemini", title: "Gemini", description: "내 Gemini", url: "https://gemini.google.com", brandSlug: "googlegemini", fallback: "G" },
+  { id: "grok", title: "Grok", description: "내 Grok", url: "https://grok.com", fallback: "X" },
 ];
 
-function BrandBadge({ app, onClick }: { app: AppItem; onClick?: () => void }) {
-  const iconUrl = app.brandSlug
+function AppIcon({ app }: { app: AppItem }) {
+  const [failed, setFailed] = useState(false);
+  const remote = app.brandSlug
     ? `https://cdn.simpleicons.org/${app.brandSlug}${app.brandColor ? `/${app.brandColor}` : ""}`
     : undefined;
+  const src = app.localLogo || remote;
 
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="flex h-9 w-[78px] shrink-0 items-center justify-center gap-1.5 overflow-hidden rounded-lg border border-white/15 px-2 shadow-sm transition hover:brightness-110"
-      style={{ background: app.brandBg, color: app.brandText }}
-      title={app.title}
-      aria-label={app.title}
-    >
-      {iconUrl ? (
-        <img src={iconUrl} alt="" className="h-5 w-5 shrink-0 object-contain" draggable={false} />
-      ) : (
-        <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-black/15 text-[10px] font-black">
-          {app.id === "files" ? "F" : app.id === "tasks" ? "✓" : app.id === "approval" ? "A" : "G"}
-        </span>
-      )}
-      <span className="min-w-0 truncate text-[9px] font-black leading-none tracking-tight">{app.brandLabel}</span>
-    </button>
-  );
+  if (!src || failed) {
+    return (
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-white/10 text-[9px] font-bold text-white">
+        {app.fallback || app.title.slice(0, 1)}
+      </span>
+    );
+  }
+
+  return <img src={src} alt="" className="h-5 w-5 shrink-0 object-contain" draggable={false} onError={() => setFailed(true)} />;
 }
 
 export default function RightWorkSidebar() {
@@ -115,15 +111,30 @@ export default function RightWorkSidebar() {
     }
     window.addEventListener("mousemove", move);
     window.addEventListener("mouseup", up);
-    return () => { window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
+    return () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+    };
   }, []);
 
-  const selectedApps = selectedIds.map((id) => APP_CATALOG.find((app) => app.id === id)).filter(Boolean) as AppItem[];
-  const searchResults = useMemo(() => {
+  const selectedApps = selectedIds
+    .map((id) => APP_CATALOG.find((app) => app.id === id))
+    .filter(Boolean) as AppItem[];
+
+  const searchResults = useMemo<SearchItem[]>(() => {
     const clean = query.trim().toLowerCase();
     if (!clean) return [];
-    return APP_CATALOG.filter((app) => `${app.title} ${app.description}`.toLowerCase().includes(clean));
-  }, [query]);
+
+    const appMatches: SearchItem[] = APP_CATALOG
+      .filter((app) => `${app.title} ${app.description}`.toLowerCase().includes(clean))
+      .map((app) => ({ type: "app", id: `app-${app.id}`, title: app.title, app }));
+
+    const fileMatches: SearchItem[] = localFiles
+      .filter((file) => file.name.toLowerCase().includes(clean))
+      .map((file, index) => ({ type: "file", id: `file-${index}-${file.name}`, title: file.name, file }));
+
+    return [...fileMatches, ...appMatches];
+  }, [query, localFiles]);
 
   function startResize(event: React.MouseEvent<HTMLButtonElement>) {
     event.preventDefault();
@@ -138,18 +149,22 @@ export default function RightWorkSidebar() {
     try { window.localStorage.setItem("royalcommand:right-panel-collapsed", next ? "1" : "0"); } catch {}
   }
 
-  function addApp(id: string) {
-    setSelectedIds((prev) => prev.includes(id) ? prev : [...prev, id]);
-    setQuery("");
+  function openApp(app: AppItem) {
+    if (app.id === "files") {
+      fileInputRef.current?.click();
+      return;
+    }
+    if (app.url) window.open(app.url, "_blank", "noopener,noreferrer");
   }
 
   function removeApp(id: string) {
     setSelectedIds((prev) => prev.filter((item) => item !== id));
   }
 
-  function openApp(app: AppItem) {
-    if (app.id === "files") { fileInputRef.current?.click(); return; }
-    if (app.url) window.open(app.url, "_blank", "noopener,noreferrer");
+  function addOrOpen(app: AppItem) {
+    if (!selectedIds.includes(app.id)) setSelectedIds((prev) => [...prev, app.id]);
+    openApp(app);
+    setQuery("");
   }
 
   function onDrop(targetId: string) {
@@ -169,7 +184,10 @@ export default function RightWorkSidebar() {
   function onFilesPicked(event: ChangeEvent<HTMLInputElement>) {
     const picked = Array.from(event.target.files || []);
     if (!picked.length) return;
-    setLocalFiles((prev) => [...prev, ...picked.map((file) => ({ name: file.name, size: file.size, url: URL.createObjectURL(file) }))]);
+    setLocalFiles((prev) => [
+      ...prev,
+      ...picked.map((file) => ({ name: file.name, size: file.size, url: URL.createObjectURL(file) })),
+    ]);
     event.target.value = "";
   }
 
@@ -182,45 +200,92 @@ export default function RightWorkSidebar() {
   }
 
   if (collapsed) {
-    return <button type="button" onClick={toggle} className="fixed right-0 top-1/2 z-[100] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 앱 패널 열기"><ChevronLeft size={18} /></button>;
+    return (
+      <button type="button" onClick={toggle} className="fixed right-0 top-1/2 z-[100] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 패널 열기">
+        <ChevronLeft size={18} />
+      </button>
+    );
   }
 
   return (
     <aside className="relative z-40 flex h-screen shrink-0 flex-col bg-[#07111f]" style={{ width }}>
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
-      <button type="button" onMouseDown={startResize} className="absolute left-0 top-0 z-50 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center" title="폭 조절"><GripVertical size={12} className="text-white/35" /></button>
-      <button type="button" onClick={toggle} className="fixed right-0 top-1/2 z-[100] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 앱 패널 닫기"><ChevronRight size={18} /></button>
 
-      <div className="shrink-0 border-b border-white/10 p-2">
+      <button type="button" onMouseDown={startResize} className="absolute left-0 top-0 z-50 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center" title="폭 조절">
+        <GripVertical size={12} className="text-white/25" />
+      </button>
+
+      <button type="button" onClick={toggle} className="fixed right-0 top-1/2 z-[100] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 패널 닫기">
+        <ChevronRight size={18} />
+      </button>
+
+      <div className="shrink-0 px-1.5 py-1.5">
         <div className="relative">
-          <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="앱, 파일, AI 찾기" className="w-full rounded-lg border border-white/15 bg-black/30 py-2 pl-8 pr-2 text-xs outline-none placeholder:text-[var(--muted)] focus:border-[var(--gold)]/60" />
+          <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="앱, 파일, AI 찾기"
+            className="h-8 w-full rounded-md border border-white/12 bg-black/25 pl-7 pr-2 text-[10px] outline-none placeholder:text-[var(--muted)] focus:border-[var(--gold)]/60"
+          />
         </div>
-        {searchResults.length > 0 && <div className="mt-1.5 max-h-40 space-y-1 overflow-y-auto rounded-lg border border-white/10 bg-[#0a1626] p-1 shadow-xl">
-          {searchResults.map((app) => {
-            const added = selectedIds.includes(app.id);
-            return <button key={app.id} type="button" onClick={() => added ? openApp(app) : addApp(app.id)} className="flex w-full items-center gap-2 rounded-md px-1.5 py-1.5 text-left hover:bg-white/5"><BrandBadge app={app} /><span className="min-w-0 flex-1"><span className="block truncate text-xs font-semibold">{app.title}</span><span className="block truncate text-[9px] text-[var(--muted)]">{app.description}</span></span>{!added && <Plus size={13} className="text-[var(--gold-soft)]" />}</button>;
-          })}
-        </div>}
+
+        {query.trim() && (
+          <div className="mt-1 max-h-44 overflow-y-auto border-y border-white/10 bg-[#07111f] py-0.5">
+            {searchResults.length ? searchResults.map((item) => item.type === "file" ? (
+              <a key={item.id} href={item.file.url} target="_blank" rel="noreferrer" onClick={() => setQuery("")} className="flex h-7 items-center gap-2 px-1.5 text-[10px] hover:bg-white/[0.05]">
+                <File size={15} className="shrink-0 text-[var(--gold-soft)]" />
+                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+              </a>
+            ) : (
+              <button key={item.id} type="button" onClick={() => addOrOpen(item.app)} className="flex h-7 w-full items-center gap-2 px-1.5 text-left text-[10px] hover:bg-white/[0.05]">
+                <AppIcon app={item.app} />
+                <span className="min-w-0 flex-1 truncate">{item.title}</span>
+              </button>
+            )) : (
+              <div className="px-2 py-2 text-[10px] text-[var(--muted)]">찾는 항목이 없습니다.</div>
+            )}
+          </div>
+        )}
       </div>
 
-      <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto p-2 pb-[118px]">
+      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-[118px]">
         {selectedApps.map((app) => (
-          <div key={app.id} draggable onDragStart={() => setDragId(app.id)} onDragOver={(e) => e.preventDefault()} onDrop={() => onDrop(app.id)} className={`group flex items-center gap-1.5 rounded-xl border border-white/10 bg-black/20 px-1.5 py-1.5 transition hover:border-[var(--gold)]/30 hover:bg-white/[0.04] ${dragId === app.id ? "opacity-45" : ""}`}>
-            <BrandBadge app={app} onClick={() => openApp(app)} />
-            <div className="min-w-0 flex-1">
-              <span className="block truncate text-[11px] font-semibold">{app.title}</span>
-              <span className="block truncate text-[8px] leading-3 text-[var(--muted)]">{app.description}</span>
-            </div>
-            <button type="button" onClick={() => removeApp(app.id)} className="rounded p-0.5 text-white/25 hover:bg-red-500/10 hover:text-red-300" title="삭제"><Trash2 size={10} /></button>
-            <GripVertical size={11} className="shrink-0 cursor-grab text-white/30 active:cursor-grabbing" />
+          <div
+            key={app.id}
+            draggable
+            onDragStart={() => setDragId(app.id)}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={() => onDrop(app.id)}
+            className={`group flex w-full items-center ${dragId === app.id ? "opacity-45" : ""}`}
+            style={{ height: ROW_HEIGHT }}
+          >
+            <button
+              type="button"
+              onClick={() => openApp(app)}
+              className="flex h-full min-w-0 flex-1 items-center gap-2 px-1.5 text-left hover:bg-white/[0.05]"
+              title={app.title}
+            >
+              <AppIcon app={app} />
+              <span className="min-w-0 flex-1 truncate text-[10px] font-semibold leading-none">{app.title}</span>
+            </button>
+            <button type="button" onClick={() => removeApp(app.id)} className="mr-0.5 hidden h-6 w-6 shrink-0 place-items-center text-white/35 hover:text-red-300 group-hover:grid" title="삭제">
+              <Trash2 size={10} />
+            </button>
           </div>
         ))}
 
-        {localFiles.length > 0 && <div className="mt-2 rounded-lg border border-white/10 bg-black/20 p-1.5">
-          <div className="mb-1 px-1 text-[9px] font-semibold text-[var(--gold-soft)]">선택한 파일</div>
-          {localFiles.map((file, index) => <div key={`${file.name}-${index}`} className="flex items-center gap-1 rounded px-1 py-1 text-[10px] hover:bg-white/[0.03]"><a href={file.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate">{file.name}</a><button type="button" onClick={() => deleteLocalFile(index)} className="rounded p-1 text-[var(--muted)] hover:text-red-300"><Trash2 size={10} /></button></div>)}
-        </div>}
+        {localFiles.map((file, index) => (
+          <div key={`${file.name}-${index}`} className="group flex h-7 w-full items-center">
+            <a href={file.url} target="_blank" rel="noreferrer" className="flex h-full min-w-0 flex-1 items-center gap-2 px-1.5 hover:bg-white/[0.05]" title={file.name}>
+              <File size={15} className="shrink-0 text-[var(--gold-soft)]" />
+              <span className="min-w-0 flex-1 truncate text-[10px]">{file.name}</span>
+            </a>
+            <button type="button" onClick={() => deleteLocalFile(index)} className="mr-0.5 hidden h-6 w-6 shrink-0 place-items-center text-white/35 hover:text-red-300 group-hover:grid" title="삭제">
+              <Trash2 size={10} />
+            </button>
+          </div>
+        ))}
       </div>
     </aside>
   );
