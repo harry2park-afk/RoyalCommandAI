@@ -16,6 +16,7 @@ main section.rc-card>form>textarea{border:2px solid rgba(212,175,55,.34)!importa
 main section.rc-card>form>div[class~="overflow-x-auto"]{scrollbar-width:none!important}
 main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{display:none!important}
 .royal-room-layout section article{font-size:10pt!important;line-height:1.45!important}
+.royal-room-layout section form textarea{font-size:10pt!important;line-height:1.45!important}
 @media(min-width:901px){
  html{height:100%;overflow:hidden!important}
  body{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;overflow:hidden!important}
