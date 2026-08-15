@@ -106,7 +106,7 @@ async function developerModel(provider: DevProvider, prompt: string) {
       { role: "user", content: prompt },
     ],
     temperature: 0.05,
-    maxTokens: 24000,
+    maxTokens: 16000,
   });
 
   if (response.error) throw new Error(response.error);
