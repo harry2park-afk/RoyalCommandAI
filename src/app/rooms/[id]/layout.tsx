@@ -62,6 +62,12 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             border-radius: 12px !important;
           }
 
+          /* Hide extra brand/status/region labels to keep header simple */
+          .royal-room-main [data-rc-brand],
+          .royal-room-main [data-rc-global-status] {
+            display: none !important;
+          }
+
           /* Royal Command chat palette */
           .royal-room-main section {
             background: #0B1524 !important;
