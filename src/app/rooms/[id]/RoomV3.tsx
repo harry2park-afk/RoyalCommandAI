@@ -10,6 +10,9 @@ type Message = {
   content: string;
   authorType?: string;
   author_type?: string;
+  attachmentName?: string;
+  attachmentMime?: string;
+  attachmentPreviewUrl?: string;
 };
 
 type ProviderInfo = {
@@ -343,11 +346,54 @@ export default function RoomV3() {
   }
 
   async function upload(file: File) {
-    const form = new FormData();
-    form.set("roomId", roomId);
-    form.set("file", file);
-    const res = await fetch("/api/documents/upload", { method: "POST", body: form });
-    if (!res.ok) setError("Upload failed.");
+    const uploadId = `upload-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const isImage = file.type.startsWith("image/");
+    const previewUrl = isImage ? URL.createObjectURL(file) : undefined;
+
+    setError("");
+    setMessages((prev) => [...prev, {
+      id: uploadId,
+      content: `📎 ${file.name} · 업로드 중…`,
+      authorType: "system",
+      attachmentName: file.name,
+      attachmentMime: file.type,
+      attachmentPreviewUrl: previewUrl,
+    }]);
+
+    try {
+      const form = new FormData();
+      form.set("roomId", roomId);
+      form.set("file", file);
+      const res = await fetch("/api/documents/upload", { method: "POST", body: form });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error || "Upload failed.");
+
+      setMessages((prev) => prev.map((m) => m.id === uploadId
+        ? { ...m, content: `📎 ${file.name} · 업로드 완료` }
+        : m));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Upload failed.";
+      setMessages((prev) => prev.map((m) => m.id === uploadId
+        ? { ...m, content: `📎 ${file.name} · 업로드 실패` }
+        : m));
+      setError(message);
+    }
+  }
+
+  function pasteAttachment(event: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const imageItems = Array.from(event.clipboardData?.items || []).filter(
+      (item) => item.kind === "file" && item.type.startsWith("image/"),
+    );
+    if (!imageItems.length) return;
+
+    event.preventDefault();
+    for (const item of imageItems) {
+      const blob = item.getAsFile();
+      if (!blob) continue;
+      const extension = blob.type.split("/")[1]?.replace("jpeg", "jpg") || "png";
+      const file = new File([blob], `screenshot-${Date.now()}.${extension}`, { type: blob.type || "image/png" });
+      void upload(file);
+    }
   }
 
   return (
@@ -435,6 +481,18 @@ export default function RoomV3() {
                 const type = m.authorType || m.author_type || "user";
                 const user = type === "user";
                 const content = messageText(m.content);
+
+                if (m.attachmentName) {
+                  return (
+                    <article key={m.id} className="w-full max-w-none rounded-[7px] border-2 border-[#d7b64d]/60 bg-[#14224D] px-3 py-2 text-[#E8E6DD]">
+                      {m.attachmentPreviewUrl ? (
+                        <img src={m.attachmentPreviewUrl} alt={m.attachmentName} className="mb-2 max-h-64 max-w-full rounded-lg border border-white/10 object-contain" />
+                      ) : null}
+                      <div className="text-sm">{content}</div>
+                    </article>
+                  );
+                }
+
                 if (user) {
                   return (
                     <button
@@ -468,8 +526,9 @@ export default function RoomV3() {
               {error && <div className="mb-2 rounded-xl border border-red-400/20 bg-red-400/10 px-3 py-2 text-sm text-red-200">{error}</div>}
               <div className="w-full min-w-0 rounded-t-2xl border border-[#d7b64d]/30 bg-[#07101d] p-2">
                 <textarea ref={textRef} value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={2}
+                  onPaste={pasteAttachment}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
-                  placeholder="Type or speak your order…"
+                  placeholder="Type or speak your order… · 화면 캡처는 Ctrl+V로 붙여넣기"
                   className="block w-full min-w-0 resize-none bg-transparent px-2 py-2 text-base text-[#E8E6DD] outline-none placeholder:text-[#7C8BC4]" />
                 <div className="flex min-w-0 items-center gap-2 px-0 pb-0 lg:pl-[220px] lg:pr-[220px]">
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.currentTarget.value = ""; }} />
