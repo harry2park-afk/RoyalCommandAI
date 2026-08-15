@@ -10,7 +10,7 @@ export class GoogleConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.GOOGLE_AI_MODEL || "gemini-2.0-flash";
+    const model = process.env.GOOGLE_AI_MODEL || "gemini-3.5-flash";
     try {
       const system = request.messages
         .filter((m) => m.role === "system")
