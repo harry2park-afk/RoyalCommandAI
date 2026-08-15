@@ -63,6 +63,26 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             border-right: 1px solid rgb(255 255 255 / 0.2) !important;
             border-radius: 12px !important;
           }
+
+          /* Local top-AI marks. Visual only: state/click remains owned by RoomV3. */
+          .royal-room-main main > div.fixed > div:nth-child(2) > button:not(:last-child) > span:first-child {
+            background-position: center !important;
+            background-repeat: no-repeat !important;
+            background-size: 18px 18px !important;
+          }
+          .royal-room-main main > div.fixed > div:nth-child(2) > button:not(:last-child) > span:first-child > * {
+            display: none !important;
+          }
+          .royal-room-main button[title^="ChatGPT"] > span:first-child { background-image:url('/rc-ai-logos/openai.svg') !important; }
+          .royal-room-main button[title^="Claude"] > span:first-child { background-image:url('/rc-ai-logos/anthropic.svg') !important; }
+          .royal-room-main button[title^="Gemini"] > span:first-child { background-image:url('/rc-ai-logos/gemini.svg') !important; }
+          .royal-room-main button[title^="Grok"] > span:first-child { background-image:url('/rc-ai-logos/xai.svg') !important; }
+          .royal-room-main button[title^="DeepSeek"] > span:first-child { background-image:url('/brand-logos/deepseek.svg') !important; }
+          .royal-room-main button[title^="Perplexity"] > span:first-child { background-image:url('/rc-ai-logos/perplexity.svg') !important; }
+          .royal-room-main button[title^="Mistral"] > span:first-child { background-image:url('/rc-ai-logos/mistral.svg') !important; }
+          .royal-room-main button[title^="Meta Llama"] > span:first-child { background-image:url('/rc-ai-logos/meta.svg') !important; }
+          .royal-room-main button[title^="Qwen"] > span:first-child { background-image:url('/rc-ai-logos/qwen.svg') !important; }
+          .royal-room-main button[title^="Cohere"] > span:first-child { background-image:url('/brand-logos/cohere.svg') !important; }
         `}</style>
         {children}
       </div>
