@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Script from "next/script";
 import { Cormorant_Garamond, Source_Sans_3 } from "next/font/google";
 import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
 import "./globals.css";
@@ -33,12 +32,6 @@ export default function RootLayout({
       <body className="min-h-full antialiased" style={{ fontFamily: "var(--font-mono), system-ui, sans-serif" }}>
         {children}
         <RetellRoomVoiceBridge />
-        <Script src="/rc-language-picker.js" strategy="afterInteractive" />
-        <Script src="/rc-room-ui.js" strategy="afterInteractive" />
-        <Script src="/rc-disable-legacy-right.js" strategy="afterInteractive" />
-        <Script src="/rc-right-resizer.js" strategy="afterInteractive" />
-        <Script src="/rc-room-header-style.js" strategy="afterInteractive" />
-        <Script src="/rc-user-chat-style.js" strategy="afterInteractive" />
       </body>
     </html>
   );
