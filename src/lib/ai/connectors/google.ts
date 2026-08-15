@@ -1,5 +1,6 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 import { logger } from "@/lib/logger";
+import { OpenRouterCatalogConnector } from "./openrouter";
 
 const RETIRED_GEMINI_MODELS = new Set([
   "gemini-2.0-flash",
@@ -8,12 +9,18 @@ const RETIRED_GEMINI_MODELS = new Set([
   "gemini-2.0-flash-lite-001",
 ]);
 
+const openRouterGemini = new OpenRouterCatalogConnector(
+  "google",
+  "Gemini",
+  "google gemini flash",
+);
+
 export class GoogleConnector implements AIConnector {
   id = "google" as const;
   displayName = "Gemini";
 
   isConfigured() {
-    return Boolean(process.env.GOOGLE_AI_API_KEY);
+    return Boolean(process.env.GOOGLE_AI_API_KEY || process.env.OPENROUTER_API_KEY);
   }
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
@@ -22,6 +29,47 @@ export class GoogleConnector implements AIConnector {
     const model = !configuredModel || RETIRED_GEMINI_MODELS.has(configuredModel)
       ? "gemini-3.5-flash"
       : configuredModel;
+
+    const fallback = async (reason: string): Promise<AIProviderResponse> => {
+      if (!process.env.OPENROUTER_API_KEY) {
+        return {
+          provider: this.id,
+          model,
+          content: "",
+          latencyMs: Date.now() - started,
+          error: reason,
+        };
+      }
+
+      logger.warn("ai.provider.fallback", {
+        provider: this.displayName,
+        from: "Google direct",
+        to: "OpenRouter",
+        reason: reason.slice(0, 500),
+      });
+
+      try {
+        return await openRouterGemini.complete(request);
+      } catch (fallbackError) {
+        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Gemini fallback failed";
+        logger.warn("ai.provider.fallback.failed", {
+          provider: this.displayName,
+          error: fallbackMessage.slice(0, 500),
+        });
+        return {
+          provider: this.id,
+          model,
+          content: "",
+          latencyMs: Date.now() - started,
+          error: `${reason}; OpenRouter fallback failed: ${fallbackMessage}`,
+        };
+      }
+    };
+
+    if (!process.env.GOOGLE_AI_API_KEY) {
+      return fallback("GOOGLE_AI_API_KEY is not configured");
+    }
+
     try {
       const system = request.messages
         .filter((m) => m.role === "system")
@@ -57,7 +105,7 @@ export class GoogleConnector implements AIConnector {
           status: res.status,
           error: String(message).slice(0, 500),
         });
-        throw new Error(message);
+        return fallback(String(message));
       }
 
       const content =
@@ -80,13 +128,7 @@ export class GoogleConnector implements AIConnector {
         model,
         error: message.slice(0, 500),
       });
-      return {
-        provider: this.id,
-        model,
-        content: "",
-        latencyMs: Date.now() - started,
-        error: message,
-      };
+      return fallback(message);
     }
   }
 }
