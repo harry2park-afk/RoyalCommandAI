@@ -16,7 +16,7 @@ main section.rc-card>form>textarea{border:2px solid rgba(212,175,55,.34)!importa
 main section.rc-card>form>div[class~="overflow-x-auto"]{scrollbar-width:none!important}
 main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{display:none!important}
 .royal-room-layout section article{font-size:10pt!important;line-height:1.45!important}
-.royal-room-layout section form textarea{font-size:10pt!important;line-height:1.45!important}
+.royal-room-layout section form textarea{font-size:10pt!important;line-height:1.45!important;height:56px!important;min-height:56px!important;max-height:56px!important;overflow-y:auto!important;resize:none!important}
 .royal-room-layout>aside:last-child>div{width:210px!important;max-width:210px!important;margin-left:auto!important}
 .royal-room-layout>aside:last-child>button[title="폭 조절"]{width:16px!important;left:0!important;z-index:80!important}
 .royal-room-layout>aside:last-child{border-left:1px solid rgba(255,255,255,.12)!important}
