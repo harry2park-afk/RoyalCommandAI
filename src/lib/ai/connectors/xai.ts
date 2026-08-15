@@ -10,7 +10,7 @@ export class XAIConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.XAI_MODEL || "grok-2-latest";
+    const model = process.env.XAI_MODEL || "grok-4.5";
     try {
       const res = await fetch("https://api.x.ai/v1/chat/completions", {
         method: "POST",
