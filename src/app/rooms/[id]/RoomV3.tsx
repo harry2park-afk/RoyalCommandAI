@@ -33,6 +33,14 @@ type CatalogAI = {
   shortName: string;
 };
 
+type QueuedOrder = {
+  tempUserId: string;
+  prompt: string;
+  language: string;
+  providers: string[];
+  history: Array<{ role: "user" | "assistant"; content: string }>;
+};
+
 const AI_CATALOG: CatalogAI[] = [
   { id: "openai", name: "ChatGPT", shortName: "ChatGPT" },
   { id: "anthropic", name: "Claude", shortName: "Claude" },
@@ -99,6 +107,7 @@ export default function RoomV3() {
   const [replaceSlot, setReplaceSlot] = useState(TOP_SLOT_COUNT - 1);
   const [prompt, setPrompt] = useState("");
   const [loading, setLoading] = useState(false);
+  const [queueCount, setQueueCount] = useState(0);
   const [error, setError] = useState("");
   const [language, setLanguage] = useState("ko");
   const [displayName, setDisplayName] = useState("User");
@@ -111,6 +120,8 @@ export default function RoomV3() {
   const fileRef = useRef<HTMLInputElement>(null);
   const textRef = useRef<HTMLTextAreaElement>(null);
   const messagesViewportRef = useRef<HTMLDivElement>(null);
+  const orderQueueRef = useRef<QueuedOrder[]>([]);
+  const processingQueueRef = useRef(false);
 
   const history = useMemo(
     () => messages
@@ -189,7 +200,7 @@ export default function RoomV3() {
     const viewport = messagesViewportRef.current;
     if (!viewport) return;
     viewport.scrollTo({ top: viewport.scrollHeight, behavior: "smooth" });
-  }, [messages, loading]);
+  }, [messages, loading, queueCount]);
 
   function isAvailable(id: string) {
     return providers.some((p) => p.id === id && p.available);
@@ -241,10 +252,73 @@ export default function RoomV3() {
     recognition.start();
   }
 
+  async function processOrderQueue() {
+    if (processingQueueRef.current) return;
+    processingQueueRef.current = true;
+    setLoading(true);
+
+    try {
+      while (orderQueueRef.current.length) {
+        const order = orderQueueRef.current.shift()!;
+        setQueueCount(orderQueueRef.current.length);
+
+        try {
+          const res = await fetch("/api/ai/chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              roomId,
+              prompt: order.prompt,
+              language: order.language,
+              providers: order.providers,
+              history: order.history,
+            }),
+          });
+          const data: ChatResult & { error?: string } = await res.json();
+          if (!res.ok) throw new Error(data.error || "AI request failed");
+
+          const userMessage = data.userMessage || { id: order.tempUserId, content: order.prompt, authorType: "user" };
+          const aiMessage = data.aiMessage || {
+            id: `temp-ai-${Date.now()}`,
+            content: data.finalAnswer || "No AI answer returned.",
+            authorType: "ai",
+          };
+
+          setMessages((prev) => {
+            const next = [...prev];
+            const index = next.findIndex((m) => m.id === order.tempUserId);
+            const normalizedUser = { ...userMessage, content: messageText(userMessage.content) };
+            const normalizedAi = { ...aiMessage, content: messageText(aiMessage.content) };
+            if (index >= 0) {
+              next[index] = normalizedUser;
+              next.splice(index + 1, 0, normalizedAi);
+              return next;
+            }
+            return [...next, normalizedUser, normalizedAi];
+          });
+          setLastResult(data);
+
+          if (speakerEnabled && data.finalAnswer && "speechSynthesis" in window) {
+            window.speechSynthesis.cancel();
+            const utterance = new SpeechSynthesisUtterance(data.finalAnswer.slice(0, 1500));
+            utterance.lang = order.language === "ko" ? "ko-KR" : order.language === "en" ? "en-AU" : order.language;
+            window.speechSynthesis.speak(utterance);
+          }
+        } catch (err) {
+          setError(err instanceof Error ? err.message : "AI request failed");
+        }
+      }
+    } finally {
+      processingQueueRef.current = false;
+      setLoading(false);
+      setQueueCount(0);
+    }
+  }
+
   async function send(e?: FormEvent) {
     e?.preventDefault();
     const current = prompt.trim();
-    if (!current || loading) return;
+    if (!current) return;
 
     const active = selected.filter(isAvailable);
     if (!active.length) {
@@ -252,42 +326,20 @@ export default function RoomV3() {
       return;
     }
 
-    const tempUserId = `temp-user-${Date.now()}`;
+    const tempUserId = `temp-user-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     setPrompt("");
     setError("");
-    setLoading(true);
     setMessages((prev) => [...prev, { id: tempUserId, content: current, authorType: "user" }]);
 
-    try {
-      const res = await fetch("/api/ai/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, prompt: current, language, providers: active, history }),
-      });
-      const data: ChatResult & { error?: string } = await res.json();
-      if (!res.ok) throw new Error(data.error || "AI request failed");
-
-      const userMessage = data.userMessage || { id: tempUserId, content: current, authorType: "user" };
-      const aiMessage = data.aiMessage || {
-        id: `temp-ai-${Date.now()}`,
-        content: data.finalAnswer || "No AI answer returned.",
-        authorType: "ai",
-      };
-
-      setMessages((prev) => [...prev.filter((m) => m.id !== tempUserId), { ...userMessage, content: messageText(userMessage.content) }, { ...aiMessage, content: messageText(aiMessage.content) }]);
-      setLastResult(data);
-
-      if (speakerEnabled && data.finalAnswer && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
-        const utterance = new SpeechSynthesisUtterance(data.finalAnswer.slice(0, 1500));
-        utterance.lang = language === "ko" ? "ko-KR" : language === "en" ? "en-AU" : language;
-        window.speechSynthesis.speak(utterance);
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "AI request failed");
-    } finally {
-      setLoading(false);
-    }
+    orderQueueRef.current.push({
+      tempUserId,
+      prompt: current,
+      language,
+      providers: active,
+      history: [...history],
+    });
+    setQueueCount(orderQueueRef.current.length);
+    void processOrderQueue();
   }
 
   async function upload(file: File) {
@@ -404,7 +456,12 @@ export default function RoomV3() {
                 );
               })}
 
-              {loading && <div className="text-sm text-[#d7b64d]">Working: {selected.filter(isAvailable).map((id) => CATALOG_BY_ID[id]?.shortName || id).join(" + ")}…</div>}
+              {loading && (
+                <div className="text-sm text-[#d7b64d]">
+                  Working: {selected.filter(isAvailable).map((id) => CATALOG_BY_ID[id]?.shortName || id).join(" + ")}…
+                  {queueCount > 0 ? ` · ${queueCount} queued` : ""}
+                </div>
+              )}
             </div>
 
             <form onSubmit={send} className="w-full min-w-0 shrink-0 border-t border-white/10 bg-[#0b1524] p-0">
@@ -418,7 +475,7 @@ export default function RoomV3() {
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.currentTarget.value = ""; }} />
                   <button type="button" onClick={() => fileRef.current?.click()} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-[#07101d]" title="파일 첨부"><Paperclip size={18} /></button>
                   <button type="button" onClick={toggleMic} className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border bg-[#07101d] ${listening ? "border-[#d7b64d] text-[#f4d66c]" : "border-white/10"}`} title="마이크"><Mic size={18} /></button>
-                  <button type="submit" disabled={!prompt.trim() || loading} className="ml-auto flex h-10 shrink-0 items-center gap-2 rounded-xl bg-[#d7b64d] px-6 font-semibold text-[#111827] disabled:opacity-40"><Send size={17} /> Send</button>
+                  <button type="submit" disabled={!prompt.trim()} className="ml-auto flex h-10 shrink-0 items-center gap-2 rounded-xl bg-[#d7b64d] px-6 font-semibold text-[#111827] disabled:opacity-40"><Send size={17} /> Send</button>
                 </div>
               </div>
             </form>
