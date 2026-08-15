@@ -1,7 +1,7 @@
 (() => {
   if (!location.pathname.startsWith('/rooms/')) return;
 
-  const LOGOS = {
+  const LOGOS = Object.freeze({
     'ChatGPT': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/openai.svg',
     'Claude': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/anthropic.svg',
     'Gemini': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/googlegemini.svg',
@@ -15,43 +15,27 @@
     'Microsoft Phi': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/microsoft.svg',
     'Amazon Nova': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/amazonwebservices.svg',
     'NVIDIA Nemotron': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/nvidia.svg'
-  };
+  });
 
-  const LABELS = {
-    'ChatGPT': 'ChatGPT',
-    'Claude': 'Claude AI',
-    'Gemini': 'Gemini AI',
-    'Grok': 'Grok AI',
-    'DeepSeek': 'DeepSeek AI',
-    'Perplexity': 'Perplexity AI',
-    'Mistral': 'Mistral AI',
-    'Meta Llama': 'Meta Llama',
-    'Qwen': 'Qwen AI',
-    'Cohere': 'Cohere AI',
-    'Kimi / Moonshot AI': 'Kimi / Moonshot AI',
-    'MiniMax': 'MiniMax AI',
-    'Z.ai / GLM': 'Z.ai / GLM',
-    'Microsoft Phi': 'Microsoft Phi',
-    'Amazon Nova': 'Amazon Nova',
-    'NVIDIA Nemotron': 'NVIDIA Nemotron',
-    'AI21': 'AI21',
-    'Nous Research': 'Nous Research',
-    'Writer': 'Writer AI',
-    'StepFun': 'StepFun',
-    'Inception': 'Inception / Mercury',
-    'Liquid AI': 'Liquid AI',
-    'Arcee AI': 'Arcee AI',
-    '01.AI / Yi': '01.AI / Yi',
+  const LABELS = Object.freeze({
+    'ChatGPT': 'ChatGPT', 'Claude': 'Claude AI', 'Gemini': 'Gemini AI', 'Grok': 'Grok AI',
+    'DeepSeek': 'DeepSeek AI', 'Perplexity': 'Perplexity AI', 'Mistral': 'Mistral AI',
+    'Meta Llama': 'Meta Llama', 'Qwen': 'Qwen AI', 'Cohere': 'Cohere AI',
+    'Kimi / Moonshot AI': 'Kimi / Moonshot AI', 'MiniMax': 'MiniMax AI',
+    'Z.ai / GLM': 'Z.ai / GLM', 'Microsoft Phi': 'Microsoft Phi', 'Amazon Nova': 'Amazon Nova',
+    'NVIDIA Nemotron': 'NVIDIA Nemotron', 'AI21': 'AI21', 'Nous Research': 'Nous Research',
+    'Writer': 'Writer AI', 'StepFun': 'StepFun', 'Inception': 'Inception / Mercury',
+    'Liquid AI': 'Liquid AI', 'Arcee AI': 'Arcee AI', '01.AI / Yi': '01.AI / Yi',
     'Tencent Hunyuan': 'Tencent Hunyuan'
-  };
+  });
 
-  const FALLBACKS = {
+  const FALLBACKS = Object.freeze({
     'ChatGPT':'GPT','Claude':'CL','Gemini':'GM','Grok':'GX','DeepSeek':'DS','Perplexity':'PX',
     'Mistral':'MI','Meta Llama':'ML','Qwen':'QW','Cohere':'CO','Kimi / Moonshot AI':'KM',
     'MiniMax':'MM','Z.ai / GLM':'GLM','Microsoft Phi':'PHI','Amazon Nova':'NV',
     'NVIDIA Nemotron':'NVD','AI21':'AI21','Nous Research':'NR','Writer':'WR','StepFun':'SF',
     'Inception':'MC','Liquid AI':'LQ','Arcee AI':'AR','01.AI / Yi':'YI','Tencent Hunyuan':'TH'
-  };
+  });
 
   function findWarehouse() {
     const headings = [...document.querySelectorAll('div')].filter(el => el.textContent?.trim() === 'AI Warehouse');
@@ -80,6 +64,47 @@
     return aliases[current] || current;
   }
 
+  function lockLogoElement(logoBox, name, img, fallback) {
+    logoBox.dataset.rcLogoLocked = '1';
+    logoBox.style.setProperty('pointer-events', 'none', 'important');
+    logoBox.style.setProperty('user-select', 'none', 'important');
+    logoBox.style.setProperty('width', '40px', 'important');
+    logoBox.style.setProperty('height', '40px', 'important');
+    logoBox.style.setProperty('min-width', '40px', 'important');
+    logoBox.style.setProperty('background', 'rgba(0,0,0,.22)', 'important');
+    logoBox.style.setProperty('border', '1px solid rgba(255,215,0,.22)', 'important');
+    logoBox.style.setProperty('overflow', 'hidden', 'important');
+
+    if (img instanceof HTMLImageElement) {
+      if (LOGOS[name]) img.src = LOGOS[name];
+      img.alt = `${LABELS[name]} logo`;
+      img.draggable = false;
+      img.contentEditable = 'false';
+      img.style.setProperty('width', '28px', 'important');
+      img.style.setProperty('height', '28px', 'important');
+      img.style.setProperty('display', 'block', 'important');
+      img.style.setProperty('object-fit', 'contain', 'important');
+      img.style.setProperty('transform', 'none', 'important');
+      img.style.setProperty('opacity', '1', 'important');
+      img.style.setProperty('filter', name === 'DeepSeek' || name === 'Cohere' ? 'none' : 'brightness(0) invert(1)', 'important');
+      img.onerror = () => {
+        img.style.display = 'none';
+        if (fallback instanceof HTMLElement) fallback.style.display = 'grid';
+      };
+    }
+
+    if (fallback instanceof HTMLElement) {
+      fallback.style.setProperty('position', 'absolute', 'important');
+      fallback.style.setProperty('inset', '0', 'important');
+      fallback.style.setProperty('place-items', 'center', 'important');
+      fallback.style.setProperty('font-family', '"Times New Roman", Times, serif', 'important');
+      fallback.style.setProperty('font-size', '12px', 'important');
+      fallback.style.setProperty('font-weight', '600', 'important');
+      fallback.style.setProperty('color', '#FFD700', 'important');
+      fallback.style.setProperty('transform', 'none', 'important');
+    }
+  }
+
   function styleCard(card) {
     if (!(card instanceof HTMLButtonElement)) return;
     const currentName = getNameFromCard(card);
@@ -94,31 +119,10 @@
 
     const logoBox = card.querySelector(':scope > span:first-child');
     if (logoBox instanceof HTMLElement) {
-      logoBox.style.setProperty('width', '40px', 'important');
-      logoBox.style.setProperty('height', '40px', 'important');
-      logoBox.style.setProperty('min-width', '40px', 'important');
-      logoBox.style.setProperty('background', 'rgba(0,0,0,.22)', 'important');
-      logoBox.style.setProperty('border', '1px solid rgba(255,215,0,.22)', 'important');
-      logoBox.style.setProperty('overflow', 'hidden', 'important');
-
       let img = logoBox.querySelector('img');
       if (!(img instanceof HTMLImageElement) && LOGOS[name]) {
         img = document.createElement('img');
         logoBox.prepend(img);
-      }
-      if (img instanceof HTMLImageElement) {
-        if (LOGOS[name]) img.src = LOGOS[name];
-        img.alt = `${LABELS[name]} logo`;
-        img.style.setProperty('width', '28px', 'important');
-        img.style.setProperty('height', '28px', 'important');
-        img.style.setProperty('display', 'block', 'important');
-        img.style.setProperty('object-fit', 'contain', 'important');
-        img.style.setProperty('filter', name === 'DeepSeek' || name === 'Cohere' ? 'none' : 'brightness(0) invert(1)', 'important');
-        img.onerror = () => {
-          img.style.display = 'none';
-          const fb = logoBox.querySelector('[data-rc-warehouse-fallback]');
-          if (fb instanceof HTMLElement) fb.style.display = 'grid';
-        };
       }
 
       let fallback = logoBox.querySelector('[data-rc-warehouse-fallback]');
@@ -128,14 +132,9 @@
         fallback.textContent = FALLBACKS[name] || name.slice(0, 2).toUpperCase();
         logoBox.appendChild(fallback);
       }
+
+      lockLogoElement(logoBox, name, img, fallback);
       fallback.style.setProperty('display', img instanceof HTMLImageElement && img.style.display !== 'none' ? 'none' : 'grid', 'important');
-      fallback.style.setProperty('position', 'absolute', 'important');
-      fallback.style.setProperty('inset', '0', 'important');
-      fallback.style.setProperty('place-items', 'center', 'important');
-      fallback.style.setProperty('font-family', '"Times New Roman", Times, serif', 'important');
-      fallback.style.setProperty('font-size', '12px', 'important');
-      fallback.style.setProperty('font-weight', '600', 'important');
-      fallback.style.setProperty('color', '#FFD700', 'important');
 
       [...logoBox.querySelectorAll('span:not([data-rc-warehouse-fallback])')].forEach(el => {
         if (el instanceof HTMLElement) el.style.setProperty('display', 'none', 'important');
@@ -188,5 +187,5 @@
   }
 
   queue();
-  new MutationObserver(queue).observe(document.documentElement, { childList: true, subtree: true });
+  new MutationObserver(queue).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style','class','src'] });
 })();
