@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, File, GripVertical, Search, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, File, GripVertical, LogOut, Search } from "lucide-react";
 
 const DEFAULT_WIDTH = 225;
 const MIN_WIDTH = 225;
@@ -191,7 +191,7 @@ export default function RightWorkSidebar() {
     event.target.value = "";
   }
 
-  function deleteLocalFile(index: number) {
+  function removeLocalFile(index: number) {
     setLocalFiles((prev) => {
       const target = prev[index];
       if (target) URL.revokeObjectURL(target.url);
@@ -269,8 +269,8 @@ export default function RightWorkSidebar() {
               <AppIcon app={app} />
               <span className="min-w-0 flex-1 truncate text-[10px] font-semibold leading-none">{app.title}</span>
             </button>
-            <button type="button" onClick={() => removeApp(app.id)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center rounded border border-red-300/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-100" title="삭제">
-              <Trash2 size={15} />
+            <button type="button" onClick={() => removeApp(app.id)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
+              <LogOut size={15} />
             </button>
           </div>
         ))}
@@ -281,8 +281,8 @@ export default function RightWorkSidebar() {
               <File size={15} className="shrink-0 text-[var(--gold-soft)]" />
               <span className="min-w-0 flex-1 truncate text-[10px]">{file.name}</span>
             </a>
-            <button type="button" onClick={() => deleteLocalFile(index)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center rounded border border-red-300/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-100" title="삭제">
-              <Trash2 size={15} />
+            <button type="button" onClick={() => removeLocalFile(index)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
+              <LogOut size={15} />
             </button>
           </div>
         ))}
