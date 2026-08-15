@@ -14,22 +14,36 @@
   const AI_ON_TEXT = '#FFF3D6';
 
   const AI_LABELS = {
-    ChatGPT: 'ChatGPT',
-    Claude: 'Claude',
-    Gemini: 'Gemini',
-    Grok: 'Grok',
-    DeepSeek: 'DeepSeek',
-    Perplexity: 'Perplx',
-    Mistral: 'Mistral',
-    'Meta Llama': 'Llama',
-    Qwen: 'Qwen',
-    Cohere: 'Cohere',
-    'Kimi / Moonshot AI': 'Moonshot',
-    MiniMax: 'MiniMax',
-    'Z.ai / GLM': 'Z.ai/GLM',
+    'ChatGPT': 'ChatGPT',
+    'Claude': 'Claude AI',
+    'Gemini': 'Gemini AI',
+    'Grok': 'Grok AI',
+    'DeepSeek': 'DeepSeek',
+    'Perplexity': 'Perplexity',
+    'Mistral': 'Mistral AI',
+    'Meta Llama': 'Meta Llama',
+    'Qwen': 'Qwen AI',
+    'Cohere': 'Cohere AI',
+    'Kimi / Moonshot AI': 'Kimi AI',
+    'MiniMax': 'MiniMax',
+    'Z.ai / GLM': 'Z.ai GLM',
     'Microsoft Phi': 'MS Phi',
     'Amazon Nova': 'Amazon Nova',
-    'NVIDIA Nemotron': 'NVIDIA',
+  };
+
+  const AI_LOGO_OVERRIDES = {
+    'ChatGPT': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/openai.svg',
+    'Claude': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/anthropic.svg',
+    'Gemini': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/googlegemini.svg',
+    'Grok': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/x.svg',
+    'DeepSeek': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/deepseek.svg',
+    'Perplexity': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/perplexity.svg',
+    'Mistral': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/mistralai.svg',
+    'Meta Llama': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/meta.svg',
+    'Qwen': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/alibabacloud.svg',
+    'Cohere': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/cohere.svg',
+    'Microsoft Phi': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/microsoft.svg',
+    'Amazon Nova': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/amazonwebservices.svg',
   };
 
   function makeStatusArea(headerRow) {
@@ -142,52 +156,45 @@
     button.querySelectorAll('[data-rc-ai-star]').forEach((star) => star.remove());
   }
 
-  function improveAiIdentity(button) {
-    const title = (button.title || '').split(' — ')[0].trim();
-    const label = AI_LABELS[title];
-    const directSpans = [...button.children].filter((el) => el instanceof HTMLSpanElement);
-    const iconBox = directSpans[0];
-    const nameBox = directSpans[1];
+  function enhanceAiButtonContent(button) {
+    const fullTitle = (button.title || '').replace(/ — not connected$/, '');
+    if (!fullTitle || fullTitle.startsWith('AI Warehouse')) return;
 
-    if (iconBox instanceof HTMLElement) {
-      iconBox.style.setProperty('width', '30px', 'important');
-      iconBox.style.setProperty('height', '30px', 'important');
-      iconBox.style.setProperty('min-width', '30px', 'important');
-      iconBox.style.setProperty('flex-shrink', '0', 'important');
+    const logoBox = button.querySelector('span');
+    if (logoBox instanceof HTMLElement) {
+      logoBox.style.setProperty('width', '28px', 'important');
+      logoBox.style.setProperty('height', '28px', 'important');
+      logoBox.style.setProperty('min-width', '28px', 'important');
+      logoBox.style.setProperty('background', 'rgba(0,0,0,.18)', 'important');
 
-      const img = iconBox.querySelector('img');
-      const fallback = [...iconBox.children].find((el) => el instanceof HTMLSpanElement);
+      const img = logoBox.querySelector('img');
       if (img instanceof HTMLImageElement) {
-        img.style.setProperty('width', '23px', 'important');
-        img.style.setProperty('height', '23px', 'important');
+        if (AI_LOGO_OVERRIDES[fullTitle]) img.src = AI_LOGO_OVERRIDES[fullTitle];
         img.style.setProperty('display', 'block', 'important');
+        img.style.setProperty('width', '22px', 'important');
+        img.style.setProperty('height', '22px', 'important');
         img.style.setProperty('object-fit', 'contain', 'important');
-        if (fallback instanceof HTMLElement) fallback.style.setProperty('display', 'none', 'important');
-        if (!img.dataset.rcLogoErrorBound) {
-          img.dataset.rcLogoErrorBound = '1';
-          img.addEventListener('error', () => {
-            img.style.setProperty('display', 'none', 'important');
-            if (fallback instanceof HTMLElement) {
-              fallback.style.setProperty('display', 'block', 'important');
-              fallback.style.setProperty('font-size', '12px', 'important');
-              fallback.style.setProperty('font-weight', '800', 'important');
-            }
-          });
-        }
-      } else if (fallback instanceof HTMLElement) {
-        fallback.style.setProperty('font-size', '12px', 'important');
-        fallback.style.setProperty('font-weight', '800', 'important');
+        img.style.setProperty('filter', 'brightness(0) invert(1)', 'important');
+      }
+
+      const fallback = logoBox.querySelector('span');
+      if (fallback instanceof HTMLElement) {
+        fallback.style.setProperty('display', img instanceof HTMLImageElement ? 'none' : 'block', 'important');
+        fallback.style.setProperty('font-size', '11px', 'important');
       }
     }
 
-    if (nameBox instanceof HTMLElement) {
-      if (label && nameBox.textContent !== label) nameBox.textContent = label;
-      nameBox.style.setProperty('font-size', '11px', 'important');
-      nameBox.style.setProperty('font-weight', '700', 'important');
-      nameBox.style.setProperty('letter-spacing', '-0.02em', 'important');
-      nameBox.style.setProperty('white-space', 'nowrap', 'important');
-      nameBox.style.setProperty('overflow', 'hidden', 'important');
-      nameBox.style.setProperty('text-overflow', 'ellipsis', 'important');
+    const label = button.querySelector(':scope > span:last-child');
+    if (label instanceof HTMLElement) {
+      label.textContent = AI_LABELS[fullTitle] || fullTitle;
+      label.style.setProperty('font-family', '"Times New Roman", Times, serif', 'important');
+      label.style.setProperty('font-size', '12px', 'important');
+      label.style.setProperty('font-weight', '400', 'important');
+      label.style.setProperty('letter-spacing', '0', 'important');
+      label.style.setProperty('line-height', '1', 'important');
+      label.style.setProperty('overflow', 'hidden', 'important');
+      label.style.setProperty('text-overflow', 'ellipsis', 'important');
+      label.style.setProperty('white-space', 'nowrap', 'important');
     }
   }
 
@@ -198,10 +205,10 @@
     const active = typeof button.className === 'string' && button.className.includes('bg-[#d7b64d]');
     button.style.setProperty('position', 'relative', 'important');
     button.style.setProperty('overflow', 'hidden', 'important');
-    button.style.setProperty('height', '38px', 'important');
-    button.style.setProperty('padding-left', '5px', 'important');
-    button.style.setProperty('padding-right', '5px', 'important');
+    button.style.setProperty('height', '36px', 'important');
     button.style.setProperty('gap', '4px', 'important');
+    button.style.setProperty('padding-left', '4px', 'important');
+    button.style.setProperty('padding-right', '4px', 'important');
     button.style.setProperty('border', `3px solid ${AI_GOLD}`, 'important');
     button.style.setProperty('border-radius', '8px', 'important');
     button.style.setProperty('background', active ? AI_ON_BG : AI_OFF_BG, 'important');
@@ -210,7 +217,7 @@
     button.style.setProperty('box-shadow', active ? '0 0 10px rgba(255,215,0,.55), inset 0 0 12px rgba(255,255,255,.06)' : 'inset 0 0 0 1px rgba(255,255,255,.05)', 'important');
     button.style.setProperty('transition', 'background .18s ease,color .18s ease,box-shadow .18s ease', 'important');
 
-    improveAiIdentity(button);
+    enhanceAiButtonContent(button);
     if (active) addStars(button);
     else removeStars(button);
   }
