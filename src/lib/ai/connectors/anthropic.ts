@@ -1,4 +1,11 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
+import { logger } from "@/lib/logger";
+
+const RETIRED_CLAUDE_MODELS = new Set([
+  "claude-3-5-haiku-latest",
+  "claude-3-5-haiku-20241022",
+  "claude-3-haiku-20240307",
+]);
 
 export class AnthropicConnector implements AIConnector {
   id = "anthropic" as const;
@@ -10,7 +17,10 @@ export class AnthropicConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5";
+    const configuredModel = (process.env.ANTHROPIC_MODEL || "").trim();
+    const model = !configuredModel || RETIRED_CLAUDE_MODELS.has(configuredModel)
+      ? "claude-haiku-4-5"
+      : configuredModel;
     try {
       const system = request.messages
         .filter((m) => m.role === "system")
@@ -38,7 +48,14 @@ export class AnthropicConnector implements AIConnector {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error?.message || `Anthropic HTTP ${res.status}`);
+        const message = data?.error?.message || `Anthropic HTTP ${res.status}`;
+        logger.warn("ai.provider.failed", {
+          provider: this.displayName,
+          model,
+          status: res.status,
+          error: String(message).slice(0, 500),
+        });
+        throw new Error(message);
       }
 
       const content =
@@ -58,13 +75,18 @@ export class AnthropicConnector implements AIConnector {
         raw: data,
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown Anthropic error";
+      logger.warn("ai.provider.exception", {
+        provider: this.displayName,
+        model,
+        error: message.slice(0, 500),
+      });
       return {
         provider: this.id,
         model,
         content: "",
         latencyMs: Date.now() - started,
-        error:
-          error instanceof Error ? error.message : "Unknown Anthropic error",
+        error: message,
       };
     }
   }
