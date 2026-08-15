@@ -38,6 +38,7 @@ export default function RootLayout({
         <Script src="/rc-disable-legacy-right.js" strategy="afterInteractive" />
         <Script src="/rc-right-resizer.js" strategy="afterInteractive" />
         <Script src="/rc-room-header-style.js" strategy="afterInteractive" />
+        <Script src="/rc-ai-warehouse-style.js" strategy="afterInteractive" />
       </body>
     </html>
   );
