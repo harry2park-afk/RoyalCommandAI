@@ -7,10 +7,16 @@
       button.style.setProperty('background', '#1E3A8A', 'important');
       button.style.setProperty('color', '#FFFFFF', 'important');
       button.style.setProperty('border', '3px solid #FFD700', 'important');
-      button.style.setProperty('width', '75%', 'important');
-      button.style.setProperty('max-width', '75%', 'important');
-      button.style.setProperty('margin-left', 'auto', 'important');
+
+      // Keep the original full width. Compress only the vertical height by about 25%.
+      button.style.setProperty('width', '100%', 'important');
+      button.style.setProperty('max-width', 'none', 'important');
+      button.style.setProperty('margin-left', '0', 'important');
       button.style.setProperty('margin-right', '0', 'important');
+      button.style.setProperty('height', '33px', 'important');
+      button.style.setProperty('min-height', '33px', 'important');
+      button.style.setProperty('padding-top', '2px', 'important');
+      button.style.setProperty('padding-bottom', '2px', 'important');
       button.style.setProperty('border-radius', '7px 7px 1px 7px', 'important');
       button.style.setProperty('box-shadow', 'none', 'important');
 
@@ -22,6 +28,7 @@
       const text = button.querySelector(':scope > span:last-child');
       if (text instanceof HTMLElement) {
         text.style.setProperty('color', '#FFFFFF', 'important');
+        text.style.setProperty('line-height', '1.15', 'important');
       }
     });
   }
