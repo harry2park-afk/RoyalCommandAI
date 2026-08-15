@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import RoomIncidentMonitor from "@/components/RoomIncidentMonitor";
 import ChatHistorySidebar from "./ChatHistorySidebar";
 import RightWorkSidebar from "./RightWorkSidebar";
 
@@ -23,6 +24,7 @@ function SponsoredCard({ side }: { side: "left" | "right" }) {
 export default function RoomLayout({ children }: { children: ReactNode }) {
   return (
     <div className="royal-room-layout flex min-h-screen w-full">
+      <RoomIncidentMonitor />
       <ChatHistorySidebar />
       <SponsoredCard side="left" />
       <div className="royal-room-main min-w-0 flex-1">
