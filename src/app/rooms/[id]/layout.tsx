@@ -67,29 +67,23 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             margin-left: 44px !important;
           }
 
-          /* Hide extra brand/status/region labels to keep header simple */
-          .royal-room-main [data-rc-brand],
-          .royal-room-main [data-rc-global-status] {
-            display: none !important;
-          }
-
           /* Chat thread colors from approved chat-thread.html */
           .royal-room-main section {
             background: #0B1524 !important;
           }
           .royal-room-main button[title="클릭하면 전체 내용을 봅니다"] {
-            width: 75% !important;
-            max-width: 75% !important;
+            width: 100% !important;
+            max-width: none !important;
             min-height: 32px !important;
-            height: 34px !important;
-            margin-left: auto !important;
+            height: 33px !important;
+            margin-left: 0 !important;
             margin-right: 0 !important;
-            padding: 4px 9px !important;
+            padding: 2px 9px !important;
             gap: 0 !important;
             background: #1E3A8A !important;
             color: #FFFFFF !important;
             border: 3px solid #FFD700 !important;
-            border-radius: 7px 7px 1px 7px !important;
+            border-radius: 7px !important;
             box-shadow: none !important;
           }
           .royal-room-main button[title="클릭하면 전체 내용을 봅니다"] > span:first-child {
@@ -97,14 +91,14 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
           }
           .royal-room-main button[title="클릭하면 전체 내용을 봅니다"] > span:last-child {
             font-size: 12px !important;
-            line-height: 1.3 !important;
+            line-height: 1.2 !important;
             color: #FFFFFF !important;
           }
           .royal-room-main section article {
             background: #14224D !important;
             color: #E8E6DD !important;
             border: 2px solid #2A3B6E !important;
-            border-radius: 7px 7px 7px 1px !important;
+            border-radius: 7px !important;
           }
           .royal-room-main textarea[placeholder="Type or speak your order…"] {
             color: #E8E6DD !important;
@@ -113,7 +107,7 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             color: #7C8BC4 !important;
           }
 
-          /* AI OPEN / OFF boxes — Royal blue OFF, velvet red OPEN */
+          /* AI OPEN / OFF boxes */
           .royal-room-main main > div.fixed > div:nth-child(2) > button:not([title^="AI Warehouse"]) {
             position: relative !important;
             overflow: hidden !important;
@@ -122,43 +116,14 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             border: 3px solid #FFD700 !important;
             border-radius: 8px !important;
             box-shadow: inset 0 0 0 1px rgba(255,255,255,.05) !important;
-            transition: background .2s ease, color .2s ease, box-shadow .2s ease !important;
           }
           .royal-room-main main > div.fixed > div:nth-child(2) > button:not([title^="AI Warehouse"]):disabled {
             opacity: .35 !important;
-            filter: grayscale(.35) !important;
           }
           .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#d7b64d]"]:not([title^="AI Warehouse"]) {
             background: #7A0C2E !important;
             color: #FFF3D6 !important;
             border-color: #FFD700 !important;
-            box-shadow: 0 0 9px rgba(255,215,0,.38), inset 0 0 12px rgba(255,255,255,.05) !important;
-          }
-          .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#d7b64d]"]:not([title^="AI Warehouse"]):not([title^="DeepSeek"]):not([title^="Cohere"])::after {
-            content: "";
-            position: absolute;
-            inset: 2px;
-            pointer-events: none;
-            background:
-              radial-gradient(circle at 12% 28%, #FFD700 0 1.5px, transparent 2px),
-              radial-gradient(circle at 29% 72%, #FFFFFF 0 1.3px, transparent 2px),
-              radial-gradient(circle at 48% 22%, #FFD700 0 1.2px, transparent 2px),
-              radial-gradient(circle at 67% 68%, #FFFFFF 0 1.5px, transparent 2px),
-              radial-gradient(circle at 86% 31%, #FFD700 0 1.4px, transparent 2px),
-              radial-gradient(circle at 78% 82%, #FFFFFF 0 1.1px, transparent 2px),
-              radial-gradient(circle at 38% 47%, #FFD700 0 1.1px, transparent 2px);
-            animation: rc-ai-twinkle 1.4s ease-in-out infinite;
-          }
-          .royal-room-main main > div.fixed > div:nth-child(2) > button[title^="DeepSeek"]::after,
-          .royal-room-main main > div.fixed > div:nth-child(2) > button[title^="Cohere"]::after {
-            content: none !important;
-            display: none !important;
-            animation: none !important;
-            background: none !important;
-          }
-          @keyframes rc-ai-twinkle {
-            0%, 100% { opacity: .22; transform: scale(.98); }
-            50% { opacity: 1; transform: scale(1.02); }
           }
         `}</style>
         {children}
