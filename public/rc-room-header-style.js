@@ -37,12 +37,12 @@
     'Claude': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/anthropic.svg',
     'Gemini': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/googlegemini.svg',
     'Grok': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/x.svg',
-    'DeepSeek': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/deepseek.svg',
+    'DeepSeek': 'https://cdn.simpleicons.org/deepseek/FFFFFF',
     'Perplexity': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/perplexity.svg',
     'Mistral': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/mistralai.svg',
     'Meta Llama': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/meta.svg',
     'Qwen': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/alibabacloud.svg',
-    'Cohere': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/cohere.svg',
+    'Cohere': 'https://cdn.simpleicons.org/cohere/FFFFFF',
     'Microsoft Phi': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/microsoft.svg',
     'Amazon Nova': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/amazonwebservices.svg',
   };
@@ -115,6 +115,10 @@
         0%,100% { opacity:.22; transform:scale(.65); }
         50% { opacity:1; transform:scale(1.35); }
       }
+      @keyframes rcAiRespondingPulse {
+        0%,100% { opacity:.35; transform:scale(.75); box-shadow:0 0 3px #FFFFFF; }
+        50% { opacity:1; transform:scale(1.2); box-shadow:0 0 9px #FFD700; }
+      }
       .rc-ai-star {
         position:absolute;
         z-index:5;
@@ -122,6 +126,19 @@
         pointer-events:none;
         animation:rcAiTwinkle 1.35s ease-in-out infinite;
         box-shadow:0 0 5px currentColor;
+      }
+      .rc-ai-response-indicator {
+        position:absolute;
+        z-index:8;
+        right:5px;
+        top:4px;
+        width:6px;
+        height:6px;
+        border-radius:999px;
+        background:#FFD700;
+        border:1px solid #FFFFFF;
+        pointer-events:none;
+        animation:rcAiRespondingPulse .9s ease-in-out infinite;
       }
     `;
     document.head.appendChild(style);
@@ -157,6 +174,37 @@
     button.querySelectorAll('[data-rc-ai-star]').forEach((star) => star.remove());
   }
 
+  function isFixedBrandLogo(title) {
+    return title === 'DeepSeek' || title === 'Cohere';
+  }
+
+  function setResponseIndicator(button, on) {
+    const existing = button.querySelector('[data-rc-ai-response-indicator]');
+    if (!on) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+    const indicator = document.createElement('span');
+    indicator.dataset.rcAiResponseIndicator = '1';
+    indicator.className = 'rc-ai-response-indicator';
+    indicator.title = 'Responding';
+    button.appendChild(indicator);
+  }
+
+  function updateResponseIndicators(aiRow) {
+    const working = [...document.querySelectorAll('.royal-room-main div')]
+      .find((el) => el.textContent?.trim().startsWith('Working:'));
+    const workingText = working?.textContent || '';
+
+    [...aiRow.children].forEach((el) => {
+      if (!(el instanceof HTMLButtonElement)) return;
+      const fullTitle = (el.title || '').replace(/ — not connected$/, '');
+      if (fullTitle === 'DeepSeek') setResponseIndicator(el, workingText.includes('DeepSeek'));
+      if (fullTitle === 'Cohere') setResponseIndicator(el, workingText.includes('Cohere'));
+    });
+  }
+
   function enhanceAiButtonContent(button) {
     const fullTitle = (button.title || '').replace(/ — not connected$/, '');
     if (!fullTitle || fullTitle.startsWith('AI Warehouse')) return;
@@ -168,21 +216,44 @@
       logoBox.style.setProperty('min-width', '24px', 'important');
       logoBox.style.setProperty('background', 'rgba(0,0,0,.18)', 'important');
 
-      const img = logoBox.querySelector('img');
+      let img = logoBox.querySelector('img');
+      if (!(img instanceof HTMLImageElement) && AI_LOGO_OVERRIDES[fullTitle]) {
+        img = document.createElement('img');
+        img.alt = `${fullTitle} logo`;
+        logoBox.prepend(img);
+      }
+
       if (img instanceof HTMLImageElement) {
         if (AI_LOGO_OVERRIDES[fullTitle]) img.src = AI_LOGO_OVERRIDES[fullTitle];
+        img.alt = `${fullTitle} logo`;
         img.style.setProperty('display', 'block', 'important');
         img.style.setProperty('width', '19px', 'important');
         img.style.setProperty('height', '19px', 'important');
         img.style.setProperty('object-fit', 'contain', 'important');
-        img.style.setProperty('filter', 'brightness(0) invert(1)', 'important');
+        img.style.setProperty('filter', isFixedBrandLogo(fullTitle) ? 'none' : 'brightness(0) invert(1)', 'important');
+        img.onerror = () => {
+          img.style.display = 'none';
+          const fallback = logoBox.querySelector('[data-rc-brand-fallback]');
+          if (fallback instanceof HTMLElement) fallback.style.display = 'block';
+        };
       }
 
-      const fallback = logoBox.querySelector('span');
-      if (fallback instanceof HTMLElement) {
-        fallback.style.setProperty('display', img instanceof HTMLImageElement ? 'none' : 'block', 'important');
-        fallback.style.setProperty('font-size', '10px', 'important');
+      let fallback = logoBox.querySelector('[data-rc-brand-fallback]');
+      if (!(fallback instanceof HTMLElement)) {
+        fallback = document.createElement('span');
+        fallback.dataset.rcBrandFallback = '1';
+        fallback.textContent = fullTitle === 'DeepSeek' ? 'DS' : fullTitle === 'Cohere' ? 'CO' : fullTitle.slice(0, 1);
+        logoBox.appendChild(fallback);
       }
+      fallback.style.setProperty('display', img instanceof HTMLImageElement ? 'none' : 'block', 'important');
+      fallback.style.setProperty('font-family', '"Times New Roman", Times, serif', 'important');
+      fallback.style.setProperty('font-size', '10px', 'important');
+      fallback.style.setProperty('font-weight', '700', 'important');
+      fallback.style.setProperty('color', '#FFFFFF', 'important');
+
+      [...logoBox.querySelectorAll('span:not([data-rc-brand-fallback])')].forEach((oldFallback) => {
+        if (oldFallback instanceof HTMLElement) oldFallback.style.setProperty('display', 'none', 'important');
+      });
     }
 
     const label = button.querySelector(':scope > span:last-child');
@@ -205,6 +276,7 @@
     if (button.title?.startsWith('AI Warehouse')) return;
     if (button.dataset.rcRegion) return;
 
+    const fullTitle = (button.title || '').replace(/ — not connected$/, '');
     const active = typeof button.className === 'string' && button.className.includes('bg-[#d7b64d]');
     button.style.setProperty('position', 'relative', 'important');
     button.style.setProperty('overflow', 'hidden', 'important');
@@ -221,8 +293,13 @@
     button.style.setProperty('transition', 'background .18s ease,color .18s ease,box-shadow .18s ease', 'important');
 
     enhanceAiButtonContent(button);
-    if (active) addStars(button);
-    else removeStars(button);
+    if (isFixedBrandLogo(fullTitle)) {
+      removeStars(button);
+    } else if (active) {
+      addStars(button);
+    } else {
+      removeStars(button);
+    }
   }
 
   function styleAiRow(aiRow) {
@@ -261,6 +338,8 @@
         label.style.setProperty('white-space', 'nowrap', 'important');
       }
     }
+
+    updateResponseIndicators(aiRow);
   }
 
   function applyRoomHeaderStyle() {
