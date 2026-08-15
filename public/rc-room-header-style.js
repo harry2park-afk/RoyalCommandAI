@@ -12,22 +12,23 @@
   const AI_ON_BG = '#7A0C2E';
   const AI_GOLD = '#FFD700';
   const AI_ON_TEXT = '#FFF3D6';
+  const VISIBLE_AI_COUNT = 10;
 
   const AI_LABELS = {
     'ChatGPT': 'ChatGPT',
     'Claude': 'Claude AI',
     'Gemini': 'Gemini AI',
     'Grok': 'Grok AI',
-    'DeepSeek': 'DeepSeek',
-    'Perplexity': 'Perplexity',
+    'DeepSeek': 'DeepSeek AI',
+    'Perplexity': 'Perplexity AI',
     'Mistral': 'Mistral AI',
     'Meta Llama': 'Meta Llama',
     'Qwen': 'Qwen AI',
     'Cohere': 'Cohere AI',
-    'Kimi / Moonshot AI': 'Kimi AI',
-    'MiniMax': 'MiniMax',
+    'Kimi / Moonshot AI': 'Kimi Moonshot AI',
+    'MiniMax': 'MiniMax AI',
     'Z.ai / GLM': 'Z.ai GLM',
-    'Microsoft Phi': 'MS Phi',
+    'Microsoft Phi': 'Microsoft Phi',
     'Amazon Nova': 'Amazon Nova',
   };
 
@@ -162,17 +163,17 @@
 
     const logoBox = button.querySelector('span');
     if (logoBox instanceof HTMLElement) {
-      logoBox.style.setProperty('width', '28px', 'important');
-      logoBox.style.setProperty('height', '28px', 'important');
-      logoBox.style.setProperty('min-width', '28px', 'important');
+      logoBox.style.setProperty('width', '24px', 'important');
+      logoBox.style.setProperty('height', '24px', 'important');
+      logoBox.style.setProperty('min-width', '24px', 'important');
       logoBox.style.setProperty('background', 'rgba(0,0,0,.18)', 'important');
 
       const img = logoBox.querySelector('img');
       if (img instanceof HTMLImageElement) {
         if (AI_LOGO_OVERRIDES[fullTitle]) img.src = AI_LOGO_OVERRIDES[fullTitle];
         img.style.setProperty('display', 'block', 'important');
-        img.style.setProperty('width', '22px', 'important');
-        img.style.setProperty('height', '22px', 'important');
+        img.style.setProperty('width', '19px', 'important');
+        img.style.setProperty('height', '19px', 'important');
         img.style.setProperty('object-fit', 'contain', 'important');
         img.style.setProperty('filter', 'brightness(0) invert(1)', 'important');
       }
@@ -180,7 +181,7 @@
       const fallback = logoBox.querySelector('span');
       if (fallback instanceof HTMLElement) {
         fallback.style.setProperty('display', img instanceof HTMLImageElement ? 'none' : 'block', 'important');
-        fallback.style.setProperty('font-size', '11px', 'important');
+        fallback.style.setProperty('font-size', '10px', 'important');
       }
     }
 
@@ -188,12 +189,14 @@
     if (label instanceof HTMLElement) {
       label.textContent = AI_LABELS[fullTitle] || fullTitle;
       label.style.setProperty('font-family', '"Times New Roman", Times, serif', 'important');
-      label.style.setProperty('font-size', '12px', 'important');
-      label.style.setProperty('font-weight', '400', 'important');
-      label.style.setProperty('letter-spacing', '0', 'important');
+      label.style.setProperty('font-size', '13px', 'important');
+      label.style.setProperty('font-weight', '300', 'important');
+      label.style.setProperty('letter-spacing', '-0.03em', 'important');
       label.style.setProperty('line-height', '1', 'important');
-      label.style.setProperty('overflow', 'hidden', 'important');
-      label.style.setProperty('text-overflow', 'ellipsis', 'important');
+      label.style.setProperty('transform', 'scaleX(.80)', 'important');
+      label.style.setProperty('transform-origin', 'center', 'important');
+      label.style.setProperty('overflow', 'visible', 'important');
+      label.style.setProperty('text-overflow', 'clip', 'important');
       label.style.setProperty('white-space', 'nowrap', 'important');
     }
   }
@@ -205,12 +208,12 @@
     const active = typeof button.className === 'string' && button.className.includes('bg-[#d7b64d]');
     button.style.setProperty('position', 'relative', 'important');
     button.style.setProperty('overflow', 'hidden', 'important');
-    button.style.setProperty('height', '36px', 'important');
-    button.style.setProperty('gap', '4px', 'important');
+    button.style.setProperty('height', '31px', 'important');
+    button.style.setProperty('gap', '3px', 'important');
     button.style.setProperty('padding-left', '4px', 'important');
     button.style.setProperty('padding-right', '4px', 'important');
     button.style.setProperty('border', `3px solid ${AI_GOLD}`, 'important');
-    button.style.setProperty('border-radius', '8px', 'important');
+    button.style.setProperty('border-radius', '7px', 'important');
     button.style.setProperty('background', active ? AI_ON_BG : AI_OFF_BG, 'important');
     button.style.setProperty('color', active ? AI_ON_TEXT : AI_GOLD, 'important');
     button.style.setProperty('opacity', button.disabled ? '.35' : '1', 'important');
@@ -220,6 +223,44 @@
     enhanceAiButtonContent(button);
     if (active) addStars(button);
     else removeStars(button);
+  }
+
+  function styleAiRow(aiRow) {
+    const buttons = [...aiRow.children].filter((el) => el instanceof HTMLButtonElement);
+    const aiButtons = buttons.filter((button) => !button.title?.startsWith('AI Warehouse'));
+    const warehouse = buttons.find((button) => button.title?.startsWith('AI Warehouse'));
+
+    aiButtons.forEach((button, index) => {
+      if (index < VISIBLE_AI_COUNT) {
+        button.style.setProperty('display', 'flex', 'important');
+        button.style.setProperty('flex', '1 1 0%', 'important');
+        button.style.setProperty('min-width', '0', 'important');
+        styleAiButton(button);
+      } else {
+        button.style.setProperty('display', 'none', 'important');
+      }
+    });
+
+    if (warehouse instanceof HTMLButtonElement) {
+      warehouse.style.setProperty('display', 'flex', 'important');
+      warehouse.style.setProperty('height', '31px', 'important');
+      warehouse.style.setProperty('min-width', '126px', 'important');
+      warehouse.style.setProperty('flex', '0 0 126px', 'important');
+      warehouse.style.setProperty('font-family', '"Times New Roman", Times, serif', 'important');
+      warehouse.style.setProperty('font-weight', '300', 'important');
+      warehouse.style.setProperty('font-size', '13px', 'important');
+      warehouse.style.setProperty('letter-spacing', '-0.03em', 'important');
+      const label = warehouse.querySelector('span:last-child');
+      if (label instanceof HTMLElement) {
+        label.textContent = 'AI Warehouse';
+        label.style.setProperty('font-family', '"Times New Roman", Times, serif', 'important');
+        label.style.setProperty('font-weight', '300', 'important');
+        label.style.setProperty('font-size', '13px', 'important');
+        label.style.setProperty('transform', 'scaleX(.80)', 'important');
+        label.style.setProperty('transform-origin', 'center', 'important');
+        label.style.setProperty('white-space', 'nowrap', 'important');
+      }
+    }
   }
 
   function applyRoomHeaderStyle() {
@@ -263,11 +304,7 @@
     if (!(toolbox instanceof HTMLElement)) return;
     toolbox.style.background = DEEP;
     const aiRow = toolbox.children[1];
-    if (aiRow instanceof HTMLElement) {
-      [...aiRow.children].forEach((el) => {
-        if (el instanceof HTMLButtonElement) styleAiButton(el);
-      });
-    }
+    if (aiRow instanceof HTMLElement) styleAiRow(aiRow);
 
     makeStatusArea(headerRow);
     void refreshStatus();
