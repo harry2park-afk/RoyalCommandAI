@@ -4,6 +4,30 @@ import { localDb } from "@/lib/local-store";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
+const MAX_ROOM_MESSAGES = 250;
+
+function normaliseMessages(messages: unknown[]) {
+  return messages.slice(-MAX_ROOM_MESSAGES).map((message, index) => {
+    const item = message && typeof message === "object" ? message as Record<string, unknown> : {};
+    const rawContent = item.content;
+    let content = "";
+    if (typeof rawContent === "string") content = rawContent;
+    else if (rawContent == null) content = "";
+    else {
+      try { content = JSON.stringify(rawContent); }
+      catch { content = String(rawContent); }
+    }
+
+    return {
+      ...item,
+      id: typeof item.id === "string" && item.id ? item.id : `room-message-${index}`,
+      content,
+      author_type: typeof item.author_type === "string" ? item.author_type : undefined,
+      authorType: typeof item.authorType === "string" ? item.authorType : undefined,
+    };
+  });
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -37,7 +61,12 @@ export async function GET(
       .select("*")
       .eq("room_id", id)
       .order("created_at", { ascending: false });
-    return NextResponse.json({ room, messages: messages || [], documents: documents || [], user: currentUser });
+    return NextResponse.json({
+      room,
+      messages: normaliseMessages(messages || []),
+      documents: documents || [],
+      user: currentUser,
+    });
   }
 
   const room = localDb.getRoom(id);
@@ -46,7 +75,7 @@ export async function GET(
   }
   return NextResponse.json({
     room,
-    messages: localDb.listMessages(id),
+    messages: normaliseMessages(localDb.listMessages(id)),
     documents: localDb.listDocuments(id),
     user: currentUser,
   });
