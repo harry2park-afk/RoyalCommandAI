@@ -1,6 +1,9 @@
 (() => {
   if (!location.pathname.startsWith('/rooms/')) return;
 
+  // REPLACE-ONLY POLICY:
+  // To replace a brand logo, change only its URL in LOGOS below.
+  // Runtime DOM/style edits are not authoritative and are automatically restored.
   const LOGOS = Object.freeze({
     'ChatGPT': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/openai.svg',
     'Claude': 'https://cdn.jsdelivr.net/npm/simple-icons@v15/icons/anthropic.svg',
@@ -64,8 +67,10 @@
     return aliases[current] || current;
   }
 
-  function lockLogoElement(logoBox, name, img, fallback) {
-    logoBox.dataset.rcLogoLocked = '1';
+  function enforceCanonicalLogo(logoBox, name, img, fallback) {
+    logoBox.dataset.rcLogoLocked = 'replace-only';
+    logoBox.dataset.rcLogoBrand = name;
+    logoBox.setAttribute('aria-label', `${LABELS[name]} brand logo`);
     logoBox.style.setProperty('pointer-events', 'none', 'important');
     logoBox.style.setProperty('user-select', 'none', 'important');
     logoBox.style.setProperty('width', '40px', 'important');
@@ -74,22 +79,33 @@
     logoBox.style.setProperty('background', 'rgba(0,0,0,.22)', 'important');
     logoBox.style.setProperty('border', '1px solid rgba(255,215,0,.22)', 'important');
     logoBox.style.setProperty('overflow', 'hidden', 'important');
+    logoBox.style.setProperty('transform', 'none', 'important');
+    logoBox.style.setProperty('filter', 'none', 'important');
 
     if (img instanceof HTMLImageElement) {
-      if (LOGOS[name]) img.src = LOGOS[name];
+      const canonicalSrc = LOGOS[name] || '';
+      if (canonicalSrc && img.src !== canonicalSrc) img.src = canonicalSrc;
+      img.dataset.rcCanonicalLogo = '1';
       img.alt = `${LABELS[name]} logo`;
       img.draggable = false;
       img.contentEditable = 'false';
       img.style.setProperty('width', '28px', 'important');
       img.style.setProperty('height', '28px', 'important');
+      img.style.setProperty('min-width', '28px', 'important');
+      img.style.setProperty('max-width', '28px', 'important');
+      img.style.setProperty('min-height', '28px', 'important');
+      img.style.setProperty('max-height', '28px', 'important');
       img.style.setProperty('display', 'block', 'important');
       img.style.setProperty('object-fit', 'contain', 'important');
+      img.style.setProperty('object-position', 'center', 'important');
       img.style.setProperty('transform', 'none', 'important');
       img.style.setProperty('opacity', '1', 'important');
+      img.style.setProperty('animation', 'none', 'important');
+      img.style.setProperty('transition', 'none', 'important');
       img.style.setProperty('filter', name === 'DeepSeek' || name === 'Cohere' ? 'none' : 'brightness(0) invert(1)', 'important');
       img.onerror = () => {
-        img.style.display = 'none';
-        if (fallback instanceof HTMLElement) fallback.style.display = 'grid';
+        img.style.setProperty('display', 'none', 'important');
+        if (fallback instanceof HTMLElement) fallback.style.setProperty('display', 'grid', 'important');
       };
     }
 
@@ -102,6 +118,7 @@
       fallback.style.setProperty('font-weight', '600', 'important');
       fallback.style.setProperty('color', '#FFD700', 'important');
       fallback.style.setProperty('transform', 'none', 'important');
+      fallback.style.setProperty('animation', 'none', 'important');
     }
   }
 
@@ -133,7 +150,7 @@
         logoBox.appendChild(fallback);
       }
 
-      lockLogoElement(logoBox, name, img, fallback);
+      enforceCanonicalLogo(logoBox, name, img, fallback);
       fallback.style.setProperty('display', img instanceof HTMLImageElement && img.style.display !== 'none' ? 'none' : 'grid', 'important');
 
       [...logoBox.querySelectorAll('span:not([data-rc-warehouse-fallback])')].forEach(el => {
@@ -187,5 +204,10 @@
   }
 
   queue();
-  new MutationObserver(queue).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ['style','class','src'] });
+  new MutationObserver(queue).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style','class','src','width','height']
+  });
 })();
