@@ -115,7 +115,7 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             border-color: #FFD700 !important;
             box-shadow: 0 0 9px rgba(255,215,0,.38), inset 0 0 12px rgba(255,255,255,.05) !important;
           }
-          .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#d7b64d]"]:not([title^="AI Warehouse"])::after {
+          .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#d7b64d]"]:not([title^="AI Warehouse"]):not([title^="DeepSeek"]):not([title^="Cohere"])::after {
             content: "";
             position: absolute;
             inset: 2px;
@@ -129,6 +129,13 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
               radial-gradient(circle at 78% 82%, #FFFFFF 0 1.1px, transparent 2px),
               radial-gradient(circle at 38% 47%, #FFD700 0 1.1px, transparent 2px);
             animation: rc-ai-twinkle 1.4s ease-in-out infinite;
+          }
+          .royal-room-main main > div.fixed > div:nth-child(2) > button[title^="DeepSeek"]::after,
+          .royal-room-main main > div.fixed > div:nth-child(2) > button[title^="Cohere"]::after {
+            content: none !important;
+            display: none !important;
+            animation: none !important;
+            background: none !important;
           }
           @keyframes rc-ai-twinkle {
             0%, 100% { opacity: .22; transform: scale(.98); }
