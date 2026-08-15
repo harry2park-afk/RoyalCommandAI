@@ -17,9 +17,14 @@ main section.rc-card>form>div[class~="overflow-x-auto"]{scrollbar-width:none!imp
 main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{display:none!important}
 .royal-room-layout section article{font-size:10pt!important;line-height:1.45!important}
 .royal-room-layout section form textarea{font-size:10pt!important;line-height:1.45!important;height:56px!important;min-height:56px!important;max-height:56px!important;overflow-y:auto!important;resize:none!important}
+.royal-room-layout>aside:last-child{flex:0 0 225px!important;width:225px!important;min-width:225px!important;max-width:225px!important;margin-top:92px!important;height:calc(100dvh - 92px)!important;min-height:calc(100dvh - 92px)!important;border-left:1px solid rgba(255,255,255,.12)!important;overflow:hidden!important}
 .royal-room-layout>aside:last-child>div{width:170px!important;max-width:170px!important;margin-left:auto!important;margin-right:0!important}
-.royal-room-layout>aside:last-child>button[title="폭 조절"]{width:16px!important;left:0!important;z-index:80!important}
-.royal-room-layout>aside:last-child{border-left:1px solid rgba(255,255,255,.12)!important}
+.royal-room-layout>aside:last-child>button[title="폭 조절"]{display:none!important}
+.royal-room-layout>aside:last-child>div:last-child{overflow-y:auto!important;overflow-x:hidden!important;padding-right:0!important;scrollbar-gutter:stable!important}
+.royal-room-layout>aside:last-child>div:last-child::-webkit-scrollbar{width:8px}
+.royal-room-layout>aside:last-child>div:last-child::-webkit-scrollbar-track{background:transparent}
+.royal-room-layout>aside:last-child>div:last-child::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:8px}
+.royal-room-layout>aside:last-child>div:last-child::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.42)}
 @media(min-width:901px){
  html{height:100%;overflow:hidden!important}
  body{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;overflow:hidden!important}
