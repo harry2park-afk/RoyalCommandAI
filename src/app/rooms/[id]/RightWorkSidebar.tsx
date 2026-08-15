@@ -1,13 +1,9 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, File, GripVertical, LogOut, Search } from "lucide-react";
+import { File, LogOut, Search } from "lucide-react";
 
-const DEFAULT_WIDTH = 225;
-const MIN_WIDTH = 225;
-const MAX_WIDTH = 300;
 const ROW_HEIGHT = 28;
-
 const DEFAULT_APPS = ["chatgpt", "email", "instagram", "youtube", "drive", "calendar", "files", "netflix", "tasks", "approval"];
 
 type AppItem = {
@@ -22,7 +18,6 @@ type AppItem = {
 };
 
 type LocalFile = { name: string; size: number; url: string };
-
 type SearchItem =
   | { type: "app"; id: string; title: string; app: AppItem }
   | { type: "file"; id: string; title: string; file: LocalFile };
@@ -63,59 +58,27 @@ function AppIcon({ app }: { app: AppItem }) {
 }
 
 export default function RightWorkSidebar() {
-  const [width, setWidth] = useState(DEFAULT_WIDTH);
-  const [collapsed, setCollapsed] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>(DEFAULT_APPS);
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
-  const dragging = useRef(false);
-  const previousWidth = useRef(DEFAULT_WIDTH);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     try {
-      const savedWidth = Number(window.localStorage.getItem("royalcommand:right-panel-width") || DEFAULT_WIDTH);
-      const savedCollapsed = window.localStorage.getItem("royalcommand:right-panel-collapsed") === "1";
       const savedApps = window.localStorage.getItem("royalcommand:right-panel-apps");
-      if (Number.isFinite(savedWidth)) {
-        const safe = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, savedWidth));
-        setWidth(safe);
-        previousWidth.current = safe;
-      }
-      setCollapsed(savedCollapsed);
       if (savedApps) {
         const parsed = JSON.parse(savedApps);
         if (Array.isArray(parsed) && parsed.length) setSelectedIds(parsed.filter((id) => typeof id === "string"));
       }
+      window.localStorage.removeItem("royalcommand:right-panel-collapsed");
+      window.localStorage.removeItem("royalcommand:right-panel-width");
     } catch {}
   }, []);
 
   useEffect(() => {
     try { window.localStorage.setItem("royalcommand:right-panel-apps", JSON.stringify(selectedIds)); } catch {}
   }, [selectedIds]);
-
-  useEffect(() => {
-    function move(event: MouseEvent) {
-      if (!dragging.current) return;
-      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, window.innerWidth - event.clientX));
-      setWidth(next);
-      previousWidth.current = next;
-    }
-    function up() {
-      if (!dragging.current) return;
-      dragging.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      try { window.localStorage.setItem("royalcommand:right-panel-width", String(previousWidth.current)); } catch {}
-    }
-    window.addEventListener("mousemove", move);
-    window.addEventListener("mouseup", up);
-    return () => {
-      window.removeEventListener("mousemove", move);
-      window.removeEventListener("mouseup", up);
-    };
-  }, []);
 
   const selectedApps = selectedIds
     .map((id) => APP_CATALOG.find((app) => app.id === id))
@@ -135,19 +98,6 @@ export default function RightWorkSidebar() {
 
     return [...fileMatches, ...appMatches];
   }, [query, localFiles]);
-
-  function startResize(event: React.MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    dragging.current = true;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }
-
-  function toggle() {
-    const next = !collapsed;
-    setCollapsed(next);
-    try { window.localStorage.setItem("royalcommand:right-panel-collapsed", next ? "1" : "0"); } catch {}
-  }
 
   function openApp(app: AppItem) {
     if (app.id === "files") {
@@ -199,25 +149,9 @@ export default function RightWorkSidebar() {
     });
   }
 
-  if (collapsed) {
-    return (
-      <button type="button" onClick={toggle} className="fixed right-0 top-1/2 z-[100] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 패널 열기">
-        <ChevronLeft size={18} />
-      </button>
-    );
-  }
-
   return (
-    <aside className="relative z-40 flex h-screen shrink-0 flex-col bg-[#07111f]" style={{ width }}>
+    <aside className="relative z-40 flex h-screen w-[170px] min-w-[170px] max-w-[170px] shrink-0 flex-col bg-[#07111f]">
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
-
-      <button type="button" onMouseDown={startResize} className="absolute left-0 top-0 z-50 flex h-full w-3 -translate-x-1/2 cursor-col-resize items-center justify-center" title="폭 조절">
-        <GripVertical size={12} className="text-white/25" />
-      </button>
-
-      <button type="button" onClick={toggle} className="fixed right-0 top-1/2 z-[100] flex h-12 w-7 -translate-y-1/2 items-center justify-center rounded-l-lg border border-r-0 border-white/20 bg-[#07111f] text-[var(--gold-soft)] shadow-xl" title="오른쪽 패널 닫기">
-        <ChevronRight size={18} />
-      </button>
 
       <div className="shrink-0 px-1.5 py-1.5">
         <div className="relative">
