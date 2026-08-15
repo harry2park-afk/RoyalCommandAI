@@ -30,6 +30,12 @@ export interface OrchestrateResult {
   latencyMs: number;
 }
 
+type PeerReview = {
+  provider: AIProviderId;
+  content: string;
+  error?: string;
+};
+
 function roleSummary() {
   return `Royal Command customer-facing assistant roles:\n\nElizabeth — ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.role}. ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.purpose}\nLanguage specialists — ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.role}. ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.purpose} ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.equalityRule}\nKevin — ${CUSTOMER_ASSISTANT_ROLES.Kevin.role}. ${CUSTOMER_ASSISTANT_ROLES.Kevin.purpose}\n\nKevin technical scope: ${CUSTOMER_ASSISTANT_ROLES.Kevin.mayHelpWith.join("; ")}.\nKevin rules: ${CUSTOMER_ASSISTANT_ROLES.Kevin.operatingRules.join(" ")}\n\nLanguage-specialist rule: language specialists are full customer advisors/receptionists equivalent to Elizabeth; language is the operational difference, not customer-service responsibility.\nQuote conversation rule: ${QUOTE_CONVERSATION_POLICY.coreRule} ${QUOTE_CONVERSATION_POLICY.languageRule}\n\nCustomer-facing rule: explain only services currently available to customers. Do not disclose internal licensing strategy, banking strategy, security architecture, source code, credentials, private prompts, vendor arrangements, private costs/margins, or unreleased capabilities.`;
 }
@@ -65,12 +71,23 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
   ].filter(Boolean).join("\n\n");
 }
 
+function peerReviewSystem(id: AIProviderId, languageHint: string) {
+  return [
+    BASE_SYSTEM,
+    COUNTRY_ASSIGNMENTS[id],
+    DIVISION_ROLES[id] || "ROYAL COMMAND COUNCIL ROLE — Independent specialist analysis.",
+    `You are ${PROVIDER_LABELS[id]} acting as a peer reviewer in the Royal Command AI Council.`,
+    "Review the other OPEN AI reports as well as your own first-pass reasoning. Identify factual errors, unsafe assumptions, contradictions, missing requirements, weak evidence, and better alternatives. Do not simply agree. Be concise and specific. If a disagreement cannot be resolved from the available information, clearly mark it as unresolved instead of guessing.",
+    languageHint,
+  ].filter(Boolean).join("\n\n");
+}
+
 function councilChairSystem(id: AIProviderId, languageHint: string) {
   return [
     BASE_SYSTEM,
     COUNTRY_ASSIGNMENTS[id],
     `You are ${PROVIDER_LABELS[id]} acting only as the Royal Command Council chair for this turn. You are NOT Katie and must never identify yourself as Katie.`,
-    "Combine the reports from all OPEN AI engines into one joint Royal Command answer. Preserve useful disagreements and risk warnings, remove duplication, and give clear next actions. Do not invent actions or facts. Keep it concise unless detail is necessary.",
+    "Produce the final Royal Command Council answer only after considering BOTH the independent reports and the peer-review criticisms from the other OPEN AI engines. Resolve errors and contradictions where the evidence supports a resolution. Preserve material disagreement when it cannot be safely resolved. Do not overrule a valid peer-review warning merely because you are chair. Remove duplication, state uncertainty where needed, and give clear next actions. Do not invent actions or facts.",
     languageHint,
   ].filter(Boolean).join("\n\n");
 }
@@ -99,9 +116,60 @@ async function runProvider(
   }
 }
 
+async function runPeerReviews(
+  input: OrchestrateInput,
+  responses: AIProviderResponse[],
+  languageHint: string,
+): Promise<PeerReview[]> {
+  const successful = responses.filter((r) => !r.error && r.content.trim());
+  if (successful.length < 2) return [];
+
+  const reports = successful
+    .map((r) => `### ${PROVIDER_LABELS[r.provider]} — FIRST PASS\n${r.content.trim().slice(0, 6000)}`)
+    .join("\n\n");
+
+  const reviews = await Promise.all(successful.map(async (response) => {
+    const id = response.provider;
+    try {
+      const connector = getConnector(id);
+      const result = await connector.complete({
+        messages: [
+          { role: "system", content: peerReviewSystem(id, languageHint) },
+          {
+            role: "user",
+            content: `USER ORDER:\n${input.prompt}\n\nALL FIRST-PASS COUNCIL REPORTS:\n${reports}\n\nReturn your peer review. Focus on what should be corrected, challenged, preserved, or marked uncertain before a final answer is written.`,
+          },
+        ],
+        maxTokens: 1800,
+        temperature: 0.15,
+      });
+      return {
+        provider: id,
+        content: result.error ? "" : result.content.trim(),
+        error: result.error,
+      } satisfies PeerReview;
+    } catch (error) {
+      return {
+        provider: id,
+        content: "",
+        error: error instanceof Error ? error.message : "peer review failure",
+      } satisfies PeerReview;
+    }
+  }));
+
+  logger.info("ai.council.peer_review.done", {
+    requested: successful.length,
+    successful: reviews.filter((r) => !r.error && r.content).length,
+    reviewers: reviews.filter((r) => !r.error && r.content).map((r) => PROVIDER_LABELS[r.provider]),
+  });
+
+  return reviews;
+}
+
 async function buildJointAnswer(
   input: OrchestrateInput,
   responses: AIProviderResponse[],
+  reviews: PeerReview[],
   languageHint: string,
 ): Promise<{ answer: string; chair?: AIProviderId }> {
   const successful = responses.filter((r) => !r.error && r.content.trim());
@@ -113,7 +181,11 @@ async function buildJointAnswer(
 
   const chair = successful[0]!.provider;
   const reports = successful
-    .map((r) => `### ${PROVIDER_LABELS[r.provider]}\n${r.content.trim().slice(0, 7000)}`)
+    .map((r) => `### ${PROVIDER_LABELS[r.provider]} — INDEPENDENT REPORT\n${r.content.trim().slice(0, 6000)}`)
+    .join("\n\n");
+  const reviewText = reviews
+    .filter((r) => !r.error && r.content)
+    .map((r) => `### ${PROVIDER_LABELS[r.provider]} — PEER REVIEW\n${r.content.slice(0, 3500)}`)
     .join("\n\n");
 
   try {
@@ -122,10 +194,10 @@ async function buildJointAnswer(
       { role: "system", content: councilChairSystem(chair, languageHint) },
       {
         role: "user",
-        content: `USER ORDER:\n${input.prompt}\n\nOPEN AI COUNCIL REPORTS:\n${reports}\n\nReturn one joint Royal Command Council answer.`,
+        content: `USER ORDER:\n${input.prompt}\n\nINDEPENDENT COUNCIL REPORTS:\n${reports}\n\nPEER-REVIEW CRITICISMS:\n${reviewText || "No additional peer review was available."}\n\nReturn ONE final Royal Command Council answer. It must reflect the strongest supported conclusion after the council's cross-check, not merely the chair's original opinion. If peer reviewers identify a valid error, correct it. If material disagreement remains unresolved, say so clearly.`,
       },
     ];
-    const result = await connector.complete({ messages });
+    const result = await connector.complete({ messages, maxTokens: 2600, temperature: 0.15 });
     if (!result.error && result.content.trim()) return { answer: result.content.trim(), chair };
   } catch (error) {
     logger.warn("ai.council_synthesis.failed", {
@@ -174,7 +246,8 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
 
   const responses = await Promise.all(providers.map((id) => runProvider(id, input, languageHint)));
   const scoring = synthesizeBestAnswer(input.prompt, responses);
-  const joint = await buildJointAnswer(input, responses, languageHint);
+  const reviews = await runPeerReviews(input, responses, languageHint);
+  const joint = await buildJointAnswer(input, responses, reviews, languageHint);
   const latencyMs = Date.now() - started;
 
   logger.info("ai.orchestrate.done", {
@@ -182,6 +255,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
     latencyMs,
     councilChair: joint.chair ? PROVIDER_LABELS[joint.chair] : undefined,
     successful: responses.filter((r) => !r.error && r.content.trim()).length,
+    peerReviews: reviews.filter((r) => !r.error && r.content).length,
   });
 
   return {
@@ -195,7 +269,8 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
         providers.length > 1
           ? `OPEN AI Council collaborated: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
           : `Single OPEN AI used: ${PROVIDER_LABELS[providers[0]!]} .`,
-        ...(joint.chair ? [`Council synthesis led by ${PROVIDER_LABELS[joint.chair]}; no Katie intermediary used.`] : []),
+        ...(reviews.length ? [`Peer review completed by ${reviews.filter((r) => !r.error && r.content).map((r) => PROVIDER_LABELS[r.provider]).join(", ") || "available council members"}.`] : []),
+        ...(joint.chair ? [`Final synthesis led by ${PROVIDER_LABELS[joint.chair]} after peer review; the chair must incorporate valid corrections and preserve unresolved disagreements.`] : []),
         ...scoring.comparison.notes,
       ],
     },
