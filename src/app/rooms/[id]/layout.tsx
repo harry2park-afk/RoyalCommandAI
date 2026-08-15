@@ -73,25 +73,44 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             display: none !important;
           }
 
-          /* Royal Command chat palette */
+          /* Chat thread colors from approved chat-thread.html */
           .royal-room-main section {
             background: #0B1524 !important;
           }
           .royal-room-main button[title="클릭하면 전체 내용을 봅니다"] {
-            background: #E0BC4F !important;
-            color: #101827 !important;
-            border: 1px solid #F3D36A !important;
+            width: 75% !important;
+            max-width: 75% !important;
+            min-height: 32px !important;
+            height: 34px !important;
+            margin-left: auto !important;
+            margin-right: 0 !important;
+            padding: 4px 9px !important;
+            gap: 0 !important;
+            background: #1E3A8A !important;
+            color: #FFFFFF !important;
+            border: 3px solid #FFD700 !important;
+            border-radius: 7px 7px 1px 7px !important;
+            box-shadow: none !important;
+          }
+          .royal-room-main button[title="클릭하면 전체 내용을 봅니다"] > span:first-child {
+            display: none !important;
+          }
+          .royal-room-main button[title="클릭하면 전체 내용을 봅니다"] > span:last-child {
+            font-size: 12px !important;
+            line-height: 1.3 !important;
+            color: #FFFFFF !important;
           }
           .royal-room-main section article {
-            background: #0F1B2C !important;
-            color: #F4F0E7 !important;
-            border-color: #26374D !important;
+            background: #14224D !important;
+            color: #E8E6DD !important;
+            border: 2px solid #2A3B6E !important;
+            border-radius: 7px 7px 7px 1px !important;
           }
           .royal-room-main textarea[placeholder="Type or speak your order…"] {
-            color: #F4F0E7 !important;
+            color: #E8E6DD !important;
           }
           .royal-room-main textarea[placeholder="Type or speak your order…"]::placeholder {
-            color: #71829A !important;
+            color: #7C8BC4 !important;
           }
 
           /* AI OPEN / OFF boxes — Royal blue OFF, velvet red OPEN */
