@@ -269,8 +269,8 @@ export default function RightWorkSidebar() {
               <AppIcon app={app} />
               <span className="min-w-0 flex-1 truncate text-[10px] font-semibold leading-none">{app.title}</span>
             </button>
-            <button type="button" onClick={() => removeApp(app.id)} className="mr-0.5 hidden h-6 w-6 shrink-0 place-items-center text-white/35 hover:text-red-300 group-hover:grid" title="삭제">
-              <Trash2 size={10} />
+            <button type="button" onClick={() => removeApp(app.id)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center rounded border border-red-300/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-100" title="삭제">
+              <Trash2 size={15} />
             </button>
           </div>
         ))}
@@ -281,8 +281,8 @@ export default function RightWorkSidebar() {
               <File size={15} className="shrink-0 text-[var(--gold-soft)]" />
               <span className="min-w-0 flex-1 truncate text-[10px]">{file.name}</span>
             </a>
-            <button type="button" onClick={() => deleteLocalFile(index)} className="mr-0.5 hidden h-6 w-6 shrink-0 place-items-center text-white/35 hover:text-red-300 group-hover:grid" title="삭제">
-              <Trash2 size={10} />
+            <button type="button" onClick={() => deleteLocalFile(index)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center rounded border border-red-300/30 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:text-red-100" title="삭제">
+              <Trash2 size={15} />
             </button>
           </div>
         ))}
