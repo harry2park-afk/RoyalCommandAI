@@ -65,6 +65,10 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
           }
 
           /* Local top-AI marks. Visual only: state/click remains owned by RoomV3. */
+          .royal-room-main main > div.fixed > div:nth-child(2) > button:not(:last-child) {
+            position: relative !important;
+            overflow: hidden !important;
+          }
           .royal-room-main main > div.fixed > div:nth-child(2) > button:not(:last-child) > span:first-child {
             background-position: center !important;
             background-repeat: no-repeat !important;
@@ -83,6 +87,49 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
           .royal-room-main button[title^="Meta Llama"] > span:first-child { background-image:url('/rc-ai-logos/meta.svg') !important; }
           .royal-room-main button[title^="Qwen"] > span:first-child { background-image:url('/rc-ai-logos/qwen.svg') !important; }
           .royal-room-main button[title^="Cohere"] > span:first-child { background-image:url('/brand-logos/cohere.svg') !important; }
+
+          /* Selected AI sparkle: stable CSS only, no DOM observer. */
+          @keyframes rcAiLogoTwinkle {
+            0%, 100% { filter: brightness(1) drop-shadow(0 0 1px rgba(255,215,0,.25)); transform: scale(1); }
+            50% { filter: brightness(1.55) drop-shadow(0 0 7px rgba(255,215,0,.95)); transform: scale(1.12); }
+          }
+          @keyframes rcAiStarTwinkle {
+            0%, 100% { opacity: .20; transform: scale(.55) rotate(0deg); }
+            50% { opacity: 1; transform: scale(1.25) rotate(45deg); }
+          }
+          .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#7A0C2E]"]:not([title^="DeepSeek"]):not([title^="Cohere"]):not(:last-child) > span:first-child {
+            animation: rcAiLogoTwinkle 1.15s ease-in-out infinite !important;
+            transform-origin: center !important;
+          }
+          .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#7A0C2E]"]:not([title^="DeepSeek"]):not([title^="Cohere"]):not(:last-child)::before,
+          .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#7A0C2E]"]:not([title^="DeepSeek"]):not([title^="Cohere"]):not(:last-child)::after {
+            content: "✦";
+            position: absolute;
+            z-index: 5;
+            pointer-events: none;
+            color: #FFD700;
+            text-shadow: 0 0 6px #FFD700, 0 0 10px rgba(255,255,255,.7);
+            animation: rcAiStarTwinkle 1.05s ease-in-out infinite;
+          }
+          .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#7A0C2E]"]:not([title^="DeepSeek"]):not([title^="Cohere"]):not(:last-child)::before {
+            left: 8px;
+            top: 3px;
+            font-size: 8px;
+            animation-delay: .12s;
+          }
+          .royal-room-main main > div.fixed > div:nth-child(2) > button[class*="bg-[#7A0C2E]"]:not([title^="DeepSeek"]):not([title^="Cohere"]):not(:last-child)::after {
+            right: 7px;
+            bottom: 2px;
+            font-size: 7px;
+            animation-delay: .55s;
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .royal-room-main main > div.fixed > div:nth-child(2) > button > span:first-child,
+            .royal-room-main main > div.fixed > div:nth-child(2) > button::before,
+            .royal-room-main main > div.fixed > div:nth-child(2) > button::after {
+              animation: none !important;
+            }
+          }
         `}</style>
         {children}
       </div>
