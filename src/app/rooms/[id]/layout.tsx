@@ -62,6 +62,11 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             border-radius: 12px !important;
           }
 
+          /* Keep the Command Room sign visually separated from Dashboard */
+          .royal-room-main main > div.fixed > div:first-child > h1 {
+            margin-left: 44px !important;
+          }
+
           /* Hide extra brand/status/region labels to keep header simple */
           .royal-room-main [data-rc-brand],
           .royal-room-main [data-rc-global-status] {
