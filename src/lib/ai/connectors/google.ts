@@ -1,4 +1,12 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
+import { logger } from "@/lib/logger";
+
+const RETIRED_GEMINI_MODELS = new Set([
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-001",
+  "gemini-2.0-flash-lite",
+  "gemini-2.0-flash-lite-001",
+]);
 
 export class GoogleConnector implements AIConnector {
   id = "google" as const;
@@ -10,7 +18,10 @@ export class GoogleConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.GOOGLE_AI_MODEL || "gemini-3.5-flash";
+    const configuredModel = (process.env.GOOGLE_AI_MODEL || "").trim();
+    const model = !configuredModel || RETIRED_GEMINI_MODELS.has(configuredModel)
+      ? "gemini-3.5-flash"
+      : configuredModel;
     try {
       const system = request.messages
         .filter((m) => m.role === "system")
@@ -28,9 +39,7 @@ export class GoogleConnector implements AIConnector {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          systemInstruction: system
-            ? { parts: [{ text: system }] }
-            : undefined,
+          systemInstruction: system ? { parts: [{ text: system }] } : undefined,
           contents,
           generationConfig: {
             temperature: request.temperature ?? 0.4,
@@ -41,7 +50,14 @@ export class GoogleConnector implements AIConnector {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error?.message || `Google AI HTTP ${res.status}`);
+        const message = data?.error?.message || `Google AI HTTP ${res.status}`;
+        logger.warn("ai.provider.failed", {
+          provider: this.displayName,
+          model,
+          status: res.status,
+          error: String(message).slice(0, 500),
+        });
+        throw new Error(message);
       }
 
       const content =
@@ -58,12 +74,18 @@ export class GoogleConnector implements AIConnector {
         raw: data,
       };
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Unknown Google error";
+      logger.warn("ai.provider.exception", {
+        provider: this.displayName,
+        model,
+        error: message.slice(0, 500),
+      });
       return {
         provider: this.id,
         model,
         content: "",
         latencyMs: Date.now() - started,
-        error: error instanceof Error ? error.message : "Unknown Google error",
+        error: message,
       };
     }
   }
