@@ -69,6 +69,15 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             margin-left: 44px !important;
           }
 
+          /* Stable source-of-truth header: show 10 AI slots plus AI Warehouse. */
+          .royal-room-main main > div.fixed > div:nth-child(2) > button:nth-child(n+11):not(:last-child) {
+            display: none !important;
+          }
+          .royal-room-main main > div.fixed > div:nth-child(2) > button:last-child {
+            min-width: 104px !important;
+            flex: 0 0 104px !important;
+          }
+
           /* Chat thread colors from approved chat-thread.html */
           .royal-room-main section {
             background: #0B1524 !important;
