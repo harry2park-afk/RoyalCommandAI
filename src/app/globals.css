@@ -16,7 +16,10 @@ main section.rc-card>form>textarea{border:2px solid rgba(212,175,55,.34)!importa
 main section.rc-card>form>div[class~="overflow-x-auto"]{scrollbar-width:none!important}
 main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{display:none!important}
 .royal-room-layout section article{font-size:10pt!important;line-height:1.45!important}
-.royal-room-layout section form textarea{font-size:10pt!important;line-height:1.45!important;height:56px!important;min-height:56px!important;max-height:56px!important;overflow-y:auto!important;resize:none!important}
+.royal-room-layout section form textarea{font-size:10pt!important;line-height:1.45!important;height:56px!important;min-height:56px!important;max-height:56px!important;overflow-y:auto!important;resize:none!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
+.royal-room-layout section form textarea::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+.royal-room-layout main section.rc-card>div.flex-1{scrollbar-width:none!important;-ms-overflow-style:none!important}
+.royal-room-layout main section.rc-card>div.flex-1::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
 .royal-room-layout>aside:last-child{flex:0 0 225px!important;width:225px!important;min-width:225px!important;max-width:225px!important;margin-top:0!important;height:calc(100dvh - 92px)!important;min-height:calc(100dvh - 92px)!important;border-left:1px solid rgba(255,255,255,.12)!important;overflow:hidden!important}
 .royal-room-layout>aside:last-child>div{width:170px!important;max-width:170px!important;margin-left:auto!important;margin-right:0!important}
 .royal-room-layout>aside:last-child>button[title="폭 조절"]{display:none!important}
@@ -32,9 +35,11 @@ main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{displ
  main.flex.min-h-screen.w-full.max-w-none.flex-col>header{height:42px!important;min-height:42px!important;flex:0 0 42px!important;margin:0 0 5px!important}
  main.flex.min-h-screen.w-full.max-w-none.flex-col>header+button+div.grid{height:calc(100dvh - 85px)!important;min-height:0!important;overflow:hidden!important}
  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card{height:100%!important;min-height:0!important;overflow:hidden!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>div.flex-1{min-height:0!important;overflow-y:auto!important;padding:5px!important}
+ main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>div.flex-1{min-height:0!important;overflow-y:auto!important;padding:5px!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
+ main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>div.flex-1::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form{flex:0 0 auto!important;padding:2px 5px!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>textarea{min-height:72px!important;height:72px!important;max-height:72px!important;resize:none!important;padding:7px 10px!important}
+ main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>textarea{min-height:72px!important;height:72px!important;max-height:72px!important;resize:none!important;padding:7px 10px!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
+ main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>textarea::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>div.mb-1,
  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>div.mt-1{min-height:20px!important;height:20px!important;margin:1px 0!important;padding:0 2px!important}
 }
