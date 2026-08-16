@@ -30,8 +30,8 @@ async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) 
   const requestBody: Record<string, unknown> = {
     model,
     messages: request.messages,
-    temperature: request.temperature ?? 0.4,
   };
+  if (request.temperature !== undefined) requestBody.temperature = request.temperature;
   if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
 
   const res = await withTimeout(
@@ -67,12 +67,12 @@ async function callOpenRouterFallback(request: AIRequest) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("OPENROUTER_API_KEY is not configured");
 
-  const model = process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-4o-mini";
+  const model = process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-5";
   const requestBody: Record<string, unknown> = {
     model,
     messages: request.messages,
-    temperature: request.temperature ?? 0.4,
   };
+  if (request.temperature !== undefined) requestBody.temperature = request.temperature;
   if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
 
   const res = await withTimeout(
@@ -116,7 +116,7 @@ export class OpenAIConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.OPENAI_MODEL || "gpt-4o-mini";
+    const model = process.env.OPENAI_MODEL || "gpt-5";
     const errors: string[] = [];
 
     if (process.env.OPENAI_API_KEY) {
