@@ -1,4 +1,5 @@
 import type { AIConnector, AIProviderId, AIProviderResponse, AIRequest } from "../types";
+import { logger } from "@/lib/logger";
 
 const OPENROUTER_API = "https://openrouter.ai/api/v1";
 const modelCache = new Map<string, string>();
@@ -66,11 +67,33 @@ export class OpenRouterCatalogConnector implements AIConnector {
       throw new Error(body?.error?.message || `OpenRouter request failed (${res.status})`);
     }
 
-    const content = body?.choices?.[0]?.message?.content;
+    const choice = body?.choices?.[0];
+    const content = choice?.message?.content;
+    const parsedContent = typeof content === "string" ? content : JSON.stringify(content ?? "");
+
+    logger.info("ai.openrouter.response_diagnostic", {
+      provider: this.displayName,
+      providerId: this.id,
+      requestedModel: model,
+      returnedModel: body?.model || model,
+      status: res.status,
+      choicesCount: Array.isArray(body?.choices) ? body.choices.length : 0,
+      finishReason: choice?.finish_reason ?? null,
+      nativeFinishReason: choice?.native_finish_reason ?? null,
+      contentType: Array.isArray(content) ? "array" : typeof content,
+      contentChars: parsedContent.length,
+      contentTrimmedChars: parsedContent.trim().length,
+      promptTokens: body?.usage?.prompt_tokens ?? null,
+      completionTokens: body?.usage?.completion_tokens ?? null,
+      totalTokens: body?.usage?.total_tokens ?? null,
+      maxTokensRequested: request.maxTokens ?? 1200,
+      latencyMs: Date.now() - started,
+    });
+
     return {
       provider: this.id,
       model: body?.model || model,
-      content: typeof content === "string" ? content : JSON.stringify(content ?? ""),
+      content: parsedContent,
       latencyMs: Date.now() - started,
       raw: body,
     };
