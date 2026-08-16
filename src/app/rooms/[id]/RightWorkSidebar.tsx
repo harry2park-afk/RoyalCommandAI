@@ -160,6 +160,7 @@ export default function RightWorkSidebar() {
   return (
     <aside
       className="relative z-40 flex h-screen w-[170px] min-w-[170px] max-w-[170px] shrink-0 flex-col bg-[#07111f]"
+      style={{ borderLeft: "4px solid #FFD700", boxShadow: "-1px 0 0 #FFD700" }}
       onWheel={scrollMenuFromAnywhere}
     >
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
