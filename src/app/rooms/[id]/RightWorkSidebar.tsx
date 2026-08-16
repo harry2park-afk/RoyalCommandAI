@@ -23,7 +23,7 @@ type SearchItem =
   | { type: "file"; id: string; title: string; file: LocalFile };
 
 const APP_CATALOG: AppItem[] = [
-  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/chatgpt.svg", brandSlug: "openai", brandColor: "FFFFFF", fallback: "◎" },
+  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/openai.svg", brandSlug: "openai", brandColor: "FFFFFF", fallback: "◎" },
   { id: "email", title: "Email", description: "내 이메일", url: "https://mail.google.com", brandSlug: "gmail", fallback: "M" },
   { id: "instagram", title: "Instagram", description: "내 Instagram", url: "https://www.instagram.com", brandSlug: "instagram", fallback: "I" },
   { id: "youtube", title: "YouTube", description: "내 YouTube", url: "https://www.youtube.com", brandSlug: "youtube", brandColor: "FF0000", fallback: "▶" },
@@ -81,24 +81,31 @@ export default function RightWorkSidebar() {
     try { window.localStorage.setItem("royalcommand:right-panel-apps", JSON.stringify(selectedIds)); } catch {}
   }, [selectedIds]);
 
+  const cleanQuery = query.trim().toLowerCase();
+
   const selectedApps = selectedIds
     .map((id) => APP_CATALOG.find((app) => app.id === id))
     .filter(Boolean) as AppItem[];
 
-  const searchResults = useMemo<SearchItem[]>(() => {
-    const clean = query.trim().toLowerCase();
-    if (!clean) return [];
+  const visibleSelectedApps = useMemo(() => {
+    if (!cleanQuery) return selectedApps;
+    return selectedApps.filter((app) => `${app.title} ${app.description}`.toLowerCase().includes(cleanQuery));
+  }, [selectedApps, cleanQuery]);
 
-    const appMatches: SearchItem[] = APP_CATALOG
-      .filter((app) => `${app.title} ${app.description}`.toLowerCase().includes(clean))
+  const visibleLocalFiles = useMemo(() => {
+    if (!cleanQuery) return localFiles;
+    return localFiles.filter((file) => file.name.toLowerCase().includes(cleanQuery));
+  }, [localFiles, cleanQuery]);
+
+  const extraAppMatches = useMemo<SearchItem[]>(() => {
+    if (!cleanQuery) return [];
+    return APP_CATALOG
+      .filter((app) => !selectedIds.includes(app.id))
+      .filter((app) => `${app.title} ${app.description}`.toLowerCase().includes(cleanQuery))
       .map((app) => ({ type: "app", id: `app-${app.id}`, title: app.title, app }));
+  }, [cleanQuery, selectedIds]);
 
-    const fileMatches: SearchItem[] = localFiles
-      .filter((file) => file.name.toLowerCase().includes(clean))
-      .map((file, index) => ({ type: "file", id: `file-${index}-${file.name}`, title: file.name, file }));
-
-    return [...fileMatches, ...appMatches];
-  }, [query, localFiles]);
+  const hasVisibleResults = visibleSelectedApps.length > 0 || visibleLocalFiles.length > 0 || extraAppMatches.length > 0;
 
   function openApp(app: AppItem) {
     if (app.id === "files") {
@@ -171,35 +178,25 @@ export default function RightWorkSidebar() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== "Enter") return;
+              const firstApp = visibleSelectedApps[0] || (extraAppMatches[0]?.type === "app" ? extraAppMatches[0].app : undefined);
+              if (firstApp) {
+                e.preventDefault();
+                if (selectedIds.includes(firstApp.id)) openApp(firstApp); else addOrOpen(firstApp);
+              }
+            }}
             placeholder="앱, 파일, AI 찾기"
             className="h-8 w-full rounded-md border border-white/12 bg-black/25 pl-7 pr-2 text-[10px] outline-none placeholder:text-[var(--muted)] focus:border-[var(--gold)]/60"
           />
         </div>
-
-        {query.trim() && (
-          <div className="mt-1 max-h-44 overflow-y-auto border-y border-white/10 bg-[#07111f] py-0.5">
-            {searchResults.length ? searchResults.map((item) => item.type === "file" ? (
-              <a key={item.id} href={item.file.url} target="_blank" rel="noreferrer" onClick={() => setQuery("")} className="flex h-7 items-center gap-2 px-1.5 text-[10px] hover:bg-white/[0.05]">
-                <File size={15} className="shrink-0 text-[var(--gold-soft)]" />
-                <span className="min-w-0 flex-1 truncate">{item.title}</span>
-              </a>
-            ) : (
-              <button key={item.id} type="button" onClick={() => addOrOpen(item.app)} className="flex h-7 w-full items-center gap-2 px-1.5 text-left text-[10px] hover:bg-white/[0.05]">
-                <AppIcon app={item.app} />
-                <span className="min-w-0 flex-1 truncate">{item.title}</span>
-              </button>
-            )) : (
-              <div className="px-2 py-2 text-[10px] text-[var(--muted)]">찾는 항목이 없습니다.</div>
-            )}
-          </div>
-        )}
       </div>
 
       <div ref={menuScrollRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-[118px]">
-        {selectedApps.map((app) => (
+        {visibleSelectedApps.map((app) => (
           <div
             key={app.id}
-            draggable
+            draggable={!cleanQuery}
             onDragStart={() => setDragId(app.id)}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => onDrop(app.id)}
@@ -221,17 +218,32 @@ export default function RightWorkSidebar() {
           </div>
         ))}
 
-        {localFiles.map((file, index) => (
-          <div key={`${file.name}-${index}`} className="group flex h-7 w-full items-center">
-            <a href={file.url} target="_blank" rel="noreferrer" className="flex h-full min-w-0 flex-1 items-center gap-2 px-1.5 hover:bg-white/[0.05]" title={file.name}>
-              <File size={15} className="shrink-0 text-[var(--gold-soft)]" />
-              <span className="min-w-0 flex-1 truncate text-[10px]">{file.name}</span>
-            </a>
-            <button type="button" onClick={() => removeLocalFile(index)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
-              <LogOut size={15} />
-            </button>
-          </div>
-        ))}
+        {visibleLocalFiles.map((file) => {
+          const index = localFiles.indexOf(file);
+          return (
+            <div key={`${file.name}-${index}`} className="group flex h-7 w-full items-center">
+              <a href={file.url} target="_blank" rel="noreferrer" className="flex h-full min-w-0 flex-1 items-center gap-2 px-1.5 hover:bg-white/[0.05]" title={file.name}>
+                <File size={15} className="shrink-0 text-[var(--gold-soft)]" />
+                <span className="min-w-0 flex-1 truncate text-[10px]">{file.name}</span>
+              </a>
+              <button type="button" onClick={() => removeLocalFile(index)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
+                <LogOut size={15} />
+              </button>
+            </div>
+          );
+        })}
+
+        {extraAppMatches.map((item) => item.type === "app" ? (
+          <button key={item.id} type="button" onClick={() => addOrOpen(item.app)} className="flex h-7 w-full items-center gap-2 px-1.5 text-left hover:bg-white/[0.05]" title={`${item.title} 추가/열기`}>
+            <AppIcon app={item.app} />
+            <span className="min-w-0 flex-1 truncate text-[10px] font-semibold leading-none">{item.title}</span>
+            <span className="text-[9px] text-[var(--gold-soft)]">+</span>
+          </button>
+        ) : null)}
+
+        {cleanQuery && !hasVisibleResults ? (
+          <div className="px-2 py-3 text-[10px] text-[var(--muted)]">찾는 항목이 없습니다.</div>
+        ) : null}
       </div>
     </aside>
   );
