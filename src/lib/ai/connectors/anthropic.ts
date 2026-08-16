@@ -49,6 +49,14 @@ export class AnthropicConnector implements AIConnector {
           .filter((m) => m.role !== "system")
           .map((m) => ({ role: m.role, content: m.content }));
 
+        const requestBody: Record<string, unknown> = {
+          model,
+          max_tokens: request.maxTokens ?? 8192,
+          system: system || undefined,
+          messages,
+        };
+        if (request.temperature !== undefined) requestBody.temperature = request.temperature;
+
         const res = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
@@ -56,13 +64,7 @@ export class AnthropicConnector implements AIConnector {
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
           },
-          body: JSON.stringify({
-            model,
-            max_tokens: request.maxTokens ?? 8192,
-            temperature: request.temperature ?? 0.4,
-            system: system || undefined,
-            messages,
-          }),
+          body: JSON.stringify(requestBody),
         });
 
         const data = await res.json();
