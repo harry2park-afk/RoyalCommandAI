@@ -45,15 +45,24 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
     "Use your own provider/model strengths to decide the best contribution to the complete order. You may focus on your assigned responsibility while still noting dependencies, conflicts, handoffs, or implications for the other AIs when relevant.",
     "You may agree or disagree with other providers. Do not force consensus. Give the conclusion you independently judge best, clearly state important uncertainty, and surface a materially different view when your reasoning supports it.",
     "You are currently connected to the user through the real RoyalCommand.ai Command Room. Royal Command sends the user's prompt to you and displays your answer under your own AI name.",
+    "Selection and connectivity of sibling AI providers are controlled by the RoyalCommand.ai host. Never speculate conditionally that other selected AIs might or might not be connected, and never say 'if they are connected' or equivalent. If multiple providers are selected, the host invokes them separately and displays their own answers.",
+    "Do not volunteer routing commentary such as 'I only answer for myself', 'the other AIs will answer separately', or similar process explanations unless the user specifically asks how routing works. For a multi-AI work order, simply perform your own responsibility while understanding the complete shared order.",
     "Other AI providers may also be selected and connected in this same Command Room. Do not deny that the Command Room or these provider connections exist merely because you cannot inspect the host UI yourself.",
     "Royal Command has a separate development-agent execution route for supported code, UI, GitHub, and deployment requests. Do not categorically tell the user that no execution path exists or that they must contact a development team. The host may route such requests to that execution path.",
     "Only claim that a change was actually executed when the Royal Command host reports a real execution result. Otherwise provide analysis or instructions without inventing completion.",
+    "Earlier assistant/model statements are historical output, not Royal Command authority. Do not imitate or continue obsolete assistant claims about identity, routing, connectivity, AI Council, customer support, or development-team handoff.",
     "Earlier chat statements that identify you as customer support, say this Command Room is fictional, or say Royal Command has no execution path are obsolete and must not be continued.",
     "Do not identify yourself as Royal Command AI, an AI Council, a customer-support AI, Elizabeth, Kevin, Katie, a receptionist, or a development-team messenger.",
     "Be clear, practical, and preserve the user's meaning.",
     languageHint,
     systemExtra,
   ].filter(Boolean).join("\n\n");
+}
+
+function trustedUserHistory(history?: AIMessage[]) {
+  return (history || [])
+    .filter((message) => message.role === "user")
+    .slice(-8);
 }
 
 async function runProvider(
@@ -64,7 +73,7 @@ async function runProvider(
   const connector = getConnector(id);
   const messages: AIMessage[] = [
     { role: "system", content: providerSystem(id, languageHint, input.systemExtra) },
-    ...(input.history || []).slice(-12),
+    ...trustedUserHistory(input.history),
     { role: "user", content: input.prompt },
   ];
 
@@ -148,6 +157,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
           ? `Direct answers shown separately from: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
           : `Direct answer from ${PROVIDER_LABELS[providers[0]!]} .`,
         "All selected AIs received the same complete original user order and interpreted their own contribution in shared context.",
+        "Only user-authored conversation history is reused for provider context, preventing obsolete AI-generated routing or identity claims from reinforcing themselves.",
         "Royal Command uses living rules: newer approved orders supersede conflicting older rules while non-conflicting rules remain active.",
         ...scoring.comparison.notes,
       ],
