@@ -6,6 +6,7 @@ import { logger } from "@/lib/logger";
 const MAX_CONTEXT_CHARS = 36_000;
 const MAX_DOCUMENTS = 3;
 
+// Command Room is intentionally isolated from customer-support identities.
 const COMMAND_ROOM_SYSTEM_OVERRIDE = `ROYAL COMMAND COMMAND ROOM — INTERNAL AI COUNCIL MODE
 This Room is an internal Royal Command work room, not a customer-support room.
 Customer-facing receptionist/support identities such as Elizabeth, Kevin, language-specialist receptionist roles, or generic "customer support AI" roles do NOT apply in this Room.
