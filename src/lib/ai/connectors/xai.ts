@@ -16,8 +16,8 @@ export class XAIConnector implements AIConnector {
       const requestBody: Record<string, unknown> = {
         model,
         messages: request.messages,
-        temperature: request.temperature ?? 0.4,
       };
+      if (request.temperature !== undefined) requestBody.temperature = request.temperature;
       if (request.maxTokens) requestBody.max_tokens = request.maxTokens;
 
       const res = await fetch("https://api.x.ai/v1/chat/completions", {

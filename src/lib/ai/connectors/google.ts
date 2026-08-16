@@ -53,9 +53,8 @@ export class GoogleConnector implements AIConnector {
             parts: [{ text: m.content }],
           }));
 
-        const generationConfig: Record<string, unknown> = {
-          temperature: request.temperature ?? 0.4,
-        };
+        const generationConfig: Record<string, unknown> = {};
+        if (request.temperature !== undefined) generationConfig.temperature = request.temperature;
         if (request.maxTokens) generationConfig.maxOutputTokens = request.maxTokens;
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`;
@@ -65,7 +64,7 @@ export class GoogleConnector implements AIConnector {
           body: JSON.stringify({
             systemInstruction: system ? { parts: [{ text: system }] } : undefined,
             contents,
-            generationConfig,
+            generationConfig: Object.keys(generationConfig).length ? generationConfig : undefined,
           }),
         });
 
