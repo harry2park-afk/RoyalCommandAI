@@ -262,11 +262,31 @@ export default function RoomV3() {
     speech.resume();
     const utterance = new SpeechSynthesisUtterance(text.slice(0, 4000));
     utterance.lang = lang === "ko" ? "ko-KR" : lang === "en" ? "en-AU" : lang;
-    utterance.rate = 1;
-    utterance.pitch = 1;
+    const isKorean = utterance.lang.toLowerCase().startsWith("ko");
+    utterance.rate = isKorean ? 0.92 : 1;
+    utterance.pitch = isKorean ? 0.98 : 1;
+
+    const voices = speech.getVoices();
     const voicePrefix = utterance.lang.toLowerCase().split("-")[0];
-    const matchingVoice = speech.getVoices().find((voice) => voice.lang.toLowerCase().startsWith(voicePrefix));
-    if (matchingVoice) utterance.voice = matchingVoice;
+    const languageVoices = voices.filter((voice) => voice.lang.toLowerCase().startsWith(voicePrefix));
+    const preferredVoice = [...languageVoices].sort((a, b) => {
+      const score = (voice: SpeechSynthesisVoice) => {
+        const name = voice.name.toLowerCase();
+        let points = 0;
+        if (voice.lang.toLowerCase() === utterance.lang.toLowerCase()) points += 40;
+        if (isKorean && name.includes("natural")) points += 35;
+        if (isKorean && name.includes("online")) points += 25;
+        if (isKorean && name.includes("microsoft")) points += 18;
+        if (isKorean && name.includes("google")) points += 16;
+        if (isKorean && (name.includes("sunhi") || name.includes("heami") || name.includes("yuna"))) points += 12;
+        if (!voice.localService) points += 8;
+        if (voice.default) points += 4;
+        return points;
+      };
+      return score(b) - score(a);
+    })[0];
+
+    if (preferredVoice) utterance.voice = preferredVoice;
     speech.speak(utterance);
     return true;
   }
