@@ -67,8 +67,8 @@ export class OpenRouterCatalogConnector implements AIConnector {
     const requestBody: Record<string, unknown> = {
       model,
       messages: request.messages,
-      temperature: request.temperature ?? 0.35,
     };
+    if (request.temperature !== undefined) requestBody.temperature = request.temperature;
     if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
 
     const res = await fetch(`${OPENROUTER_API}/chat/completions`, {
