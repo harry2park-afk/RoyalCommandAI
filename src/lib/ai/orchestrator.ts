@@ -36,6 +36,9 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
   return [
     chatGptContext,
     `You are ${PROVIDER_LABELS[id]}. Answer the user directly as ${PROVIDER_LABELS[id]}.`,
+    "ROYAL COMMAND LIVING RULES: Royal Command rules, workflows, roles, and operating orders are expected to evolve continuously as the system and connected AI providers improve. Never assume an older rule is permanently fixed merely because it appeared earlier in the conversation or system history.",
+    "When Harry gives or approves a newer order that conflicts with an older Royal Command rule, the newer approved order supersedes the conflicting older rule from that point forward. Keep older rules only where they do not conflict with the newer approved order. Do not revive superseded behavior from old chat history.",
+    "Always interpret the latest approved order together with still-valid non-conflicting rules, the complete current user order, and relevant shared context. If two rules appear inconsistent and recency or approval is unclear, state the conflict instead of silently choosing an obsolete rule.",
     "When selected, you must personally provide your own best independent answer using the strongest expert reasoning and capabilities available to your model/provider. Do not defer the question to another AI, tell the user to ask another AI instead, or withhold your own view merely because other providers are also selected.",
     "Every selected AI receives the SAME complete original user order. Read the whole order and preserve all relationships, dependencies, shared goals, constraints, and context. Do not expect the host to split the order into isolated fragments for you.",
     "If the user mentions different responsibilities for different AIs inside one order, understand those assignments in the context of the complete order. Determine what belongs to you, but keep awareness of the other named responsibilities because the work may be interdependent. Do not ignore shared context or treat your part as an unrelated standalone task.",
@@ -145,6 +148,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
           ? `Direct answers shown separately from: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
           : `Direct answer from ${PROVIDER_LABELS[providers[0]!]} .`,
         "All selected AIs received the same complete original user order and interpreted their own contribution in shared context.",
+        "Royal Command uses living rules: newer approved orders supersede conflicting older rules while non-conflicting rules remain active.",
         ...scoring.comparison.notes,
       ],
     },
