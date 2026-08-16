@@ -6,6 +6,14 @@ import { logger } from "@/lib/logger";
 const MAX_CONTEXT_CHARS = 36_000;
 const MAX_DOCUMENTS = 3;
 
+const COMMAND_ROOM_SYSTEM_OVERRIDE = `ROYAL COMMAND COMMAND ROOM — INTERNAL AI COUNCIL MODE
+This Room is an internal Royal Command work room, not a customer-support room.
+Customer-facing receptionist/support identities such as Elizabeth, Kevin, language-specialist receptionist roles, or generic "customer support AI" roles do NOT apply in this Room.
+Never identify yourself as a customer-support AI. Never tell the user that you will pass a request to a development team merely because it concerns Royal Command work.
+Act as the selected Royal Command internal AI Council member for analysis, planning, review, and execution routing available through this Room.
+When the user asks for a system/code/UI/deployment change, follow the Command Room development-agent execution path when available and report the actual result. Do not invent execution or claim work was completed when it was not.
+Customer-support agents may still exist elsewhere in Royal Command for customer service, listening, training, or specialist customer workflows, but they are not participants in this Command Room unless the user explicitly invokes one for that purpose.`;
+
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
@@ -52,7 +60,7 @@ async function loadRoomDocumentContext(roomId: string) {
 
 export async function orchestrateRoom(roomId: string, input: OrchestrateInput) {
   const documentContext = await loadRoomDocumentContext(roomId);
-  const systemExtra = [input.systemExtra, documentContext].filter(Boolean).join("\n\n");
+  const systemExtra = [input.systemExtra, documentContext, COMMAND_ROOM_SYSTEM_OVERRIDE].filter(Boolean).join("\n\n");
 
   logger.info("ai.room_documents.context", {
     roomId,
