@@ -356,7 +356,7 @@ export default function RoomV3() {
           const decoder = new TextDecoder();
           let buffer = "";
           let providerMessages = 0;
-          let finalResult: ChatResult | null = null;
+          let finalResult: any = null;
 
           const handleEvent = (event: StreamEvent) => {
             if (event.type === "provider") {
@@ -410,7 +410,7 @@ export default function RoomV3() {
           if (buffer.trim()) handleEvent(JSON.parse(buffer) as StreamEvent);
           if (!finalResult) throw new Error("AI stream ended before a final result was recorded.");
 
-          setLastResult(finalResult);
+          setLastResult(finalResult as ChatResult);
           if (speakerEnabled && providerMessages === 0 && finalResult.finalAnswer) {
             speakText(finalResult.finalAnswer, order.language);
           }
