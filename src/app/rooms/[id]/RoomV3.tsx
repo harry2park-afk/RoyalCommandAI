@@ -30,6 +30,11 @@ type ChatResult = {
   comparison?: { winners?: string[]; notes?: string[]; providerScores?: Record<string, number> };
 };
 
+type StreamEvent =
+  | { type: "provider"; provider: string; name: string; content: string; latencyMs?: number; error?: string; retried?: boolean }
+  | { type: "final"; result: ChatResult; legacyDevelopment?: boolean }
+  | { type: "error"; error: string };
+
 type CatalogAI = {
   id: string;
   name: string;
@@ -329,7 +334,7 @@ export default function RoomV3() {
         setQueueCount(orderQueueRef.current.length);
 
         try {
-          const res = await fetch("/api/ai/chat", {
+          const res = await fetch("/api/ai/chat/stream", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -340,32 +345,74 @@ export default function RoomV3() {
               history: order.history,
             }),
           });
-          const data: ChatResult & { error?: string } = await res.json();
-          if (!res.ok) throw new Error(data.error || "AI request failed");
 
-          const userMessage = data.userMessage || { id: order.tempUserId, content: order.prompt, authorType: "user" };
-          const aiMessage = data.aiMessage || {
-            id: `temp-ai-${Date.now()}`,
-            content: data.finalAnswer || "No AI answer returned.",
-            authorType: "ai",
+          if (!res.ok) {
+            const failed = await res.json().catch(() => ({}));
+            throw new Error(failed?.error || "AI request failed");
+          }
+          if (!res.body) throw new Error("AI stream was not available.");
+
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let providerMessages = 0;
+          let finalResult: any = null;
+
+          const handleEvent = (event: StreamEvent) => {
+            if (event.type === "provider") {
+              providerMessages += 1;
+              const content = event.error && !event.content.trim()
+                ? `### ${event.name}\n⚠️ ${event.error}`
+                : `### ${event.name}\n${event.content.trim()}${event.error ? `\n\n⚠️ ${event.error}` : ""}`;
+              const message: Message = {
+                id: `stream-ai-${order.tempUserId}-${event.provider}-${Date.now()}-${providerMessages}`,
+                content,
+                authorType: "ai",
+              };
+              setMessages((prev) => [...prev, message]);
+              return;
+            }
+
+            if (event.type === "error") {
+              setError(event.error || "AI streaming failed");
+              return;
+            }
+
+            finalResult = event.result;
+            const userMessage = event.result.userMessage || { id: order.tempUserId, content: order.prompt, authorType: "user" };
+            setMessages((prev) => prev.map((message) => message.id === order.tempUserId
+              ? { ...userMessage, content: messageText(userMessage.content) }
+              : message));
+
+            if (providerMessages === 0) {
+              const aiMessage = event.result.aiMessage || {
+                id: `temp-ai-${Date.now()}`,
+                content: event.result.finalAnswer || "No AI answer returned.",
+                authorType: "ai",
+              };
+              setMessages((prev) => [...prev, { ...aiMessage, content: messageText(aiMessage.content) }]);
+            }
           };
 
-          setMessages((prev) => {
-            const next = [...prev];
-            const index = next.findIndex((m) => m.id === order.tempUserId);
-            const normalizedUser = { ...userMessage, content: messageText(userMessage.content) };
-            const normalizedAi = { ...aiMessage, content: messageText(aiMessage.content) };
-            if (index >= 0) {
-              next[index] = normalizedUser;
-              next.splice(index + 1, 0, normalizedAi);
-              return next;
+          while (true) {
+            const { value, done } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split("\n");
+            buffer = lines.pop() || "";
+            for (const line of lines) {
+              if (!line.trim()) continue;
+              handleEvent(JSON.parse(line) as StreamEvent);
             }
-            return [...next, normalizedUser, normalizedAi];
-          });
-          setLastResult(data);
+          }
 
-          if (speakerEnabled && data.finalAnswer) {
-            speakText(data.finalAnswer, order.language);
+          buffer += decoder.decode();
+          if (buffer.trim()) handleEvent(JSON.parse(buffer) as StreamEvent);
+          if (!finalResult) throw new Error("AI stream ended before a final result was recorded.");
+
+          setLastResult(finalResult as ChatResult);
+          if (speakerEnabled && providerMessages === 0 && finalResult.finalAnswer) {
+            speakText(finalResult.finalAnswer, order.language);
           }
         } catch (err) {
           setError(err instanceof Error ? err.message : "AI request failed");
