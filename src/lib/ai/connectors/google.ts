@@ -30,105 +30,135 @@ export class GoogleConnector implements AIConnector {
       ? "gemini-3.5-flash"
       : configuredModel;
 
-    const fallback = async (reason: string): Promise<AIProviderResponse> => {
-      if (!process.env.OPENROUTER_API_KEY) {
+    const direct = async (): Promise<AIProviderResponse> => {
+      if (!process.env.GOOGLE_AI_API_KEY) {
         return {
           provider: this.id,
           model,
           content: "",
           latencyMs: Date.now() - started,
-          error: reason,
+          error: "GOOGLE_AI_API_KEY is not configured",
         };
       }
-
-      logger.warn("ai.provider.fallback", {
-        provider: this.displayName,
-        from: "Google direct",
-        to: "OpenRouter",
-        reason: reason.slice(0, 500),
-      });
 
       try {
-        return await openRouterGemini.complete(request);
-      } catch (fallbackError) {
-        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Gemini fallback failed";
-        logger.warn("ai.provider.fallback.failed", {
-          provider: this.displayName,
-          error: fallbackMessage.slice(0, 500),
+        const system = request.messages
+          .filter((m) => m.role === "system")
+          .map((m) => m.content)
+          .join("\n");
+        const contents = request.messages
+          .filter((m) => m.role !== "system")
+          .map((m) => ({
+            role: m.role === "assistant" ? "model" : "user",
+            parts: [{ text: m.content }],
+          }));
+
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`;
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: system ? { parts: [{ text: system }] } : undefined,
+            contents,
+            generationConfig: {
+              temperature: request.temperature ?? 0.4,
+              maxOutputTokens: request.maxTokens ?? 1200,
+            },
+          }),
         });
-        return {
-          provider: this.id,
-          model,
-          content: "",
-          latencyMs: Date.now() - started,
-          error: `${reason}; OpenRouter fallback failed: ${fallbackMessage}`,
-        };
-      }
-    };
 
-    if (!process.env.GOOGLE_AI_API_KEY) {
-      return fallback("GOOGLE_AI_API_KEY is not configured");
-    }
+        const data = await res.json();
+        if (!res.ok) {
+          const message = data?.error?.message || `Google AI HTTP ${res.status}`;
+          logger.warn("ai.provider.failed", {
+            provider: this.displayName,
+            model,
+            status: res.status,
+            error: String(message).slice(0, 500),
+          });
+          return {
+            provider: this.id,
+            model,
+            content: "",
+            latencyMs: Date.now() - started,
+            error: String(message),
+          };
+        }
 
-    try {
-      const system = request.messages
-        .filter((m) => m.role === "system")
-        .map((m) => m.content)
-        .join("\n");
-      const contents = request.messages
-        .filter((m) => m.role !== "system")
-        .map((m) => ({
-          role: m.role === "assistant" ? "model" : "user",
-          parts: [{ text: m.content }],
-        }));
-
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          systemInstruction: system ? { parts: [{ text: system }] } : undefined,
-          contents,
-          generationConfig: {
-            temperature: request.temperature ?? 0.4,
-            maxOutputTokens: request.maxTokens ?? 1200,
-          },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        const message = data?.error?.message || `Google AI HTTP ${res.status}`;
-        logger.warn("ai.provider.failed", {
-          provider: this.displayName,
-          model,
-          status: res.status,
-          error: String(message).slice(0, 500),
-        });
-        return fallback(String(message));
-      }
-
-      const content =
-        data.candidates?.[0]?.content?.parts
+        const content = data.candidates?.[0]?.content?.parts
           ?.map((p: { text?: string }) => p.text || "")
           .join("")
           .trim() || "";
 
-      return {
-        provider: this.id,
-        model,
-        content,
-        latencyMs: Date.now() - started,
-        raw: data,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Unknown Google error";
-      logger.warn("ai.provider.exception", {
+        return {
+          provider: this.id,
+          model,
+          content,
+          latencyMs: Date.now() - started,
+          raw: data,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : "Unknown Google error";
+        logger.warn("ai.provider.exception", {
+          provider: this.displayName,
+          model,
+          error: message.slice(0, 500),
+        });
+        return {
+          provider: this.id,
+          model,
+          content: "",
+          latencyMs: Date.now() - started,
+          error: message,
+        };
+      }
+    };
+
+    const preferDirect = process.env.ROYAL_COMMAND_PREFER_DIRECT_AI === "true";
+
+    if (process.env.OPENROUTER_API_KEY && !preferDirect) {
+      logger.info("ai.provider.primary_route", {
         provider: this.displayName,
-        model,
-        error: message.slice(0, 500),
+        via: "OpenRouter",
       });
-      return fallback(message);
+      try {
+        const routed = await openRouterGemini.complete(request);
+        if (!routed.error && routed.content?.trim()) return routed;
+        logger.warn("ai.provider.primary_route.failed", {
+          provider: this.displayName,
+          via: "OpenRouter",
+          error: String(routed.error || "empty response").slice(0, 500),
+        });
+      } catch (error) {
+        logger.warn("ai.provider.primary_route.failed", {
+          provider: this.displayName,
+          via: "OpenRouter",
+          error: (error instanceof Error ? error.message : String(error)).slice(0, 500),
+        });
+      }
     }
+
+    const directResult = await direct();
+    if (!directResult.error && directResult.content?.trim()) return directResult;
+
+    if (process.env.OPENROUTER_API_KEY && preferDirect) {
+      logger.warn("ai.provider.fallback", {
+        provider: this.displayName,
+        from: "Google direct",
+        to: "OpenRouter",
+        reason: String(directResult.error || "empty response").slice(0, 500),
+      });
+      try {
+        return await openRouterGemini.complete(request);
+      } catch (fallbackError) {
+        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Gemini fallback failed";
+        return {
+          ...directResult,
+          error: `${directResult.error || "Google direct failed"}; OpenRouter fallback failed: ${fallbackMessage}`,
+        };
+      }
+    }
+
+    return directResult;
   }
 }
