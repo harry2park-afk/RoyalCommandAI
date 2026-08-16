@@ -32,14 +32,28 @@ const LIVING_RULES = `ROYAL COMMAND LIVING RULES — CURRENT OPERATING PRINCIPLE
 
 const COUNTRY_BUILD_ORDER = `ROYAL COMMAND COUNTRY BUILD ORDER — HARRY PARK APPROVED\nStart: 2026-08-15 Australia/Sydney.\nMission: Build Royal Command country-by-country as one cooperating AI engineering team. One lead AI owns one country, while all AIs help each other with their strongest capabilities. Reuse the latest approved common Royal Command base frame; do not rebuild from scratch.\nPhase 1 assignments:\n- ChatGPT: Australia lead. Finish and stabilise the common/base app frame first, and continue helping every other country lead with architecture, integration, debugging, security and shared components.\n- Gemini: United States lead.\n- Claude: United Kingdom lead.\n- Grok: Canada lead.\nCooperation rule: the country lead is accountable for completion, but must freely request and use help from other AIs. Avoid duplicate work. Shared improvements go back into the common frame for reuse by every country.\nCountry rule: clone/reuse the approved base frame and isolate only country-specific configuration, legal text, language, payments, telephony, identity, tax/compliance and integrations. Use a country-specific official Royal Command domain only after verifying Royal Command controls that domain and its DNS/hosting. Never invent domain ownership.\nSecurity: no universal master credential, no secrets in source, use least-privilege service credentials, preserve auditability, reversible deployments and Harry Park approval gates for material production changes.\nScale target: establish this pattern in Australia, USA, UK and Canada, then expand toward approximately 100 countries.\nPersistent reference: docs/ROYAL_COMMAND_COUNTRY_BUILD_ORDER.md.`;
 
-function looksLikeDevelopmentInstruction(prompt: string) {
-  const hasDevelopmentSubject = /(코드|개발|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능|파일|github|commit|push|배포|vercel|component|tsx|typescript|css)/i.test(prompt);
-  const hasExecutionIntent = /(수정해|수정하세요|수정해줘|고쳐|고치세요|고쳐줘|반영해|반영하세요|반영해줘|구현해|구현하세요|구현해줘|만들어|만드세요|만들어줘|추가해|추가하세요|추가해줘|삭제해|삭제하세요|삭제해줘|배포해|배포하세요|배포해줘|commit\b|push\b|merge\b|코드를\s*(?:써|작성|변경)|파일을\s*(?:생성|수정|삭제)|실제로\s*(?:수정|변경|구현|배포))/i.test(prompt);
-  return hasDevelopmentSubject && hasExecutionIntent;
+function hasExplicitNoExecutionIntent(prompt: string) {
+  const explicitNegation = /(실행|수정|변경|구현|배포|개발\s*(?:agent|에이전트)|코드|파일|github|commit|push|merge).{0,30}(?:하지\s*마|하지\s*말|하지\s*않|금지|요청(?:하는\s*것)?이\s*아니|요청하지\s*않)/i.test(prompt);
+  const explanationOnly = /(설명|분석|진단|검토|테스트|의견|원인|답변).{0,8}(?:만\s*(?:해|하세요|해주세요|줘|주세요)|목적|용도)/i.test(prompt);
+  const noActionStatement = /(실제|실제로).{0,12}(?:코드|파일|github|vercel|배포|개발\s*(?:agent|에이전트)).{0,18}(?:변경|실행|수정|배포).{0,10}(?:하지\s*않|안\s*했|하지\s*마)/i.test(prompt);
+  return explicitNegation || explanationOnly || noActionStatement;
+}
+
+function hasDevelopmentSubject(prompt: string) {
+  return /(코드|개발|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능|파일|github|commit|push|merge|배포|vercel|component|tsx|typescript|css|시스템|라우팅|api|웹사이트|홈페이지|페이지|앱|agent|에이전트)/i.test(prompt);
+}
+
+function hasExplicitExecutionIntent(prompt: string) {
+  return /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|바꿔(?:\s*줘|\s*주세요)?|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|붙여\s*넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|배포해(?:\s*줘|\s*주세요)?|배포하세요|실행해(?:\s*줘|\s*주세요)?|실행하세요|commit\b|push\b|merge\b|코드를\s*(?:써|작성|변경|수정)|파일을\s*(?:생성|수정|변경|삭제)|실제로\s*(?:수정|변경|구현|배포|실행))/i.test(prompt);
+}
+
+function shouldRunDeveloperAgent(prompt: string) {
+  if (hasExplicitNoExecutionIntent(prompt)) return false;
+  return hasDevelopmentSubject(prompt) && hasExplicitExecutionIntent(prompt);
 }
 
 function asksToExecute(prompt: string) {
-  return /(수정해|고쳐|고치세요|진행해|진행하세요|실행해|실행하세요|반영해|반영하세요|만들어|추가해|삭제해|배포해|승인|해줘|해주세요)/i.test(prompt);
+  return shouldRunDeveloperAgent(prompt);
 }
 
 function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
@@ -175,10 +189,17 @@ export async function POST(request: Request) {
     const data = chatSchema.parse(body);
     const language = data.language || user.defaultLanguage;
     const routedProviders = resolvePromptProviders(data.prompt, data.providers);
+    const runDeveloperAgent = shouldRunDeveloperAgent(data.prompt);
+
+    logger.info("chat.intent.route", {
+      roomId: data.roomId,
+      development: runDeveloperAgent,
+      explicitNoExecution: hasExplicitNoExecutionIntent(data.prompt),
+    });
 
     let result: any;
 
-    if (looksLikeDevelopmentInstruction(data.prompt)) {
+    if (runDeveloperAgent) {
       const independent = await orchestrateRoom(data.roomId, {
         prompt: data.prompt,
         history: data.history,
