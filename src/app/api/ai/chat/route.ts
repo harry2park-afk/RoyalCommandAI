@@ -34,6 +34,13 @@ function chooseDeveloperProvider(prompt: string, providers?: string[]) {
   return selected || "openai";
 }
 
+function developerProviderOrder(prompt: string, providers?: string[]) {
+  const selected = (providers || []).filter((id) => DEV_PROVIDER_NAMES[id]);
+  const preferred = chooseDeveloperProvider(prompt, selected);
+  const pool = selected.length ? selected : Object.keys(DEV_PROVIDER_NAMES);
+  return [preferred, ...pool.filter((id) => id !== preferred)];
+}
+
 function developerModelName(provider: string) {
   if (provider === "anthropic") return process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
   if (provider === "google") return process.env.GOOGLE_AI_MODEL || "gemini-2.5-flash";
@@ -103,46 +110,61 @@ export async function POST(request: Request) {
     let result: any;
 
     if (looksLikeDevelopmentInstruction(data.prompt)) {
-      const provider = chooseDeveloperProvider(data.prompt, data.providers);
-      const agentName = DEV_PROVIDER_NAMES[provider] || provider;
-      try {
-        const dev = await runDeveloper(request, data.prompt, provider);
-        const changed = dev.actions.map((action: { operation?: string; path?: string }) => `${action.operation || "update"}: ${action.path || ""}`);
-        const commitIds = dev.commits.map((item: { commit?: string }) => item.commit).filter(Boolean);
-        const finalAnswer = dev.executed
-          ? `${agentName} 개발 Agent가 실제 작업을 완료했습니다.\n\n${dev.summary}${changed.length ? `\n\n작업 파일:\n- ${changed.join("\n- ")}` : ""}${commitIds.length ? `\n\nGitHub Commit:\n- ${commitIds.join("\n- ")}` : ""}\n\nVercel Git 연동으로 자동 배포가 진행됩니다.`
-          : `${agentName} 개발 Agent가 수정안을 준비했습니다.\n\n${dev.summary}${changed.length ? `\n\n수정 예정:\n- ${changed.join("\n- ")}` : ""}\n\n실행을 원하시면 ‘승인, 진행해’라고 지시해 주세요.`;
+      const independent = await orchestrateRoom(data.roomId, {
+        prompt: data.prompt,
+        history: data.history,
+        providers: data.providers,
+        language,
+      });
 
-        result = {
-          finalAnswer,
-          responses: [{
+      const agentOrder = developerProviderOrder(data.prompt, data.providers);
+      const failures: string[] = [];
+      let executionSection = "";
+      let executionProvider: string | undefined;
+
+      for (const provider of agentOrder) {
+        const agentName = DEV_PROVIDER_NAMES[provider] || provider;
+        try {
+          const dev = await runDeveloper(request, data.prompt, provider);
+          const changed = dev.actions.map((action: { operation?: string; path?: string }) => `${action.operation || "update"}: ${action.path || ""}`);
+          const commitIds = dev.commits.map((item: { commit?: string }) => item.commit).filter(Boolean);
+
+          executionProvider = provider;
+          executionSection = dev.executed
+            ? `### 실행 결과 — ${agentName}\n${agentName} 개발 Agent가 실제 작업을 완료했습니다.\n\n${dev.summary}${changed.length ? `\n\n작업 파일:\n- ${changed.join("\n- ")}` : ""}${commitIds.length ? `\n\nGitHub Commit:\n- ${commitIds.join("\n- ")}` : ""}\n\nVercel Git 연동으로 자동 배포가 진행됩니다.`
+            : `### 실행 준비 — ${agentName}\n${agentName} 개발 Agent가 수정안을 준비했습니다.\n\n${dev.summary}${changed.length ? `\n\n수정 예정:\n- ${changed.join("\n- ")}` : ""}\n\n실행을 원하시면 ‘승인, 진행해’라고 지시해 주세요.`;
+          break;
+        } catch (devError) {
+          const message = devError instanceof Error ? devError.message : `${agentName} development agent failed`;
+          failures.push(`${agentName}: ${message}`);
+          logger.warn("chat.developer_agent.failover", {
             provider,
-            model: developerModelName(provider),
-            content: finalAnswer,
-            latencyMs: 0,
-          }],
-          providers: [provider],
-          comparison: { winners: [provider], notes: [`${agentName} developer agent route`] },
-          blocked: false,
-          latencyMs: 0,
-        };
-      } catch (devError) {
-        const message = devError instanceof Error ? devError.message : `${agentName} development agent failed`;
-        result = {
-          finalAnswer: `${agentName} 개발 Agent 실행 통로는 연결되어 있지만 현재 실행할 수 없습니다. 원인: ${message}`,
-          responses: [{
-            provider,
-            model: developerModelName(provider),
-            content: "",
-            latencyMs: 0,
-            error: message,
-          }],
-          providers: [provider],
-          comparison: { winners: [], notes: [message] },
-          blocked: false,
-          latencyMs: 0,
-        };
+            agentName,
+            message,
+          });
+        }
       }
+
+      if (!executionSection) {
+        executionSection = `### 실행 상태\n선택된 AI들의 독립 의견은 정상적으로 수집됐지만, 개발 Agent 실행은 모두 실패했습니다.\n\n실패 기록:\n- ${failures.join("\n- ")}`;
+      } else if (failures.length) {
+        executionSection += `\n\n자동 전환 기록:\n- ${failures.join("\n- ")}`;
+      }
+
+      result = {
+        ...independent,
+        finalAnswer: `${independent.finalAnswer}\n\n${executionSection}`,
+        comparison: {
+          ...independent.comparison,
+          notes: [
+            ...independent.comparison.notes,
+            "All selected AIs gave independent opinions before development execution.",
+            executionProvider
+              ? `${DEV_PROVIDER_NAMES[executionProvider] || executionProvider} handled the development execution route.`
+              : "All available development-agent routes failed after automatic failover.",
+          ],
+        },
+      };
     } else {
       result = await orchestrateRoom(data.roomId, {
         prompt: data.prompt,
