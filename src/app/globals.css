@@ -21,7 +21,7 @@ main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{displ
 .royal-room-main main>div.min-h-0.min-w-0.flex-1.overflow-hidden{padding-left:8px!important}
 .royal-room-main main section>div.flex-1{scrollbar-width:none!important;-ms-overflow-style:none!important;padding-right:0!important}
 .royal-room-main main section>div.flex-1::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;background:transparent!important}
-.royal-room-layout>aside:last-child{flex:0 0 170px!important;width:170px!important;min-width:170px!important;max-width:170px!important;margin-top:0!important;height:calc(100dvh - 92px)!important;min-height:calc(100dvh - 92px)!important;border-left:1px solid rgba(255,255,255,.12)!important;overflow:hidden!important}
+.royal-room-layout>aside:last-child{flex:0 0 170px!important;width:170px!important;min-width:170px!important;max-width:170px!important;margin-top:0!important;height:calc(100dvh - 92px)!important;min-height:calc(100dvh - 92px)!important;border-left:4px solid #FFD700!important;overflow:hidden!important;resize:none!important}
 .royal-room-layout>aside:last-child>div{width:170px!important;max-width:170px!important;margin-left:0!important;margin-right:0!important}
 .royal-room-layout>aside:last-child>button[title="폭 조절"],.royal-room-layout>aside:last-child>button[title="오른쪽 패널 닫기"],.royal-room-layout>aside:last-child>button[title="오른쪽 패널 열기"]{display:none!important}
 .royal-room-layout>aside:last-child>div:last-child{overflow-y:auto!important;overflow-x:hidden!important;padding-right:0!important;scrollbar-gutter:stable!important}
