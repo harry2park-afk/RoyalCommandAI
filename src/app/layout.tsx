@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
 import "./globals.css";
 import "./room-viewport-tight.css";
@@ -19,6 +20,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased">
         {children}
         <RetellRoomVoiceBridge />
+        <Script src="/rc-language-picker.js" strategy="afterInteractive" />
       </body>
     </html>
   );
