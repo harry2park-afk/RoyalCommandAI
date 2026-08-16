@@ -34,7 +34,7 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             display: flex !important;
             min-height: 0 !important;
             flex-direction: column !important;
-            border-left: 0 !important;
+            border-left: 4px solid #FFD700 !important;
           }
           .royal-room-layout button[title="오른쪽 패널 닫기"] {
             position: absolute !important;
