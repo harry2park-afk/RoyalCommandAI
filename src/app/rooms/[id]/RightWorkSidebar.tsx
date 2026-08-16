@@ -82,7 +82,10 @@ export default function RightWorkSidebar() {
       const savedApps = window.localStorage.getItem("royalcommand:right-panel-apps");
       if (savedApps) {
         const parsed = JSON.parse(savedApps);
-        if (Array.isArray(parsed) && parsed.length) setSelectedIds(parsed.filter((id) => typeof id === "string"));
+        if (Array.isArray(parsed)) {
+          const savedValid = parsed.filter((id) => typeof id === "string" && APP_CATALOG.some((app) => app.id === id));
+          setSelectedIds(Array.from(new Set([...DEFAULT_APPS, ...savedValid])));
+        }
       }
       window.localStorage.removeItem("royalcommand:right-panel-collapsed");
       window.localStorage.removeItem("royalcommand:right-panel-width");
