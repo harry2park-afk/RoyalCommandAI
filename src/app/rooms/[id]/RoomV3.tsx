@@ -255,6 +255,49 @@ export default function RoomV3() {
     recognition.start();
   }
 
+  function speakText(text: string, lang = language) {
+    if (!("speechSynthesis" in window) || !text.trim()) return false;
+    const speech = window.speechSynthesis;
+    speech.cancel();
+    speech.resume();
+    const utterance = new SpeechSynthesisUtterance(text.slice(0, 4000));
+    utterance.lang = lang === "ko" ? "ko-KR" : lang === "en" ? "en-AU" : lang;
+    utterance.rate = 1;
+    utterance.pitch = 1;
+    const voicePrefix = utterance.lang.toLowerCase().split("-")[0];
+    const matchingVoice = speech.getVoices().find((voice) => voice.lang.toLowerCase().startsWith(voicePrefix));
+    if (matchingVoice) utterance.voice = matchingVoice;
+    speech.speak(utterance);
+    return true;
+  }
+
+  function toggleSpeaker() {
+    if (!("speechSynthesis" in window)) {
+      setError("이 브라우저에서는 음성 읽기를 사용할 수 없습니다.");
+      return;
+    }
+
+    if (speakerEnabled) {
+      window.speechSynthesis.cancel();
+      setSpeakerEnabled(false);
+      setError("");
+      return;
+    }
+
+    setSpeakerEnabled(true);
+    setError("");
+    const latestAiMessage = [...messages].reverse().find((m) => {
+      const type = m.authorType || m.author_type || "";
+      return type !== "user" && type !== "system";
+    });
+    const latestText = lastResult?.finalAnswer || (latestAiMessage ? messageText(latestAiMessage.content) : "");
+    if (latestText) {
+      speakText(latestText, language);
+    } else {
+      speakText(language === "ko" ? "음성 읽기가 켜졌습니다." : "Voice reading is on.", language);
+    }
+  }
+
   async function processOrderQueue() {
     if (processingQueueRef.current) return;
     processingQueueRef.current = true;
@@ -301,11 +344,8 @@ export default function RoomV3() {
           });
           setLastResult(data);
 
-          if (speakerEnabled && data.finalAnswer && "speechSynthesis" in window) {
-            window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(data.finalAnswer.slice(0, 1500));
-            utterance.lang = order.language === "ko" ? "ko-KR" : order.language === "en" ? "en-AU" : order.language;
-            window.speechSynthesis.speak(utterance);
+          if (speakerEnabled && data.finalAnswer) {
+            speakText(data.finalAnswer, order.language);
           }
         } catch (err) {
           setError(err instanceof Error ? err.message : "AI request failed");
@@ -423,7 +463,7 @@ export default function RoomV3() {
               <option value="ko">🇰🇷 한국어</option>
               <option value="en">🇦🇺 English</option>
             </select>
-            <button type="button" onClick={() => setSpeakerEnabled((v) => !v)} className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-[#0b1524]">
+            <button type="button" onClick={toggleSpeaker} className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-[#0b1524]" title={speakerEnabled ? "음성 읽기 끄기" : "음성 읽기 켜기"} aria-pressed={speakerEnabled}>
               {speakerEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
             </button>
           </div>
