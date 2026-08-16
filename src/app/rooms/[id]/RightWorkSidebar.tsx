@@ -15,6 +15,7 @@ type AppItem = {
   brandColor?: string;
   fallback?: string;
   localLogo?: string;
+  aliases?: string[];
 };
 
 type LocalFile = { name: string; size: number; url: string };
@@ -23,21 +24,32 @@ type SearchItem =
   | { type: "file"; id: string; title: string; file: LocalFile };
 
 const APP_CATALOG: AppItem[] = [
-  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/openai.svg", brandSlug: "openai", brandColor: "FFFFFF", fallback: "◎" },
-  { id: "email", title: "Email", description: "내 이메일", url: "https://mail.google.com", brandSlug: "gmail", fallback: "M" },
-  { id: "instagram", title: "Instagram", description: "내 Instagram", url: "https://www.instagram.com", brandSlug: "instagram", fallback: "I" },
-  { id: "youtube", title: "YouTube", description: "내 YouTube", url: "https://www.youtube.com", brandSlug: "youtube", brandColor: "FF0000", fallback: "▶" },
-  { id: "drive", title: "Google Drive", description: "내 Drive", url: "https://drive.google.com", brandSlug: "googledrive", fallback: "D" },
-  { id: "calendar", title: "Google Calendar", description: "내 Calendar", url: "https://calendar.google.com", brandSlug: "googlecalendar", fallback: "31" },
-  { id: "files", title: "My Files", description: "내 컴퓨터 파일", fallback: "F" },
-  { id: "netflix", title: "Netflix", description: "내 Netflix", url: "https://www.netflix.com", brandSlug: "netflix", brandColor: "E50914", fallback: "N" },
-  { id: "tasks", title: "Tasks", description: "내 할 일 관리", fallback: "✓" },
-  { id: "approval", title: "Approval", description: "승인 작업 보기", fallback: "A" },
-  { id: "docs", title: "Documents", description: "문서 작업", url: "https://docs.google.com", brandSlug: "googledocs", fallback: "D" },
-  { id: "claude", title: "Claude", description: "내 Claude", url: "https://claude.ai", brandSlug: "claude", brandColor: "D97757", fallback: "C" },
-  { id: "gemini", title: "Gemini", description: "내 Gemini", url: "https://gemini.google.com", brandSlug: "googlegemini", fallback: "G" },
-  { id: "grok", title: "Grok", description: "내 Grok", url: "https://grok.com", fallback: "X" },
+  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/openai.svg", brandSlug: "openai", brandColor: "FFFFFF", fallback: "◎", aliases: ["openai", "gpt", "챗지피티"] },
+  { id: "email", title: "Email", description: "내 이메일", url: "https://mail.google.com", brandSlug: "gmail", fallback: "M", aliases: ["gmail", "google mail", "메일", "지메일"] },
+  { id: "instagram", title: "Instagram", description: "내 Instagram", url: "https://www.instagram.com", brandSlug: "instagram", fallback: "I", aliases: ["insta", "인스타", "인스타그램"] },
+  { id: "youtube", title: "YouTube", description: "내 YouTube", url: "https://www.youtube.com", brandSlug: "youtube", brandColor: "FF0000", fallback: "▶", aliases: ["yt", "유튜브"] },
+  { id: "drive", title: "Google Drive", description: "내 Drive", url: "https://drive.google.com", brandSlug: "googledrive", fallback: "D", aliases: ["drive", "google drive", "드라이브", "구글드라이브"] },
+  { id: "calendar", title: "Google Calendar", description: "내 Calendar", url: "https://calendar.google.com", brandSlug: "googlecalendar", fallback: "31", aliases: ["calendar", "google calendar", "캘린더", "달력"] },
+  { id: "files", title: "My Files", description: "내 컴퓨터 파일", fallback: "F", aliases: ["file", "files", "파일", "내파일"] },
+  { id: "netflix", title: "Netflix", description: "내 Netflix", url: "https://www.netflix.com", brandSlug: "netflix", brandColor: "E50914", fallback: "N", aliases: ["넷플릭스"] },
+  { id: "tasks", title: "Tasks", description: "내 할 일 관리", fallback: "✓", aliases: ["task", "todo", "할일", "할 일"] },
+  { id: "approval", title: "Approval", description: "승인 작업 보기", fallback: "A", aliases: ["approve", "approval", "승인"] },
+  { id: "docs", title: "Documents", description: "문서 작업", url: "https://docs.google.com", brandSlug: "googledocs", fallback: "D", aliases: ["docs", "google docs", "document", "문서", "구글문서"] },
+  { id: "claude", title: "Claude", description: "내 Claude", url: "https://claude.ai", brandSlug: "claude", brandColor: "D97757", fallback: "C", aliases: ["anthropic", "클로드"] },
+  { id: "gemini", title: "Gemini", description: "내 Gemini", url: "https://gemini.google.com", brandSlug: "googlegemini", fallback: "G", aliases: ["google gemini", "제미나이", "구글제미나이"] },
+  { id: "grok", title: "Grok", description: "내 Grok", url: "https://grok.com", fallback: "X", aliases: ["xai", "x ai", "그록"] },
 ];
+
+function appSearchText(app: AppItem) {
+  return [
+    app.id,
+    app.title,
+    app.description,
+    app.brandSlug || "",
+    app.url || "",
+    ...(app.aliases || []),
+  ].join(" ").toLowerCase();
+}
 
 function AppIcon({ app }: { app: AppItem }) {
   const [failed, setFailed] = useState(false);
@@ -89,7 +101,7 @@ export default function RightWorkSidebar() {
 
   const visibleSelectedApps = useMemo(() => {
     if (!cleanQuery) return selectedApps;
-    return selectedApps.filter((app) => `${app.title} ${app.description}`.toLowerCase().includes(cleanQuery));
+    return selectedApps.filter((app) => appSearchText(app).includes(cleanQuery));
   }, [selectedApps, cleanQuery]);
 
   const visibleLocalFiles = useMemo(() => {
@@ -101,7 +113,7 @@ export default function RightWorkSidebar() {
     if (!cleanQuery) return [];
     return APP_CATALOG
       .filter((app) => !selectedIds.includes(app.id))
-      .filter((app) => `${app.title} ${app.description}`.toLowerCase().includes(cleanQuery))
+      .filter((app) => appSearchText(app).includes(cleanQuery))
       .map((app) => ({ type: "app", id: `app-${app.id}`, title: app.title, app }));
   }, [cleanQuery, selectedIds]);
 
