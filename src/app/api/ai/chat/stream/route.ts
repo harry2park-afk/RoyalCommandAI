@@ -63,7 +63,7 @@ function validResponse(response?: AIProviderResponse) {
 async function runProviderWithOneRetry(
   roomId: string,
   provider: AIProviderId,
-  input: { prompt: string; history?: Array<{ role: "user" | "assistant"; content: string }>; language?: string },
+  input: { prompt: string; history?: Array<{ role: "user" | "assistant" | "system"; content: string }>; language?: string },
 ) {
   let result = await orchestrateRoom(roomId, { ...input, providers: [provider] });
   let response = result.responses.find((item) => item.provider === provider);
