@@ -18,6 +18,9 @@ main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{displ
 .royal-room-layout section article{font-size:10pt!important;line-height:1.45!important}
 .royal-room-layout section form textarea{font-size:10pt!important;line-height:1.45!important;height:56px!important;min-height:56px!important;max-height:56px!important;overflow-y:auto!important;resize:none!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
 .royal-room-layout section form textarea::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+.royal-room-layout section form>div[class*="rounded-t-2xl"]{position:relative!important}
+.royal-room-layout section form button[type="submit"]{position:absolute!important;right:8px!important;bottom:8px!important;height:20px!important;min-height:20px!important;padding:0 10px!important;border-radius:7px!important;font-size:10px!important;line-height:1!important;gap:4px!important}
+.royal-room-layout section form button[type="submit"] svg{width:12px!important;height:12px!important}
 .royal-room-main main>div.min-h-0.min-w-0.flex-1.overflow-hidden{padding-left:8px!important;padding-right:12px!important}
 .royal-room-main main section>div.flex-1{scrollbar-width:none!important;-ms-overflow-style:none!important;padding-right:0!important}
 .royal-room-main main section>div.flex-1::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;background:transparent!important}
