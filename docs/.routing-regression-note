@@ -1,0 +1,1 @@
+Routing regression scenarios validated for harden-dev-intent-routing. Informational/test/diagnostic prompts with explicit no-execution language must stay on the normal AI answer path; explicit development-change commands with a development target may invoke developer agents.
