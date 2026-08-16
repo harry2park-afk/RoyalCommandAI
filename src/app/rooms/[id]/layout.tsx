@@ -8,10 +8,13 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
     <div className="royal-room-layout flex min-h-screen w-full">
       <RoomIncidentMonitor />
       <ChatHistorySidebar />
-      <div className="royal-room-main min-w-0 flex-1">
+      <div className="royal-room-main min-w-0 flex-1 overflow-hidden">
         <style>{`
           .royal-room-main > main {
-            max-width: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
             margin-left: 0 !important;
             margin-right: 0 !important;
           }
