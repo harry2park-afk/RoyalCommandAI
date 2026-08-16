@@ -1,4 +1,5 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
+import { extractProviderText } from "./openrouter";
 
 export class XAIConnector implements AIConnector {
   id = "xai" as const;
@@ -12,18 +13,20 @@ export class XAIConnector implements AIConnector {
     const started = Date.now();
     const model = process.env.XAI_MODEL || "grok-4.5";
     try {
+      const requestBody: Record<string, unknown> = {
+        model,
+        messages: request.messages,
+        temperature: request.temperature ?? 0.4,
+      };
+      if (request.maxTokens) requestBody.max_tokens = request.maxTokens;
+
       const res = await fetch("https://api.x.ai/v1/chat/completions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${process.env.XAI_API_KEY}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          model,
-          messages: request.messages,
-          temperature: request.temperature ?? 0.4,
-          max_tokens: request.maxTokens ?? 1200,
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await res.json();
@@ -31,12 +34,17 @@ export class XAIConnector implements AIConnector {
         throw new Error(data?.error?.message || `xAI HTTP ${res.status}`);
       }
 
+      const choice = data?.choices?.[0];
+      const content = extractProviderText(choice?.message?.content).trim();
+      const tokenLimited = choice?.finish_reason === "length";
+
       return {
         provider: this.id,
-        model,
-        content: data.choices?.[0]?.message?.content?.trim() || "",
+        model: data?.model || model,
+        content,
         latencyMs: Date.now() - started,
         raw: data,
+        error: tokenLimited ? "Grok response ended at its output-token limit before completion" : undefined,
       };
     } catch (error) {
       return {

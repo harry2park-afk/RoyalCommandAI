@@ -1,4 +1,5 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
+import { extractProviderText } from "./openrouter";
 
 const OPENAI_PRIMARY_TIMEOUT_MS = 75_000;
 const OPENAI_RETRY_TIMEOUT_MS = 45_000;
@@ -26,6 +27,13 @@ async function withTimeout<T>(
 }
 
 async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) {
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages: request.messages,
+    temperature: request.temperature ?? 0.4,
+  };
+  if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
+
   const res = await withTimeout(
     fetch("https://api.openai.com/v1/chat/completions", {
       method: "POST",
@@ -33,12 +41,7 @@ async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) 
         Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        model,
-        messages: request.messages,
-        temperature: request.temperature ?? 0.4,
-        max_tokens: request.maxTokens ?? 1200,
-      }),
+      body: JSON.stringify(requestBody),
     }),
     timeoutMs,
     "OpenAI",
@@ -49,10 +52,14 @@ async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) 
     throw new Error(data?.error?.message || `OpenAI HTTP ${res.status}`);
   }
 
+  const choice = data?.choices?.[0];
+  const content = extractProviderText(choice?.message?.content).trim();
+  const tokenLimited = choice?.finish_reason === "length";
   return {
     model: data?.model || model,
-    content: data.choices?.[0]?.message?.content?.trim() || "",
+    content,
     raw: data,
+    tokenLimited,
   };
 }
 
@@ -61,6 +68,13 @@ async function callOpenRouterFallback(request: AIRequest) {
   if (!key) throw new Error("OPENROUTER_API_KEY is not configured");
 
   const model = process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-4o-mini";
+  const requestBody: Record<string, unknown> = {
+    model,
+    messages: request.messages,
+    temperature: request.temperature ?? 0.4,
+  };
+  if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
+
   const res = await withTimeout(
     fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
@@ -70,12 +84,7 @@ async function callOpenRouterFallback(request: AIRequest) {
         "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://royalcommand.ai",
         "X-Title": "RoyalCommand.ai",
       },
-      body: JSON.stringify({
-        model,
-        messages: request.messages,
-        temperature: request.temperature ?? 0.4,
-        max_tokens: request.maxTokens ?? 1200,
-      }),
+      body: JSON.stringify(requestBody),
     }),
     OPENROUTER_FALLBACK_TIMEOUT_MS,
     "OpenRouter OpenAI fallback",
@@ -86,10 +95,14 @@ async function callOpenRouterFallback(request: AIRequest) {
     throw new Error(data?.error?.message || `OpenRouter HTTP ${res.status}`);
   }
 
+  const choice = data?.choices?.[0];
+  const content = extractProviderText(choice?.message?.content).trim();
+  const tokenLimited = choice?.finish_reason === "length" || choice?.native_finish_reason === "max_tokens";
   return {
     model: data?.model || model,
-    content: data?.choices?.[0]?.message?.content?.trim() || "",
+    content,
     raw: data,
+    tokenLimited,
   };
 }
 
@@ -111,6 +124,7 @@ export class OpenAIConnector implements AIConnector {
         try {
           const result = await callOpenAI(request, model, timeoutMs);
           if (!result.content) throw new Error("OpenAI returned an empty response");
+          if (result.tokenLimited) throw new Error("OpenAI response ended at its output-token limit before completion");
           return {
             provider: this.id,
             model: result.model,
@@ -130,6 +144,7 @@ export class OpenAIConnector implements AIConnector {
       try {
         const result = await callOpenRouterFallback(request);
         if (!result.content) throw new Error("OpenRouter OpenAI fallback returned an empty response");
+        if (result.tokenLimited) throw new Error("OpenRouter OpenAI fallback ended at its output-token limit before completion");
         return {
           provider: this.id,
           model: result.model,

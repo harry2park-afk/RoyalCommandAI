@@ -53,6 +53,11 @@ export class GoogleConnector implements AIConnector {
             parts: [{ text: m.content }],
           }));
 
+        const generationConfig: Record<string, unknown> = {
+          temperature: request.temperature ?? 0.4,
+        };
+        if (request.maxTokens) generationConfig.maxOutputTokens = request.maxTokens;
+
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`;
         const res = await fetch(url, {
           method: "POST",
@@ -60,10 +65,7 @@ export class GoogleConnector implements AIConnector {
           body: JSON.stringify({
             systemInstruction: system ? { parts: [{ text: system }] } : undefined,
             contents,
-            generationConfig: {
-              temperature: request.temperature ?? 0.4,
-              maxOutputTokens: request.maxTokens ?? 1200,
-            },
+            generationConfig,
           }),
         });
 
@@ -85,10 +87,13 @@ export class GoogleConnector implements AIConnector {
           };
         }
 
-        const content = data.candidates?.[0]?.content?.parts
+        const candidate = data.candidates?.[0];
+        const content = candidate?.content?.parts
           ?.map((p: { text?: string }) => p.text || "")
           .join("")
           .trim() || "";
+        const finishReason = candidate?.finishReason;
+        const tokenLimited = finishReason === "MAX_TOKENS";
 
         return {
           provider: this.id,
@@ -96,6 +101,7 @@ export class GoogleConnector implements AIConnector {
           content,
           latencyMs: Date.now() - started,
           raw: data,
+          error: tokenLimited ? "Gemini response ended at its output-token limit before completion" : undefined,
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown Google error";

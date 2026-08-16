@@ -58,7 +58,7 @@ export class AnthropicConnector implements AIConnector {
           },
           body: JSON.stringify({
             model,
-            max_tokens: request.maxTokens ?? 1200,
+            max_tokens: request.maxTokens ?? 8192,
             temperature: request.temperature ?? 0.4,
             system: system || undefined,
             messages,
@@ -90,6 +90,7 @@ export class AnthropicConnector implements AIConnector {
               .join("\n")
               .trim()
           : "";
+        const tokenLimited = data?.stop_reason === "max_tokens";
 
         return {
           provider: this.id,
@@ -97,6 +98,7 @@ export class AnthropicConnector implements AIConnector {
           content,
           latencyMs: Date.now() - started,
           raw: data,
+          error: tokenLimited ? "Claude response ended at its output-token limit before completion" : undefined,
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown Anthropic error";
