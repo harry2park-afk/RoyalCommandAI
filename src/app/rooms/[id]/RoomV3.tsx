@@ -463,7 +463,7 @@ export default function RoomV3() {
               <option value="ko">🇰🇷 한국어</option>
               <option value="en">🇦🇺 English</option>
             </select>
-            <button type="button" onClick={toggleSpeaker} className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-[#0b1524]" title={speakerEnabled ? "음성 읽기 끄기" : "음성 읽기 켜기"} aria-pressed={speakerEnabled}>
+            <button type="button" onClick={toggleSpeaker} className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-[#0b1524]" title={speakerEnabled ? "음성 읽기 끄기" : "음성 읽기 켜기"} aria-label={speakerEnabled ? "음성 읽기 끄기" : "음성 읽기 켜기"} aria-pressed={speakerEnabled} data-speaker-control="true">
               {speakerEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
             </button>
           </div>
