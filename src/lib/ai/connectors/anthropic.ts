@@ -8,6 +8,11 @@ const RETIRED_CLAUDE_MODELS = new Set([
   "claude-3-haiku-20240307",
 ]);
 
+// OpenRouter may price-check Claude against the model's full default output ceiling
+// when no maximum is supplied. That caused otherwise valid requests to be rejected
+// before generation. Keep a generous transport ceiling while avoiding that failure.
+const CLAUDE_OPENROUTER_MAX_TOKENS = 16_384;
+
 const openRouterClaude = new OpenRouterCatalogConnector(
   "anthropic",
   "Claude",
@@ -120,26 +125,44 @@ export class AnthropicConnector implements AIConnector {
     };
 
     const preferDirect = process.env.ROYAL_COMMAND_PREFER_DIRECT_AI === "true";
+    const routedRequest: AIRequest = request.maxTokens
+      ? request
+      : { ...request, maxTokens: CLAUDE_OPENROUTER_MAX_TOKENS };
 
     if (process.env.OPENROUTER_API_KEY && !preferDirect) {
       logger.info("ai.provider.primary_route", {
         provider: this.displayName,
         via: "OpenRouter",
+        maxTokens: routedRequest.maxTokens,
       });
       try {
-        const routed = await openRouterClaude.complete(request);
+        const routed = await openRouterClaude.complete(routedRequest);
         if (!routed.error && routed.content?.trim()) return routed;
+
+        const error = String(routed.error || "OpenRouter Claude returned an empty response");
         logger.warn("ai.provider.primary_route.failed", {
           provider: this.displayName,
           via: "OpenRouter",
-          error: String(routed.error || "empty response").slice(0, 500),
+          error: error.slice(0, 500),
         });
+        return { ...routed, error };
       } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
         logger.warn("ai.provider.primary_route.failed", {
           provider: this.displayName,
           via: "OpenRouter",
-          error: (error instanceof Error ? error.message : String(error)).slice(0, 500),
+          error: message.slice(0, 500),
         });
+
+        // Do not hide the real OpenRouter failure behind a known-bad direct API key.
+        // Direct Anthropic is only used when explicitly preferred by configuration.
+        return {
+          provider: this.id,
+          model: "openrouter-claude",
+          content: "",
+          latencyMs: Date.now() - started,
+          error: message,
+        };
       }
     }
 
@@ -154,7 +177,7 @@ export class AnthropicConnector implements AIConnector {
         reason: String(directResult.error || "empty response").slice(0, 500),
       });
       try {
-        return await openRouterClaude.complete(request);
+        return await openRouterClaude.complete(routedRequest);
       } catch (fallbackError) {
         const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Claude fallback failed";
         return {
