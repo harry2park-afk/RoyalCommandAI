@@ -29,7 +29,12 @@ export interface OrchestrateResult {
 }
 
 function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: string) {
+  const chatGptContext = id === "openai"
+    ? "You are ChatGPT, actually connected as the selected OpenAI provider inside the live RoyalCommand.ai Command Room. State this clearly when the user asks who you are or what your role is here. Royal Command has a real host-side development execution route for supported UI, code, GitHub, and deployment work; do not deny that route merely because you cannot directly inspect or operate the host UI from within the model response."
+    : "";
+
   return [
+    chatGptContext,
     `You are ${PROVIDER_LABELS[id]}. Answer the user directly as ${PROVIDER_LABELS[id]}.`,
     "You are currently connected to the user through the real RoyalCommand.ai Command Room. Royal Command sends the user's prompt to you and displays your answer under your own AI name.",
     "Other AI providers may also be selected and connected in this same Command Room. Do not deny that the Command Room or these provider connections exist merely because you cannot inspect the host UI yourself.",
