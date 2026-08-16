@@ -9,6 +9,11 @@ import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
+export const maxDuration = 240;
+
+const DEV_REVIEW_TIMEOUT_MS = 30_000;
+const DEV_EXECUTE_TIMEOUT_MS = 90_000;
+
 const DEV_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   openai: "ChatGPT",
   anthropic: "Claude",
@@ -50,11 +55,7 @@ function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
   return named.length ? named : (selectedProviders.length ? selectedProviders : undefined);
 }
 
-function chooseDeveloperProvider(prompt: string, providers?: AIProviderId[]) {
-  if (/(claude|클로드)/i.test(prompt)) return "anthropic" as AIProviderId;
-  if (/(gemini|제미나이)/i.test(prompt)) return "google" as AIProviderId;
-  if (/(grok|그록)/i.test(prompt)) return "xai" as AIProviderId;
-  if (/(chatgpt|openai|챗지피티)/i.test(prompt)) return "openai" as AIProviderId;
+function chooseDeveloperProvider(_prompt: string, providers?: AIProviderId[]) {
   const selected = (providers || []).find((id) => DEV_PROVIDER_NAMES[id]);
   return selected || "openai";
 }
@@ -73,6 +74,38 @@ function developerModelName(provider: AIProviderId) {
   return process.env.OPENAI_MODEL || "gpt-4o-mini";
 }
 
+async function fetchJsonWithTimeout(
+  url: URL,
+  init: RequestInit,
+  timeoutMs: number,
+  label: string,
+) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const response = await fetch(url, { ...init, signal: controller.signal });
+    const text = await response.text();
+    let data: any = {};
+
+    try {
+      data = text ? JSON.parse(text) : {};
+    } catch {
+      const preview = text.replace(/\s+/g, " ").slice(0, 180);
+      throw new Error(`${label} returned non-JSON HTTP ${response.status}${preview ? `: ${preview}` : ""}`);
+    }
+
+    return { response, data };
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function runDeveloper(request: Request, instruction: string, provider: AIProviderId) {
   const cookie = request.headers.get("cookie") || "";
   const path = provider === "google" ? "/api/dev/gemini" : "/api/dev/agent";
@@ -81,13 +114,17 @@ async function runDeveloper(request: Request, instruction: string, provider: AIP
   const agentName = DEV_PROVIDER_NAMES[provider] || provider;
   const assignedInstruction = `${LIVING_RULES}\n\n${COUNTRY_BUILD_ORDER}\n\nSHARED COMPLETE USER ORDER — DO NOT SPLIT OR DROP CONTEXT:\n${instruction}\n\nRead the entire order, preserve dependencies between all requested work, and determine your own responsibility from the full context. If other AIs are named with different responsibilities, remain aware of those related responsibilities while performing your own part. Apply the newest approved order over any conflicting older instruction.`;
 
-  const reviewResponse = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ instruction: assignedInstruction, provider }),
-    cache: "no-store",
-  });
-  const review = await reviewResponse.json();
+  const { response: reviewResponse, data: review } = await fetchJsonWithTimeout(
+    url,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ instruction: assignedInstruction, provider }),
+      cache: "no-store",
+    },
+    DEV_REVIEW_TIMEOUT_MS,
+    `${agentName} development review`,
+  );
   if (!reviewResponse.ok) {
     throw new Error(review.error || `${agentName} development review failed`);
   }
@@ -102,13 +139,17 @@ async function runDeveloper(request: Request, instruction: string, provider: AIP
     };
   }
 
-  const executeResponse = await fetch(url, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ instruction: assignedInstruction, provider, execute: true, actions }),
-    cache: "no-store",
-  });
-  const executed = await executeResponse.json();
+  const { response: executeResponse, data: executed } = await fetchJsonWithTimeout(
+    url,
+    {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ instruction: assignedInstruction, provider, execute: true, actions }),
+      cache: "no-store",
+    },
+    DEV_EXECUTE_TIMEOUT_MS,
+    `${agentName} development execution`,
+  );
   if (!executeResponse.ok) {
     throw new Error(executed.error || `${agentName} development execution failed`);
   }
@@ -162,6 +203,18 @@ export async function POST(request: Request) {
           break;
         } catch (devError) {
           const message = devError instanceof Error ? devError.message : `${agentName} development agent failed`;
+
+          if (/development execution (?:timed out|returned non-JSON)/i.test(message)) {
+            executionProvider = provider;
+            executionSection = `### 실행 상태 — ${agentName}\n개발 실행 요청은 시작됐지만 서버가 제한 시간 안에 확정 결과를 반환하지 못했습니다. 중복 코드 변경을 막기 위해 다른 Agent로 자동 전환하지 않았습니다.\n\n확인 기록:\n- ${message}`;
+            logger.warn("chat.developer_agent.execution_uncertain", {
+              provider,
+              agentName,
+              message,
+            });
+            break;
+          }
+
           failures.push(`${agentName}: ${message}`);
           logger.warn("chat.developer_agent.failover", {
             provider,
