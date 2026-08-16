@@ -23,6 +23,8 @@ const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
   { id: "xai", pattern: /(grok|그록)/i },
 ];
 
+const LIVING_RULES = `ROYAL COMMAND LIVING RULES — CURRENT OPERATING PRINCIPLE\nRoyal Command rules, workflows, roles, and operating orders evolve continuously. The newest Harry-approved order supersedes any older rule that conflicts with it. Older rules remain active only where they do not conflict with the newer approved order. Never revive superseded behavior merely because it appears in older chat history, code comments, documents, or prior system instructions. Interpret the newest approved order together with all still-valid non-conflicting rules and the complete shared context. If approval or recency is genuinely unclear, surface the conflict instead of silently applying an obsolete rule.`;
+
 const COUNTRY_BUILD_ORDER = `ROYAL COMMAND COUNTRY BUILD ORDER — HARRY PARK APPROVED\nStart: 2026-08-15 Australia/Sydney.\nMission: Build Royal Command country-by-country as one cooperating AI engineering team. One lead AI owns one country, while all AIs help each other with their strongest capabilities. Reuse the latest approved common Royal Command base frame; do not rebuild from scratch.\nPhase 1 assignments:\n- ChatGPT: Australia lead. Finish and stabilise the common/base app frame first, and continue helping every other country lead with architecture, integration, debugging, security and shared components.\n- Gemini: United States lead.\n- Claude: United Kingdom lead.\n- Grok: Canada lead.\nCooperation rule: the country lead is accountable for completion, but must freely request and use help from other AIs. Avoid duplicate work. Shared improvements go back into the common frame for reuse by every country.\nCountry rule: clone/reuse the approved base frame and isolate only country-specific configuration, legal text, language, payments, telephony, identity, tax/compliance and integrations. Use a country-specific official Royal Command domain only after verifying Royal Command controls that domain and its DNS/hosting. Never invent domain ownership.\nSecurity: no universal master credential, no secrets in source, use least-privilege service credentials, preserve auditability, reversible deployments and Harry Park approval gates for material production changes.\nScale target: establish this pattern in Australia, USA, UK and Canada, then expand toward approximately 100 countries.\nPersistent reference: docs/ROYAL_COMMAND_COUNTRY_BUILD_ORDER.md.`;
 
 function looksLikeDevelopmentInstruction(prompt: string) {
@@ -77,7 +79,7 @@ async function runDeveloper(request: Request, instruction: string, provider: AIP
   const url = new URL(path, request.url);
   const headers = { "Content-Type": "application/json", cookie };
   const agentName = DEV_PROVIDER_NAMES[provider] || provider;
-  const assignedInstruction = `${COUNTRY_BUILD_ORDER}\n\nSHARED COMPLETE USER ORDER — DO NOT SPLIT OR DROP CONTEXT:\n${instruction}\n\nRead the entire order, preserve dependencies between all requested work, and determine your own responsibility from the full context. If other AIs are named with different responsibilities, remain aware of those related responsibilities while performing your own part.`;
+  const assignedInstruction = `${LIVING_RULES}\n\n${COUNTRY_BUILD_ORDER}\n\nSHARED COMPLETE USER ORDER — DO NOT SPLIT OR DROP CONTEXT:\n${instruction}\n\nRead the entire order, preserve dependencies between all requested work, and determine your own responsibility from the full context. If other AIs are named with different responsibilities, remain aware of those related responsibilities while performing your own part. Apply the newest approved order over any conflicting older instruction.`;
 
   const reviewResponse = await fetch(url, {
     method: "POST",
@@ -185,6 +187,7 @@ export async function POST(request: Request) {
             "Natural-language AI targeting overrides the UI selection when the user explicitly asks only named AIs to answer.",
             "The complete original user order was shared unchanged with every routed AI so dependencies and relationships are preserved.",
             "Each AI determines its own responsibility from the shared order rather than receiving an isolated split instruction.",
+            "Living Rules apply to development execution: newer approved orders supersede conflicting older rules.",
             "All routed AIs gave independent opinions before development execution.",
             executionProvider
               ? `${DEV_PROVIDER_NAMES[executionProvider] || executionProvider} handled the development execution route.`
