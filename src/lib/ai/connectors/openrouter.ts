@@ -4,6 +4,24 @@ import { logger } from "@/lib/logger";
 const OPENROUTER_API = "https://openrouter.ai/api/v1";
 const modelCache = new Map<string, string>();
 
+export function extractProviderText(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (Array.isArray(value)) {
+    return value.map(extractProviderText).filter(Boolean).join("\n");
+  }
+  if (!value || typeof value !== "object") return "";
+
+  const record = value as Record<string, unknown>;
+  for (const key of ["text", "output_text", "value"]) {
+    if (typeof record[key] === "string") return record[key] as string;
+  }
+  for (const key of ["content", "parts", "output"]) {
+    const nested = extractProviderText(record[key]);
+    if (nested) return nested;
+  }
+  return "";
+}
+
 export class OpenRouterCatalogConnector implements AIConnector {
   constructor(
     public id: AIProviderId,
@@ -46,6 +64,13 @@ export class OpenRouterCatalogConnector implements AIConnector {
     if (!key) throw new Error("OPENROUTER_API_KEY is not configured");
 
     const model = await this.resolveModel();
+    const requestBody: Record<string, unknown> = {
+      model,
+      messages: request.messages,
+      temperature: request.temperature ?? 0.35,
+    };
+    if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
+
     const res = await fetch(`${OPENROUTER_API}/chat/completions`, {
       method: "POST",
       headers: {
@@ -54,12 +79,7 @@ export class OpenRouterCatalogConnector implements AIConnector {
         "HTTP-Referer": process.env.NEXT_PUBLIC_APP_URL || "https://royalcommand.ai",
         "X-Title": "RoyalCommand.ai",
       },
-      body: JSON.stringify({
-        model,
-        messages: request.messages,
-        temperature: request.temperature ?? 0.35,
-        max_tokens: request.maxTokens ?? 1200,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const body = await res.json();
@@ -68,8 +88,11 @@ export class OpenRouterCatalogConnector implements AIConnector {
     }
 
     const choice = body?.choices?.[0];
-    const content = choice?.message?.content;
-    const parsedContent = typeof content === "string" ? content : JSON.stringify(content ?? "");
+    const rawContent = choice?.message?.content;
+    const content = extractProviderText(rawContent).trim();
+    const finishReason = choice?.finish_reason ?? null;
+    const nativeFinishReason = choice?.native_finish_reason ?? null;
+    const tokenLimited = finishReason === "length" || nativeFinishReason === "max_tokens" || nativeFinishReason === "max_output_tokens";
 
     logger.info("ai.openrouter.response_diagnostic", {
       provider: this.displayName,
@@ -78,24 +101,24 @@ export class OpenRouterCatalogConnector implements AIConnector {
       returnedModel: body?.model || model,
       status: res.status,
       choicesCount: Array.isArray(body?.choices) ? body.choices.length : 0,
-      finishReason: choice?.finish_reason ?? null,
-      nativeFinishReason: choice?.native_finish_reason ?? null,
-      contentType: Array.isArray(content) ? "array" : typeof content,
-      contentChars: parsedContent.length,
-      contentTrimmedChars: parsedContent.trim().length,
+      finishReason,
+      nativeFinishReason,
+      contentType: Array.isArray(rawContent) ? "array" : typeof rawContent,
+      contentChars: content.length,
       promptTokens: body?.usage?.prompt_tokens ?? null,
       completionTokens: body?.usage?.completion_tokens ?? null,
       totalTokens: body?.usage?.total_tokens ?? null,
-      maxTokensRequested: request.maxTokens ?? 1200,
+      maxTokensRequested: request.maxTokens ?? null,
       latencyMs: Date.now() - started,
     });
 
     return {
       provider: this.id,
       model: body?.model || model,
-      content: parsedContent,
+      content,
       latencyMs: Date.now() - started,
       raw: body,
+      error: tokenLimited ? "Provider response ended at its output-token limit before completion" : undefined,
     };
   }
 }
