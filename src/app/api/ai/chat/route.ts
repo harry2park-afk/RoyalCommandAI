@@ -23,8 +23,6 @@ const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
   { id: "xai", pattern: /(grok|그록)/i },
 ];
 
-const PROVIDER_TOKEN_RE = /(chatgpt|openai|챗지피티|챗GPT|claude|클로드|gemini|제미나이|grok|그록)/gi;
-
 const COUNTRY_BUILD_ORDER = `ROYAL COMMAND COUNTRY BUILD ORDER — HARRY PARK APPROVED\nStart: 2026-08-15 Australia/Sydney.\nMission: Build Royal Command country-by-country as one cooperating AI engineering team. One lead AI owns one country, while all AIs help each other with their strongest capabilities. Reuse the latest approved common Royal Command base frame; do not rebuild from scratch.\nPhase 1 assignments:\n- ChatGPT: Australia lead. Finish and stabilise the common/base app frame first, and continue helping every other country lead with architecture, integration, debugging, security and shared components.\n- Gemini: United States lead.\n- Claude: United Kingdom lead.\n- Grok: Canada lead.\nCooperation rule: the country lead is accountable for completion, but must freely request and use help from other AIs. Avoid duplicate work. Shared improvements go back into the common frame for reuse by every country.\nCountry rule: clone/reuse the approved base frame and isolate only country-specific configuration, legal text, language, payments, telephony, identity, tax/compliance and integrations. Use a country-specific official Royal Command domain only after verifying Royal Command controls that domain and its DNS/hosting. Never invent domain ownership.\nSecurity: no universal master credential, no secrets in source, use least-privilege service credentials, preserve auditability, reversible deployments and Harry Park approval gates for material production changes.\nScale target: establish this pattern in Australia, USA, UK and Canada, then expand toward approximately 100 countries.\nPersistent reference: docs/ROYAL_COMMAND_COUNTRY_BUILD_ORDER.md.`;
 
 function looksLikeDevelopmentInstruction(prompt: string) {
@@ -33,10 +31,6 @@ function looksLikeDevelopmentInstruction(prompt: string) {
 
 function asksToExecute(prompt: string) {
   return /(수정해|고쳐|고치세요|진행해|진행하세요|실행해|실행하세요|반영해|반영하세요|만들어|추가해|삭제해|배포해|승인|해줘|해주세요)/i.test(prompt);
-}
-
-function providerIdFromToken(token: string): AIProviderId | undefined {
-  return PROVIDER_MENTIONS.find(({ pattern }) => pattern.test(token))?.id;
 }
 
 function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
@@ -52,34 +46,6 @@ function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
     .filter(({ pattern }) => pattern.test(prompt))
     .map(({ id }) => id);
   return named.length ? named : (selectedProviders.length ? selectedProviders : undefined);
-}
-
-function extractProviderPrompts(prompt: string) {
-  const matches = Array.from(prompt.matchAll(PROVIDER_TOKEN_RE));
-  if (matches.length < 2) return undefined;
-
-  const routed: Partial<Record<AIProviderId, string>> = {};
-  for (let i = 0; i < matches.length; i += 1) {
-    const match = matches[i];
-    const id = providerIdFromToken(match[0]);
-    if (!id || match.index === undefined) continue;
-
-    const start = match.index + match[0].length;
-    const end = i + 1 < matches.length && matches[i + 1].index !== undefined
-      ? matches[i + 1].index!
-      : prompt.length;
-    const segment = prompt
-      .slice(start, end)
-      .replace(/^\s*(?:는|은|이|가|에게|:|-|—|,|하고|은요|는요)\s*/i, "")
-      .replace(/[;,]\s*$/g, "")
-      .trim();
-
-    if (segment.length >= 2) {
-      routed[id] = `Your specific assignment from the user's multi-AI order is:\n${segment}\n\nAnswer only your assigned part directly and independently.`;
-    }
-  }
-
-  return Object.keys(routed).length >= 2 ? routed : undefined;
 }
 
 function chooseDeveloperProvider(prompt: string, providers?: AIProviderId[]) {
@@ -111,7 +77,7 @@ async function runDeveloper(request: Request, instruction: string, provider: AIP
   const url = new URL(path, request.url);
   const headers = { "Content-Type": "application/json", cookie };
   const agentName = DEV_PROVIDER_NAMES[provider] || provider;
-  const assignedInstruction = `${COUNTRY_BUILD_ORDER}\n\nCURRENT USER INSTRUCTION:\n${instruction}`;
+  const assignedInstruction = `${COUNTRY_BUILD_ORDER}\n\nSHARED COMPLETE USER ORDER — DO NOT SPLIT OR DROP CONTEXT:\n${instruction}\n\nRead the entire order, preserve dependencies between all requested work, and determine your own responsibility from the full context. If other AIs are named with different responsibilities, remain aware of those related responsibilities while performing your own part.`;
 
   const reviewResponse = await fetch(url, {
     method: "POST",
@@ -164,7 +130,6 @@ export async function POST(request: Request) {
     const data = chatSchema.parse(body);
     const language = data.language || user.defaultLanguage;
     const routedProviders = resolvePromptProviders(data.prompt, data.providers);
-    const providerPrompts = extractProviderPrompts(data.prompt);
 
     let result: any;
 
@@ -173,7 +138,6 @@ export async function POST(request: Request) {
         prompt: data.prompt,
         history: data.history,
         providers: routedProviders,
-        providerPrompts,
         language,
       });
 
@@ -185,8 +149,7 @@ export async function POST(request: Request) {
       for (const provider of agentOrder) {
         const agentName = DEV_PROVIDER_NAMES[provider] || provider;
         try {
-          const executionInstruction = providerPrompts?.[provider] || data.prompt;
-          const dev = await runDeveloper(request, executionInstruction, provider);
+          const dev = await runDeveloper(request, data.prompt, provider);
           const changed = dev.actions.map((action: { operation?: string; path?: string }) => `${action.operation || "update"}: ${action.path || ""}`);
           const commitIds = dev.commits.map((item: { commit?: string }) => item.commit).filter(Boolean);
 
@@ -220,7 +183,8 @@ export async function POST(request: Request) {
           notes: [
             ...independent.comparison.notes,
             "Natural-language AI targeting overrides the UI selection when the user explicitly asks only named AIs to answer.",
-            ...(providerPrompts ? ["One user order was split into separate provider-specific assignments."] : []),
+            "The complete original user order was shared unchanged with every routed AI so dependencies and relationships are preserved.",
+            "Each AI determines its own responsibility from the shared order rather than receiving an isolated split instruction.",
             "All routed AIs gave independent opinions before development execution.",
             executionProvider
               ? `${DEV_PROVIDER_NAMES[executionProvider] || executionProvider} handled the development execution route.`
@@ -233,7 +197,6 @@ export async function POST(request: Request) {
         prompt: data.prompt,
         history: data.history,
         providers: routedProviders,
-        providerPrompts,
         language,
       });
     }
