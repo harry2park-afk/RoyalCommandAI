@@ -20,6 +20,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased">
         {children}
         <RetellRoomVoiceBridge />
+        <Script src="/rc-prefs-sync.js" strategy="afterInteractive" />
         <Script src="/rc-language-picker.js" strategy="afterInteractive" />
       </body>
     </html>
