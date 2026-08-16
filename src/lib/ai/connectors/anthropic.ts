@@ -11,7 +11,7 @@ const RETIRED_CLAUDE_MODELS = new Set([
 // OpenRouter may price-check Claude against the model's full default output ceiling
 // when no maximum is supplied. That caused otherwise valid requests to be rejected
 // before generation. Keep a generous transport ceiling while avoiding that failure.
-const CLAUDE_OPENROUTER_MAX_TOKENS = 16_384;
+const CLAUDE_OPENROUTER_MAX_TOKENS = 16_000;
 
 const openRouterClaude = new OpenRouterCatalogConnector(
   "anthropic",
