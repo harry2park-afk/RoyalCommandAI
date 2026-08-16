@@ -24,6 +24,7 @@ main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{displ
 .royal-room-main main>div.fixed.inset-x-0.top-0>div:nth-child(2)>button{height:29px!important;transform:scaleX(.85)!important;transform-origin:center!important}
 .royal-room-main main>div.fixed.inset-x-0.top-0>div:nth-child(2)>button:not(:last-child){border-width:1.5px!important}
 .royal-room-main main>div.fixed.inset-x-0.top-0>div:nth-child(2)>button:last-child{border-width:1px!important}
+.royal-room-main main>div.fixed.inset-x-0.top-0>div:nth-child(2)>button[title^="Cohere"]{transform:scaleX(.70)!important;transform-origin:left center!important}
 .royal-room-main main>div.min-h-0.min-w-0.flex-1.overflow-hidden{padding-left:8px!important;padding-right:12px!important}
 .royal-room-main main section>div.flex-1{scrollbar-width:none!important;-ms-overflow-style:none!important;padding-right:0!important}
 .royal-room-main main section>div.flex-1::-webkit-scrollbar{display:none!important;width:0!important;height:0!important;background:transparent!important}
