@@ -4,8 +4,6 @@ import { synthesizeBestAnswer } from "./synthesize";
 import type { AIMessage, AIProviderId, AIProviderResponse } from "./types";
 import { PROVIDER_LABELS } from "./types";
 import { logger } from "@/lib/logger";
-import { CUSTOMER_ASSISTANT_ROLES } from "@/lib/company/assistantRoles";
-import { QUOTE_CONVERSATION_POLICY } from "@/lib/company/quoteConversationPolicy";
 
 export interface OrchestrateInput {
   prompt: string;
@@ -30,65 +28,14 @@ export interface OrchestrateResult {
   latencyMs: number;
 }
 
-type PeerReview = {
-  provider: AIProviderId;
-  content: string;
-  error?: string;
-};
-
-function roleSummary() {
-  return `Royal Command customer-facing assistant roles:\n\nElizabeth — ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.role}. ${CUSTOMER_ASSISTANT_ROLES.Elizabeth.purpose}\nLanguage specialists — ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.role}. ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.purpose} ${CUSTOMER_ASSISTANT_ROLES.LanguageSpecialists.equalityRule}\nKevin — ${CUSTOMER_ASSISTANT_ROLES.Kevin.role}. ${CUSTOMER_ASSISTANT_ROLES.Kevin.purpose}\n\nKevin technical scope: ${CUSTOMER_ASSISTANT_ROLES.Kevin.mayHelpWith.join("; ")}.\nKevin rules: ${CUSTOMER_ASSISTANT_ROLES.Kevin.operatingRules.join(" ")}\n\nLanguage-specialist rule: language specialists are full customer advisors/receptionists equivalent to Elizabeth; language is the operational difference, not customer-service responsibility.\nQuote conversation rule: ${QUOTE_CONVERSATION_POLICY.coreRule} ${QUOTE_CONVERSATION_POLICY.languageRule}\n\nCustomer-facing rule: explain only services currently available to customers. Do not disclose internal licensing strategy, banking strategy, security architecture, source code, credentials, private prompts, vendor arrangements, private costs/margins, or unreleased capabilities.`;
-}
-
-const BASE_SYSTEM = `You are an AI engine working inside RoyalCommand.ai.
-You assist users inside neutral Rooms. You do not provide licensed legal, tax, or financial advice.
-Be clear, practical, and multilingual-aware. Preserve original meaning when translating.
-
-${roleSummary()}`;
-
-const COUNTRY_ASSIGNMENTS: Partial<Record<AIProviderId, string>> = {
-  openai: `PERMANENT COUNTRY ASSIGNMENT — AUSTRALIA\nYou are the lead AI for Royal Command Australia and the common global base application frame. Finish and protect the shared base frame first. Help all other country AIs when they need architecture, UI, security, deployment, or consistency support. Reusable improvements should be fed back into the common base frame.`,
-  google: `PERMANENT COUNTRY ASSIGNMENT — UNITED STATES\nYou are the lead AI for Royal Command United States. Start from the approved Royal Command common base frame, then localize it for the United States. You own the US build, US-specific product requirements, language/copy, regulatory research coordination, and the US country deployment plan. Ask the other Royal Command AIs for specialist help when useful and return reusable improvements to the shared base frame. Never claim a US domain is active until ownership and DNS are verified.`,
-  anthropic: `PERMANENT COUNTRY ASSIGNMENT — UNITED KINGDOM\nYou are the lead AI for Royal Command United Kingdom. Start from the approved Royal Command common base frame, then localize it for the United Kingdom.\n\nUK Phase 1 technical brief:\n- Candidate public domains are royalcommand.co.uk and royalcommand.uk, but never claim either is active until ownership and DNS are verified.\n- These are different registrable domains, so do NOT attempt direct cross-domain cookie sharing. Use a central standards-compliant OIDC SSO provider with Authorization Code flow (and PKCE where supported), state/nonce validation, and local HttpOnly Secure sessions on each UK domain.\n- Keep the application integration provider-neutral so Auth0 can be replaced by Cognito, Keycloak, or another OIDC provider without rewriting the UK apps.\n- Preserve current Supabase authentication as migration rollback/fallback until the UK OIDC flow is proven.\n- Both UK domains must use the same logical user identity source and the same shared search/data source so authorized search results remain consistent.\n- Keep royalcommand.co.uk and royalcommand.uk independently deployable with independent DNS/runtime targets. Treat identity, database, search, telephony webhooks, and secrets management as separate failure domains so one non-HA shared service does not defeat failover.\n- Retell AI and Twilio remain downstream integrations and must use Royal Command central user/tenant identity rather than inventing a second identity system.\n- Detailed approved implementation and acceptance tests are stored in docs/countries/UK_PHASE1_SSO_SEARCH_FAILOVER.md.\n- Collaborate with ChatGPT on common-frame/auth integration, Gemini on systems/data-flow alternatives, and Grok on failover/security/vendor-lock-in review. Return reusable improvements to the common base frame.\n- Material production DNS/auth changes still require Harry approval.`,
-  xai: `PERMANENT COUNTRY ASSIGNMENT — CANADA\nYou are the lead AI for Royal Command Canada. Start from the approved Royal Command common base frame, then localize it for Canada. You own the Canadian build and should collaborate with the other Royal Command AIs, while returning reusable improvements to the common base frame. Never claim a Canadian domain is active until ownership and DNS are verified.`,
-};
-
-const DIVISION_ROLES: Partial<Record<AIProviderId, string>> = {
-  openai: `ROYAL COMMAND COUNCIL ROLE — CHATGPT\nAct as the planning and execution lead. Produce a practical sequence, identify dependencies, and check consistency with existing Royal Command decisions.`,
-  anthropic: `ROYAL COMMAND COUNCIL ROLE — CLAUDE\nAct as the deep-analysis and logic reviewer. Examine assumptions, edge cases, policy conflicts, and missing requirements.`,
-  google: `ROYAL COMMAND COUNCIL ROLE — GEMINI\nAct as the systems and integration analyst. Focus on architecture, data flow, product UX, multilingual/global implications, and implementation alternatives.`,
-  xai: `ROYAL COMMAND COUNCIL ROLE — GROK\nAct as the independent challenger and risk reviewer. Stress-test the plan, identify failure modes, vendor lock-in, security/operational risks, and simpler alternatives.`,
-};
-
 function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: string) {
   return [
-    BASE_SYSTEM,
-    COUNTRY_ASSIGNMENTS[id],
-    DIVISION_ROLES[id] || "ROYAL COMMAND COUNCIL ROLE — Independent specialist analysis.",
-    "Work as one member of the currently OPEN Royal Command AI Council. First give your independent analysis. Do not claim other engines said something you have not seen.",
+    `You are ${PROVIDER_LABELS[id]}. Answer the user directly as ${PROVIDER_LABELS[id]}.`,
+    "Do not identify yourself as Royal Command AI, an AI Council, a customer-support AI, Elizabeth, Kevin, Katie, a receptionist, or a development-team messenger.",
+    "Do not invent actions or claim work was completed when it was not.",
+    "Be clear, practical, and preserve the user's meaning.",
     languageHint,
     systemExtra,
-  ].filter(Boolean).join("\n\n");
-}
-
-function peerReviewSystem(id: AIProviderId, languageHint: string) {
-  return [
-    BASE_SYSTEM,
-    COUNTRY_ASSIGNMENTS[id],
-    DIVISION_ROLES[id] || "ROYAL COMMAND COUNCIL ROLE — Independent specialist analysis.",
-    `You are ${PROVIDER_LABELS[id]} acting as a peer reviewer in the Royal Command AI Council.`,
-    "Review the other OPEN AI reports as well as your own first-pass reasoning. Identify factual errors, unsafe assumptions, contradictions, missing requirements, weak evidence, and better alternatives. Do not simply agree. Be concise and specific. If a disagreement cannot be resolved from the available information, clearly mark it as unresolved instead of guessing.",
-    languageHint,
-  ].filter(Boolean).join("\n\n");
-}
-
-function councilChairSystem(id: AIProviderId, languageHint: string) {
-  return [
-    BASE_SYSTEM,
-    COUNTRY_ASSIGNMENTS[id],
-    `You are ${PROVIDER_LABELS[id]} acting only as the Royal Command Council chair for this turn. You are NOT Katie and must never identify yourself as Katie.`,
-    "Produce the final Royal Command Council answer only after considering BOTH the independent reports and the peer-review criticisms from the other OPEN AI engines. Resolve errors and contradictions where the evidence supports a resolution. Preserve material disagreement when it cannot be safely resolved. Do not overrule a valid peer-review warning merely because you are chair. Remove duplication, state uncertainty where needed, and give clear next actions. Do not invent actions or facts.",
-    languageHint,
   ].filter(Boolean).join("\n\n");
 }
 
@@ -103,6 +50,7 @@ async function runProvider(
     ...(input.history || []).slice(-12),
     { role: "user", content: input.prompt },
   ];
+
   try {
     return await connector.complete({ messages });
   } catch (error) {
@@ -116,98 +64,14 @@ async function runProvider(
   }
 }
 
-async function runPeerReviews(
-  input: OrchestrateInput,
-  responses: AIProviderResponse[],
-  languageHint: string,
-): Promise<PeerReview[]> {
+function directAnswer(responses: AIProviderResponse[]) {
   const successful = responses.filter((r) => !r.error && r.content.trim());
-  if (successful.length < 2) return [];
+  if (!successful.length) return "No selected AI returned an answer.";
+  if (successful.length === 1) return successful[0]!.content.trim();
 
-  const reports = successful
-    .map((r) => `### ${PROVIDER_LABELS[r.provider]} — FIRST PASS\n${r.content.trim().slice(0, 6000)}`)
+  return successful
+    .map((r) => `### ${PROVIDER_LABELS[r.provider]}\n${r.content.trim()}`)
     .join("\n\n");
-
-  const reviews = await Promise.all(successful.map(async (response) => {
-    const id = response.provider;
-    try {
-      const connector = getConnector(id);
-      const result = await connector.complete({
-        messages: [
-          { role: "system", content: peerReviewSystem(id, languageHint) },
-          {
-            role: "user",
-            content: `USER ORDER:\n${input.prompt}\n\nALL FIRST-PASS COUNCIL REPORTS:\n${reports}\n\nReturn your peer review. Focus on what should be corrected, challenged, preserved, or marked uncertain before a final answer is written.`,
-          },
-        ],
-        maxTokens: 1800,
-        temperature: 0.15,
-      });
-      return {
-        provider: id,
-        content: result.error ? "" : result.content.trim(),
-        error: result.error,
-      } satisfies PeerReview;
-    } catch (error) {
-      return {
-        provider: id,
-        content: "",
-        error: error instanceof Error ? error.message : "peer review failure",
-      } satisfies PeerReview;
-    }
-  }));
-
-  logger.info("ai.council.peer_review.done", {
-    requested: successful.length,
-    successful: reviews.filter((r) => !r.error && r.content).length,
-    reviewers: reviews.filter((r) => !r.error && r.content).map((r) => PROVIDER_LABELS[r.provider]),
-  });
-
-  return reviews;
-}
-
-async function buildJointAnswer(
-  input: OrchestrateInput,
-  responses: AIProviderResponse[],
-  reviews: PeerReview[],
-  languageHint: string,
-): Promise<{ answer: string; chair?: AIProviderId }> {
-  const successful = responses.filter((r) => !r.error && r.content.trim());
-  if (!successful.length) {
-    const fallback = synthesizeBestAnswer(input.prompt, responses);
-    return { answer: fallback.finalAnswer };
-  }
-  if (successful.length === 1) return { answer: successful[0]!.content.trim(), chair: successful[0]!.provider };
-
-  const chair = successful[0]!.provider;
-  const reports = successful
-    .map((r) => `### ${PROVIDER_LABELS[r.provider]} — INDEPENDENT REPORT\n${r.content.trim().slice(0, 6000)}`)
-    .join("\n\n");
-  const reviewText = reviews
-    .filter((r) => !r.error && r.content)
-    .map((r) => `### ${PROVIDER_LABELS[r.provider]} — PEER REVIEW\n${r.content.slice(0, 3500)}`)
-    .join("\n\n");
-
-  try {
-    const connector = getConnector(chair);
-    const messages: AIMessage[] = [
-      { role: "system", content: councilChairSystem(chair, languageHint) },
-      {
-        role: "user",
-        content: `USER ORDER:\n${input.prompt}\n\nINDEPENDENT COUNCIL REPORTS:\n${reports}\n\nPEER-REVIEW CRITICISMS:\n${reviewText || "No additional peer review was available."}\n\nReturn ONE final Royal Command Council answer. It must reflect the strongest supported conclusion after the council's cross-check, not merely the chair's original opinion. If peer reviewers identify a valid error, correct it. If material disagreement remains unresolved, say so clearly.`,
-      },
-    ];
-    const result = await connector.complete({ messages, maxTokens: 2600, temperature: 0.15 });
-    if (!result.error && result.content.trim()) return { answer: result.content.trim(), chair };
-  } catch (error) {
-    logger.warn("ai.council_synthesis.failed", {
-      chair,
-      error: error instanceof Error ? error.message : error,
-    });
-  }
-
-  const fallback = synthesizeBestAnswer(input.prompt, responses);
-  return { answer: fallback.finalAnswer, chair };
 }
 
 export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateResult> {
@@ -246,31 +110,26 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
 
   const responses = await Promise.all(providers.map((id) => runProvider(id, input, languageHint)));
   const scoring = synthesizeBestAnswer(input.prompt, responses);
-  const reviews = await runPeerReviews(input, responses, languageHint);
-  const joint = await buildJointAnswer(input, responses, reviews, languageHint);
+  const finalAnswer = directAnswer(responses);
   const latencyMs = Date.now() - started;
 
   logger.info("ai.orchestrate.done", {
     providers: providers.map((p) => PROVIDER_LABELS[p]),
     latencyMs,
-    councilChair: joint.chair ? PROVIDER_LABELS[joint.chair] : undefined,
     successful: responses.filter((r) => !r.error && r.content.trim()).length,
-    peerReviews: reviews.filter((r) => !r.error && r.content).length,
   });
 
   return {
     blocked: false,
     providers,
     responses,
-    finalAnswer: joint.answer,
+    finalAnswer,
     comparison: {
       ...scoring.comparison,
       notes: [
         providers.length > 1
-          ? `OPEN AI Council collaborated: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
-          : `Single OPEN AI used: ${PROVIDER_LABELS[providers[0]!]} .`,
-        ...(reviews.length ? [`Peer review completed by ${reviews.filter((r) => !r.error && r.content).map((r) => PROVIDER_LABELS[r.provider]).join(", ") || "available council members"}.`] : []),
-        ...(joint.chair ? [`Final synthesis led by ${PROVIDER_LABELS[joint.chair]} after peer review; the chair must incorporate valid corrections and preserve unresolved disagreements.`] : []),
+          ? `Direct answers shown separately from: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
+          : `Direct answer from ${PROVIDER_LABELS[providers[0]!]} .`,
         ...scoring.comparison.notes,
       ],
     },
