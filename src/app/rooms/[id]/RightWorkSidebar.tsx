@@ -63,6 +63,7 @@ export default function RightWorkSidebar() {
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const menuScrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     try {
@@ -149,8 +150,18 @@ export default function RightWorkSidebar() {
     });
   }
 
+  function scrollMenuFromAnywhere(event: React.WheelEvent<HTMLElement>) {
+    const scroller = menuScrollRef.current;
+    if (!scroller || event.deltaY === 0) return;
+    scroller.scrollTop += event.deltaY;
+    event.preventDefault();
+  }
+
   return (
-    <aside className="relative z-40 flex h-screen w-[170px] min-w-[170px] max-w-[170px] shrink-0 flex-col bg-[#07111f]">
+    <aside
+      className="relative z-40 flex h-screen w-[170px] min-w-[170px] max-w-[170px] shrink-0 flex-col bg-[#07111f]"
+      onWheel={scrollMenuFromAnywhere}
+    >
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
 
       <div className="shrink-0 px-1.5 py-1.5">
@@ -183,7 +194,7 @@ export default function RightWorkSidebar() {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-[118px]">
+      <div ref={menuScrollRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-[118px]">
         {selectedApps.map((app) => (
           <div
             key={app.id}
