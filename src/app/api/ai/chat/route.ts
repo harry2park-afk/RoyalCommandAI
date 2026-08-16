@@ -2,18 +2,28 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
+import type { AIProviderId } from "@/lib/ai/types";
 import { chatSchema } from "@/lib/validations";
 import { localDb } from "@/lib/local-store";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
-const DEV_PROVIDER_NAMES: Record<string, string> = {
+const DEV_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   openai: "ChatGPT",
   anthropic: "Claude",
   google: "Gemini",
   xai: "Grok",
 };
+
+const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
+  { id: "openai", pattern: /(chatgpt|openai|챗지피티|챗GPT)/i },
+  { id: "anthropic", pattern: /(claude|클로드)/i },
+  { id: "google", pattern: /(gemini|제미나이)/i },
+  { id: "xai", pattern: /(grok|그록)/i },
+];
+
+const PROVIDER_TOKEN_RE = /(chatgpt|openai|챗지피티|챗GPT|claude|클로드|gemini|제미나이|grok|그록)/gi;
 
 const COUNTRY_BUILD_ORDER = `ROYAL COMMAND COUNTRY BUILD ORDER — HARRY PARK APPROVED\nStart: 2026-08-15 Australia/Sydney.\nMission: Build Royal Command country-by-country as one cooperating AI engineering team. One lead AI owns one country, while all AIs help each other with their strongest capabilities. Reuse the latest approved common Royal Command base frame; do not rebuild from scratch.\nPhase 1 assignments:\n- ChatGPT: Australia lead. Finish and stabilise the common/base app frame first, and continue helping every other country lead with architecture, integration, debugging, security and shared components.\n- Gemini: United States lead.\n- Claude: United Kingdom lead.\n- Grok: Canada lead.\nCooperation rule: the country lead is accountable for completion, but must freely request and use help from other AIs. Avoid duplicate work. Shared improvements go back into the common frame for reuse by every country.\nCountry rule: clone/reuse the approved base frame and isolate only country-specific configuration, legal text, language, payments, telephony, identity, tax/compliance and integrations. Use a country-specific official Royal Command domain only after verifying Royal Command controls that domain and its DNS/hosting. Never invent domain ownership.\nSecurity: no universal master credential, no secrets in source, use least-privilege service credentials, preserve auditability, reversible deployments and Harry Park approval gates for material production changes.\nScale target: establish this pattern in Australia, USA, UK and Canada, then expand toward approximately 100 countries.\nPersistent reference: docs/ROYAL_COMMAND_COUNTRY_BUILD_ORDER.md.`;
 
@@ -25,30 +35,77 @@ function asksToExecute(prompt: string) {
   return /(수정해|고쳐|고치세요|진행해|진행하세요|실행해|실행하세요|반영해|반영하세요|만들어|추가해|삭제해|배포해|승인|해줘|해주세요)/i.test(prompt);
 }
 
-function chooseDeveloperProvider(prompt: string, providers?: string[]) {
-  if (/(claude|클로드)/i.test(prompt)) return "anthropic";
-  if (/(gemini|제미나이)/i.test(prompt)) return "google";
-  if (/(grok|그록)/i.test(prompt)) return "xai";
-  if (/(chatgpt|openai|챗지피티)/i.test(prompt)) return "openai";
+function providerIdFromToken(token: string): AIProviderId | undefined {
+  return PROVIDER_MENTIONS.find(({ pattern }) => pattern.test(token))?.id;
+}
+
+function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
+  const selectedProviders = (selected || []).filter((id) => Boolean(DEV_PROVIDER_NAMES[id]));
+  const asksForAll = /(모두|전부|전체|다 같이|다같이|all\s+(ais?|models?|providers?)|everyone)/i.test(prompt)
+    && /(답|말|의견|응답|answer|respond|reply|opinion)/i.test(prompt);
+  if (asksForAll) return selectedProviders.length ? selectedProviders : undefined;
+
+  const exclusive = /(만\s*(답|말|응답|의견|해|하세요|해주세요)|만\s*$|only|just\s+(?:have\s+)?|다른\s*(ai|에이아이|모델).*?(말하지|답하지|응답하지)|나머지.*?(말하지|답하지|응답하지))/i.test(prompt);
+  if (!exclusive) return selectedProviders.length ? selectedProviders : undefined;
+
+  const named = PROVIDER_MENTIONS
+    .filter(({ pattern }) => pattern.test(prompt))
+    .map(({ id }) => id);
+  return named.length ? named : (selectedProviders.length ? selectedProviders : undefined);
+}
+
+function extractProviderPrompts(prompt: string) {
+  const matches = Array.from(prompt.matchAll(PROVIDER_TOKEN_RE));
+  if (matches.length < 2) return undefined;
+
+  const routed: Partial<Record<AIProviderId, string>> = {};
+  for (let i = 0; i < matches.length; i += 1) {
+    const match = matches[i];
+    const id = providerIdFromToken(match[0]);
+    if (!id || match.index === undefined) continue;
+
+    const start = match.index + match[0].length;
+    const end = i + 1 < matches.length && matches[i + 1].index !== undefined
+      ? matches[i + 1].index!
+      : prompt.length;
+    const segment = prompt
+      .slice(start, end)
+      .replace(/^\s*(?:는|은|이|가|에게|:|-|—|,|하고|은요|는요)\s*/i, "")
+      .replace(/[;,]\s*$/g, "")
+      .trim();
+
+    if (segment.length >= 2) {
+      routed[id] = `Your specific assignment from the user's multi-AI order is:\n${segment}\n\nAnswer only your assigned part directly and independently.`;
+    }
+  }
+
+  return Object.keys(routed).length >= 2 ? routed : undefined;
+}
+
+function chooseDeveloperProvider(prompt: string, providers?: AIProviderId[]) {
+  if (/(claude|클로드)/i.test(prompt)) return "anthropic" as AIProviderId;
+  if (/(gemini|제미나이)/i.test(prompt)) return "google" as AIProviderId;
+  if (/(grok|그록)/i.test(prompt)) return "xai" as AIProviderId;
+  if (/(chatgpt|openai|챗지피티)/i.test(prompt)) return "openai" as AIProviderId;
   const selected = (providers || []).find((id) => DEV_PROVIDER_NAMES[id]);
   return selected || "openai";
 }
 
-function developerProviderOrder(prompt: string, providers?: string[]) {
+function developerProviderOrder(prompt: string, providers?: AIProviderId[]) {
   const selected = (providers || []).filter((id) => DEV_PROVIDER_NAMES[id]);
   const preferred = chooseDeveloperProvider(prompt, selected);
-  const pool = selected.length ? selected : Object.keys(DEV_PROVIDER_NAMES);
+  const pool: AIProviderId[] = selected.length ? selected : ["openai", "anthropic", "google", "xai"];
   return [preferred, ...pool.filter((id) => id !== preferred)];
 }
 
-function developerModelName(provider: string) {
+function developerModelName(provider: AIProviderId) {
   if (provider === "anthropic") return process.env.ANTHROPIC_MODEL || "claude-3-5-haiku-latest";
   if (provider === "google") return process.env.GOOGLE_AI_MODEL || "gemini-2.5-flash";
   if (provider === "xai") return process.env.XAI_MODEL || "grok-2-latest";
   return process.env.OPENAI_MODEL || "gpt-4o-mini";
 }
 
-async function runDeveloper(request: Request, instruction: string, provider: string) {
+async function runDeveloper(request: Request, instruction: string, provider: AIProviderId) {
   const cookie = request.headers.get("cookie") || "";
   const path = provider === "google" ? "/api/dev/gemini" : "/api/dev/agent";
   const url = new URL(path, request.url);
@@ -106,6 +163,8 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = chatSchema.parse(body);
     const language = data.language || user.defaultLanguage;
+    const routedProviders = resolvePromptProviders(data.prompt, data.providers);
+    const providerPrompts = extractProviderPrompts(data.prompt);
 
     let result: any;
 
@@ -113,19 +172,21 @@ export async function POST(request: Request) {
       const independent = await orchestrateRoom(data.roomId, {
         prompt: data.prompt,
         history: data.history,
-        providers: data.providers,
+        providers: routedProviders,
+        providerPrompts,
         language,
       });
 
-      const agentOrder = developerProviderOrder(data.prompt, data.providers);
+      const agentOrder = developerProviderOrder(data.prompt, routedProviders);
       const failures: string[] = [];
       let executionSection = "";
-      let executionProvider: string | undefined;
+      let executionProvider: AIProviderId | undefined;
 
       for (const provider of agentOrder) {
         const agentName = DEV_PROVIDER_NAMES[provider] || provider;
         try {
-          const dev = await runDeveloper(request, data.prompt, provider);
+          const executionInstruction = providerPrompts?.[provider] || data.prompt;
+          const dev = await runDeveloper(request, executionInstruction, provider);
           const changed = dev.actions.map((action: { operation?: string; path?: string }) => `${action.operation || "update"}: ${action.path || ""}`);
           const commitIds = dev.commits.map((item: { commit?: string }) => item.commit).filter(Boolean);
 
@@ -158,10 +219,12 @@ export async function POST(request: Request) {
           ...independent.comparison,
           notes: [
             ...independent.comparison.notes,
-            "All selected AIs gave independent opinions before development execution.",
+            "Natural-language AI targeting overrides the UI selection when the user explicitly asks only named AIs to answer.",
+            ...(providerPrompts ? ["One user order was split into separate provider-specific assignments."] : []),
+            "All routed AIs gave independent opinions before development execution.",
             executionProvider
               ? `${DEV_PROVIDER_NAMES[executionProvider] || executionProvider} handled the development execution route.`
-              : "All available development-agent routes failed after automatic failover.",
+              : "All routed development-agent routes failed after automatic failover.",
           ],
         },
       };
@@ -169,7 +232,8 @@ export async function POST(request: Request) {
       result = await orchestrateRoom(data.roomId, {
         prompt: data.prompt,
         history: data.history,
-        providers: data.providers,
+        providers: routedProviders,
+        providerPrompts,
         language,
       });
     }

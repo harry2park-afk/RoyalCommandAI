@@ -9,6 +9,7 @@ export interface OrchestrateInput {
   prompt: string;
   history?: AIMessage[];
   providers?: AIProviderId[];
+  providerPrompts?: Partial<Record<AIProviderId, string>>;
   language?: string;
   systemExtra?: string;
 }
@@ -37,6 +38,7 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
     chatGptContext,
     `You are ${PROVIDER_LABELS[id]}. Answer the user directly as ${PROVIDER_LABELS[id]}.`,
     "When selected, you must personally provide your own best independent answer using the strongest expert reasoning and capabilities available to your model/provider. Do not defer the question to another AI, tell the user to ask another AI instead, or withhold your own view merely because other providers are also selected.",
+    "If the host gives you a provider-specific instruction extracted from a multi-AI order, follow your own assigned instruction exactly. Do not perform another provider's assigned task unless the user explicitly asks you to collaborate on it.",
     "You may agree or disagree with other providers. Do not force consensus. Give the conclusion you independently judge best, clearly state important uncertainty, and surface a materially different view when your reasoning supports it.",
     "You are currently connected to the user through the real RoyalCommand.ai Command Room. Royal Command sends the user's prompt to you and displays your answer under your own AI name.",
     "Other AI providers may also be selected and connected in this same Command Room. Do not deny that the Command Room or these provider connections exist merely because you cannot inspect the host UI yourself.",
@@ -56,10 +58,11 @@ async function runProvider(
   languageHint: string,
 ): Promise<AIProviderResponse> {
   const connector = getConnector(id);
+  const providerPrompt = input.providerPrompts?.[id]?.trim() || input.prompt;
   const messages: AIMessage[] = [
     { role: "system", content: providerSystem(id, languageHint, input.systemExtra) },
     ...(input.history || []).slice(-12),
-    { role: "user", content: input.prompt },
+    { role: "user", content: providerPrompt },
   ];
 
   try {
@@ -141,6 +144,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
         providers.length > 1
           ? `Direct answers shown separately from: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
           : `Direct answer from ${PROVIDER_LABELS[providers[0]!]} .`,
+        ...(input.providerPrompts ? ["Provider-specific instructions were routed independently from one user order."] : []),
         ...scoring.comparison.notes,
       ],
     },
