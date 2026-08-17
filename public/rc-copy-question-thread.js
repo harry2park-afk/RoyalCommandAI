@@ -2,9 +2,32 @@
   const BUTTON_ID = "rc-copy-question-thread";
   const WRAPPER_ID = "rc-copy-question-thread-wrap";
   const USER_TITLE = "클릭하면 전체 내용을 봅니다";
+  const CARD_COPY_CLASS = "rc-ai-card-copy";
+
+  const PROVIDER_STYLES = {
+    chatgpt: { background: "#071A33", border: "#2F6DB2", label: "ChatGPT" },
+    claude: { background: "#3B2418", border: "#8A5A3B", label: "Claude" },
+    gemini: { background: "#2B2F36", border: "#6B7280", label: "Gemini" },
+    grok: { background: "#0D3324", border: "#2F7A57", label: "Grok" },
+  };
 
   function isRoomPage() {
     return /^\/rooms\//.test(window.location.pathname);
+  }
+
+  function getProviderKey(text) {
+    const firstLine = (text || "").trim().split("\n", 1)[0].replace(/^#+\s*/, "").trim().toLowerCase();
+    if (firstLine.startsWith("chatgpt")) return "chatgpt";
+    if (firstLine.startsWith("claude")) return "claude";
+    if (firstLine.startsWith("gemini")) return "gemini";
+    if (firstLine.startsWith("grok")) return "grok";
+    return "";
+  }
+
+  function cleanArticleText(article) {
+    const clone = article.cloneNode(true);
+    clone.querySelectorAll(`.${CARD_COPY_CLASS}`).forEach((node) => node.remove());
+    return (clone.textContent || "").trim();
   }
 
   function getLatestQuestionThreadNodes() {
@@ -33,9 +56,7 @@
     if (!thread) return "";
 
     const question = (thread.userButton.textContent || "").trim();
-    const answers = thread.answers
-      .map((article) => (article.textContent || "").trim())
-      .filter(Boolean);
+    const answers = thread.answers.map(cleanArticleText).filter(Boolean);
 
     const parts = [];
     if (question) parts.push(`### 질문\n${question}`);
@@ -59,6 +80,49 @@
     textarea.remove();
   }
 
+  function makeCardCopyButton(article, label) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `${CARD_COPY_CLASS} mt-3 ml-auto block rounded-md border border-[#d7b64d]/70 bg-black/20 px-2.5 py-1 text-[11px] font-semibold text-[#f4d66c]`;
+    button.textContent = "📋 복사";
+    button.title = `${label} 답변만 복사`;
+    button.setAttribute("aria-label", `${label} 답변만 복사`);
+
+    button.addEventListener("click", async (event) => {
+      event.stopPropagation();
+      const text = cleanArticleText(article);
+      if (!text) return;
+      try {
+        await writeClipboard(text);
+        button.textContent = "✓ 복사됨";
+      } catch {
+        button.textContent = "복사 실패";
+      }
+      window.setTimeout(() => { button.textContent = "📋 복사"; }, 1400);
+    });
+
+    return button;
+  }
+
+  function decorateAnswerCards() {
+    if (!isRoomPage()) return;
+    const articles = Array.from(document.querySelectorAll("article"));
+
+    for (const article of articles) {
+      if (article.dataset.rcAiDecorated === "true") continue;
+      const providerKey = getProviderKey(cleanArticleText(article));
+      const provider = PROVIDER_STYLES[providerKey];
+      if (!provider) continue;
+
+      article.dataset.rcAiDecorated = "true";
+      article.dataset.rcAiProvider = providerKey;
+      article.style.backgroundColor = provider.background;
+      article.style.borderColor = provider.border;
+      article.style.position = "relative";
+      article.appendChild(makeCardCopyButton(article, provider.label));
+    }
+  }
+
   function getOrCreateButton() {
     let button = document.getElementById(BUTTON_ID);
     if (button) return button;
@@ -69,7 +133,7 @@
     button.textContent = "📋 전체 복사";
     button.title = "이 질문과 모든 AI 답변을 한 번에 복사";
     button.setAttribute("aria-label", "이 질문과 모든 AI 답변 전체 복사");
-    button.className = "rounded-md border border-[#d7b64d]/60 bg-[#0b1524] px-3 py-1.5 text-[11px] font-semibold text-[#f4d66c]";
+    button.className = "rounded-md border border-[#d7b64d]/70 bg-[#0b1524] px-3 py-1.5 text-[11px] font-semibold text-[#f4d66c]";
 
     button.addEventListener("click", async () => {
       const text = getLatestQuestionThread();
@@ -82,7 +146,7 @@
 
       try {
         await writeClipboard(text);
-        button.textContent = "✓ 복사됨";
+        button.textContent = "✓ 전체 복사됨";
       } catch {
         button.textContent = "복사 실패";
       }
@@ -94,6 +158,8 @@
 
   function placeButton() {
     if (!isRoomPage()) return;
+
+    decorateAnswerCards();
 
     const thread = getLatestQuestionThreadNodes();
     const existingWrapper = document.getElementById(WRAPPER_ID);
