@@ -1,9 +1,10 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 import { extractProviderText } from "./openrouter";
 
-const OPENAI_PRIMARY_TIMEOUT_MS = 75_000;
-const OPENAI_RETRY_TIMEOUT_MS = 45_000;
-const OPENROUTER_FALLBACK_TIMEOUT_MS = 60_000;
+const OPENAI_PRIMARY_TIMEOUT_MS = 30_000;
+const OPENAI_RETRY_TIMEOUT_MS = 15_000;
+const OPENROUTER_FALLBACK_TIMEOUT_MS = 25_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -26,13 +27,17 @@ async function withTimeout<T>(
   }
 }
 
+function outputTokenLimit(request: AIRequest) {
+  return Math.min(request.maxTokens || DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS);
+}
+
 async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) {
   const requestBody: Record<string, unknown> = {
     model,
     messages: request.messages,
+    max_completion_tokens: outputTokenLimit(request),
   };
   if (request.temperature !== undefined) requestBody.temperature = request.temperature;
-  if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
 
   const res = await withTimeout(
     fetch("https://api.openai.com/v1/chat/completions", {
@@ -67,13 +72,13 @@ async function callOpenRouterFallback(request: AIRequest) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("OPENROUTER_API_KEY is not configured");
 
-  const model = process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-5";
+  const model = process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-5-mini";
   const requestBody: Record<string, unknown> = {
     model,
     messages: request.messages,
+    max_tokens: outputTokenLimit(request),
   };
   if (request.temperature !== undefined) requestBody.temperature = request.temperature;
-  if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
 
   const res = await withTimeout(
     fetch("https://openrouter.ai/api/v1/chat/completions", {
@@ -116,7 +121,7 @@ export class OpenAIConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.OPENAI_MODEL || "gpt-5";
+    const model = process.env.OPENAI_MODEL || "gpt-5-mini";
     const errors: string[] = [];
 
     if (process.env.OPENAI_API_KEY) {
