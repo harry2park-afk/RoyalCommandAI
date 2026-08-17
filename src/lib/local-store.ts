@@ -112,6 +112,12 @@ export const localDb = {
   getRoom(id: string) {
     return store().rooms.find((r) => r.id === id);
   },
+  renameRoom(id: string, name: string) {
+    const room = store().rooms.find((r) => r.id === id);
+    if (!room) return null;
+    room.name = name;
+    return room;
+  },
   deleteRoom(id: string) {
     const before = store().rooms.length;
     store().rooms = store().rooms.filter((r) => r.id !== id);
