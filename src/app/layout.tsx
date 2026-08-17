@@ -23,6 +23,7 @@ export default function RootLayout({
         <Script src="/rc-prefs-sync.js" strategy="afterInteractive" />
         <Script src="/rc-language-picker.js" strategy="afterInteractive" />
         <Script src="/rc-copy-question-thread.js" strategy="afterInteractive" />
+        <Script src="/rc-question-rules.js" strategy="afterInteractive" />
       </body>
     </html>
   );
