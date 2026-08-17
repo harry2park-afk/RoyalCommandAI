@@ -9,8 +9,10 @@ const RETIRED_GEMINI_MODELS = new Set([
   "gemini-2.0-flash-lite-001",
 ]);
 
+const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
+const GEMINI_DIRECT_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_MAX_OUTPUT_TOKENS = 2048;
-const GEMINI_OPENROUTER_MAX_TOKENS = 512;
+const GEMINI_OPENROUTER_MAX_TOKENS = 384;
 
 const openRouterGemini = new OpenRouterCatalogConnector(
   "google",
@@ -37,15 +39,16 @@ export class GoogleConnector implements AIConnector {
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
     const configuredModel = (process.env.GOOGLE_AI_MODEL || "").trim();
-    const model = !configuredModel || RETIRED_GEMINI_MODELS.has(configuredModel)
-      ? "gemini-3.5-flash"
+    const primaryModel = !configuredModel || RETIRED_GEMINI_MODELS.has(configuredModel)
+      ? DEFAULT_GEMINI_MODEL
       : configuredModel;
+    const directModels = Array.from(new Set([primaryModel, GEMINI_DIRECT_FALLBACK_MODEL]));
     const boundedRequest: AIRequest = {
       ...request,
       maxTokens: Math.min(request.maxTokens || GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MAX_OUTPUT_TOKENS),
     };
 
-    const direct = async (apiKey: string): Promise<AIProviderResponse> => {
+    const direct = async (apiKey: string, targetModel: string): Promise<AIProviderResponse> => {
       try {
         const system = boundedRequest.messages
           .filter((m) => m.role === "system")
@@ -61,9 +64,8 @@ export class GoogleConnector implements AIConnector {
         const generationConfig: Record<string, unknown> = {
           maxOutputTokens: boundedRequest.maxTokens,
         };
-        if (boundedRequest.temperature !== undefined) generationConfig.temperature = boundedRequest.temperature;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`;
         const res = await fetch(url, {
           method: "POST",
           headers: {
@@ -82,13 +84,13 @@ export class GoogleConnector implements AIConnector {
           const message = data?.error?.message || `Google AI HTTP ${res.status}`;
           logger.warn("ai.provider.failed", {
             provider: this.displayName,
-            model,
+            model: targetModel,
             status: res.status,
             error: String(message).slice(0, 500),
           });
           return {
             provider: this.id,
-            model,
+            model: targetModel,
             content: "",
             latencyMs: Date.now() - started,
             error: String(message),
@@ -105,7 +107,7 @@ export class GoogleConnector implements AIConnector {
 
         return {
           provider: this.id,
-          model,
+          model: targetModel,
           content,
           latencyMs: Date.now() - started,
           raw: data,
@@ -115,12 +117,12 @@ export class GoogleConnector implements AIConnector {
         const message = error instanceof Error ? error.message : "Unknown Google error";
         logger.warn("ai.provider.exception", {
           provider: this.displayName,
-          model,
+          model: targetModel,
           error: message.slice(0, 500),
         });
         return {
           provider: this.id,
-          model,
+          model: targetModel,
           content: "",
           latencyMs: Date.now() - started,
           error: message,
@@ -131,15 +133,18 @@ export class GoogleConnector implements AIConnector {
     const directErrors: string[] = [];
     const apiKeys = getGeminiApiKeys();
 
-    for (let index = 0; index < apiKeys.length; index += 1) {
-      logger.info("ai.provider.primary_route", {
-        provider: this.displayName,
-        via: "Google direct",
-        keySlot: index + 1,
-      });
-      const result = await direct(apiKeys[index]!);
-      if (!result.error && result.content?.trim()) return result;
-      directErrors.push(result.error || "empty response");
+    for (const targetModel of directModels) {
+      for (let index = 0; index < apiKeys.length; index += 1) {
+        logger.info("ai.provider.primary_route", {
+          provider: this.displayName,
+          via: targetModel === primaryModel ? "Google direct" : "Google direct fallback",
+          model: targetModel,
+          keySlot: index + 1,
+        });
+        const result = await direct(apiKeys[index]!, targetModel);
+        if (!result.error && result.content?.trim()) return result;
+        directErrors.push(`${targetModel}: ${result.error || "empty response"}`);
+      }
     }
 
     if (process.env.OPENROUTER_API_KEY) {
@@ -149,7 +154,7 @@ export class GoogleConnector implements AIConnector {
       };
       logger.warn("ai.provider.fallback", {
         provider: this.displayName,
-        from: apiKeys.length ? "Google direct" : "No Google API key",
+        from: apiKeys.length ? "Google direct routes" : "No Google API key",
         to: "OpenRouter",
         reason: directErrors.join("; ").slice(0, 500) || "direct key unavailable",
         maxTokens: routedRequest.maxTokens,
@@ -165,7 +170,7 @@ export class GoogleConnector implements AIConnector {
         const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Gemini fallback failed";
         return {
           provider: this.id,
-          model,
+          model: primaryModel,
           content: "",
           latencyMs: Date.now() - started,
           error: [directErrors.join("; "), fallbackMessage].filter(Boolean).join("; "),
@@ -175,7 +180,7 @@ export class GoogleConnector implements AIConnector {
 
     return {
       provider: this.id,
-      model,
+      model: primaryModel,
       content: "",
       latencyMs: Date.now() - started,
       error: directErrors.join("; ") || "GEMINI_API_KEY (or GOOGLE_AI_API_KEY / GOOGLE_API_KEY) is not configured",
