@@ -1,10 +1,14 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
+import { logger } from "@/lib/logger";
 import { extractProviderText } from "./openrouter";
 
-const OPENAI_PRIMARY_TIMEOUT_MS = 30_000;
+const OPENAI_PRIMARY_TIMEOUT_MS = 25_000;
 const OPENAI_RETRY_TIMEOUT_MS = 15_000;
-const OPENROUTER_FALLBACK_TIMEOUT_MS = 25_000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
+const OPENROUTER_FALLBACK_TIMEOUT_MS = 20_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 2_048;
+const OPENROUTER_FALLBACK_MAX_TOKENS = 1_024;
+const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
+const DEFAULT_OPENAI_RETRY_MODEL = "gpt-4o-mini";
 
 async function withTimeout<T>(
   promise: Promise<T>,
@@ -49,7 +53,7 @@ async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) 
       body: JSON.stringify(requestBody),
     }),
     timeoutMs,
-    "OpenAI",
+    `OpenAI ${model}`,
   );
 
   const data = await res.json();
@@ -72,11 +76,12 @@ async function callOpenRouterFallback(request: AIRequest) {
   const key = process.env.OPENROUTER_API_KEY;
   if (!key) throw new Error("OPENROUTER_API_KEY is not configured");
 
-  const model = process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-5-mini";
+  const model = process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-4.1-mini";
+  const maxTokens = Math.min(outputTokenLimit(request), OPENROUTER_FALLBACK_MAX_TOKENS);
   const requestBody: Record<string, unknown> = {
     model,
     messages: request.messages,
-    max_tokens: outputTokenLimit(request),
+    max_tokens: maxTokens,
   };
   if (request.temperature !== undefined) requestBody.temperature = request.temperature;
 
@@ -121,13 +126,26 @@ export class OpenAIConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.OPENAI_MODEL || "gpt-5-mini";
+    const primaryModel = (process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL).trim();
+    const retryModel = (process.env.OPENAI_RETRY_MODEL || DEFAULT_OPENAI_RETRY_MODEL).trim();
     const errors: string[] = [];
 
     if (process.env.OPENAI_API_KEY) {
-      for (const timeoutMs of [OPENAI_PRIMARY_TIMEOUT_MS, OPENAI_RETRY_TIMEOUT_MS]) {
+      const attempts = [
+        { model: primaryModel, timeoutMs: OPENAI_PRIMARY_TIMEOUT_MS },
+        { model: retryModel, timeoutMs: OPENAI_RETRY_TIMEOUT_MS },
+      ].filter((attempt, index, all) => index === 0 || attempt.model !== all[0]?.model);
+
+      for (const attempt of attempts) {
+        logger.info("ai.provider.primary_route", {
+          provider: this.displayName,
+          via: "OpenAI direct",
+          model: attempt.model,
+          maxTokens: outputTokenLimit(request),
+          timeoutMs: attempt.timeoutMs,
+        });
         try {
-          const result = await callOpenAI(request, model, timeoutMs);
+          const result = await callOpenAI(request, attempt.model, attempt.timeoutMs);
           if (!result.content) throw new Error("OpenAI returned an empty response");
           if (result.tokenLimited) throw new Error("OpenAI response ended at its output-token limit before completion");
           return {
@@ -138,7 +156,14 @@ export class OpenAIConnector implements AIConnector {
             raw: result.raw,
           };
         } catch (error) {
-          errors.push(error instanceof Error ? error.message : "Unknown OpenAI error");
+          const message = error instanceof Error ? error.message : "Unknown OpenAI error";
+          errors.push(message);
+          logger.warn("ai.provider.failed", {
+            provider: this.displayName,
+            via: "OpenAI direct",
+            model: attempt.model,
+            error: message.slice(0, 500),
+          });
         }
       }
     } else {
@@ -146,6 +171,13 @@ export class OpenAIConnector implements AIConnector {
     }
 
     if (process.env.OPENROUTER_API_KEY) {
+      logger.warn("ai.provider.fallback", {
+        provider: this.displayName,
+        from: "OpenAI direct",
+        to: "OpenRouter",
+        reason: errors.join("; ").slice(0, 500),
+        maxTokens: Math.min(outputTokenLimit(request), OPENROUTER_FALLBACK_MAX_TOKENS),
+      });
       try {
         const result = await callOpenRouterFallback(request);
         if (!result.content) throw new Error("OpenRouter OpenAI fallback returned an empty response");
@@ -164,7 +196,7 @@ export class OpenAIConnector implements AIConnector {
 
     return {
       provider: this.id,
-      model,
+      model: primaryModel,
       content: "",
       latencyMs: Date.now() - started,
       error: errors.join("; ") || "OpenAI request failed",
