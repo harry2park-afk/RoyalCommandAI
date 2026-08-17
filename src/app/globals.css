@@ -64,3 +64,4 @@ main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{displ
  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>div.mb-1,
  main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>div.mt-1{min-height:20px!important;height:20px!important;margin:1px 0!important;padding:0 2px!important}
 }
+.rc-lang-picker>button{width:158px!important;min-width:158px!important;max-width:158px!important;height:29px!important;min-height:29px!important;max-height:29px!important}
