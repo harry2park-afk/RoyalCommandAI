@@ -15,12 +15,16 @@ const openRouterGemini = new OpenRouterCatalogConnector(
   "google gemini flash",
 );
 
+function getGeminiApiKey() {
+  return (process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+}
+
 export class GoogleConnector implements AIConnector {
   id = "google" as const;
   displayName = "Gemini";
 
   isConfigured() {
-    return Boolean(process.env.GOOGLE_AI_API_KEY || process.env.OPENROUTER_API_KEY);
+    return Boolean(getGeminiApiKey() || process.env.OPENROUTER_API_KEY);
   }
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
@@ -31,13 +35,14 @@ export class GoogleConnector implements AIConnector {
       : configuredModel;
 
     const direct = async (): Promise<AIProviderResponse> => {
-      if (!process.env.GOOGLE_AI_API_KEY) {
+      const apiKey = getGeminiApiKey();
+      if (!apiKey) {
         return {
           provider: this.id,
           model,
           content: "",
           latencyMs: Date.now() - started,
-          error: "GOOGLE_AI_API_KEY is not configured",
+          error: "GEMINI_API_KEY (or GOOGLE_AI_API_KEY / GOOGLE_API_KEY) is not configured",
         };
       }
 
@@ -57,10 +62,13 @@ export class GoogleConnector implements AIConnector {
         if (request.temperature !== undefined) generationConfig.temperature = request.temperature;
         if (request.maxTokens) generationConfig.maxOutputTokens = request.maxTokens;
 
-        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`;
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         const res = await fetch(url, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
           body: JSON.stringify({
             systemInstruction: system ? { parts: [{ text: system }] } : undefined,
             contents,
