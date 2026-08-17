@@ -18,28 +18,36 @@ export default function HomePage() {
           </div>
         </div>
 
+        <div className="w-full max-w-4xl rounded-3xl border-2 border-[#d7b64d] bg-black/75 px-6 py-8 shadow-[0_0_55px_rgba(215,182,77,0.28)] backdrop-blur-md md:px-10 md:py-10">
+          <p className="text-sm font-semibold tracking-[0.28em] text-[#f1d889] md:text-base">
+            PRIVATE BETA
+          </p>
+          <h1
+            className="mt-3 text-4xl font-bold tracking-[0.08em] text-white drop-shadow-[0_4px_18px_rgba(0,0,0,0.95)] md:text-6xl"
+            style={{ fontFamily: "var(--font-display), serif" }}
+          >
+            UNDER CONSTRUCTION
+          </h1>
+          <p className="mx-auto mt-4 max-w-2xl text-base leading-7 text-white/85 md:text-lg">
+            Royal Command is currently being upgraded for our next business release.
+          </p>
+          <p className="mt-2 text-sm text-[#f1d889] md:text-base">
+            New customer registration is temporarily closed.
+          </p>
+        </div>
+
         <div className="mb-8 w-full max-w-2xl rounded-2xl border border-[#c9a84f]/45 bg-black/50 p-5 shadow-2xl backdrop-blur-sm md:p-7">
           <p className="mb-5 text-sm tracking-[0.14em] text-[#f1d889] md:text-base">
-            Welcome to Royal Command
+            Existing authorised members only
           </p>
 
-          <div className="grid gap-3 md:grid-cols-2 md:gap-4">
-            <Link
-              href="/login"
-              className="rounded-xl border border-[#d7b64d]/75 bg-[#0b0d12]/90 px-5 py-4 text-white transition hover:border-[#f3d36b] hover:bg-[#151923]"
-            >
-              <span className="block text-lg font-semibold">Existing Member</span>
-              <span className="mt-1 block text-sm text-white/70">Sign in</span>
-            </Link>
-
-            <Link
-              href="/signup"
-              className="rounded-xl border border-[#d7b64d] bg-[#d7b64d] px-5 py-4 text-[#17120a] shadow-[0_0_24px_rgba(215,182,77,0.22)] transition hover:bg-[#ead07a]"
-            >
-              <span className="block text-lg font-semibold">New Customer</span>
-              <span className="mt-1 block text-sm text-black/70">Submit Application</span>
-            </Link>
-          </div>
+          <Link
+            href="/login"
+            className="block rounded-xl border border-[#d7b64d]/75 bg-[#0b0d12]/90 px-5 py-4 text-white transition hover:border-[#f3d36b] hover:bg-[#151923]"
+          >
+            <span className="block text-lg font-semibold">Existing Member</span>
+            <span className="mt-1 block text-sm text-white/70">Sign in</span>
+          </Link>
         </div>
       </div>
     </main>
