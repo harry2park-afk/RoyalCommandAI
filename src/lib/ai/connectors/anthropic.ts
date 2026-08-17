@@ -8,10 +8,8 @@ const RETIRED_CLAUDE_MODELS = new Set([
   "claude-3-haiku-20240307",
 ]);
 
-// OpenRouter may price-check Claude against the model's full default output ceiling
-// when no maximum is supplied. That caused otherwise valid requests to be rejected
-// before generation. Keep a generous transport ceiling while avoiding that failure.
-const CLAUDE_OPENROUTER_MAX_TOKENS = 16_000;
+const CLAUDE_DIRECT_MAX_TOKENS = 4_096;
+const CLAUDE_OPENROUTER_MAX_TOKENS = 2_048;
 
 const openRouterClaude = new OpenRouterCatalogConnector(
   "anthropic",
@@ -35,7 +33,8 @@ export class AnthropicConnector implements AIConnector {
       : configuredModel;
 
     const direct = async (): Promise<AIProviderResponse> => {
-      if (!process.env.ANTHROPIC_API_KEY) {
+      const apiKey = (process.env.ANTHROPIC_API_KEY || "").trim();
+      if (!apiKey) {
         return {
           provider: this.id,
           model,
@@ -54,18 +53,26 @@ export class AnthropicConnector implements AIConnector {
           .filter((m) => m.role !== "system")
           .map((m) => ({ role: m.role, content: m.content }));
 
+        const maxTokens = Math.min(request.maxTokens ?? CLAUDE_DIRECT_MAX_TOKENS, CLAUDE_DIRECT_MAX_TOKENS);
         const requestBody: Record<string, unknown> = {
           model,
-          max_tokens: request.maxTokens ?? 8192,
+          max_tokens: maxTokens,
           system: system || undefined,
           messages,
         };
         if (request.temperature !== undefined) requestBody.temperature = request.temperature;
 
+        logger.info("ai.provider.primary_route", {
+          provider: this.displayName,
+          via: "Anthropic direct",
+          model,
+          maxTokens,
+        });
+
         const res = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
-            "x-api-key": process.env.ANTHROPIC_API_KEY,
+            "x-api-key": apiKey,
             "anthropic-version": "2023-06-01",
             "Content-Type": "application/json",
           },
@@ -124,69 +131,65 @@ export class AnthropicConnector implements AIConnector {
       }
     };
 
-    const preferDirect = process.env.ROYAL_COMMAND_PREFER_DIRECT_AI === "true";
-    const routedRequest: AIRequest = request.maxTokens
-      ? request
-      : { ...request, maxTokens: CLAUDE_OPENROUTER_MAX_TOKENS };
+    // Prefer the user's Anthropic server key. Only use OpenRouter as a bounded fallback.
+    if (process.env.ANTHROPIC_API_KEY) {
+      const directResult = await direct();
+      if (!directResult.error && directResult.content?.trim()) return directResult;
 
-    if (process.env.OPENROUTER_API_KEY && !preferDirect) {
+      if (process.env.OPENROUTER_API_KEY) {
+        const routedRequest: AIRequest = {
+          ...request,
+          maxTokens: Math.min(request.maxTokens ?? CLAUDE_OPENROUTER_MAX_TOKENS, CLAUDE_OPENROUTER_MAX_TOKENS),
+        };
+        logger.warn("ai.provider.fallback", {
+          provider: this.displayName,
+          from: "Anthropic direct",
+          to: "OpenRouter",
+          reason: String(directResult.error || "empty response").slice(0, 500),
+          maxTokens: routedRequest.maxTokens,
+        });
+        try {
+          const routed = await openRouterClaude.complete(routedRequest);
+          if (!routed.error && routed.content?.trim()) return routed;
+          return {
+            ...directResult,
+            error: `${directResult.error || "Anthropic direct failed"}; OpenRouter fallback failed: ${routed.error || "empty response"}`,
+          };
+        } catch (fallbackError) {
+          const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Claude fallback failed";
+          return {
+            ...directResult,
+            error: `${directResult.error || "Anthropic direct failed"}; OpenRouter fallback failed: ${fallbackMessage}`,
+          };
+        }
+      }
+
+      return directResult;
+    }
+
+    if (process.env.OPENROUTER_API_KEY) {
+      const routedRequest: AIRequest = {
+        ...request,
+        maxTokens: Math.min(request.maxTokens ?? CLAUDE_OPENROUTER_MAX_TOKENS, CLAUDE_OPENROUTER_MAX_TOKENS),
+      };
       logger.info("ai.provider.primary_route", {
         provider: this.displayName,
         via: "OpenRouter",
         maxTokens: routedRequest.maxTokens,
       });
       try {
-        const routed = await openRouterClaude.complete(routedRequest);
-        if (!routed.error && routed.content?.trim()) return routed;
-
-        const error = String(routed.error || "OpenRouter Claude returned an empty response");
-        logger.warn("ai.provider.primary_route.failed", {
-          provider: this.displayName,
-          via: "OpenRouter",
-          error: error.slice(0, 500),
-        });
-        return { ...routed, error };
+        return await openRouterClaude.complete(routedRequest);
       } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        logger.warn("ai.provider.primary_route.failed", {
-          provider: this.displayName,
-          via: "OpenRouter",
-          error: message.slice(0, 500),
-        });
-
-        // Do not hide the real OpenRouter failure behind a known-bad direct API key.
-        // Direct Anthropic is only used when explicitly preferred by configuration.
         return {
           provider: this.id,
           model: "openrouter-claude",
           content: "",
           latencyMs: Date.now() - started,
-          error: message,
+          error: error instanceof Error ? error.message : String(error),
         };
       }
     }
 
-    const directResult = await direct();
-    if (!directResult.error && directResult.content?.trim()) return directResult;
-
-    if (process.env.OPENROUTER_API_KEY && preferDirect) {
-      logger.warn("ai.provider.fallback", {
-        provider: this.displayName,
-        from: "Anthropic direct",
-        to: "OpenRouter",
-        reason: String(directResult.error || "empty response").slice(0, 500),
-      });
-      try {
-        return await openRouterClaude.complete(routedRequest);
-      } catch (fallbackError) {
-        const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Claude fallback failed";
-        return {
-          ...directResult,
-          error: `${directResult.error || "Anthropic direct failed"}; OpenRouter fallback failed: ${fallbackMessage}`,
-        };
-      }
-    }
-
-    return directResult;
+    return await direct();
   }
 }
