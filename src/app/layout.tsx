@@ -22,6 +22,7 @@ export default function RootLayout({
         <RetellRoomVoiceBridge />
         <Script src="/rc-prefs-sync.js" strategy="afterInteractive" />
         <Script src="/rc-language-picker.js" strategy="afterInteractive" />
+        <Script src="/rc-copy-question-thread.js" strategy="afterInteractive" />
       </body>
     </html>
   );
