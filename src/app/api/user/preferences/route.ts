@@ -7,7 +7,19 @@ type UiPreferences = {
   selectedAi?: string[];
   rightPanelApps?: string[];
   language?: string;
+  chatHistoryTitles?: Record<string, string>;
 };
+
+function sanitiseTitleMap(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const result: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>).slice(0, 1000)) {
+    if (typeof raw !== "string") continue;
+    const title = raw.trim().slice(0, 120);
+    if (key && key.length <= 200 && title) result[key] = title;
+  }
+  return result;
+}
 
 function sanitise(value: unknown): UiPreferences {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
@@ -21,6 +33,8 @@ function sanitise(value: unknown): UiPreferences {
   if (typeof input.language === "string" && input.language.length <= 32) {
     result.language = input.language;
   }
+  const chatHistoryTitles = sanitiseTitleMap(input.chatHistoryTitles);
+  if (chatHistoryTitles) result.chatHistoryTitles = chatHistoryTitles;
   return result;
 }
 
