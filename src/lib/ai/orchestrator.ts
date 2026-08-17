@@ -4,6 +4,7 @@ import { synthesizeBestAnswer } from "./synthesize";
 import type { AIMessage, AIProviderId, AIProviderResponse } from "./types";
 import { PROVIDER_LABELS } from "./types";
 import { logger } from "@/lib/logger";
+import { toolGatewayModelContext } from "@/lib/tool-gateway";
 
 export interface OrchestrateInput {
   prompt: string;
@@ -36,7 +37,9 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
     "Give your own independent best answer. Do not wait for, imitate, coordinate with, harmonize with, or shorten your answer because of another AI's answer or timing.",
     "Return the best complete answer as soon as it is genuinely ready. Do not intentionally stop early, pad, delay, or reduce depth because you are running inside Royal Command.",
     "Do not invent live facts, current status, or host-side execution results. Royal Command may separately execute supported host-side actions, but only claim an action was executed when the host provides verified execution evidence.",
+    "When the Tool Gateway manifest says a capability is connected or limited, do not incorrectly report it as completely unavailable. Distinguish between a model's answer-only channel and the Royal Command host execution route.",
     "Do not present yourself as Royal Command AI, an AI Council, or another named Royal Command agent. Your provider identity remains your own.",
+    toolGatewayModelContext(),
     languageHint,
     systemExtra,
   ].filter(Boolean).join("\n\n");
@@ -133,6 +136,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
           ? `Direct answers shown separately from: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
           : `Direct answer from ${PROVIDER_LABELS[providers[0]!]} .`,
         "Each provider receives only the complete current user order for the current request, preventing stale earlier prompts from being merged into a new task.",
+        "Each provider also receives the same host-verified Tool Gateway capability manifest; credentials remain server-side and execution remains policy-controlled.",
         ...scoring.comparison.notes,
       ],
     },
