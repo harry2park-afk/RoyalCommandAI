@@ -81,6 +81,42 @@ export async function GET(
   });
 }
 
+export async function PATCH(
+  request: Request,
+  context: { params: Promise<{ id: string }> },
+) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  const { id } = await context.params;
+  let body: { name?: unknown };
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
+  if (!name) return NextResponse.json({ error: "Room name is required" }, { status: 400 });
+
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    const { data: room, error } = await supabase
+      .from("rooms")
+      .update({ name, updated_at: new Date().toISOString() })
+      .eq("id", id)
+      .select("id, name")
+      .single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true, room });
+  }
+
+  const room = localDb.renameRoom(id, name);
+  return room
+    ? NextResponse.json({ ok: true, room })
+    : NextResponse.json({ error: "Room not found" }, { status: 404 });
+}
+
 export async function DELETE(
   _request: Request,
   context: { params: Promise<{ id: string }> },

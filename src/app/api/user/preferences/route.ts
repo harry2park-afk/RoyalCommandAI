@@ -5,22 +5,54 @@ import { isSupabaseConfigured } from "@/lib/utils";
 
 type UiPreferences = {
   selectedAi?: string[];
+  aiSlots?: string[];
   rightPanelApps?: string[];
   language?: string;
+  chatSidebarWidth?: number;
+  chatSidebarCollapsed?: boolean;
+  chatHistoryTitles?: Record<string, string>;
 };
+
+function sanitiseStringArray(value: unknown, maxItems: number) {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string" && item.length <= 120).slice(0, maxItems)
+    : undefined;
+}
+
+function sanitiseTitleMap(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const result: Record<string, string> = {};
+  for (const [key, raw] of Object.entries(value as Record<string, unknown>).slice(0, 1000)) {
+    if (typeof raw !== "string") continue;
+    const title = raw.trim().slice(0, 120);
+    if (key && key.length <= 200 && title) result[key] = title;
+  }
+  return result;
+}
 
 function sanitise(value: unknown): UiPreferences {
   const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const result: UiPreferences = {};
-  if (Array.isArray(input.selectedAi)) {
-    result.selectedAi = input.selectedAi.filter((item): item is string => typeof item === "string").slice(0, 50);
-  }
-  if (Array.isArray(input.rightPanelApps)) {
-    result.rightPanelApps = input.rightPanelApps.filter((item): item is string => typeof item === "string").slice(0, 100);
-  }
+
+  const selectedAi = sanitiseStringArray(input.selectedAi, 50);
+  if (selectedAi) result.selectedAi = selectedAi;
+  const aiSlots = sanitiseStringArray(input.aiSlots, 25);
+  if (aiSlots) result.aiSlots = aiSlots;
+  const rightPanelApps = sanitiseStringArray(input.rightPanelApps, 100);
+  if (rightPanelApps) result.rightPanelApps = rightPanelApps;
+
   if (typeof input.language === "string" && input.language.length <= 32) {
     result.language = input.language;
   }
+  if (typeof input.chatSidebarWidth === "number" && Number.isFinite(input.chatSidebarWidth)) {
+    result.chatSidebarWidth = Math.max(12, Math.min(420, Math.round(input.chatSidebarWidth)));
+  }
+  if (typeof input.chatSidebarCollapsed === "boolean") {
+    result.chatSidebarCollapsed = input.chatSidebarCollapsed;
+  }
+
+  const chatHistoryTitles = sanitiseTitleMap(input.chatHistoryTitles);
+  if (chatHistoryTitles) result.chatHistoryTitles = chatHistoryTitles;
   return result;
 }
 

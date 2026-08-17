@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ChevronLeft, ChevronRight, GripVertical, Trash2 } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, GripVertical, Pencil, Trash2, X } from "lucide-react";
 
 type Room = { id: string; name: string };
 type Message = {
@@ -31,13 +31,20 @@ export default function ChatHistorySidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
   const [selectedBoxId, setSelectedBoxId] = useState<string | null>(null);
+  const [historyTitles, setHistoryTitles] = useState<Record<string, string>>({});
+  const [editingHistoryId, setEditingHistoryId] = useState<string | null>(null);
+  const [editingHistoryTitle, setEditingHistoryTitle] = useState("");
+  const [editingRoomId, setEditingRoomId] = useState<string | null>(null);
+  const [editingRoomName, setEditingRoomName] = useState("");
   const dragging = useRef(false);
   const previousExpandedWidth = useRef(DEFAULT_WIDTH);
   const messageOrderRef = useRef<string[]>([]);
   const messageTypesRef = useRef<string[]>([]);
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const historyTitlesRef = useRef<Record<string, string>>({});
 
   function historyCacheKey() { return `royalcommand:room:${currentId}:history-boxes-v2`; }
+  function historyTitleKey(messageId: string) { return `${currentId}:${messageId}`; }
   function saveHistoryCache(boxes: HistoryBox[]) {
     if (!currentId) return;
     try { window.localStorage.setItem(historyCacheKey(), JSON.stringify(boxes)); } catch {}
@@ -96,7 +103,7 @@ export default function ChatHistorySidebar() {
         if (!current) {
           current = {
             ids: [message.id],
-            title: clean.slice(0, 34) || "지난 대화",
+            title: historyTitlesRef.current[historyTitleKey(message.id)] || clean.slice(0, 34) || "지난 대화",
             preview: clean.slice(0, 90),
             date: formatHistoryDate(messageTime),
           };
@@ -147,6 +154,20 @@ export default function ChatHistorySidebar() {
       if (Array.isArray(data.rooms)) setRooms(data.rooms);
     } catch {}
   }
+
+  async function loadHistoryTitles() {
+    try {
+      const res = await fetch("/api/user/preferences", { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const titles = data?.preferences?.chatHistoryTitles;
+      if (titles && typeof titles === "object" && !Array.isArray(titles)) {
+        historyTitlesRef.current = titles;
+        setHistoryTitles(titles);
+      }
+    } catch {}
+  }
+
   async function refreshHistory() {
     if (!currentId) return;
     try {
@@ -172,7 +193,10 @@ export default function ChatHistorySidebar() {
     const cached = readHistoryCache();
     setHistoryBoxes(cached);
     setHistoryLoaded(cached.length > 0);
-    void refreshHistory();
+    void (async () => {
+      await loadHistoryTitles();
+      await refreshHistory();
+    })();
     return () => { if (clickTimerRef.current) clearTimeout(clickTimerRef.current); };
   }, [currentId]);
 
@@ -231,6 +255,41 @@ export default function ChatHistorySidebar() {
     if (id === currentId) router.push("/dashboard");
   }
 
+  async function saveRoomName(id: string) {
+    const name = editingRoomName.trim().slice(0, 120);
+    if (!name) return;
+    const res = await fetch(`/api/rooms/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+    if (!res.ok) return;
+    setRooms((prev) => prev.map((room) => room.id === id ? { ...room, name } : room));
+    setEditingRoomId(null);
+    setEditingRoomName("");
+  }
+
+  async function saveHistoryTitle(box: HistoryBox) {
+    const title = editingHistoryTitle.trim().slice(0, 120);
+    const firstId = box.ids[0];
+    if (!firstId || !title) return;
+    const key = historyTitleKey(firstId);
+    const nextTitles = { ...historyTitlesRef.current, [key]: title };
+    const res = await fetch("/api/user/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatHistoryTitles: nextTitles }),
+    });
+    if (!res.ok) return;
+    historyTitlesRef.current = nextTitles;
+    setHistoryTitles(nextTitles);
+    const nextBoxes = historyBoxes.map((item) => item.ids[0] === firstId ? { ...item, title } : item);
+    setHistoryBoxes(nextBoxes);
+    saveHistoryCache(nextBoxes);
+    setEditingHistoryId(null);
+    setEditingHistoryTitle("");
+  }
+
   async function removeHistoryBox(box: HistoryBox) {
     const nextLocal = historyBoxes.filter((item) => item.ids[0] !== box.ids[0]);
     setHistoryBoxes(nextLocal);
@@ -257,11 +316,13 @@ export default function ChatHistorySidebar() {
   }
 
   function handleBoxClick(box: HistoryBox) {
+    if (editingHistoryId) return;
     if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
     clickTimerRef.current = setTimeout(() => { openHistoryBox(box); clickTimerRef.current = null; }, 320);
   }
   function handleBoxDoubleClick(event: React.MouseEvent, box: HistoryBox) {
     event.preventDefault(); event.stopPropagation();
+    if (editingHistoryId) return;
     if (clickTimerRef.current) { clearTimeout(clickTimerRef.current); clickTimerRef.current = null; }
     void removeHistoryBox(box);
   }
@@ -274,21 +335,83 @@ export default function ChatHistorySidebar() {
     <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
       <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
         <div className="space-y-1">
-          {historyBoxes.map((box, index) => (
-            <div key={`${box.ids[0]}-${index}`} onClick={() => handleBoxClick(box)} onDoubleClick={(event) => handleBoxDoubleClick(event, box)} className={`flex h-9 cursor-pointer items-center gap-1 rounded-lg border px-2 ${selectedBoxId === box.ids[0] ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/20"}`} title={`${box.date} · ${box.title} · 한 번 클릭: 보기 · 더블클릭: 즉시 삭제`}>
-              <div className="min-w-0 flex flex-1 items-center gap-1.5 text-left">
-                <span className="shrink-0 text-[9px] font-medium text-[var(--muted)]">{box.date}</span>
-                <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--gold-soft)]">{box.title}</span>
+          {historyBoxes.map((box, index) => {
+            const firstId = box.ids[0] || `${index}`;
+            const editing = editingHistoryId === firstId;
+            return (
+              <div key={`${firstId}-${index}`} onClick={() => handleBoxClick(box)} onDoubleClick={(event) => handleBoxDoubleClick(event, box)} className={`flex h-9 cursor-pointer items-center gap-1 rounded-lg border px-2 ${selectedBoxId === firstId ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/20"}`} title={`${box.date} · ${box.title} · 한 번 클릭: 보기 · 연필: 제목 수정 · 더블클릭: 삭제`}>
+                <div className="min-w-0 flex flex-1 items-center gap-1.5 text-left">
+                  <span className="shrink-0 text-[9px] font-medium text-[var(--muted)]">{box.date}</span>
+                  {editing ? (
+                    <input
+                      autoFocus
+                      value={editingHistoryTitle}
+                      onChange={(event) => setEditingHistoryTitle(event.target.value)}
+                      onClick={(event) => event.stopPropagation()}
+                      onDoubleClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter") { event.preventDefault(); void saveHistoryTitle(box); }
+                        if (event.key === "Escape") { setEditingHistoryId(null); setEditingHistoryTitle(""); }
+                      }}
+                      className="min-w-0 flex-1 rounded border border-[var(--gold)]/50 bg-black/50 px-1.5 py-1 text-xs text-white outline-none"
+                      maxLength={120}
+                    />
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--gold-soft)]">{box.title}</span>
+                  )}
+                </div>
+                {editing ? (
+                  <>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); void saveHistoryTitle(box); }} className="shrink-0 rounded-md p-1 text-emerald-300 hover:bg-emerald-500/10" title="제목 저장"><Check size={13} /></button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setEditingHistoryId(null); setEditingHistoryTitle(""); }} className="shrink-0 rounded-md p-1 text-[var(--muted)] hover:bg-white/10" title="취소"><X size={13} /></button>
+                  </>
+                ) : (
+                  <>
+                    <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); setEditingHistoryId(firstId); setEditingHistoryTitle(box.title); }} className="shrink-0 rounded-md p-1 text-[var(--muted)] hover:bg-white/10 hover:text-[var(--gold-soft)]" title="제목 수정"><Pencil size={12} /></button>
+                    <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void removeHistoryBox(box); }} onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); }} className="shrink-0 rounded-md p-1 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="즉시 삭제"><Trash2 size={13} /></button>
+                  </>
+                )}
               </div>
-              <button type="button" onClick={(event) => { event.preventDefault(); event.stopPropagation(); void removeHistoryBox(box); }} onDoubleClick={(event) => { event.preventDefault(); event.stopPropagation(); }} className="shrink-0 rounded-md p-1 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="즉시 삭제"><Trash2 size={13} /></button>
-            </div>
-          ))}
+            );
+          })}
           {historyLoaded && historyBoxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">아직 저장된 지난 대화가 없습니다.</p> : null}
           {!historyLoaded ? <p className="p-2 text-xs text-[var(--muted)]">지난 대화를 불러오는 중…</p> : null}
         </div>
         <div className="my-3 border-t border-white/10" />
         <div className="px-1 pb-2 text-[11px] font-semibold uppercase tracking-wider text-[var(--muted)]">채팅방</div>
-        <div className="space-y-1">{rooms.map((room) => <div key={room.id} className={`group flex items-center rounded-lg border ${room.id === currentId ? "border-[var(--gold)]/60 bg-[var(--gold)]/10" : "border-transparent hover:bg-white/[0.03]"}`}><Link href={`/rooms/${room.id}`} className="min-w-0 flex-1 truncate px-3 py-2 text-sm">{room.name}</Link><button type="button" onClick={() => void removeRoom(room.id)} className="mr-1 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></button></div>)}</div>
+        <div className="space-y-1">
+          {rooms.map((room) => {
+            const editing = editingRoomId === room.id;
+            return (
+              <div key={room.id} className={`group flex items-center rounded-lg border ${room.id === currentId ? "border-[var(--gold)]/60 bg-[var(--gold)]/10" : "border-transparent hover:bg-white/[0.03]"}`}>
+                {editing ? (
+                  <input
+                    autoFocus
+                    value={editingRoomName}
+                    onChange={(event) => setEditingRoomName(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter") { event.preventDefault(); void saveRoomName(room.id); }
+                      if (event.key === "Escape") { setEditingRoomId(null); setEditingRoomName(""); }
+                    }}
+                    className="ml-2 min-w-0 flex-1 rounded border border-[var(--gold)]/50 bg-black/50 px-2 py-1.5 text-sm text-white outline-none"
+                    maxLength={120}
+                  />
+                ) : (
+                  <Link href={`/rooms/${room.id}`} className="min-w-0 flex-1 truncate px-3 py-2 text-sm">{room.name}</Link>
+                )}
+                {editing ? (
+                  <>
+                    <button type="button" onClick={() => void saveRoomName(room.id)} className="rounded-md p-1.5 text-emerald-300 hover:bg-emerald-500/10" title="채팅방 이름 저장"><Check size={13} /></button>
+                    <button type="button" onClick={() => { setEditingRoomId(null); setEditingRoomName(""); }} className="rounded-md p-1.5 text-[var(--muted)] hover:bg-white/10" title="취소"><X size={13} /></button>
+                  </>
+                ) : (
+                  <button type="button" onClick={() => { setEditingRoomId(room.id); setEditingRoomName(room.name); }} className="rounded-md p-1.5 text-[var(--muted)] hover:bg-white/10 hover:text-[var(--gold-soft)]" title="채팅방 이름 수정"><Pencil size={13} /></button>
+                )}
+                <button type="button" onClick={() => void removeRoom(room.id)} className="mr-1 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300"><Trash2 size={14} /></button>
+              </div>
+            );
+          })}
+        </div>
       </div>
       <button type="button" onMouseDown={startResize} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-30 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"><GripVertical size={14} className="text-white/35" /></button>
       <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 채팅 목록 닫기"><ChevronLeft size={22} /></button>
