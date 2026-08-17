@@ -74,6 +74,7 @@ export default function RightWorkSidebar() {
   const [selectedIds, setSelectedIds] = useState<string[]>(DEFAULT_APPS);
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
+  const [mobileExpanded, setMobileExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuScrollRef = useRef<HTMLDivElement>(null);
 
@@ -122,12 +123,25 @@ export default function RightWorkSidebar() {
 
   const hasVisibleResults = visibleSelectedApps.length > 0 || visibleLocalFiles.length > 0 || extraAppMatches.length > 0;
 
+  function isCompactMobile() {
+    return typeof window !== "undefined" && window.innerWidth <= 1200;
+  }
+
   function openApp(app: AppItem) {
     if (app.id === "files") {
       fileInputRef.current?.click();
       return;
     }
     if (app.url) window.open(app.url, "_blank", "noopener,noreferrer");
+  }
+
+  function handleAppClick(app: AppItem) {
+    if (isCompactMobile() && !mobileExpanded) {
+      setMobileExpanded(true);
+      return;
+    }
+    openApp(app);
+    if (isCompactMobile()) setMobileExpanded(false);
   }
 
   function removeApp(id: string) {
@@ -181,13 +195,14 @@ export default function RightWorkSidebar() {
 
   return (
     <aside
-      className="relative z-40 flex h-screen w-[170px] min-w-[170px] max-w-[170px] shrink-0 flex-col bg-[#07111f]"
+      className="rc-right-work-sidebar relative z-40 flex h-screen w-[170px] min-w-[170px] max-w-[170px] shrink-0 flex-col bg-[#07111f]"
+      data-mobile-expanded={mobileExpanded ? "true" : "false"}
       style={{ borderLeft: "4px solid #FFD700", boxShadow: "-1px 0 0 #FFD700" }}
       onWheel={scrollMenuFromAnywhere}
     >
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
 
-      <div className="shrink-0 px-1.5 py-1.5">
+      <div className="rc-right-search shrink-0 px-1.5 py-1.5">
         <div className="relative">
           <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
           <input
@@ -207,7 +222,7 @@ export default function RightWorkSidebar() {
         </div>
       </div>
 
-      <div ref={menuScrollRef} className="min-h-0 flex-1 overflow-y-auto px-1.5 pb-[118px]">
+      <div ref={menuScrollRef} className="rc-right-menu min-h-0 flex-1 overflow-y-auto px-1.5 pb-[118px]">
         {visibleSelectedApps.map((app) => (
           <div
             key={app.id}
@@ -215,19 +230,19 @@ export default function RightWorkSidebar() {
             onDragStart={() => setDragId(app.id)}
             onDragOver={(e) => e.preventDefault()}
             onDrop={() => onDrop(app.id)}
-            className={`group flex w-full items-center ${dragId === app.id ? "opacity-45" : ""}`}
+            className={`rc-right-row group flex w-full items-center ${dragId === app.id ? "opacity-45" : ""}`}
             style={{ height: ROW_HEIGHT }}
           >
             <button
               type="button"
-              onClick={() => openApp(app)}
-              className="flex h-full min-w-0 flex-1 items-center gap-2 px-1.5 text-left hover:bg-white/[0.05]"
+              onClick={() => handleAppClick(app)}
+              className="rc-right-app-button flex h-full min-w-0 flex-1 items-center gap-2 px-1.5 text-left hover:bg-white/[0.05]"
               title={app.title}
             >
               <AppIcon app={app} />
-              <span className="min-w-0 flex-1 truncate text-[10px] font-semibold leading-none">{app.title}</span>
+              <span className="rc-right-app-title min-w-0 flex-1 truncate text-[10px] font-semibold leading-none">{app.title}</span>
             </button>
-            <button type="button" onClick={() => removeApp(app.id)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
+            <button type="button" onClick={() => removeApp(app.id)} className="rc-right-remove mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
               <LogOut size={15} />
             </button>
           </div>
@@ -236,12 +251,12 @@ export default function RightWorkSidebar() {
         {visibleLocalFiles.map((file) => {
           const index = localFiles.indexOf(file);
           return (
-            <div key={`${file.name}-${index}`} className="group flex h-7 w-full items-center">
-              <a href={file.url} target="_blank" rel="noreferrer" className="flex h-full min-w-0 flex-1 items-center gap-2 px-1.5 hover:bg-white/[0.05]" title={file.name}>
+            <div key={`${file.name}-${index}`} className="rc-right-row group flex h-7 w-full items-center">
+              <a href={file.url} target="_blank" rel="noreferrer" className="rc-right-app-button flex h-full min-w-0 flex-1 items-center gap-2 px-1.5 hover:bg-white/[0.05]" title={file.name}>
                 <File size={15} className="shrink-0 text-[var(--gold-soft)]" />
-                <span className="min-w-0 flex-1 truncate text-[10px]">{file.name}</span>
+                <span className="rc-right-app-title min-w-0 flex-1 truncate text-[10px]">{file.name}</span>
               </a>
-              <button type="button" onClick={() => removeLocalFile(index)} className="mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
+              <button type="button" onClick={() => removeLocalFile(index)} className="rc-right-remove mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
                 <LogOut size={15} />
               </button>
             </div>
