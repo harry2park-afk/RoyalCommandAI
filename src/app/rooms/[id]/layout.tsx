@@ -108,73 +108,167 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
             animation-delay: .55s;
           }
 
-          /* Mobile-only Command Room layout. Desktop remains unchanged. */
-          @media (max-width: 900px) {
+          /* Mobile / phone landscape Command Room layout. Desktop remains unchanged. */
+          @media (max-width: 1200px) {
             .royal-room-layout {
               width: 100vw !important;
               min-width: 0 !important;
               overflow: hidden !important;
             }
-            .royal-room-layout > aside {
+            .royal-room-layout > aside:not(:last-child) {
               display: none !important;
             }
+            .royal-room-layout > aside:last-child {
+              display: flex !important;
+              width: 48px !important;
+              min-width: 48px !important;
+              max-width: 48px !important;
+              transition: width .16s ease, min-width .16s ease, max-width .16s ease !important;
+            }
+            .royal-room-layout > aside:last-child[data-mobile-expanded="true"] {
+              width: 150px !important;
+              min-width: 150px !important;
+              max-width: 150px !important;
+            }
+            .royal-room-layout > aside:last-child .rc-right-search {
+              display: none !important;
+            }
+            .royal-room-layout > aside:last-child .rc-right-menu {
+              padding-left: 2px !important;
+              padding-right: 2px !important;
+              padding-top: 4px !important;
+            }
+            .royal-room-layout > aside:last-child .rc-right-row {
+              height: 42px !important;
+              min-height: 42px !important;
+              justify-content: center !important;
+            }
+            .royal-room-layout > aside:last-child .rc-right-app-button {
+              justify-content: center !important;
+              gap: 0 !important;
+              padding-left: 0 !important;
+              padding-right: 0 !important;
+            }
+            .royal-room-layout > aside:last-child .rc-right-app-title,
+            .royal-room-layout > aside:last-child .rc-right-remove {
+              display: none !important;
+            }
+            .royal-room-layout > aside:last-child[data-mobile-expanded="true"] .rc-right-app-button {
+              justify-content: flex-start !important;
+              gap: 8px !important;
+              padding-left: 8px !important;
+              padding-right: 6px !important;
+            }
+            .royal-room-layout > aside:last-child[data-mobile-expanded="true"] .rc-right-app-title {
+              display: block !important;
+              font-size: 11px !important;
+            }
             .royal-room-main {
-              width: 100vw !important;
-              max-width: 100vw !important;
+              width: auto !important;
+              max-width: none !important;
               min-width: 0 !important;
-              flex: 1 1 100% !important;
+              flex: 1 1 auto !important;
             }
             .royal-room-main > main {
-              width: 100vw !important;
-              max-width: 100vw !important;
+              width: 100% !important;
+              max-width: 100% !important;
               min-width: 0 !important;
               padding-top: 88px !important;
             }
             .royal-room-main main > div.fixed:first-of-type {
+              left: 0 !important;
+              right: 48px !important;
+              width: auto !important;
               height: 88px !important;
+            }
+            .royal-room-layout:has(> aside:last-child[data-mobile-expanded="true"]) .royal-room-main main > div.fixed:first-of-type {
+              right: 150px !important;
             }
             .royal-room-main main > div.fixed:first-of-type > div:first-child {
               height: 40px !important;
-              padding-left: 8px !important;
-              padding-right: 8px !important;
-              gap: 6px !important;
+              padding-left: 6px !important;
+              padding-right: 6px !important;
+              gap: 4px !important;
             }
             .royal-room-main main > div.fixed:first-of-type > div:first-child > a {
-              font-size: 11px !important;
+              width: 24px !important;
+              min-width: 24px !important;
+              overflow: hidden !important;
+              font-size: 0 !important;
+              white-space: nowrap !important;
+            }
+            .royal-room-main main > div.fixed:first-of-type > div:first-child > a::before {
+              content: "←";
+              font-size: 16px !important;
+              color: #d7b64d !important;
             }
             .royal-room-main main > div.fixed:first-of-type > div:first-child > h1 {
-              margin-left: 4px !important;
-              font-size: 17px !important;
+              margin-left: 0 !important;
+              font-size: 15px !important;
               white-space: nowrap !important;
             }
             .royal-room-main main > div.fixed:first-of-type > div:first-child > div:nth-of-type(1) {
               display: none !important;
             }
+            .royal-room-main main > div.fixed:first-of-type > div:first-child > div:last-child {
+              margin-left: auto !important;
+              min-width: 0 !important;
+            }
+            .royal-room-main main > div.fixed:first-of-type > div:first-child select {
+              max-width: 104px !important;
+              height: 30px !important;
+              padding-left: 5px !important;
+              padding-right: 4px !important;
+              font-size: 11px !important;
+            }
             .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) {
               height: 48px !important;
-              gap: 6px !important;
-              overflow-x: auto !important;
-              overflow-y: hidden !important;
-              padding: 6px 8px !important;
-              scrollbar-width: none !important;
-              -webkit-overflow-scrolling: touch !important;
+              gap: 3px !important;
+              overflow: hidden !important;
+              padding: 6px 5px !important;
             }
-            .royal-room-main main > div.fixed:first-of-type > div:nth-child(2)::-webkit-scrollbar {
+            .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:nth-child(n+7):not(:last-child) {
               display: none !important;
             }
             .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:not(:last-child) {
-              flex: 0 0 78px !important;
-              min-width: 78px !important;
-              width: 78px !important;
+              flex: 1 1 54px !important;
+              min-width: 38px !important;
+              max-width: 72px !important;
+              width: auto !important;
               height: 34px !important;
-              padding-left: 5px !important;
-              padding-right: 5px !important;
-              font-size: 11px !important;
+              gap: 2px !important;
+              padding-left: 2px !important;
+              padding-right: 2px !important;
+              font-size: 9px !important;
+            }
+            .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:not(:last-child) > span:first-child {
+              width: 18px !important;
+              height: 18px !important;
+              min-width: 18px !important;
+              background-size: 16px 16px !important;
+            }
+            .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:not(:last-child) > span:last-child {
+              transform: none !important;
+              font-size: 9px !important;
             }
             .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:last-child {
-              flex: 0 0 118px !important;
-              min-width: 118px !important;
+              flex: 0 0 60px !important;
+              min-width: 60px !important;
+              width: 60px !important;
               height: 34px !important;
+              margin-left: auto !important;
+              padding-left: 3px !important;
+              padding-right: 3px !important;
+              gap: 2px !important;
+              font-size: 0 !important;
+            }
+            .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:last-child span {
+              display: none !important;
+            }
+            .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:last-child::after {
+              content: "AI창고";
+              font-size: 8px !important;
+              line-height: 1 !important;
             }
             .royal-room-main main section {
               width: 100% !important;
@@ -213,10 +307,11 @@ export default function RoomLayout({ children }: { children: ReactNode }) {
               align-items: stretch !important;
               padding: 0 !important;
               padding-top: 88px !important;
+              padding-right: 48px !important;
               background: rgba(0,0,0,.58) !important;
             }
             .royal-room-main main > div[class*="z-[210]"] > div {
-              width: min(88vw, 380px) !important;
+              width: min(82vw, 380px) !important;
               max-width: 380px !important;
               max-height: calc(100dvh - 88px) !important;
               height: calc(100dvh - 88px) !important;
