@@ -10,6 +10,7 @@ const RETIRED_GEMINI_MODELS = new Set([
 ]);
 
 const GEMINI_MAX_OUTPUT_TOKENS = 2048;
+const GEMINI_OPENROUTER_MAX_TOKENS = 512;
 
 const openRouterGemini = new OpenRouterCatalogConnector(
   "google",
@@ -142,15 +143,19 @@ export class GoogleConnector implements AIConnector {
     }
 
     if (process.env.OPENROUTER_API_KEY) {
+      const routedRequest: AIRequest = {
+        ...boundedRequest,
+        maxTokens: Math.min(boundedRequest.maxTokens || GEMINI_OPENROUTER_MAX_TOKENS, GEMINI_OPENROUTER_MAX_TOKENS),
+      };
       logger.warn("ai.provider.fallback", {
         provider: this.displayName,
         from: apiKeys.length ? "Google direct" : "No Google API key",
         to: "OpenRouter",
         reason: directErrors.join("; ").slice(0, 500) || "direct key unavailable",
-        maxTokens: boundedRequest.maxTokens,
+        maxTokens: routedRequest.maxTokens,
       });
       try {
-        const routed = await openRouterGemini.complete(boundedRequest);
+        const routed = await openRouterGemini.complete(routedRequest);
         if (!routed.error && routed.content?.trim()) return routed;
         return {
           ...routed,
