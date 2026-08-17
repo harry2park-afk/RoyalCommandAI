@@ -24,7 +24,7 @@ const has = (name: string) => Boolean((process.env[name] || "").trim());
 export function getToolCapabilities(): ToolCapability[] {
   const github = has("GITHUB_TOKEN");
   const vercel = has("VERCEL_TOKEN");
-  const supabase = has("NEXT_PUBLIC_SUPABASE_URL") && (has("SUPABASE_SERVICE_ROLE_KEY") || has("NEXT_PUBLIC_SUPABASE_ANON_KEY"));
+  const supabase = has("NEXT_PUBLIC_SUPABASE_URL") && has("NEXT_PUBLIC_SUPABASE_ANON_KEY");
   const openai = has("OPENAI_API_KEY");
   const anthropic = has("ANTHROPIC_API_KEY");
   const gemini = has("GOOGLE_AI_API_KEY") || has("GEMINI_API_KEY") || has("GOOGLE_API_KEY");
@@ -37,7 +37,7 @@ export function getToolCapabilities(): ToolCapability[] {
     { id: "vercel.git_deploy", label: "Vercel deployment through Git integration", connection: github ? "limited" : "not_connected", risk: "production", description: "Merged GitHub changes can trigger Vercel deployment; status must be verified before success is reported.", execution: github ? "git_integration" : "planned" },
     { id: "vercel.runtime.read", label: "Vercel deployment and runtime logs", connection: vercel ? "connected" : "not_connected", risk: "read", description: vercel ? "Read production deployment state, build events and runtime logs through the server-side Vercel connection." : "Direct Vercel management connection is not configured on the Royal Command server.", execution: vercel ? "host" : "planned" },
     { id: "vercel.deploy", label: "Vercel direct deployment", connection: vercel ? "connected" : github ? "limited" : "not_connected", risk: "production", description: vercel ? "Create a production deployment from the approved Royal Command GitHub source after explicit owner approval." : "Git-triggered deployment remains available; direct deployment is not configured.", execution: vercel ? "host" : github ? "git_integration" : "planned" },
-    { id: "database.app", label: "Royal Command application database", connection: supabase ? "limited" : "not_connected", risk: "safe_write", description: "Application-level database access may exist; schema/admin/destructive authority is not granted by this gateway.", execution: supabase ? "host" : "planned" },
+    { id: "database.app", label: "Royal Command Supabase database", connection: supabase ? "connected" : "not_connected", risk: "safe_write", description: supabase ? "RLS-protected schema inspection, allow-listed reads, and narrow safe writes for decisions/service instances through the authenticated Royal Command server session." : "Supabase application connection is not configured.", execution: supabase ? "host" : "planned" },
     { id: "ai.openai", label: "OpenAI provider", connection: openai ? "connected" : "not_connected", risk: "read", description: "Server-side OpenAI model invocation.", execution: openai ? "host" : "planned" },
     { id: "ai.anthropic", label: "Anthropic provider", connection: anthropic ? "connected" : "not_connected", risk: "read", description: "Server-side Anthropic model invocation.", execution: anthropic ? "host" : "planned" },
     { id: "ai.google", label: "Google Gemini provider", connection: gemini ? "connected" : "not_connected", risk: "read", description: "Server-side Gemini model invocation.", execution: gemini ? "host" : "planned" },
