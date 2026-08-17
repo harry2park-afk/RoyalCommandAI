@@ -17,7 +17,7 @@ export const GOOGLE_WORKSPACE_SCOPES = [
 ];
 
 export function googleWorkspaceConfigured() {
-  return Boolean(CLIENT_ID() && CLIENT_SECRET() && TOKEN_KEY());
+  return Boolean(CLIENT_ID() && CLIENT_SECRET());
 }
 
 export function googleRedirectUri() {
@@ -25,9 +25,10 @@ export function googleRedirectUri() {
 }
 
 function keyBytes() {
-  const raw = TOKEN_KEY();
-  if (!raw) throw new Error("GOOGLE_WORKSPACE_TOKEN_KEY is not configured");
-  return crypto.createHash("sha256").update(raw).digest();
+  const dedicated = TOKEN_KEY().trim();
+  const secret = dedicated || CLIENT_SECRET().trim();
+  if (!secret) throw new Error("Google Workspace encryption secret is not configured");
+  return crypto.createHash("sha256").update(`royal-command:google-workspace:v1:${secret}`).digest();
 }
 
 export function encryptToken(value: string) {
