@@ -25,7 +25,7 @@ export function getToolCapabilities(): ToolCapability[] {
   const github = has("GITHUB_TOKEN");
   const vercel = has("VERCEL_TOKEN");
   const supabase = has("NEXT_PUBLIC_SUPABASE_URL") && has("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  const googleWorkspace = has("GOOGLE_WORKSPACE_CLIENT_ID") && has("GOOGLE_WORKSPACE_CLIENT_SECRET") && has("GOOGLE_WORKSPACE_TOKEN_KEY");
+  const googleWorkspace = has("GOOGLE_WORKSPACE_CLIENT_ID") && has("GOOGLE_WORKSPACE_CLIENT_SECRET");
   const openai = has("OPENAI_API_KEY");
   const anthropic = has("ANTHROPIC_API_KEY");
   const gemini = has("GOOGLE_AI_API_KEY") || has("GEMINI_API_KEY") || has("GOOGLE_API_KEY");
