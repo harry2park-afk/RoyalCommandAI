@@ -9,7 +9,7 @@ const RETIRED_CLAUDE_MODELS = new Set([
 ]);
 
 const CLAUDE_DIRECT_MAX_TOKENS = 4_096;
-const CLAUDE_OPENROUTER_MAX_TOKENS = 320;
+const CLAUDE_OPENROUTER_MAX_TOKENS = 2_048;
 
 const openRouterClaude = new OpenRouterCatalogConnector(
   "anthropic",
