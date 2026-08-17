@@ -25,6 +25,7 @@ export function getToolCapabilities(): ToolCapability[] {
   const github = has("GITHUB_TOKEN");
   const vercel = has("VERCEL_TOKEN");
   const supabase = has("NEXT_PUBLIC_SUPABASE_URL") && has("NEXT_PUBLIC_SUPABASE_ANON_KEY");
+  const googleWorkspace = has("GOOGLE_WORKSPACE_CLIENT_ID") && has("GOOGLE_WORKSPACE_CLIENT_SECRET") && has("GOOGLE_WORKSPACE_TOKEN_KEY");
   const openai = has("OPENAI_API_KEY");
   const anthropic = has("ANTHROPIC_API_KEY");
   const gemini = has("GOOGLE_AI_API_KEY") || has("GEMINI_API_KEY") || has("GOOGLE_API_KEY");
@@ -42,9 +43,13 @@ export function getToolCapabilities(): ToolCapability[] {
     { id: "ai.anthropic", label: "Anthropic provider", connection: anthropic ? "connected" : "not_connected", risk: "read", description: "Server-side Anthropic model invocation.", execution: anthropic ? "host" : "planned" },
     { id: "ai.google", label: "Google Gemini provider", connection: gemini ? "connected" : "not_connected", risk: "read", description: "Server-side Gemini model invocation.", execution: gemini ? "host" : "planned" },
     { id: "ai.xai", label: "xAI Grok provider", connection: grok ? "connected" : "not_connected", risk: "read", description: "Server-side xAI model invocation.", execution: grok ? "host" : "planned" },
-    { id: "email.gmail", label: "Gmail", connection: "not_connected", risk: "safe_write", description: "Not yet exposed as a Royal Command server-side execution connector.", execution: "planned" },
-    { id: "calendar.google", label: "Google Calendar", connection: "not_connected", risk: "safe_write", description: "Not yet exposed as a Royal Command server-side execution connector.", execution: "planned" },
-    { id: "files.drive", label: "Google Drive / managed files", connection: "not_connected", risk: "safe_write", description: "Not yet exposed as a Royal Command server-side execution connector.", execution: "planned" },
+    { id: "email.gmail.read", label: "Gmail read/search", connection: googleWorkspace ? "limited" : "not_connected", risk: "read", description: googleWorkspace ? "Google OAuth execution route is installed. It becomes active for a user after that Royal Command account authorises Gmail." : "Google Workspace OAuth server settings are not configured.", execution: googleWorkspace ? "host" : "planned" },
+    { id: "email.gmail.draft", label: "Gmail draft", connection: googleWorkspace ? "limited" : "not_connected", risk: "safe_write", description: "Create Gmail drafts through the connected user's Google account without sending them.", execution: googleWorkspace ? "host" : "planned" },
+    { id: "email.gmail.send", label: "Gmail send", connection: googleWorkspace ? "limited" : "not_connected", risk: "production", description: "Send email only after explicit owner approval; models cannot silently send mail.", execution: googleWorkspace ? "host" : "planned" },
+    { id: "calendar.google.read", label: "Google Calendar read", connection: googleWorkspace ? "limited" : "not_connected", risk: "read", description: "Read the connected user's primary calendar after Google OAuth authorisation.", execution: googleWorkspace ? "host" : "planned" },
+    { id: "calendar.google.write", label: "Google Calendar create/update", connection: googleWorkspace ? "limited" : "not_connected", risk: "safe_write", description: "Create or update calendar events under the signed-in Royal Command user's Google permissions. Calendar deletion is not exposed.", execution: googleWorkspace ? "host" : "planned" },
+    { id: "files.drive.read", label: "Google Drive file read/list", connection: googleWorkspace ? "limited" : "not_connected", risk: "read", description: "List and inspect metadata for files visible through the authorised Google Drive scopes.", execution: googleWorkspace ? "host" : "planned" },
+    { id: "files.drive.write", label: "Google Drive managed file create", connection: googleWorkspace ? "limited" : "not_connected", risk: "safe_write", description: "Create new managed files through Drive. Arbitrary deletion and unrestricted full-drive modification are not exposed.", execution: googleWorkspace ? "host" : "planned" },
     { id: "telephony.manage", label: "Retell / Twilio / Crazytel", connection: "not_connected", risk: "production", description: "Telephony administration requires a scoped connector and approval policy.", execution: "planned" },
     { id: "dns.manage", label: "Domain / DNS administration", connection: "not_connected", risk: "production", description: "Domain and DNS changes require a dedicated scoped connector and explicit approval.", execution: "planned" },
     { id: "billing.manage", label: "Billing / purchases", connection: "not_connected", risk: "billing", description: "Billing, purchases and plan changes are excluded from autonomous AI authority.", execution: "planned" },
