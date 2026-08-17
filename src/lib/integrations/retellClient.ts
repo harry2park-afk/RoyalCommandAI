@@ -39,8 +39,37 @@ export type RetellVoiceAgentSummary = {
   last_modification_timestamp?: number;
 };
 
+type RetellAgentListResponse = {
+  items: RetellVoiceAgentSummary[];
+  pagination_key?: string | null;
+  has_more?: boolean;
+};
+
 export async function listRetellVoiceAgents(): Promise<RetellVoiceAgentSummary[]> {
-  return retellRequest<RetellVoiceAgentSummary[]>("/list-agents?is_latest=true");
+  const agents: RetellVoiceAgentSummary[] = [];
+  let paginationKey: string | undefined;
+
+  for (let page = 0; page < 20; page += 1) {
+    const body: Record<string, unknown> = {
+      filter_criteria: {
+        channel: { type: "string", op: "eq", value: "voice" },
+      },
+      limit: 100,
+    };
+    if (paginationKey) body.pagination_key = paginationKey;
+
+    const result = await retellRequest<RetellAgentListResponse>("/v2/list-agents", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+
+    agents.push(...(Array.isArray(result.items) ? result.items : []));
+
+    if (!result.has_more || !result.pagination_key) break;
+    paginationKey = result.pagination_key;
+  }
+
+  return agents;
 }
 
 export async function getRetellVoiceAgent(agentId: string): Promise<Record<string, unknown>> {
