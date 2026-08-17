@@ -9,14 +9,20 @@ const RETIRED_GEMINI_MODELS = new Set([
   "gemini-2.0-flash-lite-001",
 ]);
 
+const GEMINI_MAX_OUTPUT_TOKENS = 2048;
+
 const openRouterGemini = new OpenRouterCatalogConnector(
   "google",
   "Gemini",
   "google gemini flash",
 );
 
-function getGeminiApiKey() {
-  return (process.env.GEMINI_API_KEY || process.env.GOOGLE_AI_API_KEY || process.env.GOOGLE_API_KEY || "").trim();
+function getGeminiApiKeys() {
+  return Array.from(new Set([
+    process.env.GEMINI_API_KEY,
+    process.env.GOOGLE_AI_API_KEY,
+    process.env.GOOGLE_API_KEY,
+  ].map((value) => (value || "").trim()).filter(Boolean)));
 }
 
 export class GoogleConnector implements AIConnector {
@@ -24,7 +30,7 @@ export class GoogleConnector implements AIConnector {
   displayName = "Gemini";
 
   isConfigured() {
-    return Boolean(getGeminiApiKey() || process.env.OPENROUTER_API_KEY);
+    return Boolean(getGeminiApiKeys().length || process.env.OPENROUTER_API_KEY);
   }
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
@@ -33,34 +39,28 @@ export class GoogleConnector implements AIConnector {
     const model = !configuredModel || RETIRED_GEMINI_MODELS.has(configuredModel)
       ? "gemini-3.5-flash"
       : configuredModel;
+    const boundedRequest: AIRequest = {
+      ...request,
+      maxTokens: Math.min(request.maxTokens || GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MAX_OUTPUT_TOKENS),
+    };
 
-    const direct = async (): Promise<AIProviderResponse> => {
-      const apiKey = getGeminiApiKey();
-      if (!apiKey) {
-        return {
-          provider: this.id,
-          model,
-          content: "",
-          latencyMs: Date.now() - started,
-          error: "GEMINI_API_KEY (or GOOGLE_AI_API_KEY / GOOGLE_API_KEY) is not configured",
-        };
-      }
-
+    const direct = async (apiKey: string): Promise<AIProviderResponse> => {
       try {
-        const system = request.messages
+        const system = boundedRequest.messages
           .filter((m) => m.role === "system")
           .map((m) => m.content)
           .join("\n");
-        const contents = request.messages
+        const contents = boundedRequest.messages
           .filter((m) => m.role !== "system")
           .map((m) => ({
             role: m.role === "assistant" ? "model" : "user",
             parts: [{ text: m.content }],
           }));
 
-        const generationConfig: Record<string, unknown> = {};
-        if (request.temperature !== undefined) generationConfig.temperature = request.temperature;
-        if (request.maxTokens) generationConfig.maxOutputTokens = request.maxTokens;
+        const generationConfig: Record<string, unknown> = {
+          maxOutputTokens: boundedRequest.maxTokens,
+        };
+        if (boundedRequest.temperature !== undefined) generationConfig.temperature = boundedRequest.temperature;
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
         const res = await fetch(url, {
@@ -72,7 +72,7 @@ export class GoogleConnector implements AIConnector {
           body: JSON.stringify({
             systemInstruction: system ? { parts: [{ text: system }] } : undefined,
             contents,
-            generationConfig: Object.keys(generationConfig).length ? generationConfig : undefined,
+            generationConfig,
           }),
         });
 
@@ -127,51 +127,53 @@ export class GoogleConnector implements AIConnector {
       }
     };
 
-    const preferDirect = process.env.ROYAL_COMMAND_PREFER_DIRECT_AI === "true";
+    const directErrors: string[] = [];
+    const apiKeys = getGeminiApiKeys();
 
-    if (process.env.OPENROUTER_API_KEY && !preferDirect) {
+    for (let index = 0; index < apiKeys.length; index += 1) {
       logger.info("ai.provider.primary_route", {
         provider: this.displayName,
-        via: "OpenRouter",
+        via: "Google direct",
+        keySlot: index + 1,
       });
-      try {
-        const routed = await openRouterGemini.complete(request);
-        if (!routed.error && routed.content?.trim()) return routed;
-        logger.warn("ai.provider.primary_route.failed", {
-          provider: this.displayName,
-          via: "OpenRouter",
-          error: String(routed.error || "empty response").slice(0, 500),
-        });
-      } catch (error) {
-        logger.warn("ai.provider.primary_route.failed", {
-          provider: this.displayName,
-          via: "OpenRouter",
-          error: (error instanceof Error ? error.message : String(error)).slice(0, 500),
-        });
-      }
+      const result = await direct(apiKeys[index]!);
+      if (!result.error && result.content?.trim()) return result;
+      directErrors.push(result.error || "empty response");
     }
 
-    const directResult = await direct();
-    if (!directResult.error && directResult.content?.trim()) return directResult;
-
-    if (process.env.OPENROUTER_API_KEY && preferDirect) {
+    if (process.env.OPENROUTER_API_KEY) {
       logger.warn("ai.provider.fallback", {
         provider: this.displayName,
-        from: "Google direct",
+        from: apiKeys.length ? "Google direct" : "No Google API key",
         to: "OpenRouter",
-        reason: String(directResult.error || "empty response").slice(0, 500),
+        reason: directErrors.join("; ").slice(0, 500) || "direct key unavailable",
+        maxTokens: boundedRequest.maxTokens,
       });
       try {
-        return await openRouterGemini.complete(request);
+        const routed = await openRouterGemini.complete(boundedRequest);
+        if (!routed.error && routed.content?.trim()) return routed;
+        return {
+          ...routed,
+          error: [directErrors.join("; "), routed.error || "OpenRouter Gemini returned an empty response"].filter(Boolean).join("; "),
+        };
       } catch (fallbackError) {
         const fallbackMessage = fallbackError instanceof Error ? fallbackError.message : "OpenRouter Gemini fallback failed";
         return {
-          ...directResult,
-          error: `${directResult.error || "Google direct failed"}; OpenRouter fallback failed: ${fallbackMessage}`,
+          provider: this.id,
+          model,
+          content: "",
+          latencyMs: Date.now() - started,
+          error: [directErrors.join("; "), fallbackMessage].filter(Boolean).join("; "),
         };
       }
     }
 
-    return directResult;
+    return {
+      provider: this.id,
+      model,
+      content: "",
+      latencyMs: Date.now() - started,
+      error: directErrors.join("; ") || "GEMINI_API_KEY (or GOOGLE_AI_API_KEY / GOOGLE_API_KEY) is not configured",
+    };
   }
 }
