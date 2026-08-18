@@ -11,13 +11,21 @@
     button.style.lineHeight = "1";
     button.style.overflow = "hidden";
 
-    const width = button.getBoundingClientRect().width;
-    const next = width > 78 ? "+ New Chat" : "+ Chat";
-    if (button.textContent !== next) button.textContent = next;
+    if (button.dataset.rcCompactChatLabel === "1") return;
+    button.dataset.rcCompactChatLabel = "1";
+    button.textContent = "";
+
+    const prefix = document.createElement("span");
+    prefix.textContent = "+ New ";
+
+    const chat = document.createElement("span");
+    chat.textContent = "Chat";
+    chat.style.fontSize = "0.82em";
+
+    button.append(prefix, chat);
   }
 
   const observer = new MutationObserver(updateLabel);
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  window.addEventListener("resize", updateLabel);
   requestAnimationFrame(updateLabel);
 })();
