@@ -1,6 +1,18 @@
+## Work Queue Ticket
+
+#
+
+## Primary task
+
+One outcome only, on one line.
+
+## Batch exception
+
+NO
+
 ## Goal
 
-Describe one primary change only.
+Describe the requested result for this one task.
 
 ## Files / components changed
 
@@ -8,28 +20,27 @@ Describe one primary change only.
 
 ## Locked surfaces touched
 
-- [ ] NONE
-- [ ] Composer
-- [ ] AI dock / Warehouse
-- [ ] Conversation selection / SAVE / DELETE
-- [ ] Conversation title editing
-- [ ] Right sidebar
-- [ ] External-app launch behavior
-
-If any locked surface is checked, explain the owner's explicit request or verified defect:
+Write `NONE` or list only the locked surfaces this task must change.
 
 ## Explicit non-goals
 
-List what this PR deliberately does not change.
+State what this PR deliberately does not change.
+
+## Verification plan
+
+State the exact checks that prove this task is complete without regressing locked/core flows.
 
 ## Automated checks
 
-- [ ] `npm run lint`
-- [ ] `npm run typecheck`
-- [ ] `npm test`
-- [ ] `npm run build`
+- [ ] Changed-code lint PASS
+- [ ] `npm run typecheck` PASS
+- [ ] `npm test` PASS
+- [ ] `npm run build` PASS
+- [ ] Royal Command Change Control PASS
 
 ## Command Room smoke test
+
+Check only applicable items, but explain any skipped core item when the PR touches Command Room runtime behavior.
 
 - [ ] Login -> Dashboard -> Command Room
 - [ ] No unsolicited external tab
@@ -47,9 +58,9 @@ List what this PR deliberately does not change.
 
 ## Vercel Preview
 
-- Preview URL/state:
-- Manual verification result:
+- Preview URL/state: PENDING
+- Manual verification result: PENDING
 
 ## Rollback point
 
-Last known stable commit / PR:
+Last known stable commit / PR / release:

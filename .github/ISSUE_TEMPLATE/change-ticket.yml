@@ -1,0 +1,78 @@
+name: Royal Command Change Ticket
+description: One controlled development task for the Royal Command queue
+title: "RCQ: "
+body:
+  - type: textarea
+    id: primary_task
+    attributes:
+      label: Primary task
+      description: One outcome only.
+      placeholder: Fix manual scrolling in the Command Room message viewport.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - P0 Production regression / security
+        - P1 Blocker
+        - P2 Owner-requested feature or fix
+        - P3 Technical debt / refactor
+        - P4 Cosmetic
+    validations:
+      required: true
+
+  - type: textarea
+    id: affected_area
+    attributes:
+      label: Affected area
+      description: Page, component, API, database, deployment, or documentation area.
+    validations:
+      required: true
+
+  - type: textarea
+    id: locked_surfaces
+    attributes:
+      label: Locked surfaces touched
+      description: Write NONE or list each locked surface that this task must change.
+      placeholder: NONE
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      description: Other tickets or prerequisites. Write NONE if independent.
+      placeholder: NONE
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk
+    attributes:
+      label: Risk level
+      options:
+        - Low
+        - Medium
+        - High
+    validations:
+      required: true
+
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of done
+      description: Exact observable conditions that must pass before this ticket is DONE.
+    validations:
+      required: true
+
+  - type: textarea
+    id: rollback
+    attributes:
+      label: Rollback point
+      description: Last known stable commit, PR, or release to return to if this change fails.
+    validations:
+      required: true

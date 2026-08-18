@@ -1,0 +1,47 @@
+name: Royal Command Change Control
+
+on:
+  pull_request:
+    branches: [master]
+    types: [opened, edited, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+
+jobs:
+  control:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Validate one-task PR contract
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_TITLE: ${{ github.event.pull_request.title }}
+        run: node scripts/validate-pr-control.mjs
+
+      - name: Verify linked queue ticket exists and is open
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          ticket=$(printf '%s' "$PR_BODY" | awk '/^## Work Queue Ticket/{flag=1;next}/^## /{flag=0}flag' | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+          test -n "$ticket"
+          state=$(gh api "repos/$REPO/issues/$ticket" --jq '.state')
+          if [ "$state" != "open" ]; then
+            echo "Queue ticket #$ticket is not open."
+            exit 1
+          fi
+          echo "Queue ticket #$ticket is OPEN."
