@@ -51,6 +51,13 @@ function appSearchText(app: AppItem) {
   ].join(" ").toLowerCase();
 }
 
+function validAppIds(value: unknown) {
+  if (!Array.isArray(value)) return null;
+  return Array.from(new Set(value.filter((id): id is string =>
+    typeof id === "string" && APP_CATALOG.some((app) => app.id === id)
+  )));
+}
+
 function AppIcon({ app }: { app: AppItem }) {
   const [failed, setFailed] = useState(false);
   const remote = app.brandSlug
@@ -71,30 +78,66 @@ function AppIcon({ app }: { app: AppItem }) {
 
 export default function RightWorkSidebar() {
   const [query, setQuery] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>(DEFAULT_APPS);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [mobileExpanded, setMobileExpanded] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuScrollRef = useRef<HTMLDivElement>(null);
+  const preferencesReady = useRef(false);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    try {
-      const savedApps = window.localStorage.getItem("royalcommand:right-panel-apps");
-      if (savedApps) {
-        const parsed = JSON.parse(savedApps);
-        if (Array.isArray(parsed)) {
-          const savedValid = parsed.filter((id) => typeof id === "string" && APP_CATALOG.some((app) => app.id === id));
-          setSelectedIds(Array.from(new Set([...DEFAULT_APPS, ...savedValid])));
+    let cancelled = false;
+
+    async function restore() {
+      let next: string[] | null = null;
+      try {
+        const res = await fetch("/api/user/preferences", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          next = validAppIds(data?.preferences?.rightPanelApps);
         }
+      } catch {}
+
+      if (next === null) {
+        try {
+          const raw = window.localStorage.getItem("royalcommand:right-panel-apps");
+          next = raw ? validAppIds(JSON.parse(raw)) : null;
+        } catch {}
       }
-      window.localStorage.removeItem("royalcommand:right-panel-collapsed");
-      window.localStorage.removeItem("royalcommand:right-panel-width");
-    } catch {}
+
+      if (cancelled) return;
+      const restored = next ?? DEFAULT_APPS;
+      setSelectedIds(restored);
+      try {
+        window.localStorage.setItem("royalcommand:right-panel-apps", JSON.stringify(restored));
+        window.localStorage.removeItem("royalcommand:right-panel-collapsed");
+        window.localStorage.removeItem("royalcommand:right-panel-width");
+      } catch {}
+      preferencesReady.current = true;
+    }
+
+    void restore();
+    return () => {
+      cancelled = true;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+    };
   }, []);
 
   useEffect(() => {
+    if (!preferencesReady.current) return;
     try { window.localStorage.setItem("royalcommand:right-panel-apps", JSON.stringify(selectedIds)); } catch {}
+
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      void fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rightPanelApps: selectedIds }),
+        keepalive: true,
+      }).catch(() => undefined);
+    }, 250);
   }, [selectedIds]);
 
   const cleanQuery = query.trim().toLowerCase();
