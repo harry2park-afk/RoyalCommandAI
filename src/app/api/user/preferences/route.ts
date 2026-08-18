@@ -14,6 +14,7 @@ type ImportantConversation = {
 type UiPreferences = {
   selectedAi?: string[];
   aiSlots?: string[];
+  compactAiDock?: string[];
   rightPanelApps?: string[];
   language?: string;
   chatSidebarWidth?: number;
@@ -72,6 +73,8 @@ function sanitise(value: unknown): UiPreferences {
   if (selectedAi) result.selectedAi = selectedAi;
   const aiSlots = sanitiseStringArray(input.aiSlots, 25);
   if (aiSlots) result.aiSlots = aiSlots;
+  const compactAiDock = sanitiseStringArray(input.compactAiDock, 25);
+  if (compactAiDock) result.compactAiDock = compactAiDock;
   const rightPanelApps = sanitiseStringArray(input.rightPanelApps, 100);
   if (rightPanelApps) result.rightPanelApps = rightPanelApps;
 
