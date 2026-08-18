@@ -115,6 +115,21 @@
     if (del.disabled) del.disabled = false;
   }
 
+  // Owner-approved behavior: selected conversations are deleted immediately,
+  // without showing the browser confirmation dialog.
+  document.addEventListener("click", (event) => {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    const button = target.closest('button[title="Delete selected conversations"]');
+    if (!(button instanceof HTMLButtonElement)) return;
+
+    const originalConfirm = window.confirm;
+    window.confirm = () => true;
+    setTimeout(() => {
+      window.confirm = originalConfirm;
+    }, 0);
+  }, true);
+
   arrange();
   let queued = false;
   const observer = new MutationObserver(() => {
