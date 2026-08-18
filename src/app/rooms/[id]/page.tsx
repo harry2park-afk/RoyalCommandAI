@@ -1,11 +1,64 @@
 import Script from "next/script";
 import RoomV3 from "./RoomV3";
 
-const ROOM_UI_VERSION = "20260818-2305-route";
+const ROOM_UI_VERSION = "20260818-2315-native-first-paint";
 
 export default function RoomPage() {
   return (
     <>
+      <style>{`
+        html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:first-child > h1 {
+          font-size: 0 !important;
+          margin-left: 32px !important;
+        }
+        html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:first-child > h1::after {
+          content: "Royal Command AI";
+          font-family: "Times New Roman", serif;
+          font-size: 20px;
+          font-weight: 600;
+          line-height: 1;
+          color: #f4f0e7;
+          white-space: nowrap;
+        }
+        html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:first-child > div.min-w-0.flex-1 {
+          visibility: hidden !important;
+        }
+        html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:first-child select[aria-label="Language"] {
+          visibility: hidden !important;
+        }
+        html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) {
+          gap: 10px !important;
+          justify-content: flex-start !important;
+          overflow: hidden !important;
+          padding-left: 10px !important;
+          padding-right: 10px !important;
+        }
+        html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:last-child {
+          order: -1 !important;
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 116px !important;
+          height: 30px !important;
+          margin-left: 0 !important;
+          border-width: 1px !important;
+        }
+        html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:not(:last-child) {
+          flex: 0 0 auto !important;
+          width: auto !important;
+          min-width: 0 !important;
+          height: 30px !important;
+          padding: 2px 6px !important;
+          border: 0 !important;
+          border-radius: 0 !important;
+          background: transparent !important;
+          box-shadow: none !important;
+          white-space: nowrap !important;
+        }
+        html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:not([class*="bg-[#7A0C2E]"]):not(:last-child) {
+          display: none !important;
+        }
+      `}</style>
+
       <RoomV3 />
       <Script src={`/rc-language-picker.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-copy-question-thread.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
@@ -17,6 +70,9 @@ export default function RoomPage() {
       <Script src={`/rc-compact-ai-dock.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-language-dock-fix.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-room-title-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
+      <Script id="rc-room-enhanced-marker" strategy="afterInteractive">
+        {`document.documentElement.setAttribute("data-rc-room-enhanced", "1");`}
+      </Script>
     </>
   );
 }
