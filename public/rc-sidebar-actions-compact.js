@@ -51,8 +51,8 @@
         box-shadow: 0 0 0 1px rgba(42,59,110,.15) !important;
       }
       .rc-compact-action-row > button {
-        height: 28px !important;
-        min-height: 28px !important;
+        height: 25px !important;
+        min-height: 25px !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
         padding-left: 6px !important;
