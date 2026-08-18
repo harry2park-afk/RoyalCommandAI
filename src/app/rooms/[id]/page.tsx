@@ -2,7 +2,7 @@ import Script from "next/script";
 import RoomV3 from "./RoomV3";
 import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 
-const ROOM_UI_VERSION = "20260818-2315-native-first-paint";
+const ROOM_UI_VERSION = "20260819-0035-bright-red-actions";
 
 export default function RoomPage() {
   return (
