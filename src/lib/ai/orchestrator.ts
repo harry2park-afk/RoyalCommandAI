@@ -45,19 +45,18 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
   ].filter(Boolean).join("\n\n");
 }
 
-function responseLanguageHint(prompt: string, selectedLanguage?: string) {
-  const userText = prompt.replace(/^\s*\d+-Time\s+\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{6}\s*\/[^\n]*\n*/i, "").trim();
-  const hangulCount = (userText.match(/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/g) || []).length;
-  const letterCount = (userText.match(/[\p{L}]/gu) || []).length;
-
-  // A Korean-authored question always receives a Korean answer, regardless of the
-  // currently selected locale. This lets the language selector affect chat/voice
-  // preferences without ever changing the fixed English application interface.
-  if (hangulCount >= 2 && (letterCount === 0 || hangulCount / letterCount >= 0.15)) {
-    return "The user's current question is written in Korean. Respond in natural Korean (ko-KR), regardless of the manually selected response locale.";
+function responseLanguageHint(_prompt: string, selectedLanguage?: string) {
+  if (selectedLanguage) {
+    return [
+      `The customer's manually selected Command Room language is ${selectedLanguage}.`,
+      `Respond in ${selectedLanguage}, regardless of the language used in the customer's question.`,
+      "This selected language is authoritative and remains in force until the customer changes the language selector.",
+      "Do not automatically switch reply language based on detecting Korean, English, or any other language in the prompt.",
+      "Keep code, product names, proper nouns, URLs, and text the customer explicitly asks to preserve verbatim unchanged where appropriate.",
+    ].join(" ");
   }
 
-  return selectedLanguage ? `Respond in language code/locale preference: ${selectedLanguage}.` : "Respond in the same language as the user's current question.";
+  return "No persistent response language was supplied. Respond in the same language as the user's current question.";
 }
 
 async function runProvider(
