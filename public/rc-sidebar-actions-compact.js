@@ -57,13 +57,21 @@
         padding-bottom: 0 !important;
         padding-left: 6px !important;
         padding-right: 6px !important;
-        border: 4px solid #ff1f1f !important;
+        border: 4px solid #ff0000 !important;
         border-radius: 6px !important;
-        background: rgba(255,31,31,.05) !important;
-        color: #ff6b6b !important;
+        background: rgba(255,0,0,.08) !important;
+        color: #ff4d4d !important;
+        box-shadow: 0 0 7px rgba(255,0,0,.65) !important;
         font-size: 10px !important;
         line-height: 1 !important;
         gap: 4px !important;
+      }
+      .rc-compact-action-row > button:disabled {
+        opacity: 1 !important;
+        border-color: #ff0000 !important;
+        color: #ff4d4d !important;
+        background: rgba(255,0,0,.08) !important;
+        box-shadow: 0 0 7px rgba(255,0,0,.65) !important;
       }
       .rc-compact-action-row > button svg {
         width: 12px !important;
