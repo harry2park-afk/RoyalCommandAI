@@ -286,16 +286,19 @@ export default function ChatHistorySidebar() {
     <>
       <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
-          <div className="mb-2 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 p-1.5">
-            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-white/[0.04]">
+          <div className="mb-1 rounded-lg border border-white/10 bg-black/20 p-1.5">
+            <label className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 hover:bg-white/[0.04]">
               <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all conversations" className="h-4 w-4 shrink-0 accent-[#d7b64d]" />
-              <span className="truncate text-[11px] font-medium text-[var(--muted)]">Select All</span>
+              <span className="text-[11px] font-medium text-[var(--muted)]">Select All</span>
             </label>
-            <button type="button" onClick={() => void saveSelected()} disabled={!selectedBoxes.length} className="flex h-8 items-center gap-1 rounded-md border border-[var(--gold)]/55 bg-[var(--gold)]/10 px-2 text-[10px] font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)]/15 disabled:cursor-not-allowed disabled:opacity-30" title="Save selected conversations">
-              <Save size={13} /> SAVE
+          </div>
+
+          <div className="mb-2 grid grid-cols-2 gap-1.5">
+            <button type="button" onClick={() => void saveSelected()} disabled={!selectedBoxes.length} className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-[var(--gold)]/65 bg-[var(--gold)]/10 px-2 text-[11px] font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)]/15 disabled:cursor-not-allowed disabled:opacity-30" title="Save selected conversations">
+              <Save size={14} /> SAVE
             </button>
-            <button type="button" onClick={() => void deleteBoxes(selectedBoxes, true)} disabled={!selectedBoxes.length} className="flex h-8 items-center gap-1 rounded-md border border-red-400/35 bg-red-500/5 px-2 text-[10px] font-semibold text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-30" title="Delete selected conversations">
-              <Trash2 size={13} /> DELETE
+            <button type="button" onClick={() => void deleteBoxes(selectedBoxes, true)} disabled={!selectedBoxes.length} className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-red-400/40 bg-red-500/5 px-2 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-30" title="Delete selected conversations">
+              <Trash2 size={14} /> DELETE
             </button>
           </div>
 
