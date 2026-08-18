@@ -1,14 +1,24 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, GripVertical, Pencil, Save, Trash2, X } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Check, ChevronLeft, ChevronRight, GripVertical, Save, Trash2, X } from "lucide-react";
 
 type Message = {
   id: string;
   content: string;
   authorType?: string;
   author_type?: string;
+  created_at?: string;
+  createdAt?: string;
+};
+
+type ChatBox = {
+  id: string;
+  ids: string[];
+  title: string;
+  content: string;
+  createdAt: string;
 };
 
 type ImportantConversation = {
@@ -27,125 +37,202 @@ function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : String(value ?? "").trim();
 }
 
+function messageType(message: Message) {
+  return message.authorType || message.author_type || "";
+}
+
+function messageTime(message: Message) {
+  return message.created_at || message.createdAt || new Date().toISOString();
+}
+
+function buildBoxes(messages: Message[], titles: Record<string, string>, roomId: string): ChatBox[] {
+  const boxes: ChatBox[] = [];
+  let current: Message[] = [];
+
+  const pushCurrent = () => {
+    if (!current.length) return;
+    const userMessage = current.find((message) => messageType(message) === "user");
+    if (!userMessage) { current = []; return; }
+    const key = `${roomId}:${userMessage.id}`;
+    const fallbackTitle = cleanText(userMessage.content).replace(/\s+/g, " ").slice(0, 70) || "대화";
+    const content = current.map((message) => {
+      const label = messageType(message) === "user" ? "Harry" : "AI";
+      return `${label}\n${cleanText(message.content)}`;
+    }).join("\n\n");
+    boxes.push({
+      id: userMessage.id,
+      ids: current.map((message) => message.id),
+      title: titles[key] || fallbackTitle,
+      content,
+      createdAt: messageTime(userMessage),
+    });
+    current = [];
+  };
+
+  for (const message of messages) {
+    if (!cleanText(message.content) || messageType(message) === "system") continue;
+    if (messageType(message) === "user") {
+      pushCurrent();
+      current = [message];
+    } else if (current.length) {
+      current.push(message);
+    }
+  }
+  pushCurrent();
+  return boxes.reverse();
+}
+
 export default function ChatHistorySidebar() {
   const pathname = usePathname();
   const currentId = pathname.split("/").filter(Boolean).pop() || "";
-  const [savedItems, setSavedItems] = useState<ImportantConversation[]>([]);
+  const [boxes, setBoxes] = useState<ChatBox[]>([]);
+  const [titles, setTitles] = useState<Record<string, string>>({});
+  const [importantItems, setImportantItems] = useState<ImportantConversation[]>([]);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
-  const [viewing, setViewing] = useState<ImportantConversation | null>(null);
+  const [viewing, setViewing] = useState<ChatBox | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [status, setStatus] = useState("");
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [collapsed, setCollapsed] = useState(false);
   const dragging = useRef(false);
   const previousExpandedWidth = useRef(DEFAULT_WIDTH);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const visibleItems = savedItems.filter((item) => item.roomId === currentId);
+  const allSelected = boxes.length > 0 && boxes.every((box) => selectedIds.includes(box.id));
+  const selectedBoxes = useMemo(() => boxes.filter((box) => selectedIds.includes(box.id)), [boxes, selectedIds]);
 
-  async function loadSavedItems() {
+  async function loadPreferences() {
     try {
       const res = await fetch("/api/user/preferences", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      const items = data?.preferences?.importantConversations;
-      if (Array.isArray(items)) {
-        setSavedItems(items.filter((item): item is ImportantConversation => Boolean(
-          item &&
-          typeof item.id === "string" &&
-          typeof item.roomId === "string" &&
-          typeof item.title === "string" &&
-          typeof item.content === "string" &&
-          typeof item.createdAt === "string"
-        )));
+      const nextTitles = data?.preferences?.chatHistoryTitles;
+      if (nextTitles && typeof nextTitles === "object" && !Array.isArray(nextTitles)) {
+        setTitles(nextTitles);
       }
+      const saved = data?.preferences?.importantConversations;
+      if (Array.isArray(saved)) setImportantItems(saved);
+    } catch {}
+  }
+
+  async function refreshHistory(nextTitles = titles) {
+    if (!currentId) return;
+    try {
+      const res = await fetch(`/api/rooms/${currentId}`, { cache: "no-store" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const messages: Message[] = Array.isArray(data.messages) ? data.messages : [];
+      const next = buildBoxes(messages, nextTitles, currentId);
+      setBoxes(next);
+      setSelectedIds((previous) => previous.filter((id) => next.some((box) => box.id === id)));
     } catch {}
     finally { setLoaded(true); }
   }
 
-  async function persistItems(next: ImportantConversation[]) {
+  async function saveTitle(box: ChatBox) {
+    const title = editingTitle.trim().slice(0, 120);
+    if (!title) return;
+    const key = `${currentId}:${box.id}`;
+    const nextTitles = { ...titles, [key]: title };
+    const res = await fetch("/api/user/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chatHistoryTitles: nextTitles }),
+    });
+    if (!res.ok) return;
+    setTitles(nextTitles);
+    setBoxes((previous) => previous.map((item) => item.id === box.id ? { ...item, title } : item));
+    if (viewing?.id === box.id) setViewing({ ...viewing, title });
+    setEditingId(null);
+    setEditingTitle("");
+  }
+
+  async function deleteBoxes(targets: ChatBox[], ask = false) {
+    if (!targets.length) return;
+    if (ask && !window.confirm(`${targets.length}개의 대화를 삭제하시겠습니까?`)) return;
+    const ids = Array.from(new Set(targets.flatMap((box) => box.ids)));
+    const res = await fetch(`/api/rooms/${currentId}/messages`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ids }),
+    });
+    if (!res.ok) { setStatus("삭제 실패"); return; }
+    setSelectedIds([]);
+    if (viewing && targets.some((box) => box.id === viewing.id)) setViewing(null);
+    setStatus("삭제됨");
+    await refreshHistory();
+    window.setTimeout(() => setStatus(""), 1200);
+  }
+
+  async function saveSelected() {
+    if (!selectedBoxes.length) return;
+    const existingKeys = new Set(importantItems.map((item) => `${item.roomId}:${item.content}`));
+    const additions: ImportantConversation[] = selectedBoxes
+      .filter((box) => !existingKeys.has(`${currentId}:${box.content}`))
+      .map((box) => ({
+        id: `important-${Date.now()}-${box.id}`,
+        roomId: currentId,
+        title: box.title,
+        content: box.content.slice(0, 20000),
+        createdAt: box.createdAt,
+      }));
+    const next = [...additions, ...importantItems].slice(0, 100);
     const res = await fetch("/api/user/preferences", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ importantConversations: next }),
     });
-    if (!res.ok) throw new Error("중요 대화를 저장하지 못했습니다.");
-    setSavedItems(next);
+    if (!res.ok) { setStatus("저장 실패"); return; }
+    setImportantItems(next);
+    setStatus(`${selectedBoxes.length}개 저장됨`);
+    window.setTimeout(() => setStatus(""), 1200);
   }
 
-  async function saveCurrentConversation() {
-    if (!currentId || saving) return;
-    setSaving(true);
-    setSaveMessage("");
-    try {
-      const res = await fetch(`/api/rooms/${currentId}`, { cache: "no-store" });
-      if (!res.ok) throw new Error("현재 대화를 불러오지 못했습니다.");
-      const data = await res.json();
-      const messages: Message[] = Array.isArray(data.messages) ? data.messages : [];
-      const meaningful = messages.filter((message) => {
-        const type = message.authorType || message.author_type || "";
-        return type !== "system" && cleanText(message.content);
-      });
-      if (!meaningful.length) throw new Error("저장할 대화가 없습니다.");
+  function toggleSelected(id: string) {
+    setSelectedIds((previous) => previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id]);
+  }
 
-      let startIndex = -1;
-      for (let i = meaningful.length - 1; i >= 0; i -= 1) {
-        if ((meaningful[i].authorType || meaningful[i].author_type) === "user") {
-          startIndex = i;
-          break;
+  function toggleAll() {
+    setSelectedIds(allSelected ? [] : boxes.map((box) => box.id));
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const res = await fetch("/api/user/preferences", { cache: "no-store" });
+        let nextTitles: Record<string, string> = {};
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.preferences?.chatHistoryTitles && typeof data.preferences.chatHistoryTitles === "object") {
+            nextTitles = data.preferences.chatHistoryTitles;
+            if (!cancelled) setTitles(nextTitles);
+          }
+          if (Array.isArray(data?.preferences?.importantConversations) && !cancelled) {
+            setImportantItems(data.preferences.importantConversations);
+          }
         }
-      }
+        if (!cancelled) await refreshHistory(nextTitles);
+      } catch { if (!cancelled) setLoaded(true); }
+    })();
+    return () => { cancelled = true; };
+  }, [currentId]);
 
-      const conversation = startIndex >= 0 ? meaningful.slice(startIndex) : meaningful.slice(-8);
-      const firstUser = conversation.find((message) => (message.authorType || message.author_type) === "user");
-      const titleBase = cleanText(firstUser?.content || conversation[0]?.content || "중요 대화").replace(/\s+/g, " ");
-      const title = titleBase.slice(0, 58) || "중요 대화";
-      const content = conversation.map((message) => {
-        const type = message.authorType || message.author_type || "";
-        const label = type === "user" ? "Harry" : "AI";
-        return `${label}\n${cleanText(message.content)}`;
-      }).join("\n\n").slice(0, 20000);
-
-      const item: ImportantConversation = {
-        id: `important-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-        roomId: currentId,
-        title,
-        content,
-        createdAt: new Date().toISOString(),
-      };
-
-      await persistItems([item, ...savedItems].slice(0, 100));
-      setSaveMessage("저장됨");
-      window.setTimeout(() => setSaveMessage(""), 1200);
-    } catch (error) {
-      setSaveMessage(error instanceof Error ? error.message : "저장 실패");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function saveTitle(item: ImportantConversation) {
-    const title = editingTitle.trim().slice(0, 120);
-    if (!title) return;
-    const next = savedItems.map((saved) => saved.id === item.id ? { ...saved, title } : saved);
-    try {
-      await persistItems(next);
-      if (viewing?.id === item.id) setViewing({ ...viewing, title });
-      setEditingId(null);
-      setEditingTitle("");
-    } catch {}
-  }
-
-  async function removeSavedItem(item: ImportantConversation) {
-    const next = savedItems.filter((saved) => saved.id !== item.id);
-    try {
-      await persistItems(next);
-      if (viewing?.id === item.id) setViewing(null);
-    } catch {}
-  }
-
-  useEffect(() => { void loadSavedItems(); }, [currentId]);
+  useEffect(() => {
+    const main = document.querySelector("main");
+    if (!main) return;
+    const observer = new MutationObserver(() => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      refreshTimer.current = setTimeout(() => { void refreshHistory(); }, 700);
+    });
+    observer.observe(main, { childList: true, subtree: true });
+    return () => {
+      observer.disconnect();
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+    };
+  }, [currentId, titles]);
 
   useEffect(() => {
     try {
@@ -203,7 +290,7 @@ export default function ChatHistorySidebar() {
 
   if (collapsed) {
     return (
-      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 저장 목록 열기">
+      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 대화 목록 열기">
         <ChevronRight size={22} />
       </button>
     );
@@ -213,29 +300,21 @@ export default function ChatHistorySidebar() {
     <>
       <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
-          <button
-            type="button"
-            onClick={() => void saveCurrentConversation()}
-            disabled={saving}
-            className="mb-2 flex h-10 w-full items-center rounded-lg border border-[var(--gold)]/60 bg-[var(--gold)]/10 px-3 text-left text-sm font-medium text-[var(--gold-soft)] hover:bg-[var(--gold)]/15 disabled:opacity-50"
-            title="현재 질문과 답변을 이 목록에 저장"
-          >
-            <Save size={13} className="mr-2 shrink-0" />
-            <span className="min-w-0 flex-1 truncate">{saving ? "저장 중…" : "현재 대화 저장"}</span>
-          </button>
+          <div className="mb-2 flex h-9 items-center gap-1 rounded-lg border border-white/10 bg-black/20 px-2">
+            <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="전체 대화 선택" className="h-4 w-4 accent-[#d7b64d]" />
+            <span className="ml-1 min-w-0 flex-1 truncate text-[11px] text-[var(--muted)]">전체 선택</span>
+            <button type="button" onClick={() => void saveSelected()} disabled={!selectedBoxes.length} className="grid h-7 w-7 place-items-center rounded-md text-[var(--gold-soft)] hover:bg-white/10 disabled:opacity-25" title="선택한 대화 저장"><Save size={14} /></button>
+            <button type="button" onClick={() => void deleteBoxes(selectedBoxes, true)} disabled={!selectedBoxes.length} className="grid h-7 w-7 place-items-center rounded-md text-red-300 hover:bg-red-500/10 disabled:opacity-25" title="선택한 대화 삭제"><Trash2 size={15} /></button>
+          </div>
 
-          {saveMessage ? <div className="mb-2 px-2 text-[10px] text-[var(--muted)]">{saveMessage}</div> : null}
+          {status ? <div className="mb-2 px-2 text-[10px] text-[var(--muted)]">{status}</div> : null}
 
           <div className="space-y-1">
-            {visibleItems.map((item) => {
-              const editing = editingId === item.id;
+            {boxes.map((box) => {
+              const editing = editingId === box.id;
+              const selected = selectedIds.includes(box.id);
               return (
-                <div
-                  key={item.id}
-                  onClick={() => { if (!editing) setViewing(item); }}
-                  className="group flex h-10 cursor-pointer items-center rounded-lg border border-[var(--gold)]/60 bg-[var(--gold)]/10 hover:bg-[var(--gold)]/15"
-                  title="클릭하면 저장한 제목과 내용을 봅니다"
-                >
+                <div key={box.id} className={`group flex h-10 items-center rounded-lg border ${selected ? "border-[var(--gold)] bg-[var(--gold)]/15" : "border-[var(--gold)]/50 bg-[var(--gold)]/8"}`}>
                   {editing ? (
                     <input
                       autoFocus
@@ -243,36 +322,44 @@ export default function ChatHistorySidebar() {
                       onChange={(event) => setEditingTitle(event.target.value)}
                       onClick={(event) => event.stopPropagation()}
                       onKeyDown={(event) => {
-                        if (event.key === "Enter") { event.preventDefault(); void saveTitle(item); }
+                        if (event.key === "Enter") { event.preventDefault(); void saveTitle(box); }
                         if (event.key === "Escape") { setEditingId(null); setEditingTitle(""); }
                       }}
                       className="ml-2 min-w-0 flex-1 rounded border border-[var(--gold)]/50 bg-black/50 px-2 py-1.5 text-sm text-white outline-none"
                       maxLength={120}
                     />
                   ) : (
-                    <span className="min-w-0 flex-1 truncate px-3 py-2 text-sm text-[var(--gold-soft)]">{item.title}</span>
+                    <button
+                      type="button"
+                      onClick={() => setViewing(box)}
+                      onDoubleClick={(event) => { event.preventDefault(); setEditingId(box.id); setEditingTitle(box.title); }}
+                      className="min-w-0 flex-1 truncate px-3 py-2 text-left text-sm text-[var(--gold-soft)]"
+                      title="한 번 클릭: 내용 보기 · 더블클릭: 제목 수정"
+                    >
+                      {box.title}
+                    </button>
                   )}
 
                   {editing ? (
                     <>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); void saveTitle(item); }} className="rounded-md p-1.5 text-emerald-300 hover:bg-emerald-500/10" title="제목 저장"><Check size={13} /></button>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); setEditingId(null); setEditingTitle(""); }} className="rounded-md p-1.5 text-[var(--muted)] hover:bg-white/10" title="취소"><X size={13} /></button>
+                      <button type="button" onClick={() => void saveTitle(box)} className="grid h-7 w-7 place-items-center text-emerald-300" title="제목 저장"><Check size={13} /></button>
+                      <button type="button" onClick={() => { setEditingId(null); setEditingTitle(""); }} className="grid h-7 w-7 place-items-center text-[var(--muted)]" title="취소"><X size={13} /></button>
                     </>
                   ) : (
-                    <button type="button" onClick={(event) => { event.stopPropagation(); setEditingId(item.id); setEditingTitle(item.title); }} className="rounded-md p-1.5 text-[var(--muted)] hover:bg-white/10 hover:text-[var(--gold-soft)]" title="제목 수정"><Pencil size={13} /></button>
+                    <input type="checkbox" checked={selected} onChange={() => toggleSelected(box.id)} onClick={(event) => event.stopPropagation()} aria-label={`${box.title} 선택`} className="mr-1 h-4 w-4 shrink-0 accent-[#d7b64d]" />
                   )}
-                  <button type="button" onClick={(event) => { event.stopPropagation(); void removeSavedItem(item); }} className="mr-1 rounded-md p-1.5 text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="저장한 대화 삭제"><Trash2 size={14} /></button>
+                  <button type="button" onClick={() => void deleteBoxes([box])} className="mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="이 대화 삭제"><Trash2 size={14} /></button>
                 </div>
               );
             })}
 
-            {loaded && visibleItems.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">저장한 중요한 대화가 없습니다.</p> : null}
-            {!loaded ? <p className="p-2 text-xs text-[var(--muted)]">불러오는 중…</p> : null}
+            {loaded && boxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">아직 저장된 대화가 없습니다.</p> : null}
+            {!loaded ? <p className="p-2 text-xs text-[var(--muted)]">대화를 불러오는 중…</p> : null}
           </div>
         </div>
 
         <button type="button" onMouseDown={startResize} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-30 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"><GripVertical size={14} className="text-white/35" /></button>
-        <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 저장 목록 닫기"><ChevronLeft size={22} /></button>
+        <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 대화 목록 닫기"><ChevronLeft size={22} /></button>
       </aside>
 
       {viewing ? (
