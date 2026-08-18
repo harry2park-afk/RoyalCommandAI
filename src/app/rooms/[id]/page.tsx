@@ -8,6 +8,9 @@ export default function RoomPage() {
   return (
     <>
       <style>{`
+        .royal-room-main main > div.fixed:first-of-type {
+          background: linear-gradient(180deg, #12261c 0%, #0f241c 100%) !important;
+        }
         html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:first-child > h1 {
           font-size: 0 !important;
           margin-left: 32px !important;
