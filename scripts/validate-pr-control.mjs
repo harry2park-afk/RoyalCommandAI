@@ -2,10 +2,17 @@ const body = process.env.PR_BODY || "";
 const title = process.env.PR_TITLE || "";
 
 function section(name) {
-  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const re = new RegExp(`^##\\s+${escaped}\\s*$([\\s\\S]*?)(?=^##\\s+|$)`, "im");
-  const match = body.match(re);
-  return match ? match[1].trim() : "";
+  const lines = body.split(/\r?\n/);
+  const header = `## ${name}`.toLowerCase();
+  const start = lines.findIndex((line) => line.trim().toLowerCase() === header);
+  if (start < 0) return "";
+
+  const collected = [];
+  for (let i = start + 1; i < lines.length; i += 1) {
+    if (/^##\s+/.test(lines[i].trim())) break;
+    collected.push(lines[i]);
+  }
+  return collected.join("\n").trim();
 }
 
 const errors = [];
