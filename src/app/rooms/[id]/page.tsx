@@ -2,7 +2,7 @@ import Script from "next/script";
 import RoomV3 from "./RoomV3";
 import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 
-const ROOM_UI_VERSION = "20260819-0102-english-conversation-titles";
+const ROOM_UI_VERSION = "20260819-0112-native-title-edit";
 
 export default function RoomPage() {
   return (
@@ -71,21 +71,7 @@ export default function RoomPage() {
           padding-bottom: 0 !important;
         }
 
-        /* Conversation rows: selector on the left, no individual trash action. */
-        aside button[title^="Click: view conversation"] {
-          order: 2 !important;
-          padding-left: 7px !important;
-        }
-        aside button[title^="Click: view conversation"] + input[type="checkbox"] {
-          order: 1 !important;
-          margin-left: 8px !important;
-          margin-right: 0 !important;
-          width: 16px !important;
-          height: 16px !important;
-          flex: 0 0 16px !important;
-          accent-color: #2563eb !important;
-          cursor: pointer !important;
-        }
+        /* Legacy row-delete control remains hidden if encountered. */
         aside button[title="Delete this conversation"] {
           display: none !important;
         }
@@ -98,7 +84,6 @@ export default function RoomPage() {
       <Script src={`/rc-question-rules-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-command-room-english.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-chat-thread-workflow.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
-      <Script src={`/rc-english-only-sidebar-titles.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-new-chat-label.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-compact-ai-dock.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-language-dock-fix.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
