@@ -6,18 +6,56 @@
   let seeded = false;
   let scheduled = false;
   let pendingWarehouseName = "";
+  let preferencesReady = false;
+
+  function cleanNames(value) {
+    return Array.isArray(value)
+      ? Array.from(new Set(value.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())))
+      : [];
+  }
 
   function readVisible() {
     try {
-      const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]");
-      return Array.isArray(parsed) ? parsed.filter((item) => typeof item === "string" && item.trim()) : [];
+      return cleanNames(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
     } catch {
       return [];
     }
   }
 
-  function writeVisible(names) {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(new Set(names)))); } catch {}
+  function saveToAccount(names) {
+    const clean = cleanNames(names);
+    if (!clean.length) return;
+    void fetch("/api/user/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ compactAiDock: clean }),
+      keepalive: true,
+    }).catch(() => undefined);
+  }
+
+  function writeVisible(names, syncAccount = true) {
+    const clean = cleanNames(names);
+    if (!clean.length) return;
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(clean)); } catch {}
+    if (syncAccount) saveToAccount(clean);
+  }
+
+  async function restorePreference() {
+    const local = readVisible();
+    try {
+      const res = await fetch("/api/user/preferences", { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        const account = cleanNames(data?.preferences?.compactAiDock);
+        if (local.length) {
+          if (JSON.stringify(local) !== JSON.stringify(account)) saveToAccount(local);
+        } else if (account.length) {
+          writeVisible(account, false);
+        }
+      }
+    } catch {}
+    preferencesReady = true;
+    schedule();
   }
 
   function topDock() {
@@ -63,10 +101,11 @@
   }
 
   function seedVisible(buttons) {
-    if (seeded) return;
+    if (seeded || !preferencesReady) return;
     let visible = readVisible();
     if (!visible.length) {
       visible = buttons.filter(isActive).map(shortName).filter(Boolean);
+      if (!visible.length) return;
       writeVisible(visible);
     }
     seeded = true;
@@ -228,5 +267,6 @@
     attributeFilter: ["class", "disabled"],
   });
   window.addEventListener("resize", schedule);
+  void restorePreference();
   schedule();
 })();
