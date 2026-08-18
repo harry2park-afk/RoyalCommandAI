@@ -51,8 +51,8 @@
         box-shadow: 0 0 0 1px rgba(42,59,110,.15) !important;
       }
       .rc-compact-action-row > button {
-        height: 30px !important;
-        min-height: 30px !important;
+        height: 28px !important;
+        min-height: 28px !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
         padding-left: 6px !important;
@@ -65,13 +65,13 @@
         cursor: pointer !important;
       }
       .rc-compact-action-row > button:first-of-type {
-        border: 4px solid #00e85a !important;
+        border: 3px solid #00e85a !important;
         background: rgba(0,232,90,.08) !important;
         color: #50ff8f !important;
         box-shadow: 0 0 7px rgba(0,232,90,.60) !important;
       }
       .rc-compact-action-row > button:last-of-type {
-        border: 4px solid #ff0000 !important;
+        border: 3px solid #ff0000 !important;
         background: rgba(255,0,0,.08) !important;
         color: #ff4d4d !important;
         box-shadow: 0 0 7px rgba(255,0,0,.65) !important;
