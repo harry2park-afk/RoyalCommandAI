@@ -31,6 +31,7 @@ export default function RootLayout({
         <Script src="/rc-new-chat-label.js" strategy="afterInteractive" />
         <Script src="/rc-compact-ai-dock.js" strategy="afterInteractive" />
         <Script src="/rc-language-dock-fix.js" strategy="afterInteractive" />
+        <Script src="/rc-room-title.js" strategy="afterInteractive" />
       </body>
     </html>
   );
