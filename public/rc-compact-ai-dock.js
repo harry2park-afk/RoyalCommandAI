@@ -135,6 +135,18 @@
     ensureTick(button, isActive(button));
   }
 
+  function moveLanguageToDock(dock) {
+    const language = document.querySelector('select[aria-label="Language"]');
+    if (!(language instanceof HTMLSelectElement)) return;
+    if (dock.lastElementChild !== language) dock.appendChild(language);
+    language.style.flex = "0 0 auto";
+    language.style.marginLeft = "auto";
+    language.style.height = "30px";
+    language.style.minWidth = "116px";
+    language.style.padding = "2px 8px";
+    language.style.alignSelf = "center";
+  }
+
   function styleDock() {
     const dock = topDock();
     if (!(dock instanceof HTMLElement)) return;
@@ -161,17 +173,19 @@
     dock.style.paddingLeft = "10px";
     dock.style.paddingRight = "10px";
 
-    buttons.forEach((button) => styleButton(button, visibleNames));
-
     const warehouse = warehouseButton(dock);
     if (warehouse instanceof HTMLButtonElement) {
-      warehouse.style.marginLeft = "auto";
+      if (dock.firstElementChild !== warehouse) dock.insertBefore(warehouse, dock.firstElementChild);
+      warehouse.style.marginLeft = "0";
       warehouse.style.height = "30px";
-      warehouse.style.minWidth = "auto";
+      warehouse.style.minWidth = "116px";
       warehouse.style.padding = "2px 8px";
       warehouse.style.borderWidth = "1px";
       warehouse.style.flex = "0 0 auto";
     }
+
+    buttons.forEach((button) => styleButton(button, visibleNames));
+    moveLanguageToDock(dock);
   }
 
   function warehouseChoiceName(button) {
