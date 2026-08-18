@@ -45,6 +45,21 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
   ].filter(Boolean).join("\n\n");
 }
 
+function responseLanguageHint(prompt: string, selectedLanguage?: string) {
+  const userText = prompt.replace(/^\s*\d+-Time\s+\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{6}\s*\/[^\n]*\n*/i, "").trim();
+  const hangulCount = (userText.match(/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/g) || []).length;
+  const letterCount = (userText.match(/[\p{L}]/gu) || []).length;
+
+  // A Korean-authored question always receives a Korean answer, regardless of the
+  // currently selected locale. This lets the language selector affect chat/voice
+  // preferences without ever changing the fixed English application interface.
+  if (hangulCount >= 2 && (letterCount === 0 || hangulCount / letterCount >= 0.15)) {
+    return "The user's current question is written in Korean. Respond in natural Korean (ko-KR), regardless of the manually selected response locale.";
+  }
+
+  return selectedLanguage ? `Respond in language code/locale preference: ${selectedLanguage}.` : "Respond in the same language as the user's current question.";
+}
+
 async function runProvider(
   id: AIProviderId,
   input: OrchestrateInput,
@@ -110,7 +125,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
     };
   }
 
-  const languageHint = input.language ? `Respond in language code/locale preference: ${input.language}.` : "";
+  const languageHint = responseLanguageHint(input.prompt, input.language);
   logger.info("ai.orchestrate.start", { providers, promptLen: input.prompt.length, historyMessagesForwarded: 0 });
 
   const responses = await Promise.all(providers.map((id) => runProvider(id, input, languageHint)));
