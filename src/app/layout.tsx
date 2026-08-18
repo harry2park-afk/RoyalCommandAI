@@ -28,6 +28,7 @@ export default function RootLayout({
         <Script src="/rc-command-room-english.js" strategy="afterInteractive" />
         <Script src="/rc-chat-thread-workflow.js" strategy="afterInteractive" />
         <Script src="/rc-english-only-sidebar-titles.js" strategy="afterInteractive" />
+        <Script src="/rc-new-chat-label.js" strategy="afterInteractive" />
       </body>
     </html>
   );
