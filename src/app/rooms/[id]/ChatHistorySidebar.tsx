@@ -54,7 +54,7 @@ function buildBoxes(messages: Message[], titles: Record<string, string>, roomId:
     const userMessage = current.find((message) => messageType(message) === "user");
     if (!userMessage) { current = []; return; }
     const key = `${roomId}:${userMessage.id}`;
-    const fallbackTitle = cleanText(userMessage.content).replace(/\s+/g, " ").slice(0, 70) || "대화";
+    const fallbackTitle = cleanText(userMessage.content).replace(/\s+/g, " ").slice(0, 70) || "Conversation";
     const content = current.map((message) => {
       const label = messageType(message) === "user" ? "Harry" : "AI";
       return `${label}\n${cleanText(message.content)}`;
@@ -103,20 +103,6 @@ export default function ChatHistorySidebar() {
   const allSelected = boxes.length > 0 && boxes.every((box) => selectedIds.includes(box.id));
   const selectedBoxes = useMemo(() => boxes.filter((box) => selectedIds.includes(box.id)), [boxes, selectedIds]);
 
-  async function loadPreferences() {
-    try {
-      const res = await fetch("/api/user/preferences", { cache: "no-store" });
-      if (!res.ok) return;
-      const data = await res.json();
-      const nextTitles = data?.preferences?.chatHistoryTitles;
-      if (nextTitles && typeof nextTitles === "object" && !Array.isArray(nextTitles)) {
-        setTitles(nextTitles);
-      }
-      const saved = data?.preferences?.importantConversations;
-      if (Array.isArray(saved)) setImportantItems(saved);
-    } catch {}
-  }
-
   async function refreshHistory(nextTitles = titles) {
     if (!currentId) return;
     try {
@@ -151,17 +137,17 @@ export default function ChatHistorySidebar() {
 
   async function deleteBoxes(targets: ChatBox[], ask = false) {
     if (!targets.length) return;
-    if (ask && !window.confirm(`${targets.length}개의 대화를 삭제하시겠습니까?`)) return;
+    if (ask && !window.confirm(`Delete ${targets.length} selected conversation${targets.length === 1 ? "" : "s"}?`)) return;
     const ids = Array.from(new Set(targets.flatMap((box) => box.ids)));
     const res = await fetch(`/api/rooms/${currentId}/messages`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ids }),
     });
-    if (!res.ok) { setStatus("삭제 실패"); return; }
+    if (!res.ok) { setStatus("Delete failed"); return; }
     setSelectedIds([]);
     if (viewing && targets.some((box) => box.id === viewing.id)) setViewing(null);
-    setStatus("삭제됨");
+    setStatus("Deleted");
     await refreshHistory();
     window.setTimeout(() => setStatus(""), 1200);
   }
@@ -184,9 +170,9 @@ export default function ChatHistorySidebar() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ importantConversations: next }),
     });
-    if (!res.ok) { setStatus("저장 실패"); return; }
+    if (!res.ok) { setStatus("Save failed"); return; }
     setImportantItems(next);
-    setStatus(`${selectedBoxes.length}개 저장됨`);
+    setStatus(`${selectedBoxes.length} saved`);
     window.setTimeout(() => setStatus(""), 1200);
   }
 
@@ -290,7 +276,7 @@ export default function ChatHistorySidebar() {
 
   if (collapsed) {
     return (
-      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 대화 목록 열기">
+      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="Open conversation list">
         <ChevronRight size={22} />
       </button>
     );
@@ -300,11 +286,17 @@ export default function ChatHistorySidebar() {
     <>
       <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
-          <div className="mb-2 flex h-9 items-center gap-1 rounded-lg border border-white/10 bg-black/20 px-2">
-            <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="전체 대화 선택" className="h-4 w-4 accent-[#d7b64d]" />
-            <span className="ml-1 min-w-0 flex-1 truncate text-[11px] text-[var(--muted)]">전체 선택</span>
-            <button type="button" onClick={() => void saveSelected()} disabled={!selectedBoxes.length} className="grid h-7 w-7 place-items-center rounded-md text-[var(--gold-soft)] hover:bg-white/10 disabled:opacity-25" title="선택한 대화 저장"><Save size={14} /></button>
-            <button type="button" onClick={() => void deleteBoxes(selectedBoxes, true)} disabled={!selectedBoxes.length} className="grid h-7 w-7 place-items-center rounded-md text-red-300 hover:bg-red-500/10 disabled:opacity-25" title="선택한 대화 삭제"><Trash2 size={15} /></button>
+          <div className="mb-2 flex min-h-10 items-center gap-1.5 rounded-lg border border-white/10 bg-black/20 p-1.5">
+            <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 py-1.5 hover:bg-white/[0.04]">
+              <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all conversations" className="h-4 w-4 shrink-0 accent-[#d7b64d]" />
+              <span className="truncate text-[11px] font-medium text-[var(--muted)]">Select All</span>
+            </label>
+            <button type="button" onClick={() => void saveSelected()} disabled={!selectedBoxes.length} className="flex h-8 items-center gap-1 rounded-md border border-[var(--gold)]/55 bg-[var(--gold)]/10 px-2 text-[10px] font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)]/15 disabled:cursor-not-allowed disabled:opacity-30" title="Save selected conversations">
+              <Save size={13} /> SAVE
+            </button>
+            <button type="button" onClick={() => void deleteBoxes(selectedBoxes, true)} disabled={!selectedBoxes.length} className="flex h-8 items-center gap-1 rounded-md border border-red-400/35 bg-red-500/5 px-2 text-[10px] font-semibold text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-30" title="Delete selected conversations">
+              <Trash2 size={13} /> DELETE
+            </button>
           </div>
 
           {status ? <div className="mb-2 px-2 text-[10px] text-[var(--muted)]">{status}</div> : null}
@@ -334,7 +326,7 @@ export default function ChatHistorySidebar() {
                       onClick={() => setViewing(box)}
                       onDoubleClick={(event) => { event.preventDefault(); setEditingId(box.id); setEditingTitle(box.title); }}
                       className="min-w-0 flex-1 truncate px-3 py-2 text-left text-sm text-[var(--gold-soft)]"
-                      title="한 번 클릭: 내용 보기 · 더블클릭: 제목 수정"
+                      title="Click: view conversation · Double-click: edit title"
                     >
                       {box.title}
                     </button>
@@ -342,24 +334,24 @@ export default function ChatHistorySidebar() {
 
                   {editing ? (
                     <>
-                      <button type="button" onClick={() => void saveTitle(box)} className="grid h-7 w-7 place-items-center text-emerald-300" title="제목 저장"><Check size={13} /></button>
-                      <button type="button" onClick={() => { setEditingId(null); setEditingTitle(""); }} className="grid h-7 w-7 place-items-center text-[var(--muted)]" title="취소"><X size={13} /></button>
+                      <button type="button" onClick={() => void saveTitle(box)} className="grid h-7 w-7 place-items-center text-emerald-300" title="Save title"><Check size={13} /></button>
+                      <button type="button" onClick={() => { setEditingId(null); setEditingTitle(""); }} className="grid h-7 w-7 place-items-center text-[var(--muted)]" title="Cancel"><X size={13} /></button>
                     </>
                   ) : (
-                    <input type="checkbox" checked={selected} onChange={() => toggleSelected(box.id)} onClick={(event) => event.stopPropagation()} aria-label={`${box.title} 선택`} className="mr-1 h-4 w-4 shrink-0 accent-[#d7b64d]" />
+                    <input type="checkbox" checked={selected} onChange={() => toggleSelected(box.id)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${box.title}`} className="mr-1 h-4 w-4 shrink-0 accent-[#d7b64d]" />
                   )}
-                  <button type="button" onClick={() => void deleteBoxes([box])} className="mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="이 대화 삭제"><Trash2 size={14} /></button>
+                  <button type="button" onClick={() => void deleteBoxes([box])} className="mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="Delete this conversation"><Trash2 size={14} /></button>
                 </div>
               );
             })}
 
-            {loaded && boxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">아직 저장된 대화가 없습니다.</p> : null}
-            {!loaded ? <p className="p-2 text-xs text-[var(--muted)]">대화를 불러오는 중…</p> : null}
+            {loaded && boxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">No conversations yet.</p> : null}
+            {!loaded ? <p className="p-2 text-xs text-[var(--muted)]">Loading conversations…</p> : null}
           </div>
         </div>
 
         <button type="button" onMouseDown={startResize} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-30 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"><GripVertical size={14} className="text-white/35" /></button>
-        <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="왼쪽 대화 목록 닫기"><ChevronLeft size={22} /></button>
+        <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="Close conversation list"><ChevronLeft size={22} /></button>
       </aside>
 
       {viewing ? (
@@ -367,7 +359,7 @@ export default function ChatHistorySidebar() {
           <div className="flex max-h-[82vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border-2 border-[#FFD700] bg-[#081321] shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
               <div className="min-w-0 flex-1 truncate font-semibold text-[#FFD700]">{viewing.title}</div>
-              <button type="button" onClick={() => setViewing(null)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10" title="닫기"><X size={16} /></button>
+              <button type="button" onClick={() => setViewing(null)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10" title="Close"><X size={16} /></button>
             </div>
             <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-5 py-4 text-sm leading-6 text-[#E8E6DD]">{viewing.content}</div>
           </div>
