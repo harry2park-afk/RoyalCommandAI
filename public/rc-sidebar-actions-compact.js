@@ -57,21 +57,28 @@
         padding-bottom: 0 !important;
         padding-left: 6px !important;
         padding-right: 6px !important;
-        border: 4px solid #ff0000 !important;
         border-radius: 6px !important;
-        background: rgba(255,0,0,.08) !important;
-        color: #ff4d4d !important;
-        box-shadow: 0 0 7px rgba(255,0,0,.65) !important;
         font-size: 10px !important;
         line-height: 1 !important;
         gap: 4px !important;
+        opacity: 1 !important;
+        cursor: pointer !important;
+      }
+      .rc-compact-action-row > button:first-of-type {
+        border: 4px solid #00e85a !important;
+        background: rgba(0,232,90,.08) !important;
+        color: #50ff8f !important;
+        box-shadow: 0 0 7px rgba(0,232,90,.60) !important;
+      }
+      .rc-compact-action-row > button:last-of-type {
+        border: 4px solid #ff0000 !important;
+        background: rgba(255,0,0,.08) !important;
+        color: #ff4d4d !important;
+        box-shadow: 0 0 7px rgba(255,0,0,.65) !important;
       }
       .rc-compact-action-row > button:disabled {
         opacity: 1 !important;
-        border-color: #ff0000 !important;
-        color: #ff4d4d !important;
-        background: rgba(255,0,0,.08) !important;
-        box-shadow: 0 0 7px rgba(255,0,0,.65) !important;
+        cursor: pointer !important;
       }
       .rc-compact-action-row > button svg {
         width: 12px !important;
@@ -101,6 +108,11 @@
     if (actionRow.firstElementChild !== selectBox) {
       actionRow.insertBefore(selectBox, actionRow.firstChild);
     }
+
+    // Keep buttons visually and physically clickable. Their React handlers
+    // still decide whether there is a selected conversation to process.
+    if (save.disabled) save.disabled = false;
+    if (del.disabled) del.disabled = false;
   }
 
   arrange();
@@ -113,5 +125,5 @@
       arrange();
     });
   });
-  observer.observe(document.documentElement, { childList: true, subtree: true });
+  observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["disabled"] });
 })();
