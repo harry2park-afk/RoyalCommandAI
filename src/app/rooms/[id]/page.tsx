@@ -1,5 +1,6 @@
 import Script from "next/script";
 import RoomV3 from "./RoomV3";
+import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 
 const ROOM_UI_VERSION = "20260818-2315-native-first-paint";
 
@@ -59,6 +60,7 @@ export default function RoomPage() {
         }
       `}</style>
 
+      <RoomExternalAppClickGuard />
       <RoomV3 />
       <Script src={`/rc-language-picker.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-copy-question-thread.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
