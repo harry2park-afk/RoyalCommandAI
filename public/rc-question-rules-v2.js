@@ -1,6 +1,5 @@
 (() => {
   const USER_TITLE = "클릭하면 전체 내용을 봅니다";
-  const TITLE_INPUT_ID = "rc-question-title-input";
   const SEARCH_WRAP_ID = "rc-question-search-wrap";
   const PREFIX_RE = /^\d+-Time\s+\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{6}\s*\/\s*.+/;
   const STYLES = {
@@ -49,19 +48,6 @@
     const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
     if (setter) setter.call(textarea, value); else textarea.value = value;
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
-  }
-
-  function installTitleInput() {
-    if (!roomPage() || document.getElementById(TITLE_INPUT_ID)) return;
-    const textarea = document.querySelector('textarea[placeholder^="Type or speak your order"]');
-    if (!textarea?.parentElement) return;
-    const input = document.createElement("input");
-    input.id = TITLE_INPUT_ID;
-    input.type = "text";
-    input.maxLength = 120;
-    input.placeholder = "질문 제목 (수정 가능)";
-    input.className = "mb-1 block h-8 w-full rounded-md border border-[#d7b64d]/30 bg-[#0b1524] px-3 text-[12px] text-[#f4f0e7] outline-none placeholder:text-[#7C8BC4]";
-    textarea.parentElement.insertBefore(input, textarea);
   }
 
   function installSearch() {
@@ -123,14 +109,11 @@
 
     event.preventDefault();
     event.stopImmediatePropagation();
-    const titleInput = document.getElementById(TITLE_INPUT_ID);
-    const typed = titleInput instanceof HTMLInputElement ? titleInput.value.trim() : "";
     const auto = raw.replace(/\s+/g, " ").slice(0, 80).trim();
     const { date, time } = stamp();
-    const prefix = `${nextNumber(date)}-Time ${date} / ${time} / ${typed || auto || "질문"}`;
+    const prefix = `${nextNumber(date)}-Time ${date} / ${time} / ${auto || "Question"}`;
     pendingProvider = selectedProvider();
     nativeSet(textarea, `${prefix}\n\n${raw}`);
-    if (titleInput instanceof HTMLInputElement) titleInput.value = "";
     resubmitting = true;
     setTimeout(() => {
       try { form.requestSubmit(); } finally { resubmitting = false; }
@@ -144,7 +127,6 @@
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      installTitleInput();
       installSearch();
       colorLatestQuestion();
     });
