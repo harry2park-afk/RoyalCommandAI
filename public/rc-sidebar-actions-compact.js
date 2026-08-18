@@ -57,10 +57,10 @@
         padding-bottom: 0 !important;
         padding-left: 6px !important;
         padding-right: 6px !important;
-        border: 2px solid #ef4444 !important;
+        border: 4px solid #ff1f1f !important;
         border-radius: 6px !important;
-        background: rgba(239,68,68,.04) !important;
-        color: #fca5a5 !important;
+        background: rgba(255,31,31,.05) !important;
+        color: #ff6b6b !important;
         font-size: 10px !important;
         line-height: 1 !important;
         gap: 4px !important;
