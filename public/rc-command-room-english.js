@@ -6,8 +6,14 @@
     ["현재 대화 저장", "Save Current Conversation"],
     ["저장 중…", "Saving…"],
     ["저장됨", "Saved"],
+    ["저장 실패", "Save failed"],
+    ["삭제됨", "Deleted"],
+    ["삭제 실패", "Delete failed"],
+    ["전체 선택", "Select All"],
     ["아직 저장한 중요 대화가 없습니다.", "No important conversations saved yet."],
     ["중요 대화를 불러오는 중…", "Loading important conversations…"],
+    ["아직 저장된 대화가 없습니다.", "No conversations yet."],
+    ["대화를 불러오는 중…", "Loading conversations…"],
     ["채팅방", "Chat Rooms"],
     ["저장된 중요 대화", "Saved Important Conversation"],
     ["질문 제목 (수정 가능)", "Question Title (editable)"],
@@ -28,6 +34,13 @@
     ["채팅방 이름 저장", "Save room name"],
     ["채팅방 이름 수정", "Edit room name"],
     ["메뉴에서 빼기", "Remove from menu"],
+    ["한국어", "Korean"],
+    ["음성 읽기 끄기", "Turn voice reading off"],
+    ["음성 읽기 켜기", "Turn voice reading on"],
+    ["파일 첨부", "Attach file"],
+    ["마이크", "Microphone"],
+    ["AI 검색...", "Search AI..."],
+    ["교체할 상단 슬롯을 고른 뒤 AI를 선택하세요.", "Choose a top slot, then select an AI to replace it."],
   ]);
 
   const PARTIAL = [
@@ -37,6 +50,18 @@
     ["저장한 중요 대화 삭제", "Delete saved important conversation"],
     ["왼쪽 중요 대화 보관함 열기", "Open Important Conversation Vault"],
     ["왼쪽 중요 대화 보관함 닫기", "Close Important Conversation Vault"],
+    ["왼쪽 대화 목록 열기", "Open conversation list"],
+    ["왼쪽 대화 목록 닫기", "Close conversation list"],
+    ["선택한 대화 저장", "Save selected conversations"],
+    ["선택한 대화 삭제", "Delete selected conversations"],
+    ["전체 대화 선택", "Select all conversations"],
+    ["한 번 클릭: 내용 보기 · 더블클릭: 제목 수정", "Click: view conversation · Double-click: edit title"],
+    ["이 대화 삭제", "Delete this conversation"],
+    ["클릭하면 전체 내용을 봅니다", "Click to view full content"],
+    ["상단 사용중", "In top slots"],
+    ["업로드 중…", "Uploading…"],
+    ["업로드 완료", "Upload complete"],
+    ["업로드 실패", "Upload failed"],
     ["답변만 복사", "answer only"],
     ["이 질문과 모든 AI 답변을 한 번에 복사", "Copy this question and all AI answers"],
   ];
@@ -100,7 +125,6 @@
     attributeFilter: ["placeholder", "title", "aria-label"],
   });
 
-  // The language selector is intentionally NOT used to translate interface chrome.
-  // It continues to control only the user's chat input/voice locale and AI response language.
+  // The language selector controls chat/voice language only; Command Room chrome remains English.
   refresh();
 })();
