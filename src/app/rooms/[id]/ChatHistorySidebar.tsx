@@ -32,7 +32,6 @@ type ImportantConversation = {
 const MIN_WIDTH = 12;
 const DEFAULT_WIDTH = 240;
 const MAX_WIDTH = 420;
-const HANGUL = /[\u3131-\u318E\uAC00-\uD7A3]/;
 
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : String(value ?? "").trim();
@@ -55,7 +54,7 @@ function buildBoxes(messages: Message[], titles: Record<string, string>, roomId:
     const userMessage = current.find((message) => messageType(message) === "user");
     if (!userMessage) { current = []; return; }
     const key = `${roomId}:${userMessage.id}`;
-    const fallbackTitle = cleanText(userMessage.content).replace(/\s+/g, " ").slice(0, 70) || "Conversation";
+    const defaultTitle = cleanText(userMessage.content).replace(/\s+/g, " ").slice(0, 120) || "Conversation";
     const content = current.map((message) => {
       const label = messageType(message) === "user" ? "Harry" : "AI";
       return `${label}\n${cleanText(message.content)}`;
@@ -63,7 +62,7 @@ function buildBoxes(messages: Message[], titles: Record<string, string>, roomId:
     boxes.push({
       id: userMessage.id,
       ids: current.map((message) => message.id),
-      title: titles[key] || fallbackTitle,
+      title: cleanText(titles[key]) || defaultTitle,
       content,
       createdAt: messageTime(userMessage),
     });
@@ -80,11 +79,7 @@ function buildBoxes(messages: Message[], titles: Record<string, string>, roomId:
     }
   }
   pushCurrent();
-
-  return boxes.reverse().map((box, index) => ({
-    ...box,
-    title: HANGUL.test(box.title) ? `Conversation ${index + 1}` : box.title,
-  }));
+  return boxes.reverse();
 }
 
 export default function ChatHistorySidebar() {
