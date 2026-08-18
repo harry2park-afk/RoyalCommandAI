@@ -85,30 +85,28 @@ export default function RightWorkSidebar() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuScrollRef = useRef<HTMLDivElement>(null);
   const preferencesReady = useRef(false);
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function restore() {
-      let next: string[] | null = null;
+      let local: string[] | null = null;
+      try {
+        const raw = window.localStorage.getItem("royalcommand:right-panel-apps");
+        local = raw !== null ? validAppIds(JSON.parse(raw)) : null;
+      } catch {}
+
+      let account: string[] | null = null;
       try {
         const res = await fetch("/api/user/preferences", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
-          next = validAppIds(data?.preferences?.rightPanelApps);
+          account = validAppIds(data?.preferences?.rightPanelApps);
         }
       } catch {}
 
-      if (next === null) {
-        try {
-          const raw = window.localStorage.getItem("royalcommand:right-panel-apps");
-          next = raw ? validAppIds(JSON.parse(raw)) : null;
-        } catch {}
-      }
-
       if (cancelled) return;
-      const restored = next ?? DEFAULT_APPS;
+      const restored = local ?? account ?? DEFAULT_APPS;
       setSelectedIds(restored);
       try {
         window.localStorage.setItem("royalcommand:right-panel-apps", JSON.stringify(restored));
@@ -116,28 +114,32 @@ export default function RightWorkSidebar() {
         window.localStorage.removeItem("royalcommand:right-panel-width");
       } catch {}
       preferencesReady.current = true;
+
+      if (local !== null && JSON.stringify(local) !== JSON.stringify(account)) {
+        void fetch("/api/user/preferences", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ rightPanelApps: local }),
+          keepalive: true,
+        }).catch(() => undefined);
+      }
     }
 
     void restore();
     return () => {
       cancelled = true;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
     };
   }, []);
 
   useEffect(() => {
     if (!preferencesReady.current) return;
     try { window.localStorage.setItem("royalcommand:right-panel-apps", JSON.stringify(selectedIds)); } catch {}
-
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(() => {
-      void fetch("/api/user/preferences", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rightPanelApps: selectedIds }),
-        keepalive: true,
-      }).catch(() => undefined);
-    }, 250);
+    void fetch("/api/user/preferences", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ rightPanelApps: selectedIds }),
+      keepalive: true,
+    }).catch(() => undefined);
   }, [selectedIds]);
 
   const cleanQuery = query.trim().toLowerCase();
