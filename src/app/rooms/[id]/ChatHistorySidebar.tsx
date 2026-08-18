@@ -2,7 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, ChevronLeft, ChevronRight, GripVertical, Save, Trash2, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, GripVertical, Pencil, Save, Trash2, X } from "lucide-react";
 
 type Message = {
   id: string;
@@ -32,6 +32,7 @@ type ImportantConversation = {
 const MIN_WIDTH = 12;
 const DEFAULT_WIDTH = 240;
 const MAX_WIDTH = 420;
+const HANGUL = /[\u3131-\u318E\uAC00-\uD7A3]/;
 
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : String(value ?? "").trim();
@@ -79,7 +80,11 @@ function buildBoxes(messages: Message[], titles: Record<string, string>, roomId:
     }
   }
   pushCurrent();
-  return boxes.reverse();
+
+  return boxes.reverse().map((box, index) => ({
+    ...box,
+    title: HANGUL.test(box.title) ? `Conversation ${index + 1}` : box.title,
+  }));
 }
 
 export default function ChatHistorySidebar() {
@@ -274,6 +279,11 @@ export default function ChatHistorySidebar() {
     try { window.localStorage.setItem("royalcommand:chat-sidebar-collapsed", nextCollapsed ? "1" : "0"); } catch {}
   }
 
+  function beginTitleEdit(box: ChatBox) {
+    setEditingId(box.id);
+    setEditingTitle(box.title);
+  }
+
   if (collapsed) {
     return (
       <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="Open conversation list">
@@ -309,41 +319,39 @@ export default function ChatHistorySidebar() {
               const editing = editingId === box.id;
               const selected = selectedIds.includes(box.id);
               return (
-                <div key={box.id} className={`group flex h-10 items-center rounded-lg border ${selected ? "border-[var(--gold)] bg-[var(--gold)]/15" : "border-[var(--gold)]/50 bg-[var(--gold)]/8"}`}>
-                  {editing ? (
-                    <input
-                      autoFocus
-                      value={editingTitle}
-                      onChange={(event) => setEditingTitle(event.target.value)}
-                      onClick={(event) => event.stopPropagation()}
-                      onKeyDown={(event) => {
-                        if (event.key === "Enter") { event.preventDefault(); void saveTitle(box); }
-                        if (event.key === "Escape") { setEditingId(null); setEditingTitle(""); }
-                      }}
-                      className="ml-2 min-w-0 flex-1 rounded border border-[var(--gold)]/50 bg-black/50 px-2 py-1.5 text-sm text-white outline-none"
-                      maxLength={120}
-                    />
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setViewing(box)}
-                      onDoubleClick={(event) => { event.preventDefault(); setEditingId(box.id); setEditingTitle(box.title); }}
-                      className="min-w-0 flex-1 truncate px-3 py-2 text-left text-sm text-[var(--gold-soft)]"
-                      title="Click: view conversation · Double-click: edit title"
-                    >
-                      {box.title}
-                    </button>
-                  )}
-
+                <div key={box.id} className={`group flex h-[30px] items-center rounded-lg border ${selected ? "border-[var(--gold)] bg-[var(--gold)]/15" : "border-[var(--gold)]/50 bg-[var(--gold)]/8"}`}>
                   {editing ? (
                     <>
-                      <button type="button" onClick={() => void saveTitle(box)} className="grid h-7 w-7 place-items-center text-emerald-300" title="Save title"><Check size={13} /></button>
-                      <button type="button" onClick={() => { setEditingId(null); setEditingTitle(""); }} className="grid h-7 w-7 place-items-center text-[var(--muted)]" title="Cancel"><X size={13} /></button>
+                      <input
+                        autoFocus
+                        value={editingTitle}
+                        onChange={(event) => setEditingTitle(event.target.value)}
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter") { event.preventDefault(); void saveTitle(box); }
+                          if (event.key === "Escape") { setEditingId(null); setEditingTitle(""); }
+                        }}
+                        className="ml-1 min-w-0 flex-1 rounded border border-[var(--gold)]/50 bg-black/50 px-2 text-xs text-white outline-none"
+                        maxLength={120}
+                      />
+                      <button type="button" onClick={() => void saveTitle(box)} className="grid h-6 w-6 shrink-0 place-items-center text-emerald-300" title="Save title"><Check size={13} /></button>
+                      <button type="button" onClick={() => { setEditingId(null); setEditingTitle(""); }} className="mr-1 grid h-6 w-6 shrink-0 place-items-center text-[var(--muted)]" title="Cancel"><X size={13} /></button>
                     </>
                   ) : (
-                    <input type="checkbox" checked={selected} onChange={() => toggleSelected(box.id)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${box.title}`} className="mr-1 h-4 w-4 shrink-0 accent-[#d7b64d]" />
+                    <>
+                      <input type="checkbox" checked={selected} onChange={() => toggleSelected(box.id)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${box.title}`} className="ml-2 h-4 w-4 shrink-0 accent-[#2563eb]" />
+                      <button
+                        type="button"
+                        onClick={() => setViewing(box)}
+                        onDoubleClick={(event) => { event.preventDefault(); beginTitleEdit(box); }}
+                        className="min-w-0 flex-1 truncate px-2 text-left text-xs text-[var(--gold-soft)]"
+                        title="Click: view conversation · Double-click: edit title"
+                      >
+                        {box.title}
+                      </button>
+                      <button type="button" onClick={(event) => { event.stopPropagation(); beginTitleEdit(box); }} className="mr-1 grid h-6 w-6 shrink-0 place-items-center text-[#FFD700] hover:bg-white/[0.04]" title="Edit conversation title" aria-label={`Edit ${box.title}`}><Pencil size={13} /></button>
+                    </>
                   )}
-                  <button type="button" onClick={() => void deleteBoxes([box])} className="mr-1 grid h-7 w-7 shrink-0 place-items-center rounded-md text-[var(--muted)] hover:bg-red-500/10 hover:text-red-300" title="Delete this conversation"><Trash2 size={14} /></button>
                 </div>
               );
             })}
