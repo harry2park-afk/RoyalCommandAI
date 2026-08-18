@@ -1,6 +1,5 @@
 (() => {
   const USER_TITLE = "클릭하면 전체 내용을 봅니다";
-  const SEARCH_WRAP_ID = "rc-question-search-wrap";
   const PREFIX_RE = /^\d+-Time\s+\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{6}\s*\/\s*.+/;
   const STYLES = {
     ChatGPT: { background: "#071A33", border: "#2F6DB2" },
@@ -22,11 +21,18 @@
     };
   }
 
+  function userButtons() {
+    return Array.from(document.querySelectorAll("button")).filter((button) => {
+      const title = button.getAttribute("title") || "";
+      return title === USER_TITLE || title === "Click to view full content";
+    });
+  }
+
   function nextNumber(date) {
     const escaped = date.replace(/\./g, "\\.");
     const re = new RegExp(`^(\\d+)-Time\\s+${escaped}\\s*\\/`);
     let max = 0;
-    document.querySelectorAll(`button[title="${USER_TITLE}"]`).forEach((button) => {
+    userButtons().forEach((button) => {
       const match = (button.textContent || "").trim().match(re);
       if (match) max = Math.max(max, Number(match[1]) || 0);
     });
@@ -50,45 +56,9 @@
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
-  function installSearch() {
-    if (!roomPage() || document.getElementById(SEARCH_WRAP_ID)) return;
-    const viewport = Array.from(document.querySelectorAll("div")).find((el) => {
-      const c = String(el.className || "");
-      return c.includes("overflow-y-auto") && c.includes("overscroll-contain");
-    });
-    if (!viewport) return;
-    const wrap = document.createElement("div");
-    wrap.id = SEARCH_WRAP_ID;
-    wrap.className = "sticky top-0 z-20 mb-2 flex justify-end pointer-events-none";
-    const input = document.createElement("input");
-    input.type = "search";
-    input.placeholder = "번호·날짜·제목 검색";
-    input.className = "pointer-events-auto h-8 w-[210px] rounded-md border border-[#d7b64d]/35 bg-[#07101d]/95 px-3 text-[11px] text-[#f4f0e7] outline-none placeholder:text-[#7C8BC4]";
-    input.addEventListener("keydown", (e) => {
-      if (e.key !== "Enter") return;
-      e.preventDefault();
-      const q = input.value.trim().toLowerCase();
-      if (!q) return;
-      const match = Array.from(document.querySelectorAll(`button[title="${USER_TITLE}"]`))
-        .find((b) => (b.textContent || "").toLowerCase().includes(q));
-      if (!match) {
-        input.value = "";
-        input.placeholder = "검색 결과 없음";
-        setTimeout(() => input.placeholder = "번호·날짜·제목 검색", 1400);
-        return;
-      }
-      match.scrollIntoView({ behavior: "smooth", block: "center" });
-      const old = match.style.boxShadow;
-      match.style.boxShadow = "0 0 0 3px #FFD700";
-      setTimeout(() => match.style.boxShadow = old, 1800);
-    });
-    wrap.appendChild(input);
-    viewport.insertBefore(wrap, viewport.firstChild);
-  }
-
   function colorLatestQuestion() {
     if (!pendingProvider) return;
-    const buttons = Array.from(document.querySelectorAll(`button[title="${USER_TITLE}"]`));
+    const buttons = userButtons();
     const button = buttons[buttons.length - 1];
     const style = STYLES[pendingProvider];
     if (!button || !style || button.dataset.rcQuestionProvider) return;
@@ -127,7 +97,6 @@
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      installSearch();
       colorLatestQuestion();
     });
   }
