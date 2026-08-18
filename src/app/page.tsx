@@ -70,9 +70,16 @@ export default function HomePage() {
       setLocale(next);
       document.documentElement.lang = next;
     };
+
     applySavedLanguage();
     window.addEventListener("storage", applySavedLanguage);
-    return () => window.removeEventListener("storage", applySavedLanguage);
+    window.addEventListener("focus", applySavedLanguage);
+    document.addEventListener("visibilitychange", applySavedLanguage);
+    return () => {
+      window.removeEventListener("storage", applySavedLanguage);
+      window.removeEventListener("focus", applySavedLanguage);
+      document.removeEventListener("visibilitychange", applySavedLanguage);
+    };
   }, []);
 
   useEffect(() => {
