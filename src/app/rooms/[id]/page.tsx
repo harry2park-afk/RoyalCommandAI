@@ -2,7 +2,7 @@ import Script from "next/script";
 import RoomV3 from "./RoomV3";
 import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 
-const ROOM_UI_VERSION = "20260819-0047-bright-actions-always";
+const ROOM_UI_VERSION = "20260819-0058-green-save-actions";
 
 export default function RoomPage() {
   return (
