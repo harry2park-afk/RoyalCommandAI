@@ -58,6 +58,18 @@ export default function RoomPage() {
         html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:not([class*="bg-[#7A0C2E]"]):not(:last-child) {
           display: none !important;
         }
+
+        /* Owner-approved compact left controls: same height as AI Warehouse. */
+        #rc-new-chat-button,
+        #rc-voice-command-button {
+          height: 30px !important;
+          min-height: 30px !important;
+          max-height: 30px !important;
+          border-width: 1px !important;
+          border-color: #2A3B6E !important;
+          padding-top: 0 !important;
+          padding-bottom: 0 !important;
+        }
       `}</style>
 
       <RoomExternalAppClickGuard />
