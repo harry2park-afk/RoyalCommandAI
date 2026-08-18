@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
 import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
+import RoomPreferenceAuthority from "@/components/RoomPreferenceAuthority";
 import "./globals.css";
 import "./room-viewport-tight.css";
 
@@ -20,7 +21,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased">
         {children}
         <RetellRoomVoiceBridge />
-        <Script src="/rc-prefs-sync.js" strategy="afterInteractive" />
+        <RoomPreferenceAuthority />
         <Script src="/rc-language-picker.js" strategy="afterInteractive" />
         <Script src="/rc-copy-question-thread.js" strategy="afterInteractive" />
         <Script src="/rc-question-rules-v2.js" strategy="afterInteractive" />
