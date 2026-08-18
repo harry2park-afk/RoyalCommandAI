@@ -70,6 +70,25 @@ export default function RoomPage() {
           padding-top: 0 !important;
           padding-bottom: 0 !important;
         }
+
+        /* Conversation rows: selector on the left, no individual trash action. */
+        aside button[title^="Click: view conversation"] {
+          order: 2 !important;
+          padding-left: 7px !important;
+        }
+        aside button[title^="Click: view conversation"] + input[type="checkbox"] {
+          order: 1 !important;
+          margin-left: 8px !important;
+          margin-right: 0 !important;
+          width: 16px !important;
+          height: 16px !important;
+          flex: 0 0 16px !important;
+          accent-color: #2563eb !important;
+          cursor: pointer !important;
+        }
+        aside button[title="Delete this conversation"] {
+          display: none !important;
+        }
       `}</style>
 
       <RoomExternalAppClickGuard />
