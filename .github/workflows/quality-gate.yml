@@ -20,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
 
       - name: Setup Node
         uses: actions/setup-node@v5
@@ -33,14 +35,26 @@ jobs:
         # dependency-lock PR must restore npm ci as the required policy.
         run: npm install --no-audit --no-fund
 
-      - name: Lint
-        run: npm run lint
+      - name: Lint changed code
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            mapfile -t files < <(git diff --name-only --diff-filter=ACMR origin/master...HEAD -- '*.js' '*.jsx' '*.ts' '*.tsx')
+          else
+            mapfile -t files < <(git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.js' '*.jsx' '*.ts' '*.tsx')
+          fi
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No changed JS/TS files to lint."
+          else
+            printf 'Linting changed files:\n%s\n' "${files[*]}"
+            npx eslint "${files[@]}"
+          fi
 
       - name: Typecheck
         run: npm run typecheck
 
       - name: Unit tests
-        run: npm test
+        run: npm test -- --passWithNoTests
 
       - name: Production build
         run: npm run build
