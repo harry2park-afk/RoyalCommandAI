@@ -3,6 +3,14 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 
+type ImportantConversation = {
+  id: string;
+  roomId: string;
+  title: string;
+  content: string;
+  createdAt: string;
+};
+
 type UiPreferences = {
   selectedAi?: string[];
   aiSlots?: string[];
@@ -11,6 +19,7 @@ type UiPreferences = {
   chatSidebarWidth?: number;
   chatSidebarCollapsed?: boolean;
   chatHistoryTitles?: Record<string, string>;
+  importantConversations?: ImportantConversation[];
 };
 
 function sanitiseStringArray(value: unknown, maxItems: number) {
@@ -26,6 +35,31 @@ function sanitiseTitleMap(value: unknown) {
     if (typeof raw !== "string") continue;
     const title = raw.trim().slice(0, 120);
     if (key && key.length <= 200 && title) result[key] = title;
+  }
+  return result;
+}
+
+function sanitiseImportantConversations(value: unknown) {
+  if (!Array.isArray(value)) return undefined;
+  const result: ImportantConversation[] = [];
+  for (const raw of value.slice(0, 100)) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) continue;
+    const item = raw as Record<string, unknown>;
+    if (typeof item.id !== "string" || !item.id || item.id.length > 160) continue;
+    if (typeof item.roomId !== "string" || !item.roomId || item.roomId.length > 200) continue;
+    if (typeof item.title !== "string" || typeof item.content !== "string") continue;
+    const title = item.title.trim().slice(0, 120);
+    const content = item.content.trim().slice(0, 20000);
+    if (!title || !content) continue;
+    result.push({
+      id: item.id,
+      roomId: item.roomId,
+      title,
+      content,
+      createdAt: typeof item.createdAt === "string" && item.createdAt.length <= 64
+        ? item.createdAt
+        : new Date().toISOString(),
+    });
   }
   return result;
 }
@@ -53,6 +87,10 @@ function sanitise(value: unknown): UiPreferences {
 
   const chatHistoryTitles = sanitiseTitleMap(input.chatHistoryTitles);
   if (chatHistoryTitles) result.chatHistoryTitles = chatHistoryTitles;
+
+  const importantConversations = sanitiseImportantConversations(input.importantConversations);
+  if (importantConversations) result.importantConversations = importantConversations;
+
   return result;
 }
 
