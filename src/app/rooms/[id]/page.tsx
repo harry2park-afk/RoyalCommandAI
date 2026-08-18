@@ -84,6 +84,7 @@ export default function RoomPage() {
       <Script src={`/rc-compact-ai-dock.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-language-dock-fix.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-room-title-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
+      <Script src={`/rc-sidebar-actions-compact.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script id="rc-room-enhanced-marker" strategy="afterInteractive">
         {`document.documentElement.setAttribute("data-rc-room-enhanced", "1");`}
       </Script>
