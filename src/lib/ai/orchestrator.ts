@@ -48,16 +48,54 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
 function responseLanguageHint(prompt: string, selectedLanguage?: string) {
   const userText = prompt.replace(/^\s*\d+-Time\s+\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{6}\s*\/[^\n]*\n*/i, "").trim();
   const hangulCount = (userText.match(/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/g) || []).length;
-  const letterCount = (userText.match(/[\p{L}]/gu) || []).length;
+  const latinCount = (userText.match(/[A-Za-z]/g) || []).length;
+  const cjkCount = (userText.match(/[\u3040-\u30ff\u3400-\u9fff]/g) || []).length;
+  const arabicCount = (userText.match(/[\u0600-\u06ff]/g) || []).length;
+  const cyrillicCount = (userText.match(/[\u0400-\u04ff]/g) || []).length;
 
-  // A Korean-authored question always receives a Korean answer, regardless of the
-  // currently selected locale. This lets the language selector affect chat/voice
-  // preferences without ever changing the fixed English application interface.
-  if (hangulCount >= 2 && (letterCount === 0 || hangulCount / letterCount >= 0.15)) {
-    return "The user's current question is written in Korean. Respond in natural Korean (ko-KR), regardless of the manually selected response locale.";
+  if (hangulCount >= 2) {
+    return [
+      "The customer's current question is written in Korean.",
+      "Respond in natural Korean (ko-KR) for this message.",
+      selectedLanguage ? `The saved Command Room default language remains ${selectedLanguage}; do not change that saved selector value because of this message.` : "",
+    ].filter(Boolean).join(" ");
   }
 
-  return selectedLanguage ? `Respond in language code/locale preference: ${selectedLanguage}.` : "Respond in the same language as the user's current question.";
+  if (cjkCount >= 2) {
+    return [
+      "The customer's current question uses Japanese or Chinese characters.",
+      "Respond in the same language/script used by the current question for this message.",
+      selectedLanguage ? `The saved Command Room default language remains ${selectedLanguage}; do not change that saved selector value because of this message.` : "",
+    ].filter(Boolean).join(" ");
+  }
+
+  if (arabicCount >= 2) {
+    return [
+      "The customer's current question is written in Arabic-script text.",
+      "Respond in the same language used by the current question for this message.",
+      selectedLanguage ? `The saved Command Room default language remains ${selectedLanguage}; do not change that saved selector value because of this message.` : "",
+    ].filter(Boolean).join(" ");
+  }
+
+  if (cyrillicCount >= 2) {
+    return [
+      "The customer's current question is written in Cyrillic-script text.",
+      "Respond in the same language used by the current question for this message.",
+      selectedLanguage ? `The saved Command Room default language remains ${selectedLanguage}; do not change that saved selector value because of this message.` : "",
+    ].filter(Boolean).join(" ");
+  }
+
+  if (latinCount >= 3) {
+    return [
+      "The customer's current question is written primarily with Latin-script text.",
+      "Respond in the same language used by the current question for this message.",
+      selectedLanguage ? `If the exact language is ambiguous, use the saved Command Room default locale ${selectedLanguage}. Do not change the saved selector value.` : "",
+    ].filter(Boolean).join(" ");
+  }
+
+  return selectedLanguage
+    ? `The current question's language is ambiguous. Respond using the saved Command Room default locale ${selectedLanguage}. The saved selector remains unchanged until the customer changes it.`
+    : "The current question's language is ambiguous. Respond in the same language as best inferred from the question.";
 }
 
 async function runProvider(

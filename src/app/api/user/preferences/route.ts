@@ -16,6 +16,7 @@ type UiPreferences = {
   aiSlots?: string[];
   rightPanelApps?: string[];
   language?: string;
+  roomLanguages?: Record<string, string>;
   chatSidebarWidth?: number;
   chatSidebarCollapsed?: boolean;
   chatHistoryTitles?: Record<string, string>;
@@ -35,6 +36,17 @@ function sanitiseTitleMap(value: unknown) {
     if (typeof raw !== "string") continue;
     const title = raw.trim().slice(0, 120);
     if (key && key.length <= 200 && title) result[key] = title;
+  }
+  return result;
+}
+
+function sanitiseRoomLanguages(value: unknown) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
+  const result: Record<string, string> = {};
+  for (const [roomId, rawLocale] of Object.entries(value as Record<string, unknown>).slice(0, 500)) {
+    if (!roomId || roomId.length > 200 || typeof rawLocale !== "string") continue;
+    const locale = rawLocale.trim().slice(0, 32);
+    if (locale.length >= 2) result[roomId] = locale;
   }
   return result;
 }
@@ -78,6 +90,8 @@ function sanitise(value: unknown): UiPreferences {
   if (typeof input.language === "string" && input.language.length <= 32) {
     result.language = input.language;
   }
+  const roomLanguages = sanitiseRoomLanguages(input.roomLanguages);
+  if (roomLanguages) result.roomLanguages = roomLanguages;
   if (typeof input.chatSidebarWidth === "number" && Number.isFinite(input.chatSidebarWidth)) {
     result.chatSidebarWidth = Math.max(12, Math.min(420, Math.round(input.chatSidebarWidth)));
   }
