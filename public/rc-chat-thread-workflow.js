@@ -8,7 +8,7 @@
 
   let viewport = null;
   let activeRoot = "";
-  let initialised = false;
+  let baselineComplete = false;
   let knownTurns = new Set();
   let scheduled = false;
 
@@ -93,7 +93,7 @@
     const members = activeRoot && Array.isArray(groups[activeRoot]) ? new Set(groups[activeRoot]) : new Set();
 
     for (const turn of turns) {
-      const show = activeRoot && members.has(turn.key);
+      const show = Boolean(activeRoot && members.has(turn.key));
       for (const node of turn.nodes) {
         if (node instanceof HTMLElement) node.style.display = show ? "" : "none";
       }
@@ -129,16 +129,23 @@
     });
   }
 
+  function historyListSettled(turns) {
+    const rows = findSidebarRows();
+    if (turns.length > 0) return rows.length >= turns.length;
+    const aside = document.querySelector("aside");
+    return Boolean(aside && /No conversations yet\.|Loading conversations/.test(aside.textContent || ""));
+  }
+
   function mapSidebarRows() {
     const turns = collectTurns();
     const rows = findSidebarRows();
     if (!turns.length || !rows.length) return;
 
     const newestTurns = [...turns].reverse();
+    const groups = readGroups();
     rows.forEach((button, index) => {
       const turn = newestTurns[index];
       if (!turn) return;
-      const groups = readGroups();
       const root = rootForKey(turn.key, groups);
       button.dataset.rcTurnKey = turn.key;
       button.dataset.rcThreadRoot = root;
@@ -168,10 +175,11 @@
 
   function detectNewTurns() {
     const turns = collectTurns();
-    if (!initialised) {
+
+    if (!baselineComplete) {
       knownTurns = new Set(turns.map((turn) => turn.key));
-      initialised = true;
-      startNewChat();
+      activeRoot = "";
+      if (historyListSettled(turns)) baselineComplete = true;
       return;
     }
 
@@ -221,6 +229,9 @@
   new MutationObserver(scheduleRefresh).observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener("pageshow", () => {
     activeRoot = "";
+    baselineComplete = false;
+    knownTurns = new Set();
+    clearComposer();
     scheduleRefresh();
   });
 
