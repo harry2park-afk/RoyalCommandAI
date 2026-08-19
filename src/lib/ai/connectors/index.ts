@@ -5,8 +5,9 @@ import { OpenAIConnector } from "./openai";
 import { OpenRouterCatalogConnector } from "./openrouter";
 import { XAIConnector } from "./xai";
 import type { AIConnector, AIProviderId } from "../types";
-import { AI_PROVIDER_IDS, PROVIDER_LABELS } from "../types";
+import { PROVIDER_LABELS } from "../types";
 import { AI_CATALOG_BY_ID } from "../catalog";
+import { listRegisteredProviderIds } from "../providerRegistry";
 import { isDemoMode } from "@/lib/utils";
 
 const nativeConnectors: Partial<Record<AIProviderId, AIConnector>> = {
@@ -18,7 +19,7 @@ const nativeConnectors: Partial<Record<AIProviderId, AIConnector>> = {
 
 const catalogConnectors: Partial<Record<AIProviderId, AIConnector>> = {};
 
-for (const id of AI_PROVIDER_IDS) {
+for (const id of listRegisteredProviderIds()) {
   if (nativeConnectors[id]) continue;
   const entry = AI_CATALOG_BY_ID[id];
   if (!entry?.modelQuery) continue;
@@ -38,7 +39,7 @@ export function getConnector(id: AIProviderId): AIConnector {
 }
 
 export function listConnectors(): AIConnector[] {
-  return AI_PROVIDER_IDS.map(getConnector);
+  return listRegisteredProviderIds().map(getConnector);
 }
 
 export function getAvailableProviderIds(): AIProviderId[] {
