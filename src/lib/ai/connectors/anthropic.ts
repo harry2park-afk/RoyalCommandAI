@@ -27,10 +27,11 @@ export class AnthropicConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
+    const explicitModel = request.model?.trim();
     const configuredModel = (process.env.ANTHROPIC_MODEL || "").trim();
-    const model = !configuredModel || RETIRED_CLAUDE_MODELS.has(configuredModel)
+    const model = explicitModel || (!configuredModel || RETIRED_CLAUDE_MODELS.has(configuredModel)
       ? "claude-haiku-4-5"
-      : configuredModel;
+      : configuredModel);
 
     const direct = async (): Promise<AIProviderResponse> => {
       const apiKey = (process.env.ANTHROPIC_API_KEY || "").trim();
@@ -45,14 +46,10 @@ export class AnthropicConnector implements AIConnector {
       }
 
       try {
-        const system = request.messages
-          .filter((m) => m.role === "system")
-          .map((m) => m.content)
-          .join("\n");
+        const system = request.messages.filter((m) => m.role === "system").map((m) => m.content).join("\n");
         const messages = request.messages
           .filter((m) => m.role !== "system")
           .map((m) => ({ role: m.role, content: m.content }));
-
         const maxTokens = Math.min(request.maxTokens ?? CLAUDE_DIRECT_MAX_TOKENS, CLAUDE_DIRECT_MAX_TOKENS);
         const requestBody: Record<string, unknown> = {
           model,
@@ -66,6 +63,7 @@ export class AnthropicConnector implements AIConnector {
           provider: this.displayName,
           via: "Anthropic direct",
           model,
+          explicitModel: Boolean(explicitModel),
           maxTokens,
         });
 
@@ -85,6 +83,7 @@ export class AnthropicConnector implements AIConnector {
           logger.warn("ai.provider.failed", {
             provider: this.displayName,
             model,
+            explicitModel: Boolean(explicitModel),
             status: res.status,
             error: String(message).slice(0, 500),
           });
@@ -98,11 +97,7 @@ export class AnthropicConnector implements AIConnector {
         }
 
         const content = Array.isArray(data.content)
-          ? data.content
-              .filter((c: { type: string }) => c.type === "text")
-              .map((c: { text: string }) => c.text)
-              .join("\n")
-              .trim()
+          ? data.content.filter((c: { type: string }) => c.type === "text").map((c: { text: string }) => c.text).join("\n").trim()
           : "";
         const tokenLimited = data?.stop_reason === "max_tokens";
 
@@ -119,6 +114,7 @@ export class AnthropicConnector implements AIConnector {
         logger.warn("ai.provider.exception", {
           provider: this.displayName,
           model,
+          explicitModel: Boolean(explicitModel),
           error: message.slice(0, 500),
         });
         return {
@@ -131,12 +127,12 @@ export class AnthropicConnector implements AIConnector {
       }
     };
 
-    // Prefer the user's Anthropic server key. Only use OpenRouter as a bounded fallback.
     if (process.env.ANTHROPIC_API_KEY) {
       const directResult = await direct();
       if (!directResult.error && directResult.content?.trim()) return directResult;
 
-      if (process.env.OPENROUTER_API_KEY) {
+      // Explicit Phase 4 model selection must not fall back to a different model.
+      if (!explicitModel && process.env.OPENROUTER_API_KEY) {
         const routedRequest: AIRequest = {
           ...request,
           maxTokens: Math.min(request.maxTokens ?? CLAUDE_OPENROUTER_MAX_TOKENS, CLAUDE_OPENROUTER_MAX_TOKENS),
@@ -167,7 +163,7 @@ export class AnthropicConnector implements AIConnector {
       return directResult;
     }
 
-    if (process.env.OPENROUTER_API_KEY) {
+    if (!explicitModel && process.env.OPENROUTER_API_KEY) {
       const routedRequest: AIRequest = {
         ...request,
         maxTokens: Math.min(request.maxTokens ?? CLAUDE_OPENROUTER_MAX_TOKENS, CLAUDE_OPENROUTER_MAX_TOKENS),
