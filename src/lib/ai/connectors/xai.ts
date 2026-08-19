@@ -11,7 +11,7 @@ export class XAIConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const model = process.env.XAI_MODEL || "grok-4.5";
+    const model = request.model?.trim() || process.env.XAI_MODEL || "grok-4.5";
     try {
       const requestBody: Record<string, unknown> = {
         model,
@@ -30,9 +30,7 @@ export class XAIConnector implements AIConnector {
       });
 
       const data = await res.json();
-      if (!res.ok) {
-        throw new Error(data?.error?.message || `xAI HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(data?.error?.message || `xAI HTTP ${res.status}`);
 
       const choice = data?.choices?.[0];
       const content = extractProviderText(choice?.message?.content).trim();
