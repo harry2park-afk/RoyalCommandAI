@@ -29,6 +29,15 @@ const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
   { id: "xai", pattern: /(grok|그록)/i },
 ];
 
+type StreamCouncilResult = Awaited<ReturnType<typeof orchestrateRoom>> & {
+  council?: {
+    reviewProviders: AIProviderId[];
+    synthesizerProvider?: AIProviderId;
+    synthesizerModel?: string;
+    synthesisError?: string;
+  };
+};
+
 function hasExplicitNoExecutionIntent(prompt: string) {
   const explicitNegation = /(실행|수정|변경|구현|배포|개발\s*(?:agent|에이전트)|코드|파일|github|commit|push|merge).{0,30}(?:하지\s*마|하지\s*말|하지\s*않|금지|요청(?:하는\s*것)?이\s*아니|요청하지\s*않)/i.test(prompt);
   const explanationOnly = /(설명|분석|진단|검토|테스트|의견|원인|답변).{0,8}(?:만\s*(?:해|하세요|해주세요|줘|주세요)|목적|용도)/i.test(prompt);
@@ -106,8 +115,6 @@ export async function POST(request: Request) {
       : (data.providers as AIProviderId[] | undefined) || [];
     const councilRequested = isCouncilIntent(data.prompt, councilCandidates.length);
 
-    // Council requests are analysis/synthesis work even when the user's test text
-    // contains words such as "구현". Never divert them into the development agent.
     if (!councilRequested && shouldRunDeveloperAgent(data.prompt)) {
       const cookie = request.headers.get("cookie") || "";
       const legacy = await fetch(new URL("/api/ai/chat", request.url), {
@@ -160,9 +167,6 @@ export async function POST(request: Request) {
             if (result.blocked && !blockedResult) blockedResult = result;
             if (response) responsesByProvider.set(provider, response);
 
-            // In Council mode the user receives one integrated answer only. The
-            // independent outputs remain internal Council evidence and are not
-            // emitted as separate Command Room messages.
             if (!councilRequested) {
               sendLine(controller, {
                 type: "provider",
@@ -182,7 +186,7 @@ export async function POST(request: Request) {
             .map((provider) => responsesByProvider.get(provider))
             .filter((item): item is AIProviderResponse => Boolean(item));
 
-          let result: any;
+          let result: StreamCouncilResult;
 
           if (blockedResult) {
             result = blockedResult;
@@ -273,7 +277,7 @@ export async function POST(request: Request) {
               responses: result.responses,
               final_answer: result.finalAnswer,
               comparison: result.comparison,
-              status: result.blocked ? "completed" : result.responses.some((item: AIProviderResponse) => item.error) ? "partial" : "completed",
+              status: result.blocked ? "completed" : result.responses.some((item) => item.error) ? "partial" : "completed",
               latency_ms: result.latencyMs,
               created_by: user.id,
             });
