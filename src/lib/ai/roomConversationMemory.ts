@@ -16,22 +16,21 @@ function toRole(authorType: unknown): AIMessage["role"] | null {
 }
 
 export function normalizeRoomHistory(rows: PersistedRoomMessage[]): AIMessage[] {
-  const newestFirst = rows.slice(0, MAX_ROOM_HISTORY_MESSAGES);
-  const chronological = [...newestFirst].reverse();
   let remaining = MAX_ROOM_HISTORY_CHARS;
-  const bounded: AIMessage[] = [];
+  const boundedNewestFirst: AIMessage[] = [];
 
-  for (const row of chronological) {
+  for (const row of rows) {
+    if (boundedNewestFirst.length >= MAX_ROOM_HISTORY_MESSAGES || remaining <= 0) break;
     const role = toRole(row.author_type);
     const content = typeof row.content === "string" ? row.content.trim() : "";
-    if (!role || !content || remaining <= 0) continue;
+    if (!role || !content) continue;
 
     const clipped = content.length > remaining ? content.slice(content.length - remaining) : content;
     remaining -= clipped.length;
-    bounded.push({ role, content: clipped });
+    boundedNewestFirst.push({ role, content: clipped });
   }
 
-  return bounded;
+  return boundedNewestFirst.reverse();
 }
 
 export function boundClientHistory(history?: AIMessage[]): AIMessage[] {
