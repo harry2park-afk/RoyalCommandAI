@@ -1,5 +1,7 @@
 import { getAvailableProviderIds, getConnector } from "./connectors";
 import { guardianCheck } from "./guardian";
+import { executeModelBinding, resolveModelExecutionBinding } from "./modelExecutionBinding";
+import type { AIModelId } from "./modelRegistry";
 import { synthesizeBestAnswer } from "./synthesize";
 import type { AIMessage, AIProviderId, AIProviderResponse } from "./types";
 import { PROVIDER_LABELS } from "./types";
@@ -10,6 +12,7 @@ export interface OrchestrateInput {
   prompt: string;
   history?: AIMessage[];
   providers?: AIProviderId[];
+  modelSelections?: Partial<Record<AIProviderId, AIModelId>>;
   language?: string;
   systemExtra?: string;
 }
@@ -51,9 +54,6 @@ function responseLanguageHint(prompt: string, selectedLanguage?: string) {
   const hangulCount = (userText.match(/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/g) || []).length;
   const letterCount = (userText.match(/[\p{L}]/gu) || []).length;
 
-  // A Korean-authored question always receives a Korean answer, regardless of the
-  // currently selected locale. This lets the language selector affect chat/voice
-  // preferences without ever changing the fixed English application interface.
   if (hangulCount >= 2 && (letterCount === 0 || hangulCount / letterCount >= 0.15)) {
     return "The user's current question is written in Korean. Respond in natural Korean (ko-KR), regardless of the manually selected response locale.";
   }
@@ -75,11 +75,16 @@ async function runProvider(
   ];
 
   try {
+    const selectedModel = input.modelSelections?.[id];
+    if (selectedModel) {
+      const binding = resolveModelExecutionBinding(id, selectedModel);
+      return await executeModelBinding(binding, { messages });
+    }
     return await connector.complete({ messages });
   } catch (error) {
     return {
       provider: id,
-      model: "unknown",
+      model: input.modelSelections?.[id] || "unknown",
       content: "",
       latencyMs: 0,
       error: error instanceof Error ? error.message : "connector failure",
@@ -113,7 +118,12 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
     };
   }
 
-  const requested = input.providers?.length ? input.providers : getAvailableProviderIds();
+  const explicitlySelectedProviders = Object.keys(input.modelSelections || {}) as AIProviderId[];
+  const requested = input.providers?.length
+    ? input.providers
+    : explicitlySelectedProviders.length
+      ? explicitlySelectedProviders
+      : getAvailableProviderIds();
   const available = new Set(getAvailableProviderIds());
   const providers = requested.filter((id) => available.has(id));
 
@@ -129,7 +139,12 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
   }
 
   const languageHint = responseLanguageHint(input.prompt, input.language);
-  logger.info("ai.orchestrate.start", { providers, promptLen: input.prompt.length, historyMessagesForwarded: input.history?.length || 0 });
+  logger.info("ai.orchestrate.start", {
+    providers,
+    modelSelections: input.modelSelections || {},
+    promptLen: input.prompt.length,
+    historyMessagesForwarded: input.history?.length || 0,
+  });
 
   const responses = await Promise.all(providers.map((id) => runProvider(id, input, languageHint)));
   const scoring = synthesizeBestAnswer(input.prompt, responses);
@@ -154,6 +169,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
           ? `Direct answers shown separately from: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
           : `Direct answer from ${PROVIDER_LABELS[providers[0]!]} .`,
         "Each provider receives bounded prior conversation history from this Room plus the complete current user order.",
+        "Explicit model selections are resolved through the Royal Command Model Registry and are never silently substituted with a different model.",
         "Each provider also receives the same host-verified Tool Gateway capability manifest; credentials remain server-side and execution remains policy-controlled.",
         ...scoring.comparison.notes,
       ],
