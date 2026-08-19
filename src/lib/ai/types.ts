@@ -37,6 +37,8 @@ export interface AIRequest {
   messages: AIMessage[];
   temperature?: number;
   maxTokens?: number;
+  /** Exact provider API model ID from an explicit Phase 4 model binding. */
+  model?: string;
 }
 
 export interface AIProviderResponse {
