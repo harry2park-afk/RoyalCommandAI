@@ -11,6 +11,7 @@ import {
 } from "./rightMenuAppCatalog";
 
 const ROW_HEIGHT = 28;
+const DEFAULT_PACK_MIGRATION_KEY = "royalcommand:right-panel-default-pack-v1";
 
 type LocalFile = { name: string; size: number; url: string };
 type SearchItem =
@@ -57,9 +58,11 @@ export default function RightWorkSidebar() {
 
     async function restore() {
       let local: string[] | null = null;
+      let starterPackMigrated = false;
       try {
         const raw = window.localStorage.getItem("royalcommand:right-panel-apps");
         local = raw !== null ? validAppIds(JSON.parse(raw)) : null;
+        starterPackMigrated = window.localStorage.getItem(DEFAULT_PACK_MIGRATION_KEY) === "1";
       } catch {}
 
       let account: string[] | null = null;
@@ -72,20 +75,26 @@ export default function RightWorkSidebar() {
       } catch {}
 
       if (cancelled) return;
-      const restored = local ?? account ?? [...DEFAULT_APPS];
+
+      const restoredBase = local ?? account ?? [];
+      const restored = starterPackMigrated
+        ? (restoredBase.length ? restoredBase : [...DEFAULT_APPS])
+        : Array.from(new Set([...restoredBase, ...DEFAULT_APPS]));
+
       setSelectedIds(restored);
       try {
         window.localStorage.setItem("royalcommand:right-panel-apps", JSON.stringify(restored));
+        window.localStorage.setItem(DEFAULT_PACK_MIGRATION_KEY, "1");
         window.localStorage.removeItem("royalcommand:right-panel-collapsed");
         window.localStorage.removeItem("royalcommand:right-panel-width");
       } catch {}
       preferencesReady.current = true;
 
-      if (local !== null && JSON.stringify(local) !== JSON.stringify(account)) {
+      if (JSON.stringify(restored) !== JSON.stringify(account)) {
         void fetch("/api/user/preferences", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rightPanelApps: local }),
+          body: JSON.stringify({ rightPanelApps: restored }),
           keepalive: true,
         }).catch(() => undefined);
       }
