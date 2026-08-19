@@ -6,9 +6,7 @@ const modelCache = new Map<string, string>();
 
 export function extractProviderText(value: unknown): string {
   if (typeof value === "string") return value;
-  if (Array.isArray(value)) {
-    return value.map(extractProviderText).filter(Boolean).join("\n");
-  }
+  if (Array.isArray(value)) return value.map(extractProviderText).filter(Boolean).join("\n");
   if (!value || typeof value !== "object") return "";
 
   const record = value as Record<string, unknown>;
@@ -63,7 +61,7 @@ export class OpenRouterCatalogConnector implements AIConnector {
     const key = process.env.OPENROUTER_API_KEY;
     if (!key) throw new Error("OPENROUTER_API_KEY is not configured");
 
-    const model = await this.resolveModel();
+    const model = request.model?.trim() || await this.resolveModel();
     const requestBody: Record<string, unknown> = {
       model,
       messages: request.messages,
@@ -83,9 +81,7 @@ export class OpenRouterCatalogConnector implements AIConnector {
     });
 
     const body = await res.json();
-    if (!res.ok) {
-      throw new Error(body?.error?.message || `OpenRouter request failed (${res.status})`);
-    }
+    if (!res.ok) throw new Error(body?.error?.message || `OpenRouter request failed (${res.status})`);
 
     const choice = body?.choices?.[0];
     const rawContent = choice?.message?.content;
@@ -98,6 +94,7 @@ export class OpenRouterCatalogConnector implements AIConnector {
       provider: this.displayName,
       providerId: this.id,
       requestedModel: model,
+      explicitModel: Boolean(request.model?.trim()),
       returnedModel: body?.model || model,
       status: res.status,
       choicesCount: Array.isArray(body?.choices) ? body.choices.length : 0,
