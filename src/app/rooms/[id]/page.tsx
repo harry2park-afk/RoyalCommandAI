@@ -2,7 +2,7 @@ import Script from "next/script";
 import RoomV3 from "./RoomV3";
 import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 
-const ROOM_UI_VERSION = "20260819-0133-chat-scroll-unlock";
+const ROOM_UI_VERSION = "20260820-0905-brand-logos";
 
 export default function RoomPage() {
   return (
@@ -94,6 +94,7 @@ export default function RoomPage() {
       <Script src={`/rc-room-title-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-sidebar-actions-compact.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-compact-conversation-rows.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
+      <Script src={`/rc-right-menu-brand-logos.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script id="rc-room-enhanced-marker" strategy="afterInteractive">
         {`document.documentElement.setAttribute("data-rc-room-enhanced", "1");`}
       </Script>

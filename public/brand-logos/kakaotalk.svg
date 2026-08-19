@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="KakaoTalk">
+  <rect width="64" height="64" rx="14" fill="#FEE500"/>
+  <path fill="#3C1E1E" d="M32 13c-12.7 0-23 8-23 17.8 0 6.3 4.2 11.9 10.6 15.1l-2.7 9.8c-.2.7.6 1.3 1.2.9l11.4-7.6c.8.1 1.7.1 2.5.1 12.7 0 23-8 23-18.3C55 21 44.7 13 32 13Z"/>
+  <text x="32" y="34.5" text-anchor="middle" font-family="Arial, Helvetica, sans-serif" font-size="11" font-weight="700" letter-spacing="-.4" fill="#FEE500">TALK</text>
+</svg>
