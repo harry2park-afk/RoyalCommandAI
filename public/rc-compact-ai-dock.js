@@ -174,18 +174,6 @@
     ensureTick(button, isActive(button));
   }
 
-  function moveLanguageToDock(dock) {
-    const language = document.querySelector('select[aria-label="Language"]');
-    if (!(language instanceof HTMLSelectElement)) return;
-    if (dock.lastElementChild !== language) dock.appendChild(language);
-    language.style.flex = "0 0 auto";
-    language.style.marginLeft = "auto";
-    language.style.height = "30px";
-    language.style.minWidth = "116px";
-    language.style.padding = "2px 8px";
-    language.style.alignSelf = "center";
-  }
-
   function styleDock() {
     const dock = topDock();
     if (!(dock instanceof HTMLElement)) return;
@@ -224,7 +212,6 @@
     }
 
     buttons.forEach((button) => styleButton(button, visibleNames));
-    moveLanguageToDock(dock);
   }
 
   function warehouseChoiceName(button) {
