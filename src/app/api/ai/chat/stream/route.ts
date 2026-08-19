@@ -182,7 +182,7 @@ export async function POST(request: Request) {
             .map((provider) => responsesByProvider.get(provider))
             .filter((item): item is AIProviderResponse => Boolean(item));
 
-          let result: Awaited<ReturnType<typeof orchestrateRoom>> & Record<string, unknown>;
+          let result: any;
 
           if (blockedResult) {
             result = blockedResult;
@@ -273,7 +273,7 @@ export async function POST(request: Request) {
               responses: result.responses,
               final_answer: result.finalAnswer,
               comparison: result.comparison,
-              status: result.blocked ? "completed" : result.responses.some((item) => item.error) ? "partial" : "completed",
+              status: result.blocked ? "completed" : result.responses.some((item: AIProviderResponse) => item.error) ? "partial" : "completed",
               latency_ms: result.latencyMs,
               created_by: user.id,
             });
@@ -317,6 +317,6 @@ export async function POST(request: Request) {
   } catch (error) {
     logger.error("chat.stream.setup_failed", { error: error instanceof Error ? error.message : error });
     if (error instanceof z.ZodError) return new Response(JSON.stringify({ error: error.flatten() }), { status: 400, headers: { "Content-Type": "application/json" } });
-    return new Response(JSON.stringify({ error: "AI streaming setup failed" }, null, 2), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "AI streaming setup failed" }), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 }
