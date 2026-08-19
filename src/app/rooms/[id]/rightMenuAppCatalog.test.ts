@@ -1,10 +1,23 @@
 import { describe, expect, it } from "vitest";
-import { APP_CATALOG, listAppsForCountry, searchGlobalApps } from "./rightMenuAppCatalog";
+import {
+  APP_CATALOG,
+  DEFAULT_APPS,
+  listAppsForCountry,
+  searchGlobalApps,
+} from "./rightMenuAppCatalog";
 
 describe("Global right-menu app catalog", () => {
   it("keeps app ids unique", () => {
     const ids = APP_CATALOG.map((app) => app.id);
     expect(new Set(ids).size).toBe(ids.length);
+  });
+
+  it("ships exactly 50 valid starter-pack apps", () => {
+    expect(DEFAULT_APPS).toHaveLength(50);
+    expect(new Set(DEFAULT_APPS).size).toBe(50);
+    for (const id of DEFAULT_APPS) {
+      expect(APP_CATALOG.some((app) => app.id === id)).toBe(true);
+    }
   });
 
   it.each([
