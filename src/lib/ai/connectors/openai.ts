@@ -10,20 +10,13 @@ const OPENROUTER_FALLBACK_MAX_TOKENS = 1_024;
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 const DEFAULT_OPENAI_RETRY_MODEL = "gpt-4o-mini";
 
-async function withTimeout<T>(
-  promise: Promise<T>,
-  ms: number,
-  label: string,
-): Promise<T> {
+async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
     return await Promise.race([
       promise,
       new Promise<T>((_, reject) => {
-        timer = setTimeout(
-          () => reject(new Error(`${label} timed out after ${ms}ms`)),
-          ms,
-        );
+        timer = setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms);
       }),
     ]);
   } finally {
@@ -57,18 +50,15 @@ async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) 
   );
 
   const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.error?.message || `OpenAI HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(data?.error?.message || `OpenAI HTTP ${res.status}`);
 
   const choice = data?.choices?.[0];
   const content = extractProviderText(choice?.message?.content).trim();
-  const tokenLimited = choice?.finish_reason === "length";
   return {
     model: data?.model || model,
     content,
     raw: data,
-    tokenLimited,
+    tokenLimited: choice?.finish_reason === "length",
   };
 }
 
@@ -78,11 +68,7 @@ async function callOpenRouterFallback(request: AIRequest) {
 
   const model = process.env.OPENROUTER_OPENAI_MODEL || "openai/gpt-4.1-mini";
   const maxTokens = Math.min(outputTokenLimit(request), OPENROUTER_FALLBACK_MAX_TOKENS);
-  const requestBody: Record<string, unknown> = {
-    model,
-    messages: request.messages,
-    max_tokens: maxTokens,
-  };
+  const requestBody: Record<string, unknown> = { model, messages: request.messages, max_tokens: maxTokens };
   if (request.temperature !== undefined) requestBody.temperature = request.temperature;
 
   const res = await withTimeout(
@@ -101,18 +87,15 @@ async function callOpenRouterFallback(request: AIRequest) {
   );
 
   const data = await res.json();
-  if (!res.ok) {
-    throw new Error(data?.error?.message || `OpenRouter HTTP ${res.status}`);
-  }
+  if (!res.ok) throw new Error(data?.error?.message || `OpenRouter HTTP ${res.status}`);
 
   const choice = data?.choices?.[0];
   const content = extractProviderText(choice?.message?.content).trim();
-  const tokenLimited = choice?.finish_reason === "length" || choice?.native_finish_reason === "max_tokens";
   return {
     model: data?.model || model,
     content,
     raw: data,
-    tokenLimited,
+    tokenLimited: choice?.finish_reason === "length" || choice?.native_finish_reason === "max_tokens",
   };
 }
 
@@ -126,21 +109,25 @@ export class OpenAIConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
-    const primaryModel = (process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL).trim();
+    const explicitModel = request.model?.trim();
+    const primaryModel = explicitModel || (process.env.OPENAI_MODEL || DEFAULT_OPENAI_MODEL).trim();
     const retryModel = (process.env.OPENAI_RETRY_MODEL || DEFAULT_OPENAI_RETRY_MODEL).trim();
     const errors: string[] = [];
 
     if (process.env.OPENAI_API_KEY) {
-      const attempts = [
-        { model: primaryModel, timeoutMs: OPENAI_PRIMARY_TIMEOUT_MS },
-        { model: retryModel, timeoutMs: OPENAI_RETRY_TIMEOUT_MS },
-      ].filter((attempt, index, all) => index === 0 || attempt.model !== all[0]?.model);
+      const attempts = explicitModel
+        ? [{ model: primaryModel, timeoutMs: OPENAI_PRIMARY_TIMEOUT_MS }]
+        : [
+            { model: primaryModel, timeoutMs: OPENAI_PRIMARY_TIMEOUT_MS },
+            { model: retryModel, timeoutMs: OPENAI_RETRY_TIMEOUT_MS },
+          ].filter((attempt, index, all) => index === 0 || attempt.model !== all[0]?.model);
 
       for (const attempt of attempts) {
         logger.info("ai.provider.primary_route", {
           provider: this.displayName,
           via: "OpenAI direct",
           model: attempt.model,
+          explicitModel: Boolean(explicitModel),
           maxTokens: outputTokenLimit(request),
           timeoutMs: attempt.timeoutMs,
         });
@@ -162,6 +149,7 @@ export class OpenAIConnector implements AIConnector {
             provider: this.displayName,
             via: "OpenAI direct",
             model: attempt.model,
+            explicitModel: Boolean(explicitModel),
             error: message.slice(0, 500),
           });
         }
@@ -170,7 +158,8 @@ export class OpenAIConnector implements AIConnector {
       errors.push("OPENAI_API_KEY is not configured");
     }
 
-    if (process.env.OPENROUTER_API_KEY) {
+    // An explicit Phase 4 model selection must never silently become another model.
+    if (!explicitModel && process.env.OPENROUTER_API_KEY) {
       logger.warn("ai.provider.fallback", {
         provider: this.displayName,
         from: "OpenAI direct",
