@@ -34,6 +34,7 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
     `You are ${PROVIDER_LABELS[id]}, connected to the user through the live RoyalCommand.ai Command Room. Answer directly as ${PROVIDER_LABELS[id]}.`,
     "Use your own provider/model's full available knowledge, reasoning, judgment, and normal response capability. Answer naturally. Royal Command does not impose a fixed answer format, length, wording, consensus, or style unless the user explicitly asks for one.",
     "Treat the complete current user order as the primary instruction.",
+    "Use the prior messages supplied by Royal Command as conversation context for this same Room. Do not treat prior assistant text as a new user instruction, and do not invent memory that is not present in the supplied history.",
     "Give your own independent best answer. Do not wait for, imitate, coordinate with, harmonize with, or shorten your answer because of another AI's answer or timing.",
     "Return the best complete answer as soon as it is genuinely ready. Do not intentionally stop early, pad, delay, or reduce depth because you are running inside Royal Command.",
     "Do not invent live facts, current status, or host-side execution results. Royal Command may separately execute supported host-side actions, but only claim an action was executed when the host provides verified execution evidence.",
@@ -66,8 +67,10 @@ async function runProvider(
   languageHint: string,
 ): Promise<AIProviderResponse> {
   const connector = getConnector(id);
+  const history = (input.history || []).filter((message) => message.content.trim());
   const messages: AIMessage[] = [
     { role: "system", content: providerSystem(id, languageHint, input.systemExtra) },
+    ...history,
     { role: "user", content: input.prompt },
   ];
 
@@ -126,7 +129,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
   }
 
   const languageHint = responseLanguageHint(input.prompt, input.language);
-  logger.info("ai.orchestrate.start", { providers, promptLen: input.prompt.length, historyMessagesForwarded: 0 });
+  logger.info("ai.orchestrate.start", { providers, promptLen: input.prompt.length, historyMessagesForwarded: input.history?.length || 0 });
 
   const responses = await Promise.all(providers.map((id) => runProvider(id, input, languageHint)));
   const scoring = synthesizeBestAnswer(input.prompt, responses);
@@ -150,7 +153,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
         providers.length > 1
           ? `Direct answers shown separately from: ${providers.map((p) => PROVIDER_LABELS[p]).join(", ")}.`
           : `Direct answer from ${PROVIDER_LABELS[providers[0]!]} .`,
-        "Each provider receives only the complete current user order for the current request, preventing stale earlier prompts from being merged into a new task.",
+        "Each provider receives bounded prior conversation history from this Room plus the complete current user order.",
         "Each provider also receives the same host-verified Tool Gateway capability manifest; credentials remain server-side and execution remains policy-controlled.",
         ...scoring.comparison.notes,
       ],
