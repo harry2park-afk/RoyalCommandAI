@@ -38,6 +38,8 @@ const APP_CATALOG: AppItem[] = [
   { id: "claude", title: "Claude", description: "내 Claude", url: "https://claude.ai", brandSlug: "claude", brandColor: "D97757", fallback: "C", aliases: ["anthropic", "클로드"] },
   { id: "gemini", title: "Gemini", description: "내 Gemini", url: "https://gemini.google.com", brandSlug: "googlegemini", fallback: "G", aliases: ["google gemini", "제미나이", "구글제미나이"] },
   { id: "grok", title: "Grok", description: "내 Grok", url: "https://grok.com", fallback: "X", aliases: ["xai", "x ai", "그록"] },
+  { id: "github", title: "GitHub", description: "내 GitHub", url: "https://github.com", brandSlug: "github", brandColor: "FFFFFF", fallback: "GH", aliases: ["github", "git hub", "git", "깃허브", "깃헙"] },
+  { id: "crazytel", title: "Crazytel", description: "Crazytel 고객 포털", url: "https://portal.crazytel.com.au", fallback: "CT", aliases: ["crazytel", "crazy tel", "crazyphone", "crazy phone", "크레이지텔", "크레이지 텔", "크레이지폰"] },
 ];
 
 function appSearchText(app: AppItem) {
