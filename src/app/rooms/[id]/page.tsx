@@ -2,7 +2,7 @@ import Script from "next/script";
 import RoomV3 from "./RoomV3";
 import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 
-const ROOM_UI_VERSION = "20260820-0905-brand-logos";
+const ROOM_UI_VERSION = "20260820-0935-new-chat-clear";
 
 export default function RoomPage() {
   return (
@@ -87,6 +87,7 @@ export default function RoomPage() {
       <Script src={`/rc-question-rules-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-command-room-english.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-chat-thread-workflow.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
+      <Script src={`/rc-new-chat-clear-viewport.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-chat-scroll-unlock.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-new-chat-label.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-compact-ai-dock.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
