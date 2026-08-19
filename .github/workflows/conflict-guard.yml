@@ -1,0 +1,29 @@
+name: Royal Command Conflict Guard
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  warn-conflicts:
+    name: warning-only
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Scan for ownership conflicts
+        env:
+          CONFLICT_GUARD_BASE: ${{ github.event.pull_request.base.sha }}
+          CONFLICT_GUARD_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: node scripts/conflict-guard.mjs
+
+      - name: Confirm advisory mode
+        run: |
+          echo "Conflict Guard v1 is WARNING ONLY."
+          echo "It does not block merges or modify application code."
