@@ -183,6 +183,10 @@ export default function RightWorkSidebar() {
   }
 
   function handleAppClick(app: AppItem) {
+    if (cleanQuery) {
+      setQuery("");
+      return;
+    }
     if (isCompactMobile() && !mobileExpanded) {
       setMobileExpanded(true);
       return;
@@ -195,9 +199,8 @@ export default function RightWorkSidebar() {
     setSelectedIds((prev) => prev.filter((item) => item !== id));
   }
 
-  function addOrOpen(app: AppItem) {
+  function addOnly(app: AppItem) {
     if (!selectedIds.includes(app.id)) setSelectedIds((prev) => [...prev, app.id]);
-    openApp(app);
     setQuery("");
   }
 
@@ -260,7 +263,7 @@ export default function RightWorkSidebar() {
               const firstApp = visibleSelectedApps[0] || (extraAppMatches[0]?.type === "app" ? extraAppMatches[0].app : undefined);
               if (firstApp) {
                 e.preventDefault();
-                if (selectedIds.includes(firstApp.id)) openApp(firstApp); else addOrOpen(firstApp);
+                addOnly(firstApp);
               }
             }}
             placeholder="앱, 파일, AI 찾기"
@@ -311,7 +314,7 @@ export default function RightWorkSidebar() {
         })}
 
         {extraAppMatches.map((item) => item.type === "app" ? (
-          <button key={item.id} type="button" onClick={() => addOrOpen(item.app)} className="flex h-7 w-full items-center gap-2 px-1.5 text-left hover:bg-white/[0.05]" title={`${item.title} 추가/열기`}>
+          <button key={item.id} type="button" onClick={() => addOnly(item.app)} className="flex h-7 w-full items-center gap-2 px-1.5 text-left hover:bg-white/[0.05]" title={`${item.title} 메뉴에 추가`}>
             <AppIcon app={item.app} />
             <span className="min-w-0 flex-1 truncate text-[10px] font-semibold leading-none">{item.title}</span>
             <span className="text-[9px] text-[var(--gold-soft)]">+</span>
