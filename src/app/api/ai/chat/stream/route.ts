@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
 import { getAvailableProviderIds } from "@/lib/ai/connectors";
+import type { AIModelId } from "@/lib/ai/modelRegistry";
 import { synthesizeBestAnswer } from "@/lib/ai/synthesize";
 import type { AIProviderId, AIProviderResponse } from "@/lib/ai/types";
 import { PROVIDER_LABELS } from "@/lib/ai/types";
@@ -63,7 +64,12 @@ function validResponse(response?: AIProviderResponse) {
 async function runProviderWithOneRetry(
   roomId: string,
   provider: AIProviderId,
-  input: { prompt: string; history?: Array<{ role: "user" | "assistant" | "system"; content: string }>; language?: string },
+  input: {
+    prompt: string;
+    history?: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+    language?: string;
+    modelSelections?: Partial<Record<AIProviderId, AIModelId>>;
+  },
 ) {
   let result = await orchestrateRoom(roomId, { ...input, providers: [provider] });
   let response = result.responses.find((item) => item.provider === provider);
@@ -92,6 +98,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const data = chatSchema.parse(body);
     const language = data.language || user.defaultLanguage;
+    const modelSelections = data.modelSelections as Partial<Record<AIProviderId, AIModelId>> | undefined;
     const routed = resolvePromptProviders(data.prompt, data.providers as AIProviderId[] | undefined);
 
     if (shouldRunDeveloperAgent(data.prompt)) {
@@ -114,7 +121,13 @@ export async function POST(request: Request) {
     }
 
     const available = new Set(getAvailableProviderIds());
-    const providers = (routed?.length ? routed : getAvailableProviderIds()).filter((id) => available.has(id));
+    const modelSelectedProviders = Object.keys(modelSelections || {}) as AIProviderId[];
+    const requestedProviders = routed?.length
+      ? routed
+      : modelSelectedProviders.length
+        ? modelSelectedProviders
+        : getAvailableProviderIds();
+    const providers = requestedProviders.filter((id) => available.has(id));
     const started = Date.now();
 
     const stream = new ReadableStream<Uint8Array>({
@@ -134,6 +147,7 @@ export async function POST(request: Request) {
               prompt: data.prompt,
               history: data.history,
               language,
+              modelSelections,
             });
 
             if (result.blocked && !blockedResult) blockedResult = result;
@@ -143,6 +157,8 @@ export async function POST(request: Request) {
               type: "provider",
               provider,
               name: PROVIDER_LABELS[provider],
+              modelId: modelSelections?.[provider],
+              model: response?.model,
               content: result.blocked ? result.finalAnswer : (response?.content || ""),
               latencyMs: response?.latencyMs ?? result.latencyMs,
               error: response?.error || (!result.blocked && !response?.content?.trim() ? "No complete answer returned after retry." : undefined),
@@ -169,6 +185,7 @@ export async function POST(request: Request) {
                 ...scoring.comparison,
                 notes: [
                   "Each selected AI ran independently and was released to the user immediately on completion without waiting for sibling AIs.",
+                  "Explicit model selections are resolved through the Royal Command Model Registry and are never silently substituted with a different model.",
                   "Empty or failed provider output receives one automatic retry before being reported as incomplete.",
                   ...scoring.comparison.notes,
                 ],
@@ -223,7 +240,12 @@ export async function POST(request: Request) {
             });
           }
 
-          logger.info("chat.stream.completed", { roomId: data.roomId, providers, latencyMs: result.latencyMs });
+          logger.info("chat.stream.completed", {
+            roomId: data.roomId,
+            providers,
+            modelSelections: modelSelections || {},
+            latencyMs: result.latencyMs,
+          });
           sendLine(controller, { type: "final", result: { ...result, userMessage, aiMessage } });
           controller.close();
         })().catch((error) => {

@@ -24,6 +24,7 @@ export const chatSchema = z.object({
   prompt: z.string().min(1).max(12000),
   language: z.string().min(2).max(12).optional(),
   providers: z.array(z.enum(AI_PROVIDER_IDS)).optional(),
+  modelSelections: z.record(z.enum(AI_PROVIDER_IDS), z.string().min(3).max(160)).optional(),
   history: z
     .array(
       z.object({

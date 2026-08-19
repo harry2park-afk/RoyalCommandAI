@@ -38,11 +38,14 @@ export class GoogleConnector implements AIConnector {
 
   async complete(request: AIRequest): Promise<AIProviderResponse> {
     const started = Date.now();
+    const explicitModel = request.model?.trim();
     const configuredModel = (process.env.GOOGLE_AI_MODEL || "").trim();
-    const primaryModel = !configuredModel || RETIRED_GEMINI_MODELS.has(configuredModel)
+    const primaryModel = explicitModel || (!configuredModel || RETIRED_GEMINI_MODELS.has(configuredModel)
       ? DEFAULT_GEMINI_MODEL
-      : configuredModel;
-    const directModels = Array.from(new Set([primaryModel, GEMINI_DIRECT_FALLBACK_MODEL]));
+      : configuredModel);
+    const directModels = explicitModel
+      ? [primaryModel]
+      : Array.from(new Set([primaryModel, GEMINI_DIRECT_FALLBACK_MODEL]));
     const boundedRequest: AIRequest = {
       ...request,
       maxTokens: Math.min(request.maxTokens || GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MAX_OUTPUT_TOKENS),
@@ -85,6 +88,7 @@ export class GoogleConnector implements AIConnector {
           logger.warn("ai.provider.failed", {
             provider: this.displayName,
             model: targetModel,
+            explicitModel: Boolean(explicitModel),
             status: res.status,
             error: String(message).slice(0, 500),
           });
@@ -118,6 +122,7 @@ export class GoogleConnector implements AIConnector {
         logger.warn("ai.provider.exception", {
           provider: this.displayName,
           model: targetModel,
+          explicitModel: Boolean(explicitModel),
           error: message.slice(0, 500),
         });
         return {
@@ -139,6 +144,7 @@ export class GoogleConnector implements AIConnector {
           provider: this.displayName,
           via: targetModel === primaryModel ? "Google direct" : "Google direct fallback",
           model: targetModel,
+          explicitModel: Boolean(explicitModel),
           keySlot: index + 1,
         });
         const result = await direct(apiKeys[index]!, targetModel);
@@ -147,9 +153,11 @@ export class GoogleConnector implements AIConnector {
       }
     }
 
-    if (process.env.OPENROUTER_API_KEY) {
+    // Explicit Phase 4 model selection must not fall back to a different model.
+    if (!explicitModel && process.env.OPENROUTER_API_KEY) {
       const routedRequest: AIRequest = {
         ...boundedRequest,
+        model: undefined,
         maxTokens: Math.min(boundedRequest.maxTokens || GEMINI_OPENROUTER_MAX_TOKENS, GEMINI_OPENROUTER_MAX_TOKENS),
       };
       logger.warn("ai.provider.fallback", {
