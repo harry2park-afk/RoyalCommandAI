@@ -12,6 +12,11 @@ import {
 
 const ROW_HEIGHT = 28;
 const DEFAULT_PACK_MIGRATION_KEY = "royalcommand:right-panel-default-pack-v1";
+const BRAND_ICON_OVERRIDES: Record<string, string> = {
+  grok: "/rc-ai-logos/xai.svg",
+  deepseek: "/brand-logos/deepseek.svg",
+  kakaotalk: "/brand-logos/kakaotalk.svg",
+};
 
 type LocalFile = { name: string; size: number; url: string };
 type SearchItem =
@@ -25,14 +30,31 @@ function validAppIds(value: unknown) {
   )));
 }
 
-function AppIcon({ app }: { app: AppItem }) {
-  const [failed, setFailed] = useState(false);
-  const remote = app.brandSlug
+function iconSources(app: AppItem) {
+  const siteIcon = app.url
+    ? `https://www.google.com/s2/favicons?domain_url=${encodeURIComponent(app.url)}&sz=64`
+    : undefined;
+  const simpleIcon = app.brandSlug
     ? `https://cdn.simpleicons.org/${app.brandSlug}${app.brandColor ? `/${app.brandColor}` : ""}`
     : undefined;
-  const src = app.localLogo || remote;
+  return Array.from(new Set([
+    BRAND_ICON_OVERRIDES[app.id],
+    siteIcon,
+    app.localLogo,
+    simpleIcon,
+  ].filter((source): source is string => Boolean(source))));
+}
 
-  if (!src || failed) {
+function AppIcon({ app }: { app: AppItem }) {
+  const sources = iconSources(app);
+  const [sourceIndex, setSourceIndex] = useState(0);
+  const src = sources[sourceIndex];
+
+  useEffect(() => {
+    setSourceIndex(0);
+  }, [app.id]);
+
+  if (!src) {
     return (
       <span className="grid h-5 w-5 shrink-0 place-items-center rounded bg-white/10 text-[9px] font-bold text-white">
         {app.fallback || app.title.slice(0, 1)}
@@ -40,7 +62,15 @@ function AppIcon({ app }: { app: AppItem }) {
     );
   }
 
-  return <img src={src} alt="" className="h-5 w-5 shrink-0 object-contain" draggable={false} onError={() => setFailed(true)} />;
+  return (
+    <img
+      src={src}
+      alt=""
+      className="h-5 w-5 shrink-0 object-contain"
+      draggable={false}
+      onError={() => setSourceIndex((index) => index + 1)}
+    />
+  );
 }
 
 export default function RightWorkSidebar() {
