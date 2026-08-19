@@ -2,61 +2,26 @@
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { File, LogOut, Search } from "lucide-react";
+import {
+  APP_CATALOG,
+  DEFAULT_APPS,
+  appSearchText,
+  findAppById,
+  type AppItem,
+} from "./rightMenuAppCatalog";
 
 const ROW_HEIGHT = 28;
-const DEFAULT_APPS = ["chatgpt", "email", "instagram", "youtube", "drive", "calendar", "files", "netflix", "tasks", "approval"];
-
-type AppItem = {
-  id: string;
-  title: string;
-  description: string;
-  url?: string;
-  brandSlug?: string;
-  brandColor?: string;
-  fallback?: string;
-  localLogo?: string;
-  aliases?: string[];
-};
+const DEFAULT_PACK_MIGRATION_KEY = "royalcommand:right-panel-default-pack-v1";
 
 type LocalFile = { name: string; size: number; url: string };
 type SearchItem =
   | { type: "app"; id: string; title: string; app: AppItem }
   | { type: "file"; id: string; title: string; file: LocalFile };
 
-const APP_CATALOG: AppItem[] = [
-  { id: "chatgpt", title: "ChatGPT", description: "내 ChatGPT", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/openai.svg", brandSlug: "openai", brandColor: "FFFFFF", fallback: "◎", aliases: ["openai", "gpt", "챗지피티"] },
-  { id: "email", title: "Email", description: "내 이메일", url: "https://mail.google.com", brandSlug: "gmail", fallback: "M", aliases: ["gmail", "google mail", "메일", "지메일"] },
-  { id: "instagram", title: "Instagram", description: "내 Instagram", url: "https://www.instagram.com", brandSlug: "instagram", fallback: "I", aliases: ["insta", "인스타", "인스타그램"] },
-  { id: "youtube", title: "YouTube", description: "내 YouTube", url: "https://www.youtube.com", brandSlug: "youtube", brandColor: "FF0000", fallback: "▶", aliases: ["yt", "유튜브"] },
-  { id: "drive", title: "Google Drive", description: "내 Drive", url: "https://drive.google.com", brandSlug: "googledrive", fallback: "D", aliases: ["drive", "google drive", "드라이브", "구글드라이브"] },
-  { id: "calendar", title: "Google Calendar", description: "내 Calendar", url: "https://calendar.google.com", brandSlug: "googlecalendar", fallback: "31", aliases: ["calendar", "google calendar", "캘린더", "달력"] },
-  { id: "files", title: "My Files", description: "내 컴퓨터 파일", fallback: "F", aliases: ["file", "files", "파일", "내파일"] },
-  { id: "netflix", title: "Netflix", description: "내 Netflix", url: "https://www.netflix.com", brandSlug: "netflix", brandColor: "E50914", fallback: "N", aliases: ["넷플릭스"] },
-  { id: "tasks", title: "Tasks", description: "내 할 일 관리", fallback: "✓", aliases: ["task", "todo", "할일", "할 일"] },
-  { id: "approval", title: "Approval", description: "승인 작업 보기", fallback: "A", aliases: ["approve", "approval", "승인"] },
-  { id: "docs", title: "Documents", description: "문서 작업", url: "https://docs.google.com", brandSlug: "googledocs", fallback: "D", aliases: ["docs", "google docs", "document", "문서", "구글문서"] },
-  { id: "claude", title: "Claude", description: "내 Claude", url: "https://claude.ai", brandSlug: "claude", brandColor: "D97757", fallback: "C", aliases: ["anthropic", "클로드"] },
-  { id: "gemini", title: "Gemini", description: "내 Gemini", url: "https://gemini.google.com", brandSlug: "googlegemini", fallback: "G", aliases: ["google gemini", "제미나이", "구글제미나이"] },
-  { id: "grok", title: "Grok", description: "내 Grok", url: "https://grok.com", fallback: "X", aliases: ["xai", "x ai", "그록"] },
-  { id: "github", title: "GitHub", description: "내 GitHub", url: "https://github.com", brandSlug: "github", brandColor: "FFFFFF", fallback: "GH", aliases: ["github", "git hub", "git", "깃허브", "깃헙"] },
-  { id: "crazytel", title: "Crazytel", description: "Crazytel 고객 포털", url: "https://portal.crazytel.com.au", fallback: "CT", aliases: ["crazytel", "crazy tel", "crazyphone", "crazy phone", "크레이지텔", "크레이지 텔", "크레이지폰"] },
-];
-
-function appSearchText(app: AppItem) {
-  return [
-    app.id,
-    app.title,
-    app.description,
-    app.brandSlug || "",
-    app.url || "",
-    ...(app.aliases || []),
-  ].join(" ").toLowerCase();
-}
-
 function validAppIds(value: unknown) {
   if (!Array.isArray(value)) return null;
   return Array.from(new Set(value.filter((id): id is string =>
-    typeof id === "string" && APP_CATALOG.some((app) => app.id === id)
+    typeof id === "string" && Boolean(findAppById(id))
   )));
 }
 
@@ -93,9 +58,11 @@ export default function RightWorkSidebar() {
 
     async function restore() {
       let local: string[] | null = null;
+      let starterPackMigrated = false;
       try {
         const raw = window.localStorage.getItem("royalcommand:right-panel-apps");
         local = raw !== null ? validAppIds(JSON.parse(raw)) : null;
+        starterPackMigrated = window.localStorage.getItem(DEFAULT_PACK_MIGRATION_KEY) === "1";
       } catch {}
 
       let account: string[] | null = null;
@@ -108,20 +75,26 @@ export default function RightWorkSidebar() {
       } catch {}
 
       if (cancelled) return;
-      const restored = local ?? account ?? DEFAULT_APPS;
+
+      const restoredBase = local ?? account ?? [];
+      const restored = starterPackMigrated
+        ? (restoredBase.length ? restoredBase : [...DEFAULT_APPS])
+        : Array.from(new Set([...restoredBase, ...DEFAULT_APPS]));
+
       setSelectedIds(restored);
       try {
         window.localStorage.setItem("royalcommand:right-panel-apps", JSON.stringify(restored));
+        window.localStorage.setItem(DEFAULT_PACK_MIGRATION_KEY, "1");
         window.localStorage.removeItem("royalcommand:right-panel-collapsed");
         window.localStorage.removeItem("royalcommand:right-panel-width");
       } catch {}
       preferencesReady.current = true;
 
-      if (local !== null && JSON.stringify(local) !== JSON.stringify(account)) {
+      if (JSON.stringify(restored) !== JSON.stringify(account)) {
         void fetch("/api/user/preferences", {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rightPanelApps: local }),
+          body: JSON.stringify({ rightPanelApps: restored }),
           keepalive: true,
         }).catch(() => undefined);
       }
@@ -147,7 +120,7 @@ export default function RightWorkSidebar() {
   const cleanQuery = query.trim().toLowerCase();
 
   const selectedApps = selectedIds
-    .map((id) => APP_CATALOG.find((app) => app.id === id))
+    .map((id) => findAppById(id))
     .filter(Boolean) as AppItem[];
 
   const visibleSelectedApps = useMemo(() => {
