@@ -2,6 +2,7 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
 import { getAvailableProviderIds } from "@/lib/ai/connectors";
+import { isCouncilIntent, runCouncil } from "@/lib/ai/council";
 import type { AIModelId } from "@/lib/ai/modelRegistry";
 import { synthesizeBestAnswer } from "@/lib/ai/synthesize";
 import type { AIProviderId, AIProviderResponse } from "@/lib/ai/types";
@@ -100,8 +101,14 @@ export async function POST(request: Request) {
     const language = data.language || user.defaultLanguage;
     const modelSelections = data.modelSelections as Partial<Record<AIProviderId, AIModelId>> | undefined;
     const routed = resolvePromptProviders(data.prompt, data.providers as AIProviderId[] | undefined);
+    const councilCandidates = routed?.length
+      ? routed
+      : (data.providers as AIProviderId[] | undefined) || [];
+    const councilRequested = isCouncilIntent(data.prompt, councilCandidates.length);
 
-    if (shouldRunDeveloperAgent(data.prompt)) {
+    // Council requests are analysis/synthesis work even when the user's test text
+    // contains words such as "구현". Never divert them into the development agent.
+    if (!councilRequested && shouldRunDeveloperAgent(data.prompt)) {
       const cookie = request.headers.get("cookie") || "";
       const legacy = await fetch(new URL("/api/ai/chat", request.url), {
         method: "POST",
@@ -153,30 +160,73 @@ export async function POST(request: Request) {
             if (result.blocked && !blockedResult) blockedResult = result;
             if (response) responsesByProvider.set(provider, response);
 
-            sendLine(controller, {
-              type: "provider",
-              provider,
-              name: PROVIDER_LABELS[provider],
-              modelId: modelSelections?.[provider],
-              model: response?.model,
-              content: result.blocked ? result.finalAnswer : (response?.content || ""),
-              latencyMs: response?.latencyMs ?? result.latencyMs,
-              error: response?.error || (!result.blocked && !response?.content?.trim() ? "No complete answer returned after retry." : undefined),
-              retried,
-            });
+            // In Council mode the user receives one integrated answer only. The
+            // independent outputs remain internal Council evidence and are not
+            // emitted as separate Command Room messages.
+            if (!councilRequested) {
+              sendLine(controller, {
+                type: "provider",
+                provider,
+                name: PROVIDER_LABELS[provider],
+                modelId: modelSelections?.[provider],
+                model: response?.model,
+                content: result.blocked ? result.finalAnswer : (response?.content || ""),
+                latencyMs: response?.latencyMs ?? result.latencyMs,
+                error: response?.error || (!result.blocked && !response?.content?.trim() ? "No complete answer returned after retry." : undefined),
+                retried,
+              });
+            }
           }));
 
           const responses = providers
             .map((provider) => responsesByProvider.get(provider))
             .filter((item): item is AIProviderResponse => Boolean(item));
 
-          const result = blockedResult || (() => {
+          let result: Awaited<ReturnType<typeof orchestrateRoom>> & Record<string, unknown>;
+
+          if (blockedResult) {
+            result = blockedResult;
+          } else if (councilRequested) {
+            const scoring = synthesizeBestAnswer(data.prompt, responses);
+            const council = await runCouncil({
+              prompt: data.prompt,
+              responses,
+              language,
+              modelSelections,
+            });
+            result = {
+              blocked: false,
+              providers,
+              responses,
+              finalAnswer: council.finalAnswer,
+              comparison: {
+                ...scoring.comparison,
+                notes: [
+                  "Council Round 1 used actual independent outputs from the selected providers.",
+                  `Council Round 2 completed ${council.reviews.filter((review) => !review.error && review.content.trim()).length} successful peer reviews.`,
+                  council.synthesizerProvider
+                    ? `Final synthesis role ran on ${PROVIDER_LABELS[council.synthesizerProvider]}.`
+                    : "Final synthesis used the safe single-answer fallback.",
+                  council.synthesisError ? `Synthesis fallback reason: ${council.synthesisError}` : "Final synthesis completed successfully.",
+                  "Council mode suppresses intermediate provider messages and returns one integrated final answer to the Command Room.",
+                  ...scoring.comparison.notes,
+                ],
+              },
+              latencyMs: Date.now() - started,
+              council: {
+                reviewProviders: council.reviews.map((review) => review.provider),
+                synthesizerProvider: council.synthesizerProvider,
+                synthesizerModel: council.synthesizerModel,
+                synthesisError: council.synthesisError,
+              },
+            };
+          } else {
             const scoring = synthesizeBestAnswer(data.prompt, responses);
             const successful = responses.filter((item) => !item.error && item.content.trim());
             const finalAnswer = successful.length
               ? successful.map((item) => `### ${PROVIDER_LABELS[item.provider]}\n${item.content.trim()}`).join("\n\n")
               : "No selected AI returned a complete answer.";
-            return {
+            result = {
               blocked: false,
               providers,
               responses,
@@ -192,7 +242,7 @@ export async function POST(request: Request) {
               },
               latencyMs: Date.now() - started,
             };
-          })();
+          }
 
           let userMessage: unknown = null;
           let aiMessage: unknown = null;
@@ -243,6 +293,7 @@ export async function POST(request: Request) {
           logger.info("chat.stream.completed", {
             roomId: data.roomId,
             providers,
+            councilRequested,
             modelSelections: modelSelections || {},
             latencyMs: result.latencyMs,
           });
@@ -266,6 +317,6 @@ export async function POST(request: Request) {
   } catch (error) {
     logger.error("chat.stream.setup_failed", { error: error instanceof Error ? error.message : error });
     if (error instanceof z.ZodError) return new Response(JSON.stringify({ error: error.flatten() }), { status: 400, headers: { "Content-Type": "application/json" } });
-    return new Response(JSON.stringify({ error: "AI streaming setup failed" }), { status: 500, headers: { "Content-Type": "application/json" } });
+    return new Response(JSON.stringify({ error: "AI streaming setup failed" }, null, 2), { status: 500, headers: { "Content-Type": "application/json" } });
   }
 }
