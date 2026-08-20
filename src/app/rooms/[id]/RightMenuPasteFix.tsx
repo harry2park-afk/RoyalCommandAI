@@ -24,7 +24,40 @@ const DESKTOP_SHORTCUTS: Record<DesktopShortcut["id"], DesktopShortcut> = {
 };
 
 function normaliseShortcutName(name: string) {
-  return name.replace(/\.lnk$/i, "").trim().toLowerCase();
+  let decoded = name;
+  try { decoded = decodeURIComponent(name); } catch {}
+  decoded = decoded.replace(/^file:\/+/i, "").replace(/\\/g, "/");
+  const last = decoded.split("/").filter(Boolean).pop() || decoded;
+  return last.replace(/\.lnk(?:[#?].*)?$/i, "").trim().toLowerCase();
+}
+
+function getDroppedShortcutNames(dataTransfer: DataTransfer | null) {
+  if (!dataTransfer) return [] as string[];
+
+  const rawNames = new Set<string>();
+  for (const file of Array.from(dataTransfer.files || [])) {
+    if (file.name) rawNames.add(file.name);
+  }
+
+  for (const type of ["text/uri-list", "text/plain", "text/html"]) {
+    let raw = "";
+    try { raw = dataTransfer.getData(type) || ""; } catch {}
+    if (!raw) continue;
+
+    for (const part of raw.split(/[\r\n\t<>"']+/)) {
+      const value = part.trim();
+      if (!value) continue;
+      if (/\.lnk(?:[#?].*)?$/i.test(value) || /file:\/\//i.test(value)) rawNames.add(value);
+    }
+  }
+
+  return Array.from(rawNames).map(normaliseShortcutName).filter(Boolean);
+}
+
+function isKnownShortcut(names: string[]) {
+  const chrome = names.some((name) => name === "chrome" || name === "google chrome" || name.includes("chrome"));
+  const kakao = names.some((name) => name === "kakaotalk" || name === "카카오톡" || name.includes("kakao") || name.includes("카카오"));
+  return { chrome, kakao, known: chrome || kakao };
 }
 
 function readDesktopShortcuts(): DesktopShortcut[] {
@@ -134,34 +167,36 @@ export default function RightMenuPasteFix() {
     }
 
     function onDragOver(event: DragEvent) {
+      const names = getDroppedShortcutNames(event.dataTransfer);
+      const match = isKnownShortcut(names);
       const target = event.target;
-      if (!(target instanceof Element) || !target.closest(".rc-right-work-sidebar")) return;
+      const overSidebar = target instanceof Element && Boolean(target.closest(".rc-right-work-sidebar"));
+      if (!match.known && !overSidebar) return;
+
       event.preventDefault();
-      if (event.dataTransfer) event.dataTransfer.dropEffect = "copy";
+      if (event.dataTransfer) event.dataTransfer.dropEffect = overSidebar ? "copy" : "none";
     }
 
     function onDrop(event: DragEvent) {
-      const target = event.target;
-      if (!(target instanceof Element) || !target.closest(".rc-right-work-sidebar")) return;
-
-      const names = Array.from(event.dataTransfer?.files || []).map((file) => normaliseShortcutName(file.name));
-      if (!names.length) return;
-
-      const chrome = names.some((name) => name === "chrome" || name === "google chrome" || name.includes("chrome"));
-      const kakao = names.some((name) => name === "kakaotalk" || name === "카카오톡" || name.includes("kakao") || name.includes("카카오"));
-      if (!chrome && !kakao) return;
+      const names = getDroppedShortcutNames(event.dataTransfer);
+      const match = isKnownShortcut(names);
+      if (!match.known) return;
 
       event.preventDefault();
       event.stopImmediatePropagation();
 
-      if (chrome) addDesktopShortcut("chrome-desktop");
-      if (kakao) addDesktopShortcut("kakaotalk-desktop");
+      const target = event.target;
+      const overSidebar = target instanceof Element && Boolean(target.closest(".rc-right-work-sidebar"));
+      if (!overSidebar) return;
+
+      if (match.chrome) addDesktopShortcut("chrome-desktop");
+      if (match.kakao) addDesktopShortcut("kakaotalk-desktop");
       renderDesktopShortcuts();
     }
 
     document.addEventListener("paste", onPaste, true);
-    document.addEventListener("dragover", onDragOver, true);
-    document.addEventListener("drop", onDrop, true);
+    window.addEventListener("dragover", onDragOver, true);
+    window.addEventListener("drop", onDrop, true);
 
     renderDesktopShortcuts();
     const observer = new MutationObserver(() => renderDesktopShortcuts());
@@ -169,8 +204,8 @@ export default function RightMenuPasteFix() {
 
     return () => {
       document.removeEventListener("paste", onPaste, true);
-      document.removeEventListener("dragover", onDragOver, true);
-      document.removeEventListener("drop", onDrop, true);
+      window.removeEventListener("dragover", onDragOver, true);
+      window.removeEventListener("drop", onDrop, true);
       observer.disconnect();
     };
   }, []);
