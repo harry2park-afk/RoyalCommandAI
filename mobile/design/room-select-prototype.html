@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Royal Command AI — Room Select</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Manrope:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --rc-royal:#141C4A;
+    --rc-black:#0A0A0E;
+    --rc-gold:#C9A227;
+    --rc-gold-light:#E9CE7A;
+    --rc-red-2:#8C1B2E;
+    --rc-ivory:#F4EFE4;
+    --rc-ivory-dim:#B9B4A6;
+    --rc-line: rgba(201,162,39,0.22);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  body{
+    background:
+      radial-gradient(1300px 600px at 50% -10%, rgba(30,42,110,0.5), transparent 60%),
+      var(--rc-black);
+    color:var(--rc-ivory);
+    font-family:'Manrope',sans-serif;
+    -webkit-font-smoothing:antialiased;
+    padding:44px 20px 70px;
+  }
+  .wrap{max-width:1040px; margin:0 auto;}
+
+  header{ text-align:center; margin-bottom:34px; }
+  .crest{
+    width:52px; height:52px; margin:0 auto 14px;
+    border:1px solid var(--rc-gold); border-radius:50%;
+    display:flex; align-items:center; justify-content:center; position:relative;
+  }
+  .crest::before{ content:''; position:absolute; inset:6px; border:1px solid rgba(201,162,39,0.35); border-radius:50%; }
+  .crest span{ font-family:'Cormorant Garamond',serif; font-weight:700; font-size:18px; color:var(--rc-gold-light); }
+  .eyebrow{
+    font-family:'IBM Plex Mono',monospace; font-size:10.5px; letter-spacing:3px;
+    color:var(--rc-gold); text-transform:uppercase; margin-bottom:8px;
+  }
+  h1{ font-family:'Cormorant Garamond',serif; font-weight:600; font-size:clamp(24px,4.5vw,30px); }
+  .sub{ margin-top:6px; font-size:12.5px; color:var(--rc-ivory-dim); }
+
+  .categories{
+    display:grid;
+    grid-template-columns:repeat(2, 1fr);
+    gap:20px;
+  }
+
+  .category{
+    border:1px solid var(--rc-line);
+    border-radius:4px;
+    background:linear-gradient(165deg, rgba(30,42,110,0.2), rgba(10,10,14,0.5));
+    overflow:hidden;
+  }
+  .category-head{
+    padding:12px 16px;
+    border-bottom:1px solid var(--rc-line);
+    font-family:'IBM Plex Mono',monospace;
+    font-size:10px; letter-spacing:2.5px; text-transform:uppercase;
+    color:var(--rc-gold);
+  }
+
+  .room{
+    display:flex; align-items:baseline; justify-content:space-between; gap:10px;
+    padding:11px 16px;
+    border-bottom:1px solid var(--rc-line);
+    cursor:pointer;
+    transition:background 0.2s ease;
+  }
+  .category .room:last-child{ border-bottom:none; }
+  .room:hover, .room:focus-visible{ background:rgba(201,162,39,0.07); outline:none; }
+  .room.active{ background:rgba(140,27,46,0.14); }
+
+  .room-name{
+    flex:none;
+    font-family:'Cormorant Garamond',serif;
+    font-size:17px; font-weight:600; color:var(--rc-ivory);
+    display:flex; align-items:center; gap:6px;
+  }
+  .room.active .room-name{ color:var(--rc-gold-light); }
+  .badge-wip{
+    font-family:'IBM Plex Mono',monospace; font-size:8.5px; letter-spacing:0.5px;
+    color:var(--rc-ivory-dim); background:rgba(185,180,166,0.12);
+    border:1px solid rgba(185,180,166,0.25); border-radius:2px;
+    padding:1px 5px;
+  }
+  .badge-brand{
+    font-family:'IBM Plex Mono',monospace; font-size:8.5px; letter-spacing:0.5px;
+    color:var(--rc-gold-light); background:rgba(201,162,39,0.12);
+    border:1px solid rgba(201,162,39,0.35); border-radius:2px;
+    padding:1px 5px;
+  }
+  .room-desc{
+    flex:1; min-width:0;
+    font-size:11.5px; color:var(--rc-ivory-dim);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    text-align:right;
+  }
+
+  .custom-room{
+    margin-top:20px;
+    display:flex; align-items:center; gap:16px;
+    padding:20px 24px;
+    border:1px dashed var(--rc-gold);
+    border-radius:4px;
+    background:linear-gradient(165deg, rgba(30,42,110,0.16), rgba(10,10,14,0.4));
+    cursor:pointer;
+    transition:background 0.2s ease, border-color 0.2s ease;
+  }
+  .custom-room:hover, .custom-room:focus-visible{
+    background:linear-gradient(165deg, rgba(30,42,110,0.3), rgba(10,10,14,0.55));
+    border-color:var(--rc-gold-light);
+    outline:none;
+  }
+  .custom-plus{
+    flex:none;
+    width:36px; height:36px;
+    border:1px solid var(--rc-gold);
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size:20px;
+    color:var(--rc-gold-light);
+  }
+  .custom-text{ flex:1; min-width:0; }
+  .custom-name{
+    font-family:'Cormorant Garamond',serif; font-weight:600; font-size:19px; color:var(--rc-gold-light);
+  }
+  .custom-desc{
+    margin-top:3px; font-size:12.5px; color:var(--rc-ivory-dim); line-height:1.5;
+  }
+
+  footer{
+    margin-top:30px; text-align:center;
+    font-family:'IBM Plex Mono',monospace; font-size:10px; letter-spacing:1.5px;
+    color:rgba(185,180,166,0.4); text-transform:uppercase;
+  }
+
+  @media (max-width:720px){
+    .categories{ grid-template-columns:1fr; }
+    .room{ align-items:flex-start; flex-direction:column; gap:2px; }
+    .room-desc{ white-space:normal; text-align:left; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="crest"><span>RC</span></div>
+    <div class="eyebrow">Royal Command AI</div>
+    <h1>Royal Command AI</h1>
+    <p class="sub">세상에 없는 새로운 AI 룸이 준비되어 있습니다. 당신의 아름다운 여정을 만들어 가세요</p>
+  </header>
+
+  <div class="categories">
+
+    <div class="category">
+      <div class="category-head">업무</div>
+      <div class="room active" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">커맨드 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">여러 AI가 동시에 답하고, Katie가 결과를 비교·검증해 가장 정확한 답 하나로 종합해 드립니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">회계 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 매출과 지출을 기록하고, 세금 신고서를 작성하고, 재무제표까지 만들어 1인 사업자부터 대기업까지 처리합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">법무 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 직접 계약 검토와 기업 규제 대응부터, 억울한 일을 겪었을 때의 소송 절차 준비와 모의 재판 연습까지 진행합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">계약 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">모든 계약서를 AI가 직접 작성하고, 조항을 평가하고, 법적 위험 요인을 분석한 뒤 완성된 문서로 출력합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">비서 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI 비서가 일정과 시간 약속을 잡고, 이메일과 문서를 정리하고, 회의를 준비하는 등 실제 비서처럼 곁에서 일합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">인사 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 이력서와 자기소개서를 다듬고, 채용 공고와 면접 질문을 준비하고, 인사 평가 자료까지 정리합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">마케팅 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 광고 카피를 쓰고, SNS 콘텐츠를 제작하고, 캠페인 성과를 분석해 다음 전략까지 제안합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">분석 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 데이터를 정리하고, 그래프와 리포트를 만들고, 투자·경영 판단에 필요한 인사이트를 뽑아냅니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">화상회의 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 회의 일정을 잡고, 회의 내용을 기록하고, 끝난 뒤 요약과 할 일 목록까지 정리합니다</div>
+      </div>
+    </div>
+
+    <div class="category">
+      <div class="category-head">고객 · 자산</div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">고객 서비스 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 24시간 문의에 답하고, 예약을 접수하고, 복잡한 건은 담당자에게 바로 연결합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">부동산 관리 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 임대차 계약을 관리하고, 임차인 문의에 응대하고, 매매·투자 상담까지 지원합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">건축 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 설계 아이디어를 스케치하고, 인허가 서류(DA)를 준비하고, 시공 견적까지 비교해 드립니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">차량 진단 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 증상을 듣고 원인을 짚어주고, 정비소를 안내하고, 수리 견적을 비교해 드립니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">쇼핑 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 필요한 물건을 찾고, 가격을 비교하고, 대량 구매는 공급처 협상까지 도와드립니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">여행 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 일정을 짜고, 숙소와 항공편을 비교하고, 기업 출장이나 행사도 통째로 기획합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">투자 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 국내외 시황을 정리하고, 관심 종목을 추적하고, 개인 성향에 맞춘 투자 계획을 제안합니다</div>
+      </div>
+    </div>
+
+    <div class="category">
+      <div class="category-head">생활 · 건강</div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">건강 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 생활 습관을 점검하고, 운동·식단 방향을 제안하고, 기업의 임직원 건강검진 프로그램도 설계합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">의료 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 증상을 정리해 상담하고, 필요한 진료과와 병원을 안내하고, 전문의 진료까지 연결합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">요리 룸<span class="badge-wip">수리중</span></div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 냉장고 속 재료로 레시피를 짜고, 조리 순서를 안내하고, 목표에 맞는 식단까지 설계합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">패션 룸<span class="badge-wip">수리중</span></div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 체형과 취향에 맞는 스타일을 추천하고, 옷장을 정리하고, 상황별 코디까지 제안합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">운동 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 목표에 맞는 운동 계획을 짜고, 자세를 교정하고, 진행 상황을 기록해 드립니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">번역 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 일상 대화를 통역하고, 공식 문서를 번역하고, 뉘앙스까지 살려 검수합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">채팅 룸<span class="badge-brand">Royal Chat</span></div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">Royal Chat은 회원가입 없이 앱만 다운로드하면 바로 시작합니다. 전화번호만 입력해 대화를 신청하고, 상대가 허가하면 채팅이 열립니다. AI와도 이 안에서 자유롭게 대화할 수 있습니다</div>
+      </div>
+    </div>
+
+    <div class="category">
+      <div class="category-head">학습 · 취미</div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">교육 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">유치원부터 대학원까지, 세상 모든 교육을 여기서 받습니다. AI가 직접 가르치고 시험을 내고 채점까지 하며, 전문가 교육은 본인부담으로 제공합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">음악 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 기타, 피아노 등 모든 악기를 가르치고, 보컬 발성을 교정하고, 작곡·편곡까지 함께합니다</div>
+      </div>
+      <div class="room" tabindex="0" style="flex-direction:column; align-items:flex-start; gap:3px;">
+        <div class="room-name">취미 룸</div>
+        <div class="room-desc" style="white-space:normal; text-align:left;">AI가 바둑·장기·체스 전략을 가르치고, 춤 동작을 교정하고, 골프 스윙까지 분석해 드립니다</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="custom-room" tabindex="0">
+    <div class="custom-plus">+</div>
+    <div class="custom-text">
+      <div class="custom-name">나만의 룸 만들기</div>
+      <div class="custom-desc">나의 일과 업무는 내 취미와 함께 할 수 있습니다</div>
+    </div>
+    <div class="room-arrow">›</div>
+  </div>
+
+  <footer>Royal blue · Black · Gold · Velvet red — Royal Command AI</footer>
+</div>
+</body>
+</html>
