@@ -21,6 +21,7 @@ export const createRoomSchema = z.object({
 
 export const chatSchema = z.object({
   roomId: z.string().min(1),
+  conversationId: z.string().uuid().optional(),
   prompt: z.string().min(1).max(12000),
   language: z.string().min(2).max(12).optional(),
   providers: z.array(z.enum(AI_PROVIDER_IDS)).optional(),
