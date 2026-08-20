@@ -1,8 +1,9 @@
 import Script from "next/script";
 import RoomV3 from "./RoomV3";
 import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
+import ServerConversationBridge from "./ServerConversationBridge";
 
-const ROOM_UI_VERSION = "20260820-0951-direct-color-icons";
+const ROOM_UI_VERSION = "20260820-server-conversations";
 
 export default function RoomPage() {
   return (
@@ -62,7 +63,6 @@ export default function RoomPage() {
           display: none !important;
         }
 
-        /* Owner-approved compact left controls: same height as AI Warehouse. */
         #rc-new-chat-button,
         #rc-voice-command-button {
           height: 30px !important;
@@ -74,21 +74,18 @@ export default function RoomPage() {
           padding-bottom: 0 !important;
         }
 
-        /* Legacy row-delete control remains hidden if encountered. */
         aside button[title="Delete this conversation"] {
           display: none !important;
         }
       `}</style>
 
       <RoomExternalAppClickGuard />
+      <ServerConversationBridge />
       <RoomV3 />
       <Script src={`/rc-language-picker.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-copy-question-thread.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-question-rules-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-command-room-english.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
-      <Script src={`/rc-history-group-repair-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
-      <Script src={`/rc-chat-thread-workflow.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
-      <Script src={`/rc-new-chat-clear-viewport.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-chat-scroll-unlock.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-new-chat-label.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-compact-ai-dock.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
