@@ -1,7 +1,8 @@
 export type ReviewStatus = "READY" | "NEEDS_REVIEW" | "BLOCKED";
 export type ConnectionStatus = "CONNECTED" | "NOT_CONNECTED";
+export type RequirementStatus = "optional" | "required";
 
-export interface StateConfig {
+export interface SubdivisionConfig {
   name: string;
   taxStatus?: ReviewStatus;
   complianceStatus?: ReviewStatus;
@@ -10,6 +11,7 @@ export interface StateConfig {
 export interface CountryConfig {
   countryCode: string;
   locale: string;
+  secondaryLocale?: string | null;
   currency: string;
   phoneCountryCode: string;
   dateFormat: string;
@@ -20,11 +22,7 @@ export interface CountryConfig {
     display: string;
     supportedExamples: string[];
   };
-  business: {
-    company_name: "optional" | "required";
-    ein: "optional" | "required";
-    state_of_incorporation: "optional" | "required";
-  };
+  business: Record<string, RequirementStatus>;
   compliance: {
     legal: ReviewStatus;
     tax: ReviewStatus;
@@ -42,6 +40,11 @@ export interface CountryConfig {
     status: ConnectionStatus;
     futureProviders: string[];
   };
+  taxStructure?: {
+    system: string;
+    status: ReviewStatus;
+  };
   integrations: Record<string, { status: ConnectionStatus; provider?: string }>;
-  states: Record<string, StateConfig>;
+  states?: Record<string, SubdivisionConfig>;
+  provinces?: Record<string, SubdivisionConfig>;
 }
