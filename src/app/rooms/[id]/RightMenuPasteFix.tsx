@@ -13,7 +13,7 @@ export default function RightMenuPasteFix() {
       if (!text) return;
 
       event.preventDefault();
-      event.stopPropagation();
+      event.stopImmediatePropagation();
 
       const start = target.selectionStart ?? target.value.length;
       const end = target.selectionEnd ?? start;
