@@ -1,5 +1,5 @@
 import Script from "next/script";
-import RoomV3 from "./RoomV3";
+import StableRoomV3 from "./StableRoomV3";
 import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 import ServerConversationBridge from "./ServerConversationBridge";
 
@@ -81,7 +81,7 @@ export default function RoomPage() {
 
       <RoomExternalAppClickGuard />
       <ServerConversationBridge />
-      <RoomV3 />
+      <StableRoomV3 />
       <Script src={`/rc-language-picker.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-copy-question-thread.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-question-rules-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
