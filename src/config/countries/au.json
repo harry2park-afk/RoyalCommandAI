@@ -1,0 +1,74 @@
+{
+  "countryCode": "AU",
+  "locale": "en-AU",
+  "secondaryLocale": null,
+  "currency": "AUD",
+  "phoneCountryCode": "+61",
+  "dateFormat": "DD/MM/YYYY",
+  "timeFormat": "12h",
+  "addressFormat": [
+    "street_address_1",
+    "street_address_2",
+    "suburb",
+    "state_code",
+    "postcode"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Australia/Sydney",
+      "Australia/Melbourne",
+      "Australia/Brisbane",
+      "Australia/Adelaide",
+      "Australia/Perth",
+      "Australia/Hobart",
+      "Australia/Darwin"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "abn": "optional",
+    "acn": "optional",
+    "state_of_registration": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "stripe",
+    "status": "NOT_CONNECTED",
+    "future": ["Credit/Debit", "Apple Pay", "Google Pay", "BECS Direct Debit"]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": ["Stripe Tax", "Avalara"]
+  },
+  "taxStructure": {
+    "system": "GST",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "claudeOfficeEnterprise": { "status": "NOT_CONNECTED" },
+    "auPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "auLegalProvider": { "status": "NOT_CONNECTED" },
+    "auHealthPrivacyProvider": { "status": "NOT_CONNECTED" },
+    "auInvestmentComplianceProvider": { "status": "NOT_CONNECTED" }
+  },
+  "states": {
+    "NSW": { "name": "New South Wales" },
+    "VIC": { "name": "Victoria" },
+    "QLD": { "name": "Queensland" },
+    "SA": { "name": "South Australia" },
+    "WA": { "name": "Western Australia" },
+    "TAS": { "name": "Tasmania" },
+    "ACT": { "name": "Australian Capital Territory" },
+    "NT": { "name": "Northern Territory" }
+  }
+}
