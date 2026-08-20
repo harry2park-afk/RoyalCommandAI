@@ -1,0 +1,77 @@
+{
+  "countryCode": "CA",
+  "locale": "en-CA",
+  "secondaryLocale": "fr-CA",
+  "currency": "CAD",
+  "phoneCountryCode": "+1",
+  "dateFormat": "YYYY-MM-DD",
+  "timeFormat": "12h",
+  "addressFormat": [
+    "street_address_1",
+    "street_address_2",
+    "city",
+    "province_code",
+    "postal_code"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "America/Toronto",
+      "America/Vancouver",
+      "America/Edmonton",
+      "America/Winnipeg",
+      "America/Halifax",
+      "America/St_Johns"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "bn": "optional",
+    "province_of_incorporation": "optional"
+  },
+  "taxStructure": {
+    "system": "GST_HST_PST_QST",
+    "status": "NEEDS_REVIEW"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "stripe",
+    "status": "NOT_CONNECTED",
+    "future": ["Interac", "Credit/Debit", "Apple Pay", "Google Pay"]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": ["Stripe Tax", "Avalara"]
+  },
+  "integrations": {
+    "claudeOfficeEnterprise": { "status": "NOT_CONNECTED" },
+    "caPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "caLegalProvider": { "status": "NOT_CONNECTED" },
+    "caHealthPrivacyProvider": { "status": "NOT_CONNECTED" },
+    "caInvestmentComplianceProvider": { "status": "NOT_CONNECTED" }
+  },
+  "provinces": {
+    "AB": { "name": "Alberta" },
+    "BC": { "name": "British Columbia" },
+    "MB": { "name": "Manitoba" },
+    "NB": { "name": "New Brunswick" },
+    "NL": { "name": "Newfoundland and Labrador" },
+    "NS": { "name": "Nova Scotia" },
+    "ON": { "name": "Ontario" },
+    "PE": { "name": "Prince Edward Island" },
+    "QC": { "name": "Quebec" },
+    "SK": { "name": "Saskatchewan" },
+    "NT": { "name": "Northwest Territories" },
+    "NU": { "name": "Nunavut" },
+    "YT": { "name": "Yukon" }
+  }
+}
