@@ -14,7 +14,7 @@ const DESKTOP_SHORTCUTS: Record<DesktopShortcut["id"], DesktopShortcut> = {
   "chrome-desktop": {
     id: "chrome-desktop",
     title: "Chrome Desktop",
-    icon: "https://cdn.simpleicons.org/googlechrome/4285F4",
+    icon: "https://www.google.com/chrome/static/images/chrome-logo-m100.svg",
   },
   "kakaotalk-desktop": {
     id: "kakaotalk-desktop",
