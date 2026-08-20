@@ -4,21 +4,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronLeft, ChevronRight, GripVertical, Pencil, Save, Trash2, X } from "lucide-react";
 
-type Message = {
+type Conversation = {
   id: string;
-  content: string;
-  authorType?: string;
-  author_type?: string;
-  created_at?: string;
-  createdAt?: string;
-};
-
-type ChatBox = {
-  id: string;
-  ids: string[];
+  room_id: string;
   title: string;
-  content: string;
-  createdAt: string;
+  status: "active" | "archived";
+  created_at: string;
+  updated_at: string;
+  last_message_at: string;
 };
 
 type ImportantConversation = {
@@ -33,64 +26,18 @@ const MIN_WIDTH = 12;
 const DEFAULT_WIDTH = 240;
 const MAX_WIDTH = 420;
 
-function cleanText(value: unknown) {
-  return typeof value === "string" ? value.trim() : String(value ?? "").trim();
-}
-
-function messageType(message: Message) {
-  return message.authorType || message.author_type || "";
-}
-
-function messageTime(message: Message) {
-  return message.created_at || message.createdAt || new Date().toISOString();
-}
-
-function buildBoxes(messages: Message[], titles: Record<string, string>, roomId: string): ChatBox[] {
-  const boxes: ChatBox[] = [];
-  let current: Message[] = [];
-
-  const pushCurrent = () => {
-    if (!current.length) return;
-    const userMessage = current.find((message) => messageType(message) === "user");
-    if (!userMessage) { current = []; return; }
-    const key = `${roomId}:${userMessage.id}`;
-    const defaultTitle = cleanText(userMessage.content).replace(/\s+/g, " ").slice(0, 120) || "Conversation";
-    const content = current.map((message) => {
-      const label = messageType(message) === "user" ? "Harry" : "AI";
-      return `${label}\n${cleanText(message.content)}`;
-    }).join("\n\n");
-    boxes.push({
-      id: userMessage.id,
-      ids: current.map((message) => message.id),
-      title: cleanText(titles[key]) || defaultTitle,
-      content,
-      createdAt: messageTime(userMessage),
-    });
-    current = [];
-  };
-
-  for (const message of messages) {
-    if (!cleanText(message.content) || messageType(message) === "system") continue;
-    if (messageType(message) === "user") {
-      pushCurrent();
-      current = [message];
-    } else if (current.length) {
-      current.push(message);
-    }
-  }
-  pushCurrent();
-  return boxes.reverse();
+function activeKey(roomId: string) {
+  return `royalcommand:room:${roomId}:active-conversation`;
 }
 
 export default function ChatHistorySidebar() {
   const pathname = usePathname();
-  const currentId = pathname.split("/").filter(Boolean).pop() || "";
-  const [boxes, setBoxes] = useState<ChatBox[]>([]);
-  const [titles, setTitles] = useState<Record<string, string>>({});
+  const roomId = pathname.split("/").filter(Boolean).pop() || "";
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [importantItems, setImportantItems] = useState<ImportantConversation[]>([]);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loaded, setLoaded] = useState(false);
-  const [viewing, setViewing] = useState<ChatBox | null>(null);
+  const [activeId, setActiveId] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
   const [status, setStatus] = useState("");
@@ -100,111 +47,161 @@ export default function ChatHistorySidebar() {
   const previousExpandedWidth = useRef(DEFAULT_WIDTH);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const allSelected = boxes.length > 0 && boxes.every((box) => selectedIds.includes(box.id));
-  const selectedBoxes = useMemo(() => boxes.filter((box) => selectedIds.includes(box.id)), [boxes, selectedIds]);
+  const visible = conversations.filter((item) => item.status !== "archived");
+  const allSelected = visible.length > 0 && visible.every((item) => selectedIds.includes(item.id));
+  const selectedConversations = useMemo(
+    () => visible.filter((item) => selectedIds.includes(item.id)),
+    [visible, selectedIds],
+  );
 
-  async function refreshHistory(nextTitles = titles) {
-    if (!currentId) return;
+  async function refreshHistory() {
+    if (!roomId) return;
     try {
-      const res = await fetch(`/api/rooms/${currentId}`, { cache: "no-store" });
+      const res = await fetch(`/api/rooms/${roomId}/conversations`, { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      const messages: Message[] = Array.isArray(data.messages) ? data.messages : [];
-      const next = buildBoxes(messages, nextTitles, currentId);
-      setBoxes(next);
-      setSelectedIds((previous) => previous.filter((id) => next.some((box) => box.id === id)));
+      const next = Array.isArray(data.conversations) ? data.conversations as Conversation[] : [];
+      setConversations(next);
+      setSelectedIds((previous) => previous.filter((id) => next.some((item) => item.id === id && item.status !== "archived")));
     } catch {}
     finally { setLoaded(true); }
   }
 
-  async function saveTitle(box: ChatBox) {
+  async function openConversation(conversation: Conversation) {
+    if (!roomId) return;
+    try {
+      await fetch(`/api/rooms/${roomId}/conversations/${conversation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "active" }),
+      });
+      window.sessionStorage.setItem(activeKey(roomId), conversation.id);
+      setActiveId(conversation.id);
+      window.location.reload();
+    } catch {
+      setStatus("Open failed");
+    }
+  }
+
+  async function startNewChat() {
+    if (!roomId) return;
+    setStatus("Starting new chat…");
+    try {
+      const res = await fetch(`/api/rooms/${roomId}/conversations`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: "New Chat" }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data?.conversation?.id) throw new Error("New Chat failed");
+      window.sessionStorage.setItem(activeKey(roomId), data.conversation.id);
+      setActiveId(data.conversation.id);
+      window.location.reload();
+    } catch {
+      setStatus("New Chat failed");
+    }
+  }
+
+  function startVoiceCommand() {
+    const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
+    const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Recognition) { setStatus("Voice not supported"); return; }
+    const recognition = new Recognition();
+    recognition.lang = "ko-KR";
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onresult = (event: any) => {
+      const text = event.results?.[0]?.[0]?.transcript || "";
+      const textarea = document.querySelector('textarea[placeholder^="Type or speak your order"]');
+      if (textarea instanceof HTMLTextAreaElement) {
+        const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+        if (setter) setter.call(textarea, text); else textarea.value = text;
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        textarea.focus();
+      }
+    };
+    recognition.onerror = () => setStatus("Voice failed");
+    recognition.start();
+  }
+
+  async function saveTitle(conversation: Conversation) {
     const title = editingTitle.trim().slice(0, 120);
     if (!title) return;
-    const key = `${currentId}:${box.id}`;
-    const nextTitles = { ...titles, [key]: title };
-    const res = await fetch("/api/user/preferences", {
+    const res = await fetch(`/api/rooms/${roomId}/conversations/${conversation.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chatHistoryTitles: nextTitles }),
+      body: JSON.stringify({ title }),
     });
-    if (!res.ok) return;
-    setTitles(nextTitles);
-    setBoxes((previous) => previous.map((item) => item.id === box.id ? { ...item, title } : item));
-    if (viewing?.id === box.id) setViewing({ ...viewing, title });
+    if (!res.ok) { setStatus("Rename failed"); return; }
+    setConversations((previous) => previous.map((item) => item.id === conversation.id ? { ...item, title } : item));
     setEditingId(null);
     setEditingTitle("");
   }
 
-  async function deleteBoxes(targets: ChatBox[], ask = false) {
-    if (!targets.length) return;
-    if (ask && !window.confirm(`Delete ${targets.length} selected conversation${targets.length === 1 ? "" : "s"}?`)) return;
-    const ids = Array.from(new Set(targets.flatMap((box) => box.ids)));
-    const res = await fetch(`/api/rooms/${currentId}/messages`, {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ids }),
-    });
-    if (!res.ok) { setStatus("Delete failed"); return; }
-    setSelectedIds([]);
-    if (viewing && targets.some((box) => box.id === viewing.id)) setViewing(null);
-    setStatus("Deleted");
-    await refreshHistory();
-    window.setTimeout(() => setStatus(""), 1200);
+  async function archiveSelected(ask = false) {
+    if (!selectedConversations.length) return;
+    if (ask && !window.confirm(`Delete ${selectedConversations.length} selected conversation${selectedConversations.length === 1 ? "" : "s"}?`)) return;
+    try {
+      await Promise.all(selectedConversations.map((item) => fetch(`/api/rooms/${roomId}/conversations/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "archived" }),
+      })));
+      if (selectedIds.includes(activeId)) {
+        window.sessionStorage.removeItem(activeKey(roomId));
+        setActiveId("");
+      }
+      setSelectedIds([]);
+      setStatus("Deleted");
+      await refreshHistory();
+      window.setTimeout(() => setStatus(""), 1200);
+    } catch { setStatus("Delete failed"); }
   }
 
   async function saveSelected() {
-    if (!selectedBoxes.length) return;
-    const existingKeys = new Set(importantItems.map((item) => `${item.roomId}:${item.content}`));
-    const additions: ImportantConversation[] = selectedBoxes
-      .filter((box) => !existingKeys.has(`${currentId}:${box.content}`))
-      .map((box) => ({
-        id: `important-${Date.now()}-${box.id}`,
-        roomId: currentId,
-        title: box.title,
-        content: box.content.slice(0, 20000),
-        createdAt: box.createdAt,
-      }));
-    const next = [...additions, ...importantItems].slice(0, 100);
-    const res = await fetch("/api/user/preferences", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ importantConversations: next }),
-    });
-    if (!res.ok) { setStatus("Save failed"); return; }
-    setImportantItems(next);
-    setStatus(`${selectedBoxes.length} saved`);
-    window.setTimeout(() => setStatus(""), 1200);
-  }
-
-  function toggleSelected(id: string) {
-    setSelectedIds((previous) => previous.includes(id) ? previous.filter((item) => item !== id) : [...previous, id]);
-  }
-
-  function toggleAll() {
-    setSelectedIds(allSelected ? [] : boxes.map((box) => box.id));
+    if (!selectedConversations.length) return;
+    try {
+      const additions: ImportantConversation[] = [];
+      for (const item of selectedConversations) {
+        const res = await fetch(`/api/rooms/${roomId}/conversations/${item.id}`, { cache: "no-store" });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const messages = Array.isArray(data.messages) ? data.messages : [];
+        const content = messages.map((message: any) => `${message.author_type === "user" ? "User" : "AI"}\n${String(message.content || "")}`).join("\n\n");
+        additions.push({
+          id: `important-${Date.now()}-${item.id}`,
+          roomId,
+          title: item.title,
+          content: content.slice(0, 20000),
+          createdAt: item.created_at,
+        });
+      }
+      const existing = new Set(importantItems.map((item) => `${item.roomId}:${item.title}:${item.createdAt}`));
+      const next = [...additions.filter((item) => !existing.has(`${item.roomId}:${item.title}:${item.createdAt}`)), ...importantItems].slice(0, 100);
+      const res = await fetch("/api/user/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ importantConversations: next }),
+      });
+      if (!res.ok) throw new Error("save failed");
+      setImportantItems(next);
+      setStatus(`${selectedConversations.length} saved`);
+      window.setTimeout(() => setStatus(""), 1200);
+    } catch { setStatus("Save failed"); }
   }
 
   useEffect(() => {
-    let cancelled = false;
+    try { setActiveId(window.sessionStorage.getItem(activeKey(roomId)) || ""); } catch {}
+    void refreshHistory();
     void (async () => {
       try {
         const res = await fetch("/api/user/preferences", { cache: "no-store" });
-        let nextTitles: Record<string, string> = {};
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.preferences?.chatHistoryTitles && typeof data.preferences.chatHistoryTitles === "object") {
-            nextTitles = data.preferences.chatHistoryTitles;
-            if (!cancelled) setTitles(nextTitles);
-          }
-          if (Array.isArray(data?.preferences?.importantConversations) && !cancelled) {
-            setImportantItems(data.preferences.importantConversations);
-          }
-        }
-        if (!cancelled) await refreshHistory(nextTitles);
-      } catch { if (!cancelled) setLoaded(true); }
+        if (!res.ok) return;
+        const data = await res.json();
+        if (Array.isArray(data?.preferences?.importantConversations)) setImportantItems(data.preferences.importantConversations);
+      } catch {}
     })();
-    return () => { cancelled = true; };
-  }, [currentId]);
+  }, [roomId]);
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -218,7 +215,7 @@ export default function ChatHistorySidebar() {
       observer.disconnect();
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
     };
-  }, [currentId, titles]);
+  }, [roomId]);
 
   useEffect(() => {
     try {
@@ -255,13 +252,6 @@ export default function ChatHistorySidebar() {
     };
   }, [width]);
 
-  function startResize(event: React.MouseEvent<HTMLButtonElement>) {
-    event.preventDefault();
-    dragging.current = true;
-    document.body.style.cursor = "col-resize";
-    document.body.style.userSelect = "none";
-  }
-
   function toggleCollapsed() {
     const nextCollapsed = !collapsed;
     if (nextCollapsed) {
@@ -274,11 +264,6 @@ export default function ChatHistorySidebar() {
     try { window.localStorage.setItem("royalcommand:chat-sidebar-collapsed", nextCollapsed ? "1" : "0"); } catch {}
   }
 
-  function beginTitleEdit(box: ChatBox) {
-    setEditingId(box.id);
-    setEditingTitle(box.title);
-  }
-
   if (collapsed) {
     return (
       <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-50 flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="Open conversation list">
@@ -288,89 +273,61 @@ export default function ChatHistorySidebar() {
   }
 
   return (
-    <>
-      <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
-        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
-          <div className="mb-1 rounded-lg border border-white/10 bg-black/20 p-1.5">
-            <label className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 hover:bg-white/[0.04]">
-              <input type="checkbox" checked={allSelected} onChange={toggleAll} aria-label="Select all conversations" className="h-4 w-4 shrink-0 accent-[#d7b64d]" />
-              <span className="text-[11px] font-medium text-[var(--muted)]">Select All</span>
-            </label>
+    <aside className="sticky top-0 hidden h-screen shrink-0 self-start overflow-visible border-r border-white/10 bg-black/20 lg:flex lg:flex-col" style={{ width }}>
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden p-2">
+        <div id="rc-thread-tools" className="mb-2 rounded-lg border border-white/10 bg-black/20 p-1.5">
+          <div className="grid grid-cols-2 gap-1.5">
+            <button id="rc-new-chat-button" type="button" onClick={() => void startNewChat()} className="flex h-[30px] min-w-0 items-center justify-center rounded-lg border border-[#2A3B6E] bg-[#0b1524] px-2 text-[11px] font-semibold text-[#FFD700] hover:bg-white/[0.05]" title="Start a new blank conversation">+ New Chat</button>
+            <button id="rc-voice-command-button" type="button" onClick={startVoiceCommand} className="flex h-[30px] min-w-0 items-center justify-center rounded-lg border border-[#2A3B6E] bg-[#0b1524] px-2 text-[11px] font-semibold text-[#FFD700] hover:bg-white/[0.05]" title="Voice Command">🎙 Voice</button>
           </div>
-
-          <div className="mb-2 grid grid-cols-2 gap-1.5">
-            <button type="button" onClick={() => void saveSelected()} disabled={!selectedBoxes.length} className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-[var(--gold)]/65 bg-[var(--gold)]/10 px-2 text-[11px] font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)]/15 disabled:cursor-not-allowed disabled:opacity-30" title="Save selected conversations">
-              <Save size={14} /> SAVE
-            </button>
-            <button type="button" onClick={() => void deleteBoxes(selectedBoxes, true)} disabled={!selectedBoxes.length} className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-red-400/40 bg-red-500/5 px-2 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-30" title="Delete selected conversations">
-              <Trash2 size={14} /> DELETE
-            </button>
-          </div>
-
-          {status ? <div className="mb-2 px-2 text-[10px] text-[var(--muted)]">{status}</div> : null}
-
-          <div className="space-y-1">
-            {boxes.map((box) => {
-              const editing = editingId === box.id;
-              const selected = selectedIds.includes(box.id);
-              return (
-                <div key={box.id} className={`group flex h-[30px] items-center rounded-lg border ${selected ? "border-[var(--gold)] bg-[var(--gold)]/15" : "border-[var(--gold)]/50 bg-[var(--gold)]/8"}`}>
-                  {editing ? (
-                    <>
-                      <input
-                        autoFocus
-                        value={editingTitle}
-                        onChange={(event) => setEditingTitle(event.target.value)}
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => {
-                          if (event.key === "Enter") { event.preventDefault(); void saveTitle(box); }
-                          if (event.key === "Escape") { setEditingId(null); setEditingTitle(""); }
-                        }}
-                        className="ml-1 min-w-0 flex-1 rounded border border-[var(--gold)]/50 bg-black/50 px-2 text-xs text-white outline-none"
-                        maxLength={120}
-                      />
-                      <button type="button" onClick={() => void saveTitle(box)} className="grid h-6 w-6 shrink-0 place-items-center text-emerald-300" title="Save title"><Check size={13} /></button>
-                      <button type="button" onClick={() => { setEditingId(null); setEditingTitle(""); }} className="mr-1 grid h-6 w-6 shrink-0 place-items-center text-[var(--muted)]" title="Cancel"><X size={13} /></button>
-                    </>
-                  ) : (
-                    <>
-                      <input type="checkbox" checked={selected} onChange={() => toggleSelected(box.id)} onClick={(event) => event.stopPropagation()} aria-label={`Select ${box.title}`} className="ml-2 h-4 w-4 shrink-0 accent-[#2563eb]" />
-                      <button
-                        type="button"
-                        onClick={() => setViewing(box)}
-                        onDoubleClick={(event) => { event.preventDefault(); beginTitleEdit(box); }}
-                        className="min-w-0 flex-1 truncate px-2 text-left text-xs text-[var(--gold-soft)]"
-                        title="Click: view conversation · Double-click: edit title"
-                      >
-                        {box.title}
-                      </button>
-                      <button type="button" onClick={(event) => { event.stopPropagation(); beginTitleEdit(box); }} className="mr-1 grid h-6 w-6 shrink-0 place-items-center text-[#FFD700] hover:bg-white/[0.04]" title="Edit conversation title" aria-label={`Edit ${box.title}`}><Pencil size={13} /></button>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-
-            {loaded && boxes.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">No conversations yet.</p> : null}
-            {!loaded ? <p className="p-2 text-xs text-[var(--muted)]">Loading conversations…</p> : null}
-          </div>
+          <div className="mt-1 min-h-4 px-1 text-[10px] font-medium text-emerald-300">{status}</div>
         </div>
 
-        <button type="button" onMouseDown={startResize} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-30 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"><GripVertical size={14} className="text-white/35" /></button>
-        <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="Close conversation list"><ChevronLeft size={22} /></button>
-      </aside>
-
-      {viewing ? (
-        <div className="fixed inset-0 z-[230] flex items-center justify-center bg-black/70 p-4" onClick={() => setViewing(null)} role="presentation">
-          <div className="flex max-h-[82vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border-2 border-[#FFD700] bg-[#081321] shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-center gap-3 border-b border-white/10 px-4 py-3">
-              <div className="min-w-0 flex-1 truncate font-semibold text-[#FFD700]">{viewing.title}</div>
-              <button type="button" onClick={() => setViewing(null)} className="grid h-8 w-8 place-items-center rounded-lg border border-white/10" title="Close"><X size={16} /></button>
-            </div>
-            <div className="min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words px-5 py-4 text-sm leading-6 text-[#E8E6DD]">{viewing.content}</div>
-          </div>
+        <div className="mb-1 rounded-lg border border-white/10 bg-black/20 p-1.5">
+          <label className="flex h-8 w-full cursor-pointer items-center gap-2 rounded-md px-2 hover:bg-white/[0.04]">
+            <input type="checkbox" checked={allSelected} onChange={() => setSelectedIds(allSelected ? [] : visible.map((item) => item.id))} aria-label="Select all conversations" className="h-4 w-4 shrink-0 accent-[#d7b64d]" />
+            <span className="text-[11px] font-medium text-[var(--muted)]">Select All</span>
+          </label>
         </div>
-      ) : null}
-    </>
+
+        <div className="mb-2 grid grid-cols-2 gap-1.5">
+          <button type="button" onClick={() => void saveSelected()} disabled={!selectedConversations.length} className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-[var(--gold)]/65 bg-[var(--gold)]/10 px-2 text-[11px] font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)]/15 disabled:cursor-not-allowed disabled:opacity-30"><Save size={14} /> SAVE</button>
+          <button type="button" onClick={() => void archiveSelected(true)} disabled={!selectedConversations.length} className="flex h-9 items-center justify-center gap-1.5 rounded-md border border-red-400/40 bg-red-500/5 px-2 text-[11px] font-semibold text-red-300 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-30"><Trash2 size={14} /> DELETE</button>
+        </div>
+
+        <div className="space-y-1">
+          {visible.map((conversation) => {
+            const editing = editingId === conversation.id;
+            const selected = selectedIds.includes(conversation.id);
+            const active = activeId === conversation.id;
+            return (
+              <div key={conversation.id} className={`group flex h-[30px] items-center rounded-lg border ${active ? "border-[#FFD700] bg-[#FFD700]/15" : selected ? "border-[var(--gold)] bg-[var(--gold)]/15" : "border-[var(--gold)]/50 bg-[var(--gold)]/8"}`}>
+                {editing ? (
+                  <>
+                    <input autoFocus value={editingTitle} onChange={(event) => setEditingTitle(event.target.value)} onKeyDown={(event) => {
+                      if (event.key === "Enter") { event.preventDefault(); void saveTitle(conversation); }
+                      if (event.key === "Escape") { setEditingId(null); setEditingTitle(""); }
+                    }} className="ml-1 min-w-0 flex-1 rounded border border-[var(--gold)]/50 bg-black/50 px-2 text-xs text-white outline-none" maxLength={120} />
+                    <button type="button" onClick={() => void saveTitle(conversation)} className="grid h-6 w-6 shrink-0 place-items-center text-emerald-300"><Check size={13} /></button>
+                    <button type="button" onClick={() => { setEditingId(null); setEditingTitle(""); }} className="mr-1 grid h-6 w-6 shrink-0 place-items-center text-[var(--muted)]"><X size={13} /></button>
+                  </>
+                ) : (
+                  <>
+                    <input type="checkbox" checked={selected} onChange={() => setSelectedIds((previous) => previous.includes(conversation.id) ? previous.filter((id) => id !== conversation.id) : [...previous, conversation.id])} onClick={(event) => event.stopPropagation()} className="ml-2 h-4 w-4 shrink-0 accent-[#2563eb]" />
+                    <button type="button" onClick={() => void openConversation(conversation)} onDoubleClick={(event) => { event.preventDefault(); setEditingId(conversation.id); setEditingTitle(conversation.title); }} className="min-w-0 flex-1 truncate px-2 text-left text-xs text-[var(--gold-soft)]" title="Click: open full conversation · Double-click: edit title">{conversation.title}</button>
+                    <button type="button" onClick={(event) => { event.stopPropagation(); setEditingId(conversation.id); setEditingTitle(conversation.title); }} className="mr-1 grid h-6 w-6 shrink-0 place-items-center text-[#FFD700] hover:bg-white/[0.04]" title="Edit conversation title"><Pencil size={13} /></button>
+                  </>
+                )}
+              </div>
+            );
+          })}
+          {loaded && visible.length === 0 ? <p className="p-2 text-xs text-[var(--muted)]">No conversations yet.</p> : null}
+          {!loaded ? <p className="p-2 text-xs text-[var(--muted)]">Loading conversations…</p> : null}
+        </div>
+      </div>
+
+      <button type="button" onMouseDown={(event) => { event.preventDefault(); dragging.current = true; document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none"; }} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-30 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"><GripVertical size={14} className="text-white/35" /></button>
+      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-16 w-9 -translate-y-1/2 items-center justify-center rounded-r-xl border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="Close conversation list"><ChevronLeft size={22} /></button>
+    </aside>
   );
 }
