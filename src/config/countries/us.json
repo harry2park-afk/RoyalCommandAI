@@ -1,6 +1,7 @@
 {
   "countryCode": "US",
   "locale": "en-US",
+  "secondaryLocale": null,
   "currency": "USD",
   "phoneCountryCode": "+1",
   "dateFormat": "MM/DD/YYYY",
