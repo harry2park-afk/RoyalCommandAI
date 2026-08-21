@@ -16,12 +16,12 @@ export type GlobalRoomSettings = {
 };
 
 export const DEFAULT_GLOBAL_ROOM_SETTINGS: GlobalRoomSettings = {
-  countryCode: "GLOBAL",
-  languageTag: "en",
-  timeZone: "UTC",
-  currencyCode: "USD",
+  countryCode: "AU",
+  languageTag: "en-AU",
+  timeZone: "Australia/Sydney",
+  currencyCode: "AUD",
   dateFormat: "locale",
-  textDirection: "auto",
+  textDirection: "ltr",
   encoding: "UTF-8",
   clonePolicy: "structure-only",
   cloneCustomerData: false,
@@ -31,8 +31,8 @@ export const DEFAULT_GLOBAL_ROOM_SETTINGS: GlobalRoomSettings = {
 };
 
 export const GLOBAL_ROOM_PRESETS = [
-  { id: "GLOBAL", label: "Global / International", languageTag: "en", timeZone: "UTC", currencyCode: "USD" },
   { id: "AU", label: "Australia", languageTag: "en-AU", timeZone: "Australia/Sydney", currencyCode: "AUD" },
+  { id: "GLOBAL", label: "Global / International", languageTag: "en", timeZone: "UTC", currencyCode: "USD" },
   { id: "KR", label: "Korea", languageTag: "ko-KR", timeZone: "Asia/Seoul", currencyCode: "KRW" },
   { id: "US", label: "United States", languageTag: "en-US", timeZone: "America/New_York", currencyCode: "USD" },
   { id: "GB", label: "United Kingdom", languageTag: "en-GB", timeZone: "Europe/London", currencyCode: "GBP" },
