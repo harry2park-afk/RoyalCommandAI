@@ -29,6 +29,9 @@ export const ROOM_MATERIALS: RoomMaterial[] = [
   { id: "phone", name: "Phone", category: "connection", risk: "medium", description: "Connects approved voice workflows." },
   { id: "sms", name: "SMS", category: "connection", risk: "high", description: "Sends or receives SMS within approval policy." },
   { id: "esign", name: "E-signature", category: "connection", risk: "high", description: "Connects document signing workflows." },
+  { id: "legal-matter-management", name: "Legal Matter & Client File Management", category: "tool", risk: "medium", description: "Organises professional legal matters, client files, evidence, correspondence, pleadings, chronologies and working documents." },
+  { id: "legal-precedent-research", name: "Jurisdiction & Precedent Research", category: "knowledge", risk: "medium", description: "Researches jurisdiction-specific legislation, court rules and verifiable case authorities for professional legal work." },
+  { id: "ai-mock-trial", name: "AI Mock Trial & Litigation Strategy", category: "ai", risk: "high", description: "Professional-only evidence-grounded mock trial and Red Team litigation simulation using the selected jurisdiction and verifiable authorities. Results are lawyer decision-support, not guaranteed court outcomes." },
   { id: "owner-role", name: "Owner Permission", category: "permission", risk: "low", required: true, description: "Full Room ownership and configuration rights." },
   { id: "staff-role", name: "Staff Permission", category: "permission", risk: "medium", description: "Controlled staff access." },
   { id: "viewer-role", name: "Viewer Permission", category: "permission", risk: "low", description: "Read-only Room access." },
@@ -43,6 +46,7 @@ export const ROOM_MATERIALS: RoomMaterial[] = [
 
 export const TEMPLATE_MATERIAL_PRESETS: Record<string, string[]> = {
   legal: ["data-isolation", "room-identity", "room-history", "primary-ai", "supporting-ai", "room-memory", "document-reader", "web-search", "email-draft", "email-send", "esign", "owner-role", "staff-role", "human-approval", "external-send-approval", "preview"],
+  professionallegal: ["data-isolation", "room-identity", "room-history", "primary-ai", "supporting-ai", "room-memory", "business-memory", "document-reader", "web-search", "email-draft", "email-send", "calendar", "crm", "esign", "legal-matter-management", "legal-precedent-research", "ai-mock-trial", "owner-role", "staff-role", "human-approval", "external-send-approval", "delete-approval", "automation", "preview"],
   accounting: ["data-isolation", "room-identity", "room-history", "primary-ai", "room-memory", "document-reader", "spreadsheet", "email-draft", "owner-role", "staff-role", "human-approval", "external-send-approval", "preview"],
   business: ["data-isolation", "room-identity", "room-history", "primary-ai", "supporting-ai", "room-memory", "document-reader", "email-draft", "calendar", "crm", "owner-role", "staff-role", "human-approval", "preview"],
   technology: ["data-isolation", "room-identity", "room-history", "primary-ai", "supporting-ai", "room-memory", "document-reader", "web-search", "github", "vercel", "database-read", "owner-role", "staff-role", "human-approval", "delete-approval", "preview"],
