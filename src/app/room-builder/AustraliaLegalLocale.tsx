@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 
 const KO_TO_EN: Array<[string, string]> = [
   ["법률룸 Royal Command Legal 만들기", "Build Royal Command Legal Room"],
@@ -24,8 +24,8 @@ const KO_TO_EN: Array<[string, string]> = [
   ["예: Australia/Sydney", "e.g. Australia/Sydney"],
   ["5. Website Builder Kit", "5. Website Builder Kit"],
   ["필요하면 AI가 웹 구조, 페이지, 폼, Room 연결, 모바일 대응과 배포 준비까지 돕습니다.", "When enabled, AI can assist with website structure, pages, forms, Room connections, mobile responsiveness and deployment preparation."],
-  ["사용", "Enabled"],
   ["사용 안 함", "Disabled"],
+  ["사용", "Enabled"],
   ["6. Preview & Test", "6. Preview & Test"],
   ["실제 생성 전에 구성과 세계화/복사 안전 설정을 확인합니다.", "Review the configuration, localisation and safe-copy settings before creating the Room."],
   ["Preview 닫기", "Close Preview"],
@@ -33,7 +33,6 @@ const KO_TO_EN: Array<[string, string]> = [
   ["만드는 중…", "Creating…"],
   ["취소", "Cancel"],
   ["Room을 만들지 못했습니다.", "The Room could not be created."],
-  ["Royal Command Room Guide", "Royal Command Room Guide"],
   ["말하거나 글로 물어보세요", "Ask by voice or text"],
   ["안녕하세요. Room 만들기를 제가 말로 하나씩 도와드릴게요. 예를 들어 ‘상업법 방으로 만들고 싶어요’라고 말씀해 보세요.", "Hello. I can guide you through building this Room one step at a time. Try saying, ‘I want a commercial law Room.’"],
   ["예: 상업법 방으로 만들고 싶어요", "e.g. I want a commercial law Room"],
@@ -60,16 +59,10 @@ function setNativeInputValue(input: HTMLInputElement, value: string) {
 }
 
 export default function AustraliaLegalLocale() {
-  const [active, setActive] = useState(false);
-  const [koreanView, setKoreanView] = useState(false);
-  const originals = useRef(new Map<Text, string>());
-  const observerRef = useRef<MutationObserver | null>(null);
-
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("template") !== "legal") return;
 
-    setActive(true);
     document.documentElement.lang = "en-AU";
 
     const roomNameInput = document.querySelector<HTMLInputElement>('input.rc-input');
@@ -83,10 +76,7 @@ export default function AustraliaLegalLocale() {
       while (node) {
         const current = node.nodeValue || "";
         const translated = translateText(current);
-        if (translated !== current) {
-          if (!originals.current.has(node)) originals.current.set(node, current);
-          node.nodeValue = translated;
-        }
+        if (translated !== current) node.nodeValue = translated;
         node = walker.nextNode() as Text | null;
       }
 
@@ -97,39 +87,10 @@ export default function AustraliaLegalLocale() {
     }
 
     applyEnglish();
-    const observer = new MutationObserver(() => {
-      if (!koreanView) applyEnglish();
-    });
+    const observer = new MutationObserver(() => applyEnglish());
     observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    observerRef.current = observer;
-
     return () => observer.disconnect();
-  }, [koreanView]);
+  }, []);
 
-  function toggleTranslation() {
-    const next = !koreanView;
-    setKoreanView(next);
-    observerRef.current?.disconnect();
-
-    if (next) {
-      originals.current.forEach((original, node) => {
-        if (node.isConnected) node.nodeValue = original;
-      });
-    } else {
-      window.location.reload();
-    }
-  }
-
-  if (!active) return null;
-
-  return (
-    <button
-      type="button"
-      onClick={toggleTranslation}
-      className="fixed right-4 top-4 z-[9998] rounded-xl border border-[var(--gold)]/70 bg-black/90 px-4 py-2 text-sm font-semibold text-[var(--gold-soft)] shadow-lg backdrop-blur"
-      aria-label="Toggle Korean translation view"
-    >
-      {koreanView ? "Back to English" : "한국어 번역 보기"}
-    </button>
-  );
+  return null;
 }
