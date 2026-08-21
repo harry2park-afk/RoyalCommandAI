@@ -182,19 +182,14 @@
 
     const bar = dock.parentElement;
     if (bar instanceof HTMLElement) {
-      bar.style.height = "77px";
-      const main = bar.parentElement;
-      if (main instanceof HTMLElement && main.tagName === "MAIN") {
-        main.style.paddingTop = "77px";
+      bar.style.height = "92px";
+      const topRow = bar.firstElementChild;
+      if (topRow instanceof HTMLElement && topRow !== dock) {
+        topRow.style.height = "57px";
+        topRow.style.minHeight = "57px";
+        topRow.style.maxHeight = "57px";
       }
     }
-
-    document.querySelectorAll(".royal-room-layout > aside").forEach((aside) => {
-      if (!(aside instanceof HTMLElement)) return;
-      aside.style.setProperty("top", "77px", "important");
-      aside.style.setProperty("height", "calc(100vh - 77px)", "important");
-      aside.style.setProperty("min-height", "calc(100vh - 77px)", "important");
-    });
 
     dock.style.height = "35px";
     dock.style.minHeight = "35px";
