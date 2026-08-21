@@ -100,7 +100,7 @@
     const h1 = header.querySelector("h1");
     if (h1 instanceof HTMLElement) {
       h1.textContent = "Royal Command AI";
-      h1.className = "ml-8 shrink-0 text-xl font-semibold leading-none";
+      h1.className = "ml-8 shrink-0 text-[22px] font-semibold leading-none";
       h1.style.marginTop = "0";
     }
 
