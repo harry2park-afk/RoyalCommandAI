@@ -180,6 +180,23 @@
     const buttons = aiButtons();
     if (!buttons.length) return;
 
+    const bar = dock.parentElement;
+    if (bar instanceof HTMLElement) {
+      bar.style.height = "92px";
+      const topRow = bar.firstElementChild;
+      if (topRow instanceof HTMLElement && topRow !== dock) {
+        topRow.style.height = "57px";
+        topRow.style.minHeight = "57px";
+        topRow.style.maxHeight = "57px";
+      }
+    }
+
+    dock.style.height = "35px";
+    dock.style.minHeight = "35px";
+    dock.style.maxHeight = "35px";
+    dock.style.paddingTop = "2px";
+    dock.style.paddingBottom = "2px";
+
     seedVisible(buttons);
     let visibleNames = readVisible();
 
