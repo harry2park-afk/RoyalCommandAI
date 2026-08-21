@@ -109,6 +109,22 @@ const MODEL_DEFINITIONS: readonly AIModelRegistryEntry[] = [
     capabilities: CHAT_ONLY_CAPABILITIES,
     transports: [{ type: "native", apiModelId: "grok-4.5" }],
   },
+  {
+    id: "perplexity:sonar-pro",
+    providerId: "perplexity",
+    displayName: "Sonar Pro",
+    enabled: true,
+    capabilities: Object.freeze({
+      supportsChat: true,
+      supportsStreaming: true,
+      supportsVision: null,
+      supportsTools: null,
+    }),
+    transports: [
+      { type: "native", apiModelId: "sonar-pro" },
+      { type: "openrouter", modelQuery: "Perplexity Sonar Pro" },
+    ],
+  },
 ] as const;
 
 function buildModelRegistry() {
