@@ -3,6 +3,7 @@ import StableRoomV3 from "./StableRoomV3";
 import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 import ServerConversationBridge from "./ServerConversationBridge";
 import RightMenuPasteFix from "./RightMenuPasteFix";
+import SpeakerTtsBridge from "./SpeakerTtsBridge";
 
 const ROOM_UI_VERSION = "20260820-server-conversations";
 
@@ -87,6 +88,7 @@ export default function RoomPage() {
       <RoomExternalAppClickGuard />
       <ServerConversationBridge />
       <RightMenuPasteFix />
+      <SpeakerTtsBridge />
       <StableRoomV3 />
       <Script src={`/rc-language-picker.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-copy-question-thread.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
