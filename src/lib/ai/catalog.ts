@@ -16,7 +16,7 @@ export const AI_CATALOG: AICatalogEntry[] = [
   { id: "google", name: "Gemini", shortName: "Gemini", rank: 3, route: "native", featured: true },
   { id: "xai", name: "Grok", shortName: "Grok", rank: 4, route: "native", featured: true },
   { id: "deepseek", name: "DeepSeek", shortName: "DeepSeek", rank: 5, route: "openrouter", modelQuery: "DeepSeek", featured: true },
-  { id: "perplexity", name: "Perplexity", shortName: "Perplexity", rank: 6, route: "openrouter", modelQuery: "Perplexity", featured: true },
+  { id: "perplexity", name: "Perplexity", shortName: "Perplexity", rank: 6, route: "native", modelQuery: "Perplexity", featured: true },
   { id: "mistral", name: "Mistral", shortName: "Mistral", rank: 7, route: "openrouter", modelQuery: "Mistral", featured: true },
   { id: "meta", name: "Meta Llama", shortName: "Llama", rank: 8, route: "openrouter", modelQuery: "Llama", featured: true },
   { id: "qwen", name: "Qwen", shortName: "Qwen", rank: 9, route: "openrouter", modelQuery: "Qwen", featured: true },

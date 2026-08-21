@@ -3,6 +3,7 @@ import { DemoConnector } from "./demo";
 import { GoogleConnector } from "./google";
 import { OpenAIConnector } from "./openai";
 import { OpenRouterCatalogConnector } from "./openrouter";
+import { PerplexityConnector } from "./perplexity";
 import { XAIConnector } from "./xai";
 import type { AIConnector, AIProviderId } from "../types";
 import { PROVIDER_LABELS } from "../types";
@@ -15,6 +16,9 @@ const nativeConnectors: Partial<Record<AIProviderId, AIConnector>> = {
   anthropic: new AnthropicConnector(),
   google: new GoogleConnector(),
   xai: new XAIConnector(),
+  // Prepared now, activated later only when PERPLEXITY_API_KEY exists.
+  // This deliberately prevents an OpenRouter key from silently activating Perplexity.
+  perplexity: new PerplexityConnector(),
 };
 
 const catalogConnectors: Partial<Record<AIProviderId, AIConnector>> = {};
