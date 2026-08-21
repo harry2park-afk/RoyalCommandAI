@@ -27,12 +27,12 @@
         overflow: hidden !important;
         text-overflow: ellipsis !important;
         white-space: nowrap !important;
-        border: 1px solid #2A3B6E !important;
+        border: 1px solid #bcae8d !important;
         border-radius: 6px !important;
-        background: #0b1524 !important;
+        background: rgba(214, 200, 166, 0.24) !important;
         color: #f4f0e7 !important;
         padding: 0 8px !important;
-        font-family: "Times New Roman", serif !important;
+        font-family: "Times New Roman", Times, serif !important;
         font-size: clamp(9px, 0.72vw, 12px) !important;
         font-weight: 600 !important;
         line-height: 28px !important;
@@ -40,15 +40,15 @@
         cursor: pointer !important;
       }
       #${SWITCHER_ID} .rc-room-switcher-button:hover {
-        border-color: #FFD700 !important;
-        color: #FFD700 !important;
-        background: rgba(255,215,0,.07) !important;
+        border-color: #d7c79e !important;
+        color: #fffaf0 !important;
+        background: rgba(214, 200, 166, 0.34) !important;
       }
       #${SWITCHER_ID} .rc-room-switcher-button[aria-current="page"] {
-        border-color: #FFD700 !important;
-        color: #FFD700 !important;
-        background: rgba(255,215,0,.12) !important;
-        box-shadow: inset 0 0 0 1px rgba(255,215,0,.15) !important;
+        border-color: #d7c79e !important;
+        color: #fffaf0 !important;
+        background: rgba(214, 200, 166, 0.30) !important;
+        box-shadow: inset 0 0 0 1px rgba(255,255,255,.08) !important;
       }
       .royal-room-main main > div.fixed:first-of-type > div:first-child > a[href="/dashboard"] {
         display: none !important;
