@@ -13,10 +13,21 @@
     }) || null;
   }
 
-  function moveLanguageBox() {
+  function moveRightControls() {
     const dock = findDock();
     const picker = document.querySelector('.rc-lang-picker');
+    const speaker = document.querySelector('[data-speaker-control="true"]');
     if (!(dock instanceof HTMLElement) || !(picker instanceof HTMLElement)) return;
+
+    if (speaker instanceof HTMLButtonElement) {
+      if (speaker.parentElement !== dock || speaker.nextElementSibling !== picker) {
+        dock.insertBefore(speaker, picker);
+      }
+      speaker.style.flex = '0 0 auto';
+      speaker.style.alignSelf = 'center';
+      speaker.style.marginLeft = '0';
+      speaker.style.marginRight = '6px';
+    }
 
     if (picker.parentElement !== dock || dock.lastElementChild !== picker) {
       dock.appendChild(picker);
@@ -42,7 +53,7 @@
     scheduled = true;
     requestAnimationFrame(() => {
       scheduled = false;
-      moveLanguageBox();
+      moveRightControls();
     });
   }
 
