@@ -3,79 +3,81 @@ import caConfig from "./countries/ca.json";
 import usConfig from "./countries/us.json";
 import type { CountryConfig } from "../types/countryConfig";
 
-type DomainCountryCode = "AU" | "US" | "GLOBAL";
-type RequestCountryCode = "AU" | "US" | "CA";
+export type CountryCode = string;
 
-const DOMAIN_COUNTRY_MAP: Record<string, DomainCountryCode> = {
-  "atyourcommandai.com.au": "AU",
-  "www.atyourcommandai.com.au": "AU",
-  "atyourcommandai.com": "US",
-  "www.atyourcommandai.com": "US",
-  "royalcommand.ai": "GLOBAL",
-  "www.royalcommand.ai": "GLOBAL",
-  "royalcommandai.com": "GLOBAL",
-  "www.royalcommandai.com": "GLOBAL",
+type DomainBinding = {
+  countryCode: CountryCode | "GLOBAL";
+  allowedCountryOverrides?: CountryCode[];
 };
 
-const NORTH_AMERICA_DOMAINS = new Set([
-  "atyourcommandai.com",
-  "www.atyourcommandai.com",
-]);
+const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
+  AU: auConfig as CountryConfig,
+  CA: caConfig as CountryConfig,
+  US: usConfig as CountryConfig,
+};
+
+/**
+ * Public-domain registry.
+ *
+ * This is intentionally data-driven so Royal Command can grow toward 100+ country
+ * services without adding country-specific branching logic to the resolver.
+ * New countries should add their config file to COUNTRY_CONFIGS and their verified
+ * domain aliases here only after domain ownership / hosting is confirmed.
+ */
+const DOMAIN_BINDINGS: Record<string, DomainBinding> = {
+  "atyourcommandai.com.au": { countryCode: "AU" },
+  "www.atyourcommandai.com.au": { countryCode: "AU" },
+  "atyourcommandai.com": { countryCode: "US", allowedCountryOverrides: ["CA"] },
+  "www.atyourcommandai.com": { countryCode: "US", allowedCountryOverrides: ["CA"] },
+  "royalcommand.ai": { countryCode: "GLOBAL" },
+  "www.royalcommand.ai": { countryCode: "GLOBAL" },
+  "royalcommandai.com": { countryCode: "GLOBAL" },
+  "www.royalcommandai.com": { countryCode: "GLOBAL" },
+};
 
 function cleanHostname(hostname: string): string {
   return hostname.trim().toLowerCase().split(":")[0];
 }
 
+export function hasCountryConfig(countryCode: CountryCode): boolean {
+  return Boolean(COUNTRY_CONFIGS[countryCode.trim().toUpperCase()]);
+}
+
+export function getConfiguredCountryCodes(): CountryCode[] {
+  return Object.keys(COUNTRY_CONFIGS).sort();
+}
+
 export function getCountryConfigByCountryCode(
-  countryCode: RequestCountryCode,
-): CountryConfig {
-  if (countryCode === "AU") {
-    return auConfig as CountryConfig;
-  }
+  countryCode: CountryCode,
+): CountryConfig | null {
+  return COUNTRY_CONFIGS[countryCode.trim().toUpperCase()] || null;
+}
 
-  if (countryCode === "CA") {
-    return caConfig as CountryConfig;
-  }
-
-  return usConfig as CountryConfig;
+export function getCountryCodeByDomain(hostname: string): CountryCode | "GLOBAL" | null {
+  return DOMAIN_BINDINGS[cleanHostname(hostname)]?.countryCode || null;
 }
 
 export function getCountryConfigByDomain(hostname: string): CountryConfig | null {
-  const countryCode = DOMAIN_COUNTRY_MAP[cleanHostname(hostname)];
-
-  if (countryCode === "AU") {
-    return auConfig as CountryConfig;
-  }
-
-  if (countryCode === "US") {
-    return usConfig as CountryConfig;
-  }
-
-  // Returning null preserves the existing Global Core behavior for global and unknown domains.
-  return null;
+  const binding = DOMAIN_BINDINGS[cleanHostname(hostname)];
+  if (!binding || binding.countryCode === "GLOBAL") return null;
+  return getCountryConfigByCountryCode(binding.countryCode);
 }
 
 export function getCountryConfigForRequest(
   hostname: string,
-  requestedCountryCode?: RequestCountryCode | null,
+  requestedCountryCode?: CountryCode | null,
 ): CountryConfig | null {
-  const hostnameKey = cleanHostname(hostname);
+  const binding = DOMAIN_BINDINGS[cleanHostname(hostname)];
+  if (!binding || binding.countryCode === "GLOBAL") return null;
 
-  // The Australian domain always uses the AU configuration.
-  if (DOMAIN_COUNTRY_MAP[hostnameKey] === "AU") {
-    return auConfig as CountryConfig;
+  const requested = requestedCountryCode?.trim().toUpperCase();
+  if (
+    requested &&
+    binding.allowedCountryOverrides?.includes(requested) &&
+    hasCountryConfig(requested)
+  ) {
+    return getCountryConfigByCountryCode(requested);
   }
 
-  // US and Canada share the same North America domain. US remains the default;
-  // an explicit CA customer/country selection activates the existing Canada config.
-  if (NORTH_AMERICA_DOMAINS.has(hostnameKey)) {
-    if (requestedCountryCode === "CA") {
-      return caConfig as CountryConfig;
-    }
-
-    return usConfig as CountryConfig;
-  }
-
-  // Global and unknown domains continue to use the existing Global Core behavior.
-  return null;
+  return getCountryConfigByCountryCode(binding.countryCode);
 }
