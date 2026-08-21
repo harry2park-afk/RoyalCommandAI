@@ -1,1 +1,0 @@
-Room Builder scroll unlock is intentionally scoped to /room-builder so the fixed Command Room desktop layout remains unchanged.
