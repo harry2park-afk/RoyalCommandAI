@@ -4,6 +4,18 @@
   const STYLE_ID = "rc-room-switcher-style";
   const SWITCHER_ID = "rc-room-switcher";
   const currentRoomId = window.location.pathname.split("/").filter(Boolean).pop() || "";
+  const PLACEHOLDER_ROOM_NAMES = [
+    "법률룸",
+    "취미룸",
+    "학습룸",
+    "기술룸",
+    "사업룸",
+    "부동산룸",
+    "여행룸",
+    "문서룸",
+    "프로젝트룸",
+    "상담룸",
+  ];
 
   function installStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -49,6 +61,15 @@
         color: #fffaf0 !important;
         background: rgba(214, 200, 166, 0.30) !important;
         box-shadow: inset 0 0 0 1px rgba(255,255,255,.08) !important;
+      }
+      #${SWITCHER_ID} .rc-room-switcher-placeholder {
+        opacity: .34 !important;
+        color: #e8dfcf !important;
+        background: rgba(214, 200, 166, 0.10) !important;
+        border-color: rgba(188, 174, 141, 0.50) !important;
+        cursor: default !important;
+        pointer-events: none !important;
+        font-weight: 400 !important;
       }
       .royal-room-main main > div.fixed:first-of-type > div:first-child > a[href="/dashboard"] {
         display: none !important;
@@ -102,9 +123,17 @@
       .filter((room) => String(room.name).trim().toLowerCase() !== "command room")
       .slice(0, 12);
 
-    const visibleRooms = specialistRooms.length
+    const actualRooms = specialistRooms.length
       ? specialistRooms
       : [{ id: currentRoomId, name: "회계룸 샘플", status: "active", sample: true }];
+
+    const existingNames = new Set(actualRooms.map((room) => String(room.name || "").replace(/\s*샘플\s*$/u, "").trim()));
+    const placeholders = PLACEHOLDER_ROOM_NAMES
+      .filter((name) => !existingNames.has(name.replace(/룸$/u, "룸")))
+      .slice(0, Math.max(0, 10 - actualRooms.length))
+      .map((name, index) => ({ id: `placeholder-${index}`, name, placeholder: true }));
+
+    const visibleRooms = [...actualRooms, ...placeholders].slice(0, 12);
 
     dock.style.setProperty("--rc-room-count", String(Math.max(visibleRooms.length, 1)));
     dock.replaceChildren();
@@ -112,16 +141,18 @@
     for (const room of visibleRooms) {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "rc-room-switcher-button";
+      button.className = `rc-room-switcher-button${room.placeholder ? " rc-room-switcher-placeholder" : ""}`;
       button.textContent = String(room.name);
-      button.title = room.sample ? "테스트용 샘플 룸" : String(room.name);
-      if (!room.sample && String(room.id) === currentRoomId) button.setAttribute("aria-current", "page");
-      button.addEventListener("click", () => {
-        const targetId = String(room.id || currentRoomId);
-        if (!targetId) return;
-        if (targetId === currentRoomId) return;
-        window.location.assign(`/rooms/${encodeURIComponent(targetId)}`);
-      });
+      button.title = room.placeholder ? "아직 연결되지 않은 Room 예시" : room.sample ? "테스트용 샘플 룸" : String(room.name);
+      if (!room.placeholder && !room.sample && String(room.id) === currentRoomId) button.setAttribute("aria-current", "page");
+      if (!room.placeholder) {
+        button.addEventListener("click", () => {
+          const targetId = String(room.id || currentRoomId);
+          if (!targetId) return;
+          if (targetId === currentRoomId) return;
+          window.location.assign(`/rooms/${encodeURIComponent(targetId)}`);
+        });
+      }
       dock.appendChild(button);
     }
 
