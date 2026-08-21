@@ -16,6 +16,7 @@ type UiPreferences = {
   aiSlots?: string[];
   compactAiDock?: string[];
   rightPanelApps?: string[];
+  hiddenRoomIds?: string[];
   language?: string;
   chatSidebarWidth?: number;
   chatSidebarCollapsed?: boolean;
@@ -77,6 +78,8 @@ function sanitise(value: unknown): UiPreferences {
   if (compactAiDock) result.compactAiDock = compactAiDock;
   const rightPanelApps = sanitiseStringArray(input.rightPanelApps, 100);
   if (rightPanelApps) result.rightPanelApps = rightPanelApps;
+  const hiddenRoomIds = sanitiseStringArray(input.hiddenRoomIds, 100);
+  if (hiddenRoomIds) result.hiddenRoomIds = hiddenRoomIds;
 
   if (typeof input.language === "string" && input.language.length <= 32) {
     result.language = input.language;
