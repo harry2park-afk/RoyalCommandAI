@@ -44,68 +44,148 @@ function latestAiElement(viewport: HTMLElement) {
   return Array.from(viewport.children).reverse().find(isReadableAiElement) || null;
 }
 
-function aiCountAfterLatestUser(viewport: HTMLElement) {
-  const children = Array.from(viewport.children);
-  let lastUserIndex = -1;
-  children.forEach((element, index) => {
-    if (element.tagName === "BUTTON") lastUserIndex = index;
-  });
-  return children.slice(lastUserIndex + 1).filter(isReadableAiElement).length;
+function splitSpeechText(text: string, lang: string) {
+  const clean = cleanSpeechText(text).slice(0, 12000);
+  if (!clean) return [];
+
+  const maxLength = lang.toLowerCase().startsWith("ko") ? 90 : 180;
+  const sentences = clean.match(/[^.!?。！？]+[.!?。！？]?/g) || [clean];
+  const chunks: string[] = [];
+  let current = "";
+
+  const pushCurrent = () => {
+    const value = current.trim();
+    if (value) chunks.push(value);
+    current = "";
+  };
+
+  for (const sentenceRaw of sentences) {
+    let sentence = sentenceRaw.trim();
+    while (sentence.length > maxLength) {
+      if (current) pushCurrent();
+      let splitAt = sentence.lastIndexOf(" ", maxLength);
+      if (splitAt < Math.floor(maxLength * 0.55)) splitAt = maxLength;
+      chunks.push(sentence.slice(0, splitAt).trim());
+      sentence = sentence.slice(splitAt).trim();
+    }
+
+    if (!sentence) continue;
+    if (current && current.length + 1 + sentence.length > maxLength) pushCurrent();
+    current = current ? `${current} ${sentence}` : sentence;
+  }
+  pushCurrent();
+  return chunks;
 }
 
 export default function SpeakerTtsBridge() {
   const spokenElements = useRef(new WeakSet<HTMLElement>());
-  const activeUtterances = useRef(new Set<SpeechSynthesisUtterance>());
-  const restartTimer = useRef<number | null>(null);
+  const voices = useRef<SpeechSynthesisVoice[]>([]);
+  const queue = useRef<string[]>([]);
+  const queueLanguage = useRef("ko-KR");
+  const currentUtterance = useRef<SpeechSynthesisUtterance | null>(null);
+  const generation = useRef(0);
+  const clickTimer = useRef<number | null>(null);
 
   useEffect(() => {
     if (!("speechSynthesis" in window)) return;
     const speech = window.speechSynthesis;
 
-    function stopSpeech() {
-      if (restartTimer.current !== null) {
-        window.clearTimeout(restartTimer.current);
-        restartTimer.current = null;
+    const refreshVoices = () => {
+      voices.current = speech.getVoices();
+    };
+    refreshVoices();
+    speech.addEventListener("voiceschanged", refreshVoices);
+
+    function stopAll() {
+      generation.current += 1;
+      queue.current = [];
+      currentUtterance.current = null;
+      if (clickTimer.current !== null) {
+        window.clearTimeout(clickTimer.current);
+        clickTimer.current = null;
       }
       speech.cancel();
-      activeUtterances.current.clear();
     }
 
-    function speak(text: string, replaceCurrent = false) {
-      const clean = cleanSpeechText(text).slice(0, 8000);
-      if (!clean) return;
+    function preferredVoice(lang: string) {
+      const all = voices.current.length ? voices.current : speech.getVoices();
+      const exact = all.filter((voice) => voice.lang.toLowerCase() === lang.toLowerCase());
+      const prefix = lang.toLowerCase().split("-")[0];
+      const sameLanguage = all.filter((voice) => voice.lang.toLowerCase().startsWith(prefix));
+      return exact.find((voice) => voice.localService)
+        || sameLanguage.find((voice) => voice.localService)
+        || exact[0]
+        || sameLanguage[0]
+        || all.find((voice) => voice.default)
+        || all[0]
+        || null;
+    }
 
-      if (replaceCurrent) stopSpeech();
+    function speakNext(token: number) {
+      if (token !== generation.current || !speakerEnabled()) return;
+      const next = queue.current.shift();
+      if (!next) {
+        currentUtterance.current = null;
+        return;
+      }
 
-      const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.lang = selectedSpeechLanguage();
+      const utterance = new SpeechSynthesisUtterance(next);
+      utterance.lang = queueLanguage.current;
       utterance.volume = 1;
       const isKorean = utterance.lang.toLowerCase().startsWith("ko");
       utterance.rate = isKorean ? 0.92 : 1;
       utterance.pitch = isKorean ? 0.98 : 1;
+      const voice = preferredVoice(utterance.lang);
+      if (voice) utterance.voice = voice;
+      currentUtterance.current = utterance;
 
-      const prefix = utterance.lang.toLowerCase().split("-")[0];
-      const voices = speech.getVoices().filter((voice) => voice.lang.toLowerCase().startsWith(prefix));
-      const preferred = voices.find((voice) => /natural|online|microsoft|google/i.test(voice.name)) || voices[0];
-      if (preferred) utterance.voice = preferred;
-
-      activeUtterances.current.add(utterance);
-      const release = () => activeUtterances.current.delete(utterance);
-      utterance.onend = release;
-      utterance.onerror = release;
-
-      const start = () => {
-        speech.resume();
-        speech.speak(utterance);
+      utterance.onend = () => {
+        if (token !== generation.current) return;
+        currentUtterance.current = null;
+        window.setTimeout(() => speakNext(token), 35);
+      };
+      utterance.onerror = () => {
+        if (token !== generation.current) return;
+        currentUtterance.current = null;
+        window.setTimeout(() => speakNext(token), 60);
       };
 
-      if (replaceCurrent) {
-        restartTimer.current = window.setTimeout(() => {
-          restartTimer.current = null;
-          start();
-        }, 60);
-      } else {
-        start();
+      speech.resume();
+      speech.speak(utterance);
+    }
+
+    function startFresh(text: string) {
+      const lang = selectedSpeechLanguage();
+      const chunks = splitSpeechText(text, lang);
+      if (!chunks.length) return;
+
+      // Cancel RoomV3's legacy one-piece utterance and make this chunked queue authoritative.
+      generation.current += 1;
+      const token = generation.current;
+      speech.cancel();
+      currentUtterance.current = null;
+      queueLanguage.current = lang;
+      queue.current = chunks;
+      window.setTimeout(() => speakNext(token), 90);
+    }
+
+    function enqueue(text: string) {
+      const lang = selectedSpeechLanguage();
+      const chunks = splitSpeechText(text, lang);
+      if (!chunks.length) return;
+
+      queueLanguage.current = lang;
+      if (currentUtterance.current === null && (speech.speaking || speech.pending)) {
+        // Another TTS path is active (RoomV3 legacy Council read). Replace it with the reliable queue.
+        startFresh(text);
+        return;
+      }
+
+      queue.current.push(...chunks);
+      if (currentUtterance.current === null) {
+        generation.current += 1;
+        const token = generation.current;
+        window.setTimeout(() => speakNext(token), 30);
       }
     }
 
@@ -117,10 +197,15 @@ export default function SpeakerTtsBridge() {
       });
     }
 
-    function readLatestAfterToggle() {
-      window.setTimeout(() => {
+    function onSpeakerClick(event: MouseEvent) {
+      const target = event.target;
+      if (!(target instanceof Element) || !target.closest(SPEAKER_SELECTOR)) return;
+
+      if (clickTimer.current !== null) window.clearTimeout(clickTimer.current);
+      clickTimer.current = window.setTimeout(() => {
+        clickTimer.current = null;
         if (!speakerEnabled()) {
-          stopSpeech();
+          stopAll();
           return;
         }
 
@@ -128,17 +213,11 @@ export default function SpeakerTtsBridge() {
         const latest = viewport ? latestAiElement(viewport) : null;
         if (latest) {
           spokenElements.current.add(latest);
-          speak(latest.innerText || latest.textContent || "", true);
+          startFresh(latest.innerText || latest.textContent || "");
         } else {
-          speak(selectedSpeechLanguage().startsWith("ko") ? "음성 읽기가 켜졌습니다." : "Voice reading is on.", true);
+          startFresh(selectedSpeechLanguage().startsWith("ko") ? "음성 읽기가 켜졌습니다." : "Voice reading is on.");
         }
-      }, 80);
-    }
-
-    function onClick(event: MouseEvent) {
-      const target = event.target;
-      if (!(target instanceof Element) || !target.closest(SPEAKER_SELECTOR)) return;
-      readLatestAfterToggle();
+      }, 140);
     }
 
     let scanTimer = 0;
@@ -152,29 +231,25 @@ export default function SpeakerTtsBridge() {
         const fresh = Array.from(viewport.children)
           .filter(isReadableAiElement)
           .filter((element) => !spokenElements.current.has(element));
-        if (!fresh.length) return;
 
-        const countThisTurn = aiCountAfterLatestUser(viewport);
-        fresh.forEach((element, index) => {
+        for (const element of fresh) {
           spokenElements.current.add(element);
-          // RoomV3 already speaks a single Council final answer. Avoid duplicating
-          // that one existing path, while still queueing normal provider answers.
-          if (countThisTurn === 1 && index === 0 && (speech.speaking || speech.pending)) return;
-          speak(element.innerText || element.textContent || "", false);
-        });
-      }, 120);
+          enqueue(element.innerText || element.textContent || "");
+        }
+      }, 140);
     }
 
     markCurrentAsSeen();
-    document.addEventListener("click", onClick, false);
+    document.addEventListener("click", onSpeakerClick, false);
     const observer = new MutationObserver(scanNewAiAnswers);
     observer.observe(document.body, { childList: true, subtree: true });
 
     return () => {
-      document.removeEventListener("click", onClick, false);
+      document.removeEventListener("click", onSpeakerClick, false);
       observer.disconnect();
+      speech.removeEventListener("voiceschanged", refreshVoices);
       window.clearTimeout(scanTimer);
-      stopSpeech();
+      stopAll();
     };
   }, []);
 
