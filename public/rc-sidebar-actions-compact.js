@@ -88,18 +88,36 @@
     document.head.appendChild(style);
   }
 
+  function findActionButtons(aside, selectBox) {
+    const nearbyRow = selectBox?.nextElementSibling;
+    const rows = [nearbyRow, ...Array.from(aside.querySelectorAll("div.grid"))]
+      .filter((element) => element instanceof HTMLElement);
+
+    for (const row of rows) {
+      const buttons = Array.from(row.querySelectorAll(":scope > button"));
+      const save = buttons.find((button) => (button.textContent || "").trim().toUpperCase().includes("SAVE"));
+      const del = buttons.find((button) => (button.textContent || "").trim().toUpperCase().includes("DELETE"));
+      if (save instanceof HTMLButtonElement && del instanceof HTMLButtonElement) {
+        return { actionRow: row, save, del };
+      }
+    }
+
+    return null;
+  }
+
   function arrange() {
     const aside = document.querySelector(".royal-room-layout > aside:first-child") || document.querySelector("aside");
     if (!(aside instanceof HTMLElement)) return;
 
     const select = aside.querySelector('input[aria-label="Select all conversations"]');
-    const save = aside.querySelector('button[title="Save selected conversations"]');
-    const del = aside.querySelector('button[title="Delete selected conversations"]');
-    if (!(select instanceof HTMLInputElement) || !(save instanceof HTMLButtonElement) || !(del instanceof HTMLButtonElement)) return;
+    if (!(select instanceof HTMLInputElement)) return;
 
     const selectBox = select.closest("div.mb-1");
-    const actionRow = save.parentElement;
-    if (!(selectBox instanceof HTMLElement) || !(actionRow instanceof HTMLElement)) return;
+    if (!(selectBox instanceof HTMLElement)) return;
+
+    const actionParts = findActionButtons(aside, selectBox);
+    if (!actionParts) return;
+    const { actionRow, save, del } = actionParts;
 
     installStyle();
     actionRow.classList.add("rc-compact-action-row");
@@ -120,8 +138,9 @@
   document.addEventListener("click", (event) => {
     const target = event.target;
     if (!(target instanceof Element)) return;
-    const button = target.closest('button[title="Delete selected conversations"]');
+    const button = target.closest("button");
     if (!(button instanceof HTMLButtonElement)) return;
+    if (!(button.textContent || "").trim().toUpperCase().includes("DELETE")) return;
 
     const originalConfirm = window.confirm;
     window.confirm = () => true;
