@@ -4,6 +4,13 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ROOM_TEMPLATES } from "@/lib/rooms/templates";
 import { ROOM_MATERIALS, TEMPLATE_MATERIAL_PRESETS } from "@/lib/rooms/materials";
+import {
+  applyGlobalPreset,
+  DEFAULT_GLOBAL_ROOM_SETTINGS,
+  GLOBAL_ROOM_PRESETS,
+  GlobalRoomSettings,
+  serializeGlobalRoomSettings,
+} from "@/lib/rooms/global";
 
 type AnswerState = Record<string, string>;
 type ApprovalMode = "safe" | "approval" | "autonomous";
@@ -23,6 +30,7 @@ export default function RoomBuilderPage() {
   const [selectedMaterials, setSelectedMaterials] = useState<string[]>([]);
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>("approval");
   const [websiteKit, setWebsiteKit] = useState(false);
+  const [globalSettings, setGlobalSettings] = useState<GlobalRoomSettings>(DEFAULT_GLOBAL_ROOM_SETTINGS);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -57,6 +65,10 @@ export default function RoomBuilderPage() {
     setSelectedMaterials((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
   }
 
+  function setGlobal<K extends keyof GlobalRoomSettings>(key: K, value: GlobalRoomSettings[K]) {
+    setGlobalSettings((current) => ({ ...current, [key]: value }));
+  }
+
   function buildDescription() {
     const enabledMaterials = ROOM_MATERIALS
       .filter((item) => selectedMaterials.includes(item.id) || (websiteKit && item.id === "website-builder"))
@@ -69,6 +81,7 @@ export default function RoomBuilderPage() {
       `Approval mode: ${approvalMode}`,
       `Website Builder Kit: ${websiteKit ? "Enabled" : "Disabled"}`,
       `Room materials: ${enabledMaterials.join(", ")}`,
+      ...serializeGlobalRoomSettings(globalSettings),
       ...template.fields.map((field) => `${field.label}: ${answers[field.id]?.trim() || "Not specified"}`),
     ].join("\n");
   }
@@ -100,9 +113,9 @@ export default function RoomBuilderPage() {
   return (
     <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8 md:px-6">
       <div className="rounded-3xl border border-[var(--gold)]/35 bg-black/20 p-5 shadow-[0_20px_60px_rgba(0,0,0,.3)] md:p-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--gold-soft)]">Royal Command Room Builder · Template + Warehouse</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--gold-soft)]">Royal Command Room Builder · Global Core + Template + Warehouse</p>
         <h1 className="mt-2 text-3xl font-semibold" style={{ fontFamily: "var(--font-display), serif" }}>{roomName} 만들기</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">{template.name} 기본틀과 추천 재료를 자동으로 준비했습니다. 고객은 필요한 재료만 남기고 Preview 후 Room을 만듭니다.</p>
+        <p className="mt-2 text-sm text-[var(--muted)]">세계 공통 Core와 추천 재료를 자동으로 준비했습니다. 고객은 필요한 재료만 남기고 국가/언어를 선택한 뒤 Preview 후 Room을 만듭니다.</p>
 
         <form onSubmit={createRoom} className="mt-6 space-y-7">
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
@@ -171,9 +184,66 @@ export default function RoomBuilderPage() {
           </section>
 
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
+            <div className="text-sm font-semibold text-[var(--gold-soft)]">4. Global Settings & Safe Copy</div>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">하나의 Global Core를 세계 어느 나라에서도 사용합니다. 복사할 때는 구조만 복사하고 고객 데이터, Memory, API Key와 비밀정보는 복사하지 않습니다.</p>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-2">
+              <div>
+                <label className="mb-2 block text-sm font-semibold">국가 / 지역</label>
+                <select
+                  className="rc-input"
+                  value={GLOBAL_ROOM_PRESETS.some((item) => item.id === globalSettings.countryCode) ? globalSettings.countryCode : "OTHER"}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === "OTHER") {
+                      setGlobalSettings((current) => ({ ...current, countryCode: "OTHER" }));
+                      return;
+                    }
+                    setGlobalSettings((current) => applyGlobalPreset(current, value));
+                  }}
+                >
+                  {GLOBAL_ROOM_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
+                  <option value="OTHER">Other / Custom country</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">Language Tag</label>
+                <input className="rc-input" value={globalSettings.languageTag} onChange={(event) => setGlobal("languageTag", event.target.value.slice(0, 35))} placeholder="예: en-AU, ko-KR, ar-AE" />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">Time Zone</label>
+                <input className="rc-input" value={globalSettings.timeZone} onChange={(event) => setGlobal("timeZone", event.target.value.slice(0, 80))} placeholder="예: Australia/Sydney" />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">Currency</label>
+                <input className="rc-input" value={globalSettings.currencyCode} onChange={(event) => setGlobal("currencyCode", event.target.value.toUpperCase().slice(0, 3))} placeholder="AUD" />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">Text Direction</label>
+                <select className="rc-input" value={globalSettings.textDirection} onChange={(event) => setGlobal("textDirection", event.target.value as GlobalRoomSettings["textDirection"])}>
+                  <option value="auto">Auto</option>
+                  <option value="ltr">Left to Right</option>
+                  <option value="rtl">Right to Left</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-semibold">Encoding / Copy Safety</label>
+                <div className="rounded-xl border border-[var(--gold)]/25 bg-black/20 px-3 py-3 text-sm leading-6">
+                  UTF-8 · Structure-only clone · Sensitive data excluded
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-[var(--gold-soft)]">4. Website Builder Kit</div>
+                <div className="text-sm font-semibold text-[var(--gold-soft)]">5. Website Builder Kit</div>
                 <p className="mt-1 text-xs text-[var(--muted)]">필요하면 AI가 웹 구조, 페이지, 폼, Room 연결, 모바일 대응과 배포 준비까지 돕습니다.</p>
               </div>
               <button type="button" onClick={() => setWebsiteKit((value) => !value)} className={`min-w-20 rounded-full border px-4 py-2 text-sm font-semibold ${websiteKit ? "border-[var(--gold)] bg-[var(--gold)]/20 text-[var(--gold-soft)]" : "border-white/15 bg-black/20 text-[var(--muted)]"}`}>
@@ -185,8 +255,8 @@ export default function RoomBuilderPage() {
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <div className="text-sm font-semibold text-[var(--gold-soft)]">5. Preview & Test</div>
-                <p className="mt-1 text-xs text-[var(--muted)]">실제 생성 전에 구성 내용을 확인합니다.</p>
+                <div className="text-sm font-semibold text-[var(--gold-soft)]">6. Preview & Test</div>
+                <p className="mt-1 text-xs text-[var(--muted)]">실제 생성 전에 구성과 세계화/복사 안전 설정을 확인합니다.</p>
               </div>
               <button type="button" onClick={() => setPreviewOpen((value) => !value)} className="rc-btn rc-btn-ghost text-sm">{previewOpen ? "Preview 닫기" : "Preview 보기"}</button>
             </div>
@@ -198,6 +268,11 @@ export default function RoomBuilderPage() {
                 <div><strong>AI 추천:</strong> {template.suggestedAgents.join(", ")}</div>
                 <div><strong>Memory:</strong> Room Memory 기본 ON</div>
                 <div><strong>승인:</strong> {APPROVAL_OPTIONS.find((item) => item.id === approvalMode)?.label}</div>
+                <div><strong>Country:</strong> {globalSettings.countryCode}</div>
+                <div><strong>Language:</strong> {globalSettings.languageTag}</div>
+                <div><strong>Time Zone:</strong> {globalSettings.timeZone}</div>
+                <div><strong>Currency:</strong> {globalSettings.currencyCode}</div>
+                <div><strong>Copy:</strong> Structure only · Data/Memory/API keys/Secrets 제외</div>
                 <div><strong>Website Kit:</strong> {websiteKit ? "사용" : "사용 안 함"}</div>
                 <div className="mt-2"><strong>재료:</strong> {ROOM_MATERIALS.filter((item) => selectedMaterials.includes(item.id)).map((item) => item.name).join(" · ")}</div>
               </div>
