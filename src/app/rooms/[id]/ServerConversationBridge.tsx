@@ -7,6 +7,10 @@ function sessionKey(roomId: string) {
   return `royalcommand:room:${roomId}:active-conversation`;
 }
 
+function preloadKey(roomId: string) {
+  return `royalcommand:room:${roomId}:preloaded-conversation`;
+}
+
 export default function ServerConversationBridge() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -16,6 +20,7 @@ export default function ServerConversationBridge() {
 
     const nativeFetch = window.fetch.bind(window);
     const key = sessionKey(roomId);
+    const preload = preloadKey(roomId);
 
     window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
@@ -36,6 +41,20 @@ export default function ServerConversationBridge() {
             statusText: roomResponse.statusText,
             headers: { "Content-Type": "application/json" },
           });
+        }
+
+        try {
+          const cached = JSON.parse(window.sessionStorage.getItem(preload) || "null");
+          if (cached?.conversationId === activeConversationId && Array.isArray(cached?.messages)) {
+            window.sessionStorage.removeItem(preload);
+            return new Response(JSON.stringify({ ...roomPayload, messages: cached.messages }), {
+              status: roomResponse.status,
+              statusText: roomResponse.statusText,
+              headers: { "Content-Type": "application/json" },
+            });
+          }
+        } catch {
+          window.sessionStorage.removeItem(preload);
         }
 
         const conversationResponse = await nativeFetch(
