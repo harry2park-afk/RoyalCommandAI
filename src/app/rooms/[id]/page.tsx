@@ -64,6 +64,10 @@ export default function RoomPage() {
           display: none !important;
         }
 
+        .royal-room-main button[data-speaker-control="true"] {
+          transform: translateY(46px) !important;
+        }
+
         #rc-new-chat-button,
         #rc-voice-command-button {
           height: 30px !important;

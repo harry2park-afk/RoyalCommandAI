@@ -34,12 +34,6 @@
       button.style.height = '30px';
       button.style.width = '170px';
     }
-
-    const speaker = document.querySelector('[data-speaker-control="true"]');
-    if (speaker instanceof HTMLButtonElement) {
-      speaker.style.position = 'relative';
-      speaker.style.top = '46px';
-    }
   }
 
   let scheduled = false;
