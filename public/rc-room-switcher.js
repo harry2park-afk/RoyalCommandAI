@@ -14,10 +14,12 @@
         display: grid !important;
         grid-template-columns: repeat(var(--rc-room-count, 1), minmax(0, 1fr)) !important;
         gap: 4px !important;
-        width: min(calc(var(--rc-room-count, 1) * 150px), 720px, 58vw) !important;
+        width: min(calc(var(--rc-room-count, 1) * 150px), 720px, 54vw) !important;
         min-width: 0 !important;
+        margin-left: 14px !important;
         margin-right: 10px !important;
         align-items: center !important;
+        flex: 0 1 auto !important;
       }
       #${SWITCHER_ID} .rc-room-switcher-button {
         height: 30px !important;
@@ -53,8 +55,9 @@
       }
       @media (max-width: 1200px) {
         #${SWITCHER_ID} {
-          width: min(calc(var(--rc-room-count, 1) * 92px), 52vw) !important;
+          width: min(calc(var(--rc-room-count, 1) * 92px), 46vw) !important;
           gap: 2px !important;
+          margin-left: 6px !important;
           margin-right: 4px !important;
         }
         #${SWITCHER_ID} .rc-room-switcher-button {
@@ -85,13 +88,23 @@
       dock = document.createElement("div");
       dock.id = SWITCHER_ID;
       const title = header.querySelector("h1");
-      if (title) header.insertBefore(dock, title);
+      if (title) title.insertAdjacentElement("afterend", dock);
       else header.insertBefore(dock, header.firstChild);
+    } else {
+      const title = header.querySelector("h1");
+      if (title && dock.previousElementSibling !== title) {
+        title.insertAdjacentElement("afterend", dock);
+      }
     }
 
-    const visibleRooms = rooms
+    const specialistRooms = rooms
       .filter((room) => room && room.id && room.name && room.status !== "archived")
+      .filter((room) => String(room.name).trim().toLowerCase() !== "command room")
       .slice(0, 12);
+
+    const visibleRooms = specialistRooms.length
+      ? specialistRooms
+      : [{ id: currentRoomId, name: "회계룸 샘플", status: "active", sample: true }];
 
     dock.style.setProperty("--rc-room-count", String(Math.max(visibleRooms.length, 1)));
     dock.replaceChildren();
@@ -101,16 +114,18 @@
       button.type = "button";
       button.className = "rc-room-switcher-button";
       button.textContent = String(room.name);
-      button.title = String(room.name);
-      if (String(room.id) === currentRoomId) button.setAttribute("aria-current", "page");
+      button.title = room.sample ? "테스트용 샘플 룸" : String(room.name);
+      if (!room.sample && String(room.id) === currentRoomId) button.setAttribute("aria-current", "page");
       button.addEventListener("click", () => {
-        if (String(room.id) === currentRoomId) return;
-        window.location.assign(`/rooms/${encodeURIComponent(String(room.id))}`);
+        const targetId = String(room.id || currentRoomId);
+        if (!targetId) return;
+        if (targetId === currentRoomId) return;
+        window.location.assign(`/rooms/${encodeURIComponent(targetId)}`);
       });
       dock.appendChild(button);
     }
 
-    if (visibleRooms.length === 0) dock.style.display = "none";
+    dock.style.display = visibleRooms.length ? "grid" : "none";
     return true;
   }
 
