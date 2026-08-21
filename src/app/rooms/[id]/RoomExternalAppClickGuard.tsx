@@ -60,7 +60,12 @@ export default function RoomExternalAppClickGuard() {
       }
 
       const button = findAppButton(event.target);
-      if (!button) return;
+      if (!button) {
+        // Never let a previous app press authorize a later unrelated click.
+        lastPointerDown.current = { element: null, at: 0 };
+        return;
+      }
+
       lastPointerDown.current = { element: button, at: performance.now() };
     }
 
@@ -77,27 +82,36 @@ export default function RoomExternalAppClickGuard() {
       const button = findAppButton(event.target);
       if (!button) return;
 
-      const title = (button.getAttribute("title") || "").trim().toLowerCase();
-      const isExternalApp = title === "chatgpt" || title === "email" || title === "instagram" || title === "youtube" || title === "google drive" || title === "google calendar" || title === "netflix" || title === "claude" || title === "gemini" || title === "grok";
-      if (!isExternalApp) return;
-
+      // Every right-panel app is protected, including Perplexity and any apps
+      // added later. External navigation is allowed only after a real pointer
+      // press on that exact same visible app button immediately beforehand.
       const pointer = lastPointerDown.current;
-      const directTrustedClick = event.isTrusted && pointer.element === button && performance.now() - pointer.at <= TRUST_WINDOW_MS;
-      if (directTrustedClick) {
-        lastPointerDown.current = { element: null, at: 0 };
-        return;
-      }
+      const directTrustedClick =
+        event.isTrusted &&
+        pointer.element === button &&
+        performance.now() - pointer.at <= TRUST_WINDOW_MS;
+
+      lastPointerDown.current = { element: null, at: 0 };
+
+      if (directTrustedClick) return;
 
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
     }
 
+    function onBlur() {
+      lastPointerDown.current = { element: null, at: 0 };
+    }
+
     document.addEventListener("pointerdown", onPointerDown, true);
     document.addEventListener("click", onClick, true);
+    window.addEventListener("blur", onBlur);
+
     return () => {
       document.removeEventListener("pointerdown", onPointerDown, true);
       document.removeEventListener("click", onClick, true);
+      window.removeEventListener("blur", onBlur);
     };
   }, []);
 
