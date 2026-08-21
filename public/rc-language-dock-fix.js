@@ -38,7 +38,7 @@
     const speaker = document.querySelector('[data-speaker-control="true"]');
     if (speaker instanceof HTMLButtonElement) {
       speaker.style.position = 'relative';
-      speaker.style.top = '6px';
+      speaker.style.top = '18px';
     }
   }
 
