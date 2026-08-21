@@ -1,0 +1,1 @@
+Correction for header placement: room shortcuts belong immediately to the right of `Royal Command AI`, never at the far top-left. The generic base `Command Room` shortcut is hidden. A temporary `회계룸 샘플` button is shown only until a real specialist room exists. No other Command Room controls are to be moved by this correction.
