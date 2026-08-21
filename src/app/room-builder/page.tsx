@@ -11,9 +11,12 @@ import {
   GlobalRoomSettings,
   serializeGlobalRoomSettings,
 } from "@/lib/rooms/global";
+import { ROOM_MEMBERSHIP_MIN_AUD, serializeLegalPricing } from "@/lib/legal/pricing";
+import LegalMultiCountryPanel from "./LegalMultiCountryPanel";
 
 type AnswerState = Record<string, string>;
 type ApprovalMode = "safe" | "approval" | "autonomous";
+type LegalSelectionDetail = { jurisdictions?: string[] };
 
 const APPROVAL_OPTIONS: Array<{ id: ApprovalMode; label: string; detail: string }> = [
   { id: "safe", label: "안전 모드", detail: "조회와 초안 중심. 외부 실행은 잠금." },
@@ -31,6 +34,7 @@ export default function RoomBuilderPage() {
   const [approvalMode, setApprovalMode] = useState<ApprovalMode>("approval");
   const [websiteKit, setWebsiteKit] = useState(false);
   const [globalSettings, setGlobalSettings] = useState<GlobalRoomSettings>(DEFAULT_GLOBAL_ROOM_SETTINGS);
+  const [legalJurisdictions, setLegalJurisdictions] = useState<string[]>(["AU"]);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -43,6 +47,15 @@ export default function RoomBuilderPage() {
     setRoomName((params.get("name") || "새 Room").trim().slice(0, 120) || "새 Room");
     setReturnRoom(params.get("returnRoom") || "");
     setSelectedMaterials(TEMPLATE_MATERIAL_PRESETS[validTemplate] || TEMPLATE_MATERIAL_PRESETS.custom);
+  }, []);
+
+  useEffect(() => {
+    function onLegalSelection(event: Event) {
+      const detail = (event as CustomEvent<LegalSelectionDetail>).detail;
+      if (Array.isArray(detail?.jurisdictions)) setLegalJurisdictions(detail.jurisdictions);
+    }
+    window.addEventListener("rc:legal-jurisdictions", onLegalSelection as EventListener);
+    return () => window.removeEventListener("rc:legal-jurisdictions", onLegalSelection as EventListener);
   }, []);
 
   const template = useMemo(
@@ -81,6 +94,8 @@ export default function RoomBuilderPage() {
       `Approval mode: ${approvalMode}`,
       `Website Builder Kit: ${websiteKit ? "Enabled" : "Disabled"}`,
       `Room materials: ${enabledMaterials.join(", ")}`,
+      `Room membership policy: minimum AUD ${ROOM_MEMBERSHIP_MIN_AUD}/month`,
+      ...(templateId === "legal" ? serializeLegalPricing(legalJurisdictions) : []),
       ...serializeGlobalRoomSettings(globalSettings),
       ...template.fields.map((field) => `${field.label}: ${answers[field.id]?.trim() || "Not specified"}`),
     ].join("\n");
@@ -116,6 +131,9 @@ export default function RoomBuilderPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--gold-soft)]">Royal Command Room Builder · Global Core + Template + Warehouse</p>
         <h1 className="mt-2 text-3xl font-semibold" style={{ fontFamily: "var(--font-display), serif" }}>{roomName} 만들기</h1>
         <p className="mt-2 text-sm text-[var(--muted)]">세계 공통 Core와 추천 재료를 자동으로 준비했습니다. 고객은 필요한 재료만 남기고 국가/언어를 선택한 뒤 Preview 후 Room을 만듭니다.</p>
+        <div className="mt-3 rounded-xl border border-[var(--gold)]/25 bg-[var(--gold)]/5 px-3 py-2 text-xs leading-5 text-[var(--muted)]">
+          Room 생성 회원정책: 최소 <strong className="text-[var(--gold-soft)]">A${ROOM_MEMBERSHIP_MIN_AUD}/월</strong>. 실제 회원 결제 확인/차단은 결제 시스템 연결 단계에서 서버 측으로 강제 적용합니다. 내부 개발 테스트는 현재 계속 사용할 수 있습니다.
+        </div>
 
         <form onSubmit={createRoom} className="mt-6 space-y-7">
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
@@ -170,6 +188,8 @@ export default function RoomBuilderPage() {
               })}
             </div>
           </section>
+
+          {templateId === "legal" ? <LegalMultiCountryPanel /> : null}
 
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
             <div className="text-sm font-semibold text-[var(--gold-soft)]">3. 승인 규칙</div>
@@ -268,6 +288,8 @@ export default function RoomBuilderPage() {
                 <div><strong>AI 추천:</strong> {template.suggestedAgents.join(", ")}</div>
                 <div><strong>Memory:</strong> Room Memory 기본 ON</div>
                 <div><strong>승인:</strong> {APPROVAL_OPTIONS.find((item) => item.id === approvalMode)?.label}</div>
+                <div><strong>Membership:</strong> 최소 A${ROOM_MEMBERSHIP_MIN_AUD}/월</div>
+                {templateId === "legal" ? <div><strong>Legal jurisdictions:</strong> {legalJurisdictions.join(", ") || "None"}</div> : null}
                 <div><strong>Country:</strong> {globalSettings.countryCode}</div>
                 <div><strong>Language:</strong> {globalSettings.languageTag}</div>
                 <div><strong>Time Zone:</strong> {globalSettings.timeZone}</div>
