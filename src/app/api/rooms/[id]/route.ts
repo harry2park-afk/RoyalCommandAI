@@ -47,9 +47,10 @@ export async function GET(
       .from("rooms")
       .select("*")
       .eq("id", id)
+      .eq("room_owner_id", user.id)
       .single();
-    if (error) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+    if (error || !room) {
+      return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
     const { data: messages } = await supabase
       .from("messages")
@@ -105,9 +106,10 @@ export async function PATCH(
       .from("rooms")
       .update({ name, updated_at: new Date().toISOString() })
       .eq("id", id)
+      .eq("room_owner_id", user.id)
       .select("id, name")
       .single();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error || !room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
     return NextResponse.json({ ok: true, room });
   }
 
@@ -128,9 +130,18 @@ export async function DELETE(
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
+    const { data: ownedRoom, error: ownershipError } = await supabase
+      .from("rooms")
+      .select("id")
+      .eq("id", id)
+      .eq("room_owner_id", user.id)
+      .single();
+    if (ownershipError || !ownedRoom) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+
     await supabase.from("messages").delete().eq("room_id", id);
     await supabase.from("documents").delete().eq("room_id", id);
-    const { error } = await supabase.from("rooms").delete().eq("id", id);
+    await supabase.from("room_members").delete().eq("room_id", id);
+    const { error } = await supabase.from("rooms").delete().eq("id", id).eq("room_owner_id", user.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
