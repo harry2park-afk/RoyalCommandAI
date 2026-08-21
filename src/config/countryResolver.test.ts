@@ -1,7 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  getConfiguredCountryCodes,
+  getCountryCodeByDomain,
+  getCountryConfigByCountryCode,
   getCountryConfigByDomain,
   getCountryConfigForRequest,
+  hasCountryConfig,
 } from "./countryResolver";
 
 describe("country domain routing", () => {
@@ -21,6 +25,7 @@ describe("country domain routing", () => {
   });
 
   it("keeps the global Royal Command domains on Global Core", () => {
+    expect(getCountryCodeByDomain("royalcommand.ai")).toBe("GLOBAL");
     expect(getCountryConfigByDomain("royalcommand.ai")).toBeNull();
     expect(getCountryConfigByDomain("www.royalcommand.ai")).toBeNull();
     expect(getCountryConfigByDomain("royalcommandai.com")).toBeNull();
@@ -32,6 +37,15 @@ describe("country domain routing", () => {
   });
 
   it("does not guess a country for an unknown domain", () => {
+    expect(getCountryCodeByDomain("example.invalid")).toBeNull();
     expect(getCountryConfigByDomain("example.invalid")).toBeNull();
+  });
+
+  it("exposes a generic country-config registry for future rollout", () => {
+    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "US"]);
+    expect(hasCountryConfig("au")).toBe(true);
+    expect(hasCountryConfig("JP")).toBe(false);
+    expect(getCountryConfigByCountryCode("US")?.currency).toBe("USD");
+    expect(getCountryConfigByCountryCode("JP")).toBeNull();
   });
 });
