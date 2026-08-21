@@ -30,7 +30,7 @@
         display: grid !important;
         grid-template-columns: repeat(var(--rc-room-count, 1), minmax(0, 1fr)) !important;
         gap: 4px !important;
-        width: min(calc(var(--rc-room-count, 1) * 150px), 720px, 54vw) !important;
+        width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 610px)) !important;
         min-width: 0 !important;
         margin-left: 14px !important;
         margin-right: 10px !important;
