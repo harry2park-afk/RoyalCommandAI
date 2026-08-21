@@ -102,6 +102,20 @@ export default function RoomPage() {
       <StableRoomV3 />
       <Script src={`/rc-room-switcher.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-room-manager.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
+      <Script id="rc-room-manager-fixed-position" strategy="afterInteractive">
+        {`(() => {
+          const move = () => {
+            const header = document.querySelector('.royal-room-main main > div.fixed:first-of-type > div:first-child');
+            const title = header?.querySelector('h1');
+            const manager = document.getElementById('rc-room-shortcut-manager');
+            if (!(header instanceof HTMLElement) || !(title instanceof HTMLElement) || !(manager instanceof HTMLElement)) return;
+            if (title.nextElementSibling !== manager) title.insertAdjacentElement('afterend', manager);
+          };
+          move();
+          const observer = new MutationObserver(move);
+          observer.observe(document.documentElement, { childList: true, subtree: true });
+        })();`}
+      </Script>
       <Script src={`/rc-language-picker.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-copy-question-thread.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-question-rules-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
