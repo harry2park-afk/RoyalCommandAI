@@ -180,6 +180,28 @@
     const buttons = aiButtons();
     if (!buttons.length) return;
 
+    const bar = dock.parentElement;
+    if (bar instanceof HTMLElement) {
+      bar.style.height = "77px";
+      const main = bar.parentElement;
+      if (main instanceof HTMLElement && main.tagName === "MAIN") {
+        main.style.paddingTop = "77px";
+      }
+    }
+
+    document.querySelectorAll(".royal-room-layout > aside").forEach((aside) => {
+      if (!(aside instanceof HTMLElement)) return;
+      aside.style.setProperty("top", "77px", "important");
+      aside.style.setProperty("height", "calc(100vh - 77px)", "important");
+      aside.style.setProperty("min-height", "calc(100vh - 77px)", "important");
+    });
+
+    dock.style.height = "35px";
+    dock.style.minHeight = "35px";
+    dock.style.maxHeight = "35px";
+    dock.style.paddingTop = "2px";
+    dock.style.paddingBottom = "2px";
+
     seedVisible(buttons);
     let visibleNames = readVisible();
 
