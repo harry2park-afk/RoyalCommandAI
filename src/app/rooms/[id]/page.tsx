@@ -80,6 +80,16 @@ export default function RoomPage() {
           padding-bottom: 0 !important;
         }
 
+        /* One purpose per voice control: composer mic = speech input, speaker = speech output.
+           The old left Voice button duplicated the composer microphone and was hard-coded to Korean. */
+        #rc-voice-command-button {
+          display: none !important;
+        }
+        #rc-new-chat-button {
+          grid-column: 1 / -1 !important;
+          width: 100% !important;
+        }
+
         aside button[title="Delete this conversation"] {
           display: none !important;
         }
