@@ -15,6 +15,10 @@
     "문서룸",
     "프로젝트룸",
     "상담룸",
+    "건강룸",
+    "가족룸",
+    "쇼핑룸",
+    "아이디어룸",
   ];
 
   function installStyle() {
@@ -121,7 +125,7 @@
     const specialistRooms = rooms
       .filter((room) => room && room.id && room.name && room.status !== "archived")
       .filter((room) => String(room.name).trim().toLowerCase() !== "command room")
-      .slice(0, 12);
+      .slice(0, 14);
 
     const actualRooms = specialistRooms.length
       ? specialistRooms
@@ -130,10 +134,10 @@
     const existingNames = new Set(actualRooms.map((room) => String(room.name || "").replace(/\s*샘플\s*$/u, "").trim()));
     const placeholders = PLACEHOLDER_ROOM_NAMES
       .filter((name) => !existingNames.has(name.replace(/룸$/u, "룸")))
-      .slice(0, Math.max(0, 10 - actualRooms.length))
+      .slice(0, Math.max(0, 14 - actualRooms.length))
       .map((name, index) => ({ id: `placeholder-${index}`, name, placeholder: true }));
 
-    const visibleRooms = [...actualRooms, ...placeholders].slice(0, 12);
+    const visibleRooms = [...actualRooms, ...placeholders].slice(0, 14);
 
     dock.style.setProperty("--rc-room-count", String(Math.max(visibleRooms.length, 1)));
     dock.replaceChildren();
