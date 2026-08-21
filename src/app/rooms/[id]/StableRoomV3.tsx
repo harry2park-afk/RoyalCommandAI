@@ -13,6 +13,10 @@ function activeKey(roomId: string) {
   return `royalcommand:room:${roomId}:active-conversation`;
 }
 
+function preloadKey(roomId: string) {
+  return `royalcommand:room:${roomId}:preloaded-conversation`;
+}
+
 export default function StableRoomV3() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -24,7 +28,23 @@ export default function StableRoomV3() {
     let changing = false;
 
     const remountCenterOnly = () => {
-      setVersion((value) => value + 1);
+      const doc = document as Document & {
+        startViewTransition?: (callback: () => void) => { finished?: Promise<unknown> };
+      };
+      if (typeof doc.startViewTransition === "function") {
+        doc.startViewTransition(() => setVersion((value) => value + 1));
+      } else {
+        setVersion((value) => value + 1);
+      }
+    };
+
+    const cacheConversation = (conversationId: string, messages: unknown[]) => {
+      try {
+        window.sessionStorage.setItem(
+          preloadKey(roomId),
+          JSON.stringify({ conversationId, messages }),
+        );
+      } catch {}
     };
 
     const syncActiveRow = () => {
@@ -70,8 +90,9 @@ export default function StableRoomV3() {
           const payload = await response.json().catch(() => ({}));
           if (!response.ok || !payload?.conversation?.id) throw new Error("New Chat failed");
           window.sessionStorage.setItem(activeKey(roomId), payload.conversation.id);
+          cacheConversation(payload.conversation.id, []);
           remountCenterOnly();
-          window.setTimeout(syncActiveRow, 850);
+          window.setTimeout(syncActiveRow, 80);
           return;
         }
 
@@ -87,12 +108,20 @@ export default function StableRoomV3() {
         const conversation = visible[index];
         if (!conversation?.id) throw new Error("Conversation not found");
 
-        await fetch(`/api/rooms/${roomId}/conversations/${conversation.id}`, {
-          method: "PATCH",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ status: "active" }),
-        });
+        const [patchResponse, conversationResponse] = await Promise.all([
+          fetch(`/api/rooms/${roomId}/conversations/${conversation.id}`, {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ status: "active" }),
+          }),
+          fetch(`/api/rooms/${roomId}/conversations/${conversation.id}`, { cache: "no-store" }),
+        ]);
+        if (!patchResponse.ok || !conversationResponse.ok) throw new Error("Conversation load failed");
+        const conversationPayload = await conversationResponse.json().catch(() => ({}));
+        const messages = Array.isArray(conversationPayload?.messages) ? conversationPayload.messages : [];
+
         window.sessionStorage.setItem(activeKey(roomId), conversation.id);
+        cacheConversation(conversation.id, messages);
         remountCenterOnly();
         window.setTimeout(syncActiveRow, 80);
       } catch {
