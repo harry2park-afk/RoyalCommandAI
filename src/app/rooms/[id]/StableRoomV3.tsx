@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import RoomV3 from "./RoomV3";
 import CustomerProfileHub from "./CustomerProfileHub";
 import TopRoomFinderOverlay from "./TopRoomFinderOverlay";
+import RoomSiteLinks from "./RoomSiteLinks";
 
 type Conversation = {
   id: string;
@@ -142,6 +143,7 @@ export default function StableRoomV3() {
     <>
       <TopRoomFinderOverlay />
       <CustomerProfileHub />
+      <RoomSiteLinks />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
   );
