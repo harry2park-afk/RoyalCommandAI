@@ -36,7 +36,7 @@
       }
 
       aside button[title="Click to view full chat date and time"] {
-        font-size: 8px !important;
+        font-size: 9px !important;
         line-height: 1 !important;
         font-weight: 500 !important;
       }
