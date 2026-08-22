@@ -148,6 +148,9 @@ export default function RoomSiteLinks() {
     await persist(customLinks.filter((item) => item.url !== urlToRemove));
   }
 
+  const roomName = String(room?.name || "").trim().toLowerCase();
+  if (!room || roomName === "command room") return null;
+
   return (
     <>
       <button
