@@ -4,6 +4,17 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, Search } from "lucide-react";
 import { ROOM_DIRECTORY } from "@/lib/rooms/directory";
 
+const EXTRA_GAME_ROOMS = [
+  { id: "hobby-room", label: "Hobby Room", ko: "취미룸", templateId: "custom" },
+  { id: "chess-janggi", label: "Chess & Janggi", ko: "체스·장기", templateId: "custom" },
+  { id: "baduk-go", label: "Baduk / Go", ko: "바둑", templateId: "custom" },
+  { id: "board-games", label: "Board Games", ko: "보드게임", templateId: "custom" },
+  { id: "video-games", label: "Video Games", ko: "비디오·온라인 게임", templateId: "custom" },
+  { id: "pro-gaming-esports", label: "Pro Gaming & Esports", ko: "프로게임·e스포츠", templateId: "custom" },
+] as const;
+
+const ALL_ROOMS = [...ROOM_DIRECTORY, ...EXTRA_GAME_ROOMS];
+
 type Category = {
   id: string;
   label: string;
@@ -18,7 +29,7 @@ const CATEGORIES: Category[] = [
   { id: "property-home", label: "Property, Building & Home", ko: "부동산·건축·주택", icon: "🏠", roomIds: ["real-estate", "property-management", "construction-trades", "architecture-design", "dream-home-3d", "renovation-home-repair", "building-materials", "hardware-tools", "energy-solar"] },
   { id: "health-care", label: "Health & Care", ko: "의료·복지", icon: "🏥", roomIds: ["medical-clinic", "dental", "allied-health", "pharmacy", "mental-health", "aged-care", "disability-support", "pet-care"] },
   { id: "education-research", label: "Education & Research", ko: "교육·연구", icon: "🎓", roomIds: ["education", "ai-tutor", "university-research", "translation-languages", "research-intelligence", "personal-research"] },
-  { id: "sports-lifestyle", label: "Sports, Fitness & Lifestyle", ko: "스포츠·생활", icon: "⚽", roomIds: ["sports", "sports-club-team", "athlete-coach", "fitness-gym", "music", "dance", "hobby", "gaming-esports", "events-wedding", "beauty-salon", "fashion"] },
+  { id: "sports-lifestyle", label: "Sports, Games & Lifestyle", ko: "스포츠·게임·취미생활", icon: "🎮", roomIds: ["sports", "sports-club-team", "athlete-coach", "fitness-gym", "hobby-room", "chess-janggi", "baduk-go", "board-games", "video-games", "pro-gaming-esports", "music", "dance", "hobby", "gaming-esports", "events-wedding", "beauty-salon", "fashion"] },
   { id: "retail-food", label: "Retail, Food & Hospitality", ko: "판매·식품·숙박", icon: "🛍️", roomIds: ["retail", "online-store", "marketplace", "home-shopping", "restaurant-cafe", "food-grocery", "hotel-hospitality", "travel", "shopping-assistant"] },
   { id: "technology-ai", label: "Technology & AI", ko: "기술·AI", icon: "🤖", roomIds: ["it-software", "ai-automation", "cybersecurity", "telecom-phone", "electronics-appliances", "website-builder", "app-development", "coding-developer", "security-safety"] },
   { id: "industry-transport", label: "Industry, Transport & Resources", ko: "산업·운송·자원", icon: "🏭", roomIds: ["manufacturing", "transport-logistics", "automotive", "agriculture-farming", "greenhouse-horticulture", "inventory-warehouse"] },
@@ -29,7 +40,7 @@ const CATEGORIES: Category[] = [
   { id: "custom", label: "Anything / Custom", ko: "맞춤형", icon: "✨", roomIds: ["custom"] },
 ];
 
-const ROOM_BY_ID = new Map(ROOM_DIRECTORY.map((room) => [room.id, room]));
+const ROOM_BY_ID = new Map(ALL_ROOMS.map((room) => [room.id, room]));
 
 export default function RoomDirectoryPicker() {
   const [query, setQuery] = useState("");
@@ -39,13 +50,13 @@ export default function RoomDirectoryPicker() {
 
   const visibleRooms = useMemo(() => {
     if (clean) {
-      return ROOM_DIRECTORY.filter((room) => `${room.label} ${room.ko}`.toLowerCase().includes(clean));
+      return ALL_ROOMS.filter((room) => `${room.label} ${room.ko}`.toLowerCase().includes(clean));
     }
     if (!selectedCategory) return [];
-    return selectedCategory.roomIds.map((id) => ROOM_BY_ID.get(id)).filter(Boolean) as typeof ROOM_DIRECTORY;
+    return selectedCategory.roomIds.map((id) => ROOM_BY_ID.get(id)).filter(Boolean) as typeof ALL_ROOMS;
   }, [clean, selectedCategory]);
 
-  function chooseRoom(room: (typeof ROOM_DIRECTORY)[number]) {
+  function chooseRoom(room: (typeof ALL_ROOMS)[number]) {
     const current = new URL(window.location.href);
     const returnRoom = current.searchParams.get("returnRoom") || "";
     const next = new URL("/room-builder", window.location.origin);
@@ -69,12 +80,12 @@ export default function RoomDirectoryPicker() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="rc-input !border-red-500/70 !pl-9 text-sm focus:!border-red-400"
-            placeholder="Room 바로 검색: 법률, 스포츠, Dream Home"
+            placeholder="Room 바로 검색: 취미, 장기, 바둑, 게임"
             aria-label="Room 검색"
           />
         </div>
         <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--muted)]">
-          <span>전체 {ROOM_DIRECTORY.length}개</span>
+          <span>전체 {ALL_ROOMS.length}개</span>
           {showingRooms ? <span>표시 {visibleRooms.length}개</span> : <span>14개 분야</span>}
         </div>
       </div>
