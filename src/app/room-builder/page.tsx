@@ -107,6 +107,9 @@ export default function RoomBuilderPage() {
       `Approval mode: ${approvalMode}`,
       `Website Builder Kit: ${websiteKit ? "Enabled" : "Disabled"}`,
       `Room materials: ${enabledMaterials.join(", ")}`,
+      `Room language: ${globalSettings.languageTag || "Not set"}`,
+      "Language scope: The selected Room language applies only to translatable customer-facing prose, guidance, AI answers and generated content.",
+      "Permanent English UI: Royal Command brand names, product names, AI/provider names, Room names, menu names, button labels, control labels and system identifiers remain in English unless the customer explicitly renames a Room.",
       ...serializeGlobalRoomSettings(globalSettings),
       ...template.fields.map((field) => `${field.label}: ${answers[field.id]?.trim() || "Not specified"}`),
     ].join("\n");
@@ -211,7 +214,7 @@ export default function RoomBuilderPage() {
 
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
             <div className="text-sm font-semibold text-[var(--gold-soft)]">4. Country, Room Language & Global Settings</div>
-            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Country and Room language are separate choices. The Room stays in English by default until the customer selects another Room language.</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Country and Room language are separate choices. Royal Command controls, buttons, menus, product names and AI names always stay in English. Only language-dependent Room content changes.</p>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>
@@ -252,7 +255,7 @@ export default function RoomBuilderPage() {
                   {ROOM_LANGUAGES.map((language) => <option key={language.tag} value={language.tag}>{language.label}</option>)}
                   <option value="CUSTOM">Other / Custom language</option>
                 </select>
-                <p className="mt-1 text-[11px] text-[var(--muted)]">This controls the default language used inside the new Room.</p>
+                <p className="mt-1 text-[11px] text-[var(--muted)]">Applies to translatable Room content, guidance and AI responses. Buttons, menus, Royal Command names, AI names and system labels remain English.</p>
               </div>
 
               {roomLanguageSelectValue === "CUSTOM" ? (
@@ -291,6 +294,7 @@ export default function RoomBuilderPage() {
                 <div><strong>Approval:</strong> {APPROVAL_OPTIONS.find((item) => item.id === approvalMode)?.label}</div>
                 <div><strong>Country:</strong> {globalSettings.countryCode}</div>
                 <div><strong>Room Language:</strong> {globalSettings.languageTag || "Custom language not set"}</div>
+                <div><strong>Language Scope:</strong> Content only · UI/buttons/menus/brand/AI names stay English</div>
                 <div><strong>Time Zone:</strong> {globalSettings.timeZone}</div>
                 <div><strong>Currency:</strong> {globalSettings.currencyCode}</div>
                 <div><strong>Copy:</strong> Structure only · Data/Memory/API keys/Secrets excluded</div>
