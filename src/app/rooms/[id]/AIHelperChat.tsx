@@ -6,6 +6,7 @@ import { Bot, Mic, Send, X } from "lucide-react";
 
 type Lang = "en" | "ko" | "zh" | "ja" | "es" | "fr" | "de" | "vi" | "th" | "id";
 type Message = { role: "user" | "assistant"; content: string };
+type HelperPosition = { left: number; top: number };
 
 const COPY: Record<Lang, { button: string; title: string; greeting: string; placeholder: string; listening: string; error: string }> = {
   en: { button: "AI Help", title: "Royal Command AI Helper", greeting: "Hello. Ask me anything. I can help with Royal Command or any general question.", placeholder: "Ask anything…", listening: "Listening…", error: "AI Helper could not answer. Please try again." },
@@ -42,6 +43,11 @@ function detectSelectedLanguage(): Lang {
   return "en";
 }
 
+function findMainSendButton() {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>('main button[type="submit"]'))
+    .find((button) => button.textContent?.trim() === "Send") || null;
+}
+
 export default function AIHelperChat() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -51,7 +57,9 @@ export default function AIHelperChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
+  const [helperPosition, setHelperPosition] = useState<HelperPosition | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  const helperButtonRef = useRef<HTMLButtonElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const copy = COPY[lang];
@@ -82,6 +90,37 @@ export default function AIHelperChat() {
     return () => document.removeEventListener("mousedown", close);
   }, [open]);
 
+  useEffect(() => {
+    if (open) return;
+
+    let frame = 0;
+    const syncPosition = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const sendButton = findMainSendButton();
+        const helpButton = helperButtonRef.current;
+        if (!sendButton || !helpButton) return;
+        const sendRect = sendButton.getBoundingClientRect();
+        const helpRect = helpButton.getBoundingClientRect();
+        setHelperPosition({
+          left: Math.max(8, sendRect.left - helpRect.width - 10),
+          top: sendRect.top,
+        });
+      });
+    };
+
+    syncPosition();
+    const timer = window.setInterval(syncPosition, 500);
+    window.addEventListener("resize", syncPosition);
+    window.addEventListener("scroll", syncPosition, true);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearInterval(timer);
+      window.removeEventListener("resize", syncPosition);
+      window.removeEventListener("scroll", syncPosition, true);
+    };
+  }, [open, lang]);
+
   async function send(event?: FormEvent) {
     event?.preventDefault();
     const message = input.trim();
@@ -111,7 +150,6 @@ export default function AIHelperChat() {
     const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!Recognition) return;
     const recognition = new Recognition();
-    // Selected language is only a recognition hint. The AI response language follows the actual transcript language.
     recognition.lang = LOCALE[lang];
     recognition.interimResults = false;
     recognition.continuous = false;
@@ -125,8 +163,16 @@ export default function AIHelperChat() {
     recognition.start();
   }
 
+  const closedStyle = !open && helperPosition
+    ? { left: `${helperPosition.left}px`, top: `${helperPosition.top}px` }
+    : undefined;
+
   return (
-    <div ref={panelRef} className="fixed bottom-[46px] right-[190px] z-[380] max-lg:right-4">
+    <div
+      ref={panelRef}
+      className={open ? "fixed bottom-[46px] right-[190px] z-[380] max-lg:right-4" : "fixed z-[380]"}
+      style={closedStyle}
+    >
       {open ? (
         <div className="flex h-[470px] w-[360px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-[#d7b64d]/55 bg-[#07111f]/98 shadow-2xl backdrop-blur">
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#d7b64d]/25 bg-[#102030] px-3">
@@ -153,7 +199,15 @@ export default function AIHelperChat() {
           </form>
         </div>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="flex h-[30px] items-center gap-2 rounded-full border border-[#d7b64d] bg-[#7A0C2E] px-4 text-[13px] font-semibold text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]" title={copy.title}><Bot size={15} />{copy.button}</button>
+        <button
+          ref={helperButtonRef}
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex h-10 items-center gap-2 whitespace-nowrap rounded-xl border border-[#d7b64d] bg-[#7A0C2E] px-4 text-[13px] font-semibold leading-none text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]"
+          title={copy.title}
+        >
+          <Bot size={15} />{copy.button}
+        </button>
       )}
     </div>
   );
