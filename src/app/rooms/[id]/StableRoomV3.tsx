@@ -7,6 +7,7 @@ import CustomerProfileHub from "./CustomerProfileHub";
 import TopRoomFinderOverlay from "./TopRoomFinderOverlay";
 import RoomSiteLinks from "./RoomSiteLinks";
 import SavedConversationInspector from "./SavedConversationInspector";
+import FirstRoomWelcome from "./FirstRoomWelcome";
 
 type Conversation = {
   id: string;
@@ -142,6 +143,7 @@ export default function StableRoomV3() {
 
   return (
     <>
+      <FirstRoomWelcome />
       <TopRoomFinderOverlay />
       <CustomerProfileHub />
       <RoomSiteLinks />
