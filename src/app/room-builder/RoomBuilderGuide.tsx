@@ -15,6 +15,27 @@ function isKorean(tag: string) {
   return tag.toLowerCase().startsWith("ko");
 }
 
+function selectedGlobalLanguage() {
+  try {
+    return window.localStorage.getItem(SELECTED_LANGUAGE_KEY) || "en-AU";
+  } catch {
+    return "en-AU";
+  }
+}
+
+function findRoomLanguageSelect() {
+  return Array.from(document.querySelectorAll<HTMLSelectElement>("select")).find((select) => {
+    const texts = Array.from(select.options).map((option) => option.text.toLowerCase());
+    return texts.some((text) => text.includes("english (australia)")) && texts.some((text) => text === "korean");
+  }) || null;
+}
+
+function roomLanguageValue() {
+  const select = findRoomLanguageSelect();
+  if (!select?.value || select.value === "CUSTOM") return "";
+  return select.value;
+}
+
 function findButton(text: string) {
   const wanted = normalise(text);
   return Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) => normalise(button.textContent || "") === wanted);
@@ -51,29 +72,12 @@ function selectAustralia() {
   return false;
 }
 
-function findRoomLanguageSelect() {
-  return Array.from(document.querySelectorAll<HTMLSelectElement>("select")).find((select) => {
-    const texts = Array.from(select.options).map((option) => option.text.toLowerCase());
-    return texts.some((text) => text.includes("english (australia)")) && texts.some((text) => text === "korean");
-  }) || null;
-}
-
-function currentLanguageTag() {
-  const builderSelect = findRoomLanguageSelect();
-  if (builderSelect?.value && builderSelect.value !== "CUSTOM") return builderSelect.value;
-  try {
-    return window.localStorage.getItem(SELECTED_LANGUAGE_KEY) || "en-AU";
-  } catch {
-    return "en-AU";
-  }
-}
-
 function speak(text: string, languageTag: string) {
   if (!("speechSynthesis" in window)) return;
   window.speechSynthesis.cancel();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = languageTag || "en-AU";
-  utterance.rate = 0.95;
+  utterance.rate = isKorean(languageTag) ? 0.92 : 0.98;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -100,22 +104,14 @@ function answerQuestion(raw: string, languageTag: string) {
   for (const [pattern, label] of practiceMap) {
     if (pattern.test(q)) {
       const clicked = clickFirst([label]);
-      if (ko) {
-        return clicked
-          ? `${label} 분야를 선택했습니다. 다음으로 이 Room을 주로 몇 명이 사용할지 말씀해 주세요.`
-          : `현재 화면에서 ${label} 항목을 찾지 못했습니다.`;
-      }
-      return clicked
-        ? `${label} selected. Next, choose how many professionals will normally use this Room.`
-        : `I could not find the ${label} option on the current screen.`;
+      if (ko) return clicked ? `${label} 분야를 선택했습니다. 다음으로 이 Room을 주로 몇 명이 사용할지 말씀해 주세요.` : `현재 화면에서 ${label} 항목을 찾지 못했습니다.`;
+      return clicked ? `${label} selected. Next, choose how many professionals will normally use this Room.` : `I could not find the ${label} option on the current screen.`;
     }
   }
 
   if (/\b1\b|혼자|한 명|1명|나 혼자|alone|one person/.test(q)) {
     const clicked = clickFirst(["1"]);
-    return ko
-      ? (clicked ? "사용 인원을 1명으로 선택했습니다. AI와 도구는 우선 추천값을 그대로 사용하셔도 됩니다." : "1명 항목을 찾지 못했습니다.")
-      : (clicked ? "One professional selected. You can keep the recommended AI and tools for now." : "I could not find the 1-person option.");
+    return ko ? (clicked ? "사용 인원을 1명으로 선택했습니다. AI와 도구는 우선 추천값을 그대로 사용하셔도 됩니다." : "1명 항목을 찾지 못했습니다.") : (clicked ? "One professional selected. You can keep the recommended AI and tools for now." : "I could not find the 1-person option.");
   }
   if (/2\s*[-~]\s*3|두세|2명|3명|two|three/.test(q)) {
     const clicked = clickFirst(["2-3"]);
@@ -133,17 +129,13 @@ function answerQuestion(raw: string, languageTag: string) {
   if (/승인|사람이 확인|확인 후|approval|human review|review first/.test(q)) {
     scrollToSection(3);
     const clicked = clickFirst(["Run After Approval · Recommended"]);
-    return ko
-      ? (clicked ? "중요 작업은 사람의 승인 후 실행하도록 설정했습니다." : "Approval Rules로 이동했습니다. Run After Approval · Recommended를 선택해 주세요.")
-      : (clicked ? "Important actions are now set to run only after human approval." : "Go to Approval Rules and choose Run After Approval · Recommended.");
+    return ko ? (clicked ? "중요 작업은 사람의 승인 후 실행하도록 설정했습니다." : "Approval Rules로 이동했습니다. Run After Approval · Recommended를 선택해 주세요.") : (clicked ? "Important actions are now set to run only after human approval." : "Go to Approval Rules and choose Run After Approval · Recommended.");
   }
 
   if (/호주|australia|aud/.test(q)) {
     scrollToSection(4);
     const selected = selectAustralia();
-    return ko
-      ? (selected ? "Australia를 선택했습니다. Room Language는 현재 선택하신 언어를 그대로 유지합니다." : "Global Settings로 이동했습니다. Country / Region에서 Australia를 선택해 주세요.")
-      : (selected ? "Australia selected. Your current Room Language is kept unchanged." : "Go to Global Settings and choose Australia.");
+    return ko ? (selected ? "Australia를 선택했습니다. Room Language는 현재 선택하신 언어를 그대로 유지합니다." : "Global Settings로 이동했습니다. Country / Region에서 Australia를 선택해 주세요.") : (selected ? "Australia selected. Your current Room Language is kept unchanged." : "Go to Global Settings and choose Australia.");
   }
 
   if (/ai|도구|tool|memory|메모리|재료|materials/.test(q)) {
@@ -168,13 +160,9 @@ function answerQuestion(raw: string, languageTag: string) {
     return ko ? "Room Information부터 시작하겠습니다. 이 Room이 주로 어떤 일을 할 방인지 말씀해 주세요. 예: 상업법, 부동산법, 가족법." : "Start with Room Information. Tell me the main work this Room should handle, such as Commercial, Property, or Family law.";
   }
 
-  if (/다음|next/.test(q)) {
-    return ko ? "좋습니다. 위에서부터 한 단계씩 진행하겠습니다. 이동하고 싶은 항목 이름을 말씀해 주세요." : "Continue from the top, one section at a time. Tell me the section name if you want me to move there.";
-  }
+  if (/다음|next/.test(q)) return ko ? "좋습니다. 위에서부터 한 단계씩 진행하겠습니다. 이동하고 싶은 항목 이름을 말씀해 주세요." : "Continue from the top, one section at a time. Tell me the section name if you want me to move there.";
 
-  return ko
-    ? "원하시는 내용을 편하게 한국어로 말씀해 주세요. 예: ‘상업법’, ‘혼자 사용’, ‘승인 후 실행’, ‘호주 설정’, ‘AI 도구 설명’, ‘미리보기’."
-    : "Tell me what you want to set, for example: Commercial, one professional, approval first, Australia, AI tools, or Preview.";
+  return ko ? "원하시는 내용을 편하게 한국어로 말씀해 주세요. 예: ‘상업법’, ‘혼자 사용’, ‘승인 후 실행’, ‘호주 설정’, ‘AI 도구 설명’, ‘미리보기’." : "Tell me what you want to set, for example: Commercial, one professional, approval first, Australia, AI tools, or Preview.";
 }
 
 export default function RoomBuilderGuide() {
@@ -182,43 +170,54 @@ export default function RoomBuilderGuide() {
   const [input, setInput] = useState("");
   const [listening, setListening] = useState(false);
   const [languageTag, setLanguageTag] = useState("en-AU");
-  const [messages, setMessages] = useState<GuideMessage[]>([
-    { role: "guide", text: initialMessage("en-AU") },
-  ]);
+  const [messages, setMessages] = useState<GuideMessage[]>([{ role: "guide", text: initialMessage("en-AU") }]);
   const recognitionRef = useRef<any>(null);
   const lastGuide = useMemo(() => [...messages].reverse().find((item) => item.role === "guide")?.text || "", [messages]);
   const ko = isKorean(languageTag);
 
   useEffect(() => {
-    const syncLanguage = () => {
-      const next = currentLanguageTag();
-      setLanguageTag(next);
-      setMessages((current) => current.length <= 1 ? [{ role: "guide", text: initialMessage(next) }] : current);
+    let lastGlobal = selectedGlobalLanguage();
+    let lastRoom = roomLanguageValue();
+    let active = lastGlobal || lastRoom || "en-AU";
+
+    const applyLanguage = (next: string) => {
+      const safe = next || "en-AU";
+      if (safe === active && safe === languageTag) return;
+      active = safe;
+      setLanguageTag(safe);
+      setInput("");
+      setMessages([{ role: "guide", text: initialMessage(safe) }]);
+      recognitionRef.current?.stop?.();
+      window.speechSynthesis?.cancel?.();
     };
 
-    syncLanguage();
-    const timer = window.setTimeout(syncLanguage, 250);
-    const onChange = (event: Event) => {
-      const target = event.target;
-      if (!(target instanceof HTMLSelectElement)) return;
-      const roomLanguageSelect = findRoomLanguageSelect();
-      if (roomLanguageSelect && target === roomLanguageSelect) {
-        const next = target.value && target.value !== "CUSTOM" ? target.value : currentLanguageTag();
-        setLanguageTag(next);
-        setMessages((current) => current.length <= 1 ? [{ role: "guide", text: initialMessage(next) }] : current);
+    setLanguageTag(active);
+    setMessages([{ role: "guide", text: initialMessage(active) }]);
+
+    const timer = window.setInterval(() => {
+      const nextGlobal = selectedGlobalLanguage();
+      const nextRoom = roomLanguageValue();
+      if (nextGlobal !== lastGlobal) {
+        lastGlobal = nextGlobal;
+        applyLanguage(nextGlobal);
+        return;
       }
-    };
+      if (nextRoom && nextRoom !== lastRoom) {
+        lastRoom = nextRoom;
+        applyLanguage(nextRoom);
+      }
+    }, 120);
+
     const onStorage = (event: StorageEvent) => {
       if (event.key === SELECTED_LANGUAGE_KEY && event.newValue) {
-        setLanguageTag(event.newValue);
-        setMessages((current) => current.length <= 1 ? [{ role: "guide", text: initialMessage(event.newValue || "en-AU") }] : current);
+        lastGlobal = event.newValue;
+        applyLanguage(event.newValue);
       }
     };
-    document.addEventListener("change", onChange, true);
+
     window.addEventListener("storage", onStorage);
     return () => {
-      window.clearTimeout(timer);
-      document.removeEventListener("change", onChange, true);
+      window.clearInterval(timer);
       window.removeEventListener("storage", onStorage);
     };
   }, []);
@@ -226,12 +225,10 @@ export default function RoomBuilderGuide() {
   function submitText(text: string) {
     const clean = text.trim();
     if (!clean) return;
-    const activeLanguage = currentLanguageTag() || languageTag;
-    if (activeLanguage !== languageTag) setLanguageTag(activeLanguage);
-    const reply = answerQuestion(clean, activeLanguage);
+    const reply = answerQuestion(clean, languageTag);
     setMessages((current) => [...current, { role: "user", text: clean }, { role: "guide", text: reply }]);
     setInput("");
-    speak(reply, activeLanguage);
+    speak(reply, languageTag);
   }
 
   function submit(event: FormEvent) {
@@ -251,7 +248,7 @@ export default function RoomBuilderGuide() {
       return;
     }
     const recognition = new Recognition();
-    recognition.lang = currentLanguageTag() || languageTag;
+    recognition.lang = languageTag || "en-AU";
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onstart = () => setListening(true);
@@ -269,14 +266,30 @@ export default function RoomBuilderGuide() {
   return (
     <aside className="fixed bottom-4 right-4 z-[250] flex h-[440px] w-[360px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border-2 border-[var(--gold)]/70 bg-[#0a0f19]/95 shadow-[0_20px_70px_rgba(0,0,0,.55)] backdrop-blur-md">
       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
-        <div><div className="font-semibold text-[var(--gold-soft)]">Royal Command Room Guide</div><div className="text-[11px] text-[var(--muted)]">{ko ? "선택한 언어로 말하거나 글로 물어보세요" : "Ask by voice or text in your selected language"}</div></div>
-        <div className="flex gap-1"><button type="button" onClick={() => speak(lastGuide, languageTag)} className="rounded-lg px-2 py-1 text-sm" title="Replay guide">🔊</button><button type="button" onClick={() => setOpen(false)} className="rounded-lg px-2 py-1 text-sm" title="Close">✕</button></div>
+        <div>
+          <div className="font-semibold text-[var(--gold-soft)]">Royal Command Room Guide</div>
+          <div className="text-[11px] text-[var(--muted)]">{ko ? "선택한 언어로 말하거나 글로 물어보세요" : "Ask by voice or text in your selected language"}</div>
+        </div>
+        <div className="flex gap-1">
+          <button type="button" onClick={() => speak(lastGuide, languageTag)} className="rounded-lg px-2 py-1 text-sm" title="Replay guide">🔊</button>
+          <button type="button" onClick={() => setOpen(false)} className="rounded-lg px-2 py-1 text-sm" title="Close">✕</button>
+        </div>
       </div>
+
       <div className="flex-1 space-y-3 overflow-y-auto p-3">
-        {messages.map((message, index) => <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}><div className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-5 ${message.role === "user" ? "bg-[#173b70] text-white" : "border border-[var(--gold)]/25 bg-black/35 text-[#f3efe6]"}`}>{message.text}</div></div>)}
+        {messages.map((message, index) => (
+          <div key={`${message.role}-${index}`} className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}>
+            <div className={`max-w-[88%] rounded-2xl px-3 py-2 text-sm leading-5 ${message.role === "user" ? "bg-[#173b70] text-white" : "border border-[var(--gold)]/25 bg-black/35 text-[#f3efe6]"}`}>{message.text}</div>
+          </div>
+        ))}
       </div>
+
       <form onSubmit={submit} className="border-t border-white/10 p-3">
-        <div className="flex gap-2"><input value={input} onChange={(event) => setInput(event.target.value)} className="rc-input min-w-0 flex-1" placeholder={ko ? "예: 상업법 Room을 만들고 싶어요" : "e.g. I want a Commercial Legal Room"} /><button type="button" onClick={toggleMic} className={`rounded-xl border px-3 ${listening ? "border-red-400 bg-red-500/20" : "border-[var(--gold)]/40 bg-black/30"}`} title="Ask by voice">{listening ? "●" : "🎤"}</button><button type="submit" className="rounded-xl bg-[var(--gold)] px-3 font-semibold text-black" title="Send">➤</button></div>
+        <div className="flex gap-2">
+          <input value={input} onChange={(event) => setInput(event.target.value)} className="rc-input min-w-0 flex-1" placeholder={ko ? "예: 상업법 Room을 만들고 싶어요" : "e.g. I want a Commercial Legal Room"} />
+          <button type="button" onClick={toggleMic} className={`rounded-xl border px-3 ${listening ? "border-red-400 bg-red-500/20" : "border-[var(--gold)]/40 bg-black/30"}`} title="Ask by voice">{listening ? "●" : "🎤"}</button>
+          <button type="submit" className="rounded-xl bg-[var(--gold)] px-3 font-semibold text-black" title="Send">➤</button>
+        </div>
         <div className="mt-2 text-[10px] text-[var(--muted)]">{ko ? "최종 Room 생성은 고객이 직접 승인 버튼을 눌러 완료합니다." : "Final Room creation always requires the customer to press the approval button."}</div>
       </form>
     </aside>
