@@ -77,13 +77,20 @@ export default function SavedConversationInspector() {
 
     const onClick = (event: MouseEvent) => {
       const button = findSaveButton(event.target);
-      if (!button) return;
-      positionFrom(button);
-      window.setTimeout(() => {
-        void loadSaved();
-        setPinned(true);
-        setOpen(true);
-      }, 900);
+      if (button) {
+        positionFrom(button);
+        window.setTimeout(() => {
+          void loadSaved();
+          setPinned(true);
+          setOpen(true);
+        }, 900);
+        return;
+      }
+
+      const target = event.target;
+      if (target instanceof Element && target.closest("[data-rc-saved-inspector]")) return;
+      setPinned(false);
+      setOpen(false);
     };
 
     document.addEventListener("mouseover", onMouseOver, true);
