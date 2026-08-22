@@ -55,6 +55,33 @@ function speechLocale(text: string, fallback: Lang) {
   return LOCALE[fallback];
 }
 
+function micText(lang: Lang, key: "checking" | "ready" | "listening" | "hearing" | "blocked" | "missing" | "busy" | "network" | "failed") {
+  if (lang === "ko") {
+    return {
+      checking: "마이크 장치를 확인하고 있습니다…",
+      ready: "마이크 준비됨",
+      listening: "듣고 있습니다…",
+      hearing: "말씀을 듣고 있습니다…",
+      blocked: "마이크 권한이 차단되어 있습니다. 주소창 왼쪽 사이트 설정에서 마이크를 허용해 주세요.",
+      missing: "Windows/Chrome에서 사용할 수 있는 입력 마이크를 찾지 못했습니다. USB 마이크나 마이크가 있는 헤드셋/이어폰을 연결해 주세요.",
+      busy: "마이크는 있지만 Chrome이 사용할 수 없습니다. Windows 소리 > 입력에서 장치를 확인하고 다른 앱의 독점 사용을 종료해 주세요.",
+      network: "Chrome 음성인식 서비스에 연결하지 못했습니다. 인터넷 연결을 확인해 주세요.",
+      failed: "마이크 음성인식을 시작하지 못했습니다.",
+    }[key];
+  }
+  return {
+    checking: "Checking microphone…",
+    ready: "Microphone ready",
+    listening: "Listening…",
+    hearing: "I can hear you…",
+    blocked: "Microphone permission is blocked. Allow Microphone in the site controls beside the address bar.",
+    missing: "No usable microphone input was found in Windows/Chrome. Connect a USB microphone or a headset/earphone with a microphone.",
+    busy: "A microphone exists but Chrome cannot use it. Check Windows Sound > Input and close apps using it exclusively.",
+    network: "Chrome speech recognition could not reach its service. Check the internet connection.",
+    failed: "Speech recognition could not start.",
+  }[key];
+}
+
 export default function AIHelperChat() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -66,6 +93,8 @@ export default function AIHelperChat() {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [micEnabled, setMicEnabled] = useState(false);
+  const [micStatus, setMicStatus] = useState("");
+  const [micIssue, setMicIssue] = useState("");
   const [helperPosition, setHelperPosition] = useState<HelperPosition | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const helperButtonRef = useRef<HTMLButtonElement>(null);
@@ -113,7 +142,6 @@ export default function AIHelperChat() {
 
   useEffect(() => {
     if (open) return;
-
     let frame = 0;
     const syncPosition = () => {
       window.cancelAnimationFrame(frame);
@@ -129,7 +157,6 @@ export default function AIHelperChat() {
         });
       });
     };
-
     syncPosition();
     const timer = window.setInterval(syncPosition, 500);
     window.addEventListener("resize", syncPosition);
@@ -154,11 +181,46 @@ export default function AIHelperChat() {
     if (!recognition) return;
     recognition.onend = null;
     recognition.onresult = null;
+    recognition.onerror = null;
     try { recognition.abort(); } catch {}
     setListening(false);
   }
 
-  function scheduleListening(delay = 250) {
+  async function prepareMicrophone() {
+    setMicIssue("");
+    setMicStatus(micText(langRef.current, "checking"));
+    if (!navigator.mediaDevices?.getUserMedia) {
+      const message = micText(langRef.current, "missing");
+      setMicIssue(message);
+      setMicStatus("");
+      return false;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        video: false,
+      });
+      stream.getTracks().forEach((track) => track.stop());
+      setMicIssue("");
+      setMicStatus(micText(langRef.current, "ready"));
+      return true;
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : "";
+      const key = name === "NotAllowedError" || name === "SecurityError"
+        ? "blocked"
+        : name === "NotFoundError"
+          ? "missing"
+          : name === "NotReadableError" || name === "AbortError"
+            ? "busy"
+            : "failed";
+      const message = micText(langRef.current, key);
+      setMicIssue(message);
+      setMicStatus("");
+      return false;
+    }
+  }
+
+  function scheduleListening(delay = 300) {
     window.setTimeout(() => {
       if (openRef.current && micEnabledRef.current && !speakingRef.current && !loadingRef.current) startRecognition();
     }, delay);
@@ -169,7 +231,9 @@ export default function AIHelperChat() {
     const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
     const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!Recognition) {
-      setListening(false);
+      setMicIssue(micText(langRef.current, "failed"));
+      setMicEnabled(false);
+      micEnabledRef.current = false;
       return;
     }
 
@@ -178,25 +242,68 @@ export default function AIHelperChat() {
     recognition.lang = LOCALE[langRef.current];
     recognition.interimResults = false;
     recognition.continuous = false;
-    recognition.onstart = () => setListening(true);
-    recognition.onerror = () => {
+    recognition.maxAlternatives = 1;
+
+    let gotResult = false;
+    let blockingError = false;
+
+    recognition.onstart = () => setMicStatus(micText(langRef.current, "checking"));
+    recognition.onaudiostart = () => {
+      setListening(true);
+      setMicIssue("");
+      setMicStatus(micText(langRef.current, "listening"));
+    };
+    recognition.onsoundstart = () => setMicStatus(micText(langRef.current, "listening"));
+    recognition.onspeechstart = () => setMicStatus(micText(langRef.current, "hearing"));
+
+    recognition.onerror = (event: any) => {
+      const error = String(event?.error || "");
       setListening(false);
       recognitionRef.current = null;
+      let message = "";
+      if (error === "not-allowed" || error === "service-not-allowed") {
+        message = micText(langRef.current, "blocked");
+        blockingError = true;
+      } else if (error === "audio-capture") {
+        message = micText(langRef.current, "missing");
+        blockingError = true;
+      } else if (error === "network") {
+        message = micText(langRef.current, "network");
+      } else if (error !== "no-speech" && error !== "aborted") {
+        message = micText(langRef.current, "failed");
+      }
+      if (message) setMicIssue(message);
+      if (blockingError) {
+        micEnabledRef.current = false;
+        setMicEnabled(false);
+        setMicStatus("");
+      }
     };
-    recognition.onend = () => {
-      setListening(false);
-      if (recognitionRef.current === recognition) recognitionRef.current = null;
-      if (openRef.current && micEnabledRef.current && !speakingRef.current && !loadingRef.current) scheduleListening(350);
-    };
+
     recognition.onresult = (event: any) => {
       const transcript = String(event.results?.[0]?.[0]?.transcript || "").trim();
       if (!transcript) return;
+      gotResult = true;
       setInput(transcript);
+      setMicStatus("");
       stopRecognition();
       void sendMessage(transcript);
     };
 
-    try { recognition.start(); } catch { recognitionRef.current = null; }
+    recognition.onend = () => {
+      setListening(false);
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      if (!gotResult && !blockingError && openRef.current && micEnabledRef.current && !speakingRef.current && !loadingRef.current) {
+        scheduleListening(500);
+      }
+    };
+
+    try {
+      recognition.start();
+    } catch {
+      recognitionRef.current = null;
+      setMicIssue(micText(langRef.current, "failed"));
+    }
   }
 
   function speak(text: string, resumeListening = true) {
@@ -204,36 +311,42 @@ export default function AIHelperChat() {
       if (resumeListening) scheduleListening(100);
       return;
     }
-
     speakingRef.current = true;
     setSpeaking(true);
     stopRecognition();
-
     const speech = window.speechSynthesis;
     speech.cancel();
     const utterance = new SpeechSynthesisUtterance(text.slice(0, 3000));
     utterance.lang = speechLocale(text, langRef.current);
-    utterance.rate = 0.96;
-    utterance.pitch = 1.02;
     utterance.onend = () => {
       speakingRef.current = false;
       setSpeaking(false);
-      if (resumeListening) scheduleListening(220);
+      if (resumeListening && micEnabledRef.current) scheduleListening(250);
     };
     utterance.onerror = () => {
       speakingRef.current = false;
       setSpeaking(false);
-      if (resumeListening) scheduleListening(220);
+      if (resumeListening && micEnabledRef.current) scheduleListening(250);
     };
     speech.speak(utterance);
   }
 
   function openHelper() {
     openRef.current = true;
-    micEnabledRef.current = true;
     setOpen(true);
-    setMicEnabled(true);
+    setMicIssue("");
+    setMicStatus("");
+    micEnabledRef.current = false;
+    setMicEnabled(false);
+
+    // Greeting starts immediately. Microphone permission/device check runs from the same user click.
     speak(COPY[langRef.current].greeting, true);
+    void prepareMicrophone().then((ok) => {
+      if (!openRef.current || !ok) return;
+      micEnabledRef.current = true;
+      setMicEnabled(true);
+      if (!speakingRef.current && !loadingRef.current) scheduleListening(150);
+    });
   }
 
   function closeHelper() {
@@ -241,6 +354,8 @@ export default function AIHelperChat() {
     micEnabledRef.current = false;
     setOpen(false);
     setMicEnabled(false);
+    setMicStatus("");
+    setMicIssue("");
     stopRecognition();
     speakingRef.current = false;
     setSpeaking(false);
@@ -248,14 +363,19 @@ export default function AIHelperChat() {
   }
 
   function toggleMicrophone() {
-    const next = !micEnabledRef.current;
-    micEnabledRef.current = next;
-    setMicEnabled(next);
-    if (!next) {
+    if (micEnabledRef.current) {
+      micEnabledRef.current = false;
+      setMicEnabled(false);
+      setMicStatus("");
       stopRecognition();
       return;
     }
-    if (!speakingRef.current && !loadingRef.current) startRecognition();
+    void prepareMicrophone().then((ok) => {
+      if (!ok || !openRef.current) return;
+      micEnabledRef.current = true;
+      setMicEnabled(true);
+      if (!speakingRef.current && !loadingRef.current) startRecognition();
+    });
   }
 
   async function sendMessage(rawMessage: string) {
@@ -267,6 +387,7 @@ export default function AIHelperChat() {
     messagesRef.current = [...messagesRef.current, nextUser];
     setMessages(messagesRef.current);
     setInput("");
+    setMicStatus("");
     loadingRef.current = true;
     setLoading(true);
 
@@ -306,11 +427,7 @@ export default function AIHelperChat() {
     : undefined;
 
   return (
-    <div
-      ref={panelRef}
-      className={open ? "fixed bottom-[28px] right-[190px] z-[380] max-lg:right-4" : "fixed z-[380]"}
-      style={closedStyle}
-    >
+    <div ref={panelRef} className={open ? "fixed bottom-[28px] right-[190px] z-[380] max-lg:right-4" : "fixed z-[380]"} style={closedStyle}>
       {open ? (
         <div className="relative flex h-[560px] w-[390px] max-w-[calc(100vw-24px)] flex-col overflow-hidden bg-[#07111f]/96 shadow-[0_18px_50px_rgba(0,0,0,.52)] backdrop-blur-md">
           <div className="absolute right-2 top-2 z-10 flex items-center gap-3">
@@ -322,11 +439,7 @@ export default function AIHelperChat() {
 
           <div className="relative mx-auto mt-1 h-[245px] w-[275px] shrink-0">
             <div className="absolute inset-x-8 bottom-2 h-20 rounded-full bg-[#d7b64d]/10 blur-2xl" />
-            <img
-              src="/ai-helper-woman.svg"
-              alt="Royal Command AI Helper"
-              className={`relative h-full w-full object-contain object-bottom transition-all duration-500 ${speaking ? "scale-[1.02] brightness-110" : "scale-100"}`}
-            />
+            <img src="/ai-helper-woman.svg" alt="Royal Command AI Helper" className={`relative h-full w-full object-contain object-bottom transition-all duration-500 ${speaking ? "scale-[1.02] brightness-110" : "scale-100"}`} />
           </div>
 
           <div className="px-5">
@@ -339,25 +452,20 @@ export default function AIHelperChat() {
               </div>
             </div>
 
-            <div className="mt-1 min-h-[72px] whitespace-pre-wrap text-[13px] leading-5 text-white/92">
-              {loading ? "…" : latestAssistant}
-            </div>
+            <div className="mt-1 min-h-[72px] whitespace-pre-wrap text-[13px] leading-5 text-white/92">{loading ? "…" : latestAssistant}</div>
 
             <div className="my-3 h-px w-full bg-gradient-to-r from-transparent via-[#d7b64d] to-transparent" />
 
-            <div className="mb-1 text-[12px] font-semibold text-[#d7b64d]">You</div>
+            <div className="mb-1 flex items-center justify-between gap-2 text-[12px] font-semibold text-[#d7b64d]">
+              <span>You</span>
+              {micStatus ? <span className="font-normal text-emerald-300">{micStatus}</span> : null}
+            </div>
+            {micIssue ? <div className="mb-2 rounded-lg border border-amber-400/55 bg-amber-950/35 px-2 py-1.5 text-[11px] leading-4 text-amber-100">{micIssue}</div> : null}
             {latestUser ? <div className="mb-2 line-clamp-2 text-[12px] leading-4 text-white/65">{latestUser}</div> : null}
 
             <form onSubmit={send}>
               <div className="flex items-center gap-2 rounded-xl bg-black/25 px-2 py-1.5">
-                <textarea
-                  value={input}
-                  onChange={(event) => setInput(event.target.value)}
-                  onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
-                  rows={1}
-                  placeholder={listening ? copy.listening : copy.placeholder}
-                  className="max-h-20 min-h-[36px] flex-1 resize-none bg-transparent px-1 py-2 text-[13px] text-white outline-none placeholder:text-white/35"
-                />
+                <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} placeholder={listening ? copy.listening : copy.placeholder} className="max-h-20 min-h-[36px] flex-1 resize-none bg-transparent px-1 py-2 text-[13px] text-white outline-none placeholder:text-white/35" />
                 <button type="button" onClick={toggleMicrophone} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${micEnabled ? "bg-emerald-500/20 text-emerald-300" : "text-[#d7b64d] hover:bg-white/5"}`} title={micEnabled ? "Microphone on — click to turn off" : "Microphone off — click to turn on"}><Mic size={17} /></button>
                 <button type="submit" disabled={!input.trim() || loading} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#f6d56d] hover:bg-white/5 disabled:opacity-30" title="Send"><Send size={17} /></button>
               </div>
@@ -365,13 +473,7 @@ export default function AIHelperChat() {
           </div>
         </div>
       ) : (
-        <button
-          ref={helperButtonRef}
-          type="button"
-          onClick={openHelper}
-          className="flex h-10 items-center gap-2 whitespace-nowrap rounded-xl border border-[#d7b64d] bg-[#7A0C2E] px-4 text-[13px] font-semibold leading-none text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]"
-          title={copy.title}
-        >
+        <button ref={helperButtonRef} type="button" onClick={openHelper} className="flex h-10 items-center gap-2 whitespace-nowrap rounded-xl border border-[#d7b64d] bg-[#7A0C2E] px-4 text-[13px] font-semibold leading-none text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]" title={copy.title}>
           <Bot size={15} />{copy.button}
         </button>
       )}
