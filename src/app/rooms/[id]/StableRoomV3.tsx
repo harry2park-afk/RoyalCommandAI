@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import RoomV3 from "./RoomV3";
 import CustomerProfileHub from "./CustomerProfileHub";
+import TopRoomFinderOverlay from "./TopRoomFinderOverlay";
 
 type Conversation = {
   id: string;
@@ -139,6 +140,7 @@ export default function StableRoomV3() {
 
   return (
     <>
+      <TopRoomFinderOverlay />
       <CustomerProfileHub />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
