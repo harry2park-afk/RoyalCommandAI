@@ -14,11 +14,18 @@ const EXTRA_SPECIAL_ROOMS = [
   { id: "gym-fitness-center", label: "Gym & Fitness Center", ko: "짐·헬스클럽", templateId: "fitness" },
   { id: "hang-gliding", label: "Hang Gliding", ko: "행글라이딩", templateId: "fitness" },
   { id: "paragliding", label: "Paragliding", ko: "패러글라이딩", templateId: "fitness" },
-  { id: "marine-water-sports", label: "Marine & Water Sports", ko: "해양·수상스포츠", templateId: "fitness" },
+  { id: "marine-water-sports", label: "Advanced Marine & Water Sports", ko: "첨단 해양·수상스포츠", templateId: "fitness" },
   { id: "surfing", label: "Surfing", ko: "서핑", templateId: "fitness" },
   { id: "sailing-yachting", label: "Sailing & Yachting", ko: "요트·세일링", templateId: "custom" },
   { id: "diving-snorkeling", label: "Diving & Snorkeling", ko: "다이빙·스노클링", templateId: "custom" },
   { id: "fishing", label: "Fishing", ko: "낚시", templateId: "custom" },
+  { id: "boat-fishing", label: "Boat Fishing", ko: "배낚시", templateId: "custom" },
+  { id: "rock-fishing", label: "Rock Fishing", ko: "록피싱·갯바위낚시", templateId: "custom" },
+  { id: "deep-sea-fishing", label: "Deep Sea Fishing", ko: "심해·외해낚시", templateId: "custom" },
+  { id: "shore-fishing", label: "Shore Fishing", ko: "방파제·해변낚시", templateId: "custom" },
+  { id: "kayak-fishing", label: "Kayak Fishing", ko: "카약낚시", templateId: "fitness" },
+  { id: "drone-fishing", label: "Drone Fishing", ko: "드론피싱·첨단낚시", templateId: "custom" },
+  { id: "fishing-charter", label: "Fishing Guide & Charter", ko: "낚시 가이드·차터", templateId: "custom" },
   { id: "kayak-canoe", label: "Kayak & Canoe", ko: "카약·카누", templateId: "fitness" },
   { id: "jetski-waterski", label: "Jet Ski & Water Ski", ko: "제트스키·수상스키", templateId: "fitness" },
   { id: "swimming-open-water", label: "Swimming & Open Water", ko: "수영·오픈워터", templateId: "fitness" },
@@ -41,7 +48,7 @@ const CATEGORIES: Category[] = [
   { id: "health-care", label: "Health & Care", ko: "의료·건강·복지", icon: "🏥", roomIds: ["medical-clinic", "dental", "allied-health", "pharmacy", "mental-health", "aged-care", "disability-support", "pet-care"] },
   { id: "education-research", label: "Education & Research", ko: "교육·학습·연구", icon: "🎓", roomIds: ["education", "ai-tutor", "university-research", "translation-languages", "research-intelligence", "personal-research"] },
   { id: "sports-fitness", label: "Sports & Fitness", ko: "스포츠·운동·짐", icon: "⚽", roomIds: ["sports", "sports-club-team", "athlete-coach", "fitness-gym", "gym-fitness-center", "hang-gliding", "paragliding"] },
-  { id: "marine-sports", label: "Marine & Water Sports", ko: "해양·수상스포츠", icon: "🌊", roomIds: ["marine-water-sports", "surfing", "sailing-yachting", "diving-snorkeling", "fishing", "kayak-canoe", "jetski-waterski", "swimming-open-water"] },
+  { id: "marine-sports", label: "Advanced Marine & Water Sports", ko: "첨단 해양·수상스포츠", icon: "🌊", roomIds: ["marine-water-sports", "surfing", "sailing-yachting", "diving-snorkeling", "fishing", "boat-fishing", "rock-fishing", "deep-sea-fishing", "shore-fishing", "kayak-fishing", "drone-fishing", "fishing-charter", "kayak-canoe", "jetski-waterski", "swimming-open-water"] },
   { id: "games-hobby", label: "Games & Hobbies", ko: "게임·취미", icon: "🎮", roomIds: ["hobby-room", "chess-janggi", "baduk-go", "board-games", "video-games", "pro-gaming-esports", "hobby", "gaming-esports", "music", "dance"] },
   { id: "travel-hospitality", label: "Travel & Hospitality", ko: "여행·숙박", icon: "✈️", roomIds: ["travel", "hotel-hospitality", "events-wedding"] },
   { id: "food-dining", label: "Food & Dining", ko: "음식·맛집·식당", icon: "🍽️", roomIds: ["restaurant-cafe", "food-grocery"] },
@@ -95,7 +102,7 @@ export default function RoomDirectoryPicker() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="rc-input !border-red-500/70 !pl-9 text-sm focus:!border-red-400"
-            placeholder="Room 바로 검색: 짐, 패러글라이딩, 해양, 여행, 음식"
+            placeholder="Room 바로 검색: 드론피싱, 배낚시, 해양, 여행, 음식"
             aria-label="Room 검색"
           />
         </div>
