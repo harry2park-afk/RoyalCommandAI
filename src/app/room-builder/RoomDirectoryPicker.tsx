@@ -27,15 +27,18 @@ const CATEGORIES: Category[] = [
   { id: "business", label: "Business & Office", ko: "사업·회사", icon: "💼", roomIds: ["business-operations", "executive-office", "customer-service", "reception", "sales", "hr-recruitment", "project-management", "crm-client-management", "billing-payments", "procurement", "consulting"] },
   { id: "legal-finance", label: "Legal, Finance & Compliance", ko: "법률·금융·규정", icon: "⚖️", roomIds: ["legal", "accounting-tax", "finance", "insurance", "immigration-visa", "patent-ip", "compliance-risk", "documents-contracts", "esign-approval", "personal-finance"] },
   { id: "property-home", label: "Property, Building & Home", ko: "부동산·건축·주택", icon: "🏠", roomIds: ["real-estate", "property-management", "construction-trades", "architecture-design", "dream-home-3d", "renovation-home-repair", "building-materials", "hardware-tools", "energy-solar"] },
-  { id: "health-care", label: "Health & Care", ko: "의료·복지", icon: "🏥", roomIds: ["medical-clinic", "dental", "allied-health", "pharmacy", "mental-health", "aged-care", "disability-support", "pet-care"] },
-  { id: "education-research", label: "Education & Research", ko: "교육·연구", icon: "🎓", roomIds: ["education", "ai-tutor", "university-research", "translation-languages", "research-intelligence", "personal-research"] },
-  { id: "sports-lifestyle", label: "Sports, Games & Lifestyle", ko: "스포츠·게임·취미생활", icon: "🎮", roomIds: ["sports", "sports-club-team", "athlete-coach", "fitness-gym", "hobby-room", "chess-janggi", "baduk-go", "board-games", "video-games", "pro-gaming-esports", "music", "dance", "hobby", "gaming-esports", "events-wedding", "beauty-salon", "fashion"] },
-  { id: "retail-food", label: "Retail, Food & Hospitality", ko: "판매·식품·숙박", icon: "🛍️", roomIds: ["retail", "online-store", "marketplace", "home-shopping", "restaurant-cafe", "food-grocery", "hotel-hospitality", "travel", "shopping-assistant"] },
+  { id: "health-care", label: "Health & Care", ko: "의료·건강·복지", icon: "🏥", roomIds: ["medical-clinic", "dental", "allied-health", "pharmacy", "mental-health", "aged-care", "disability-support", "pet-care"] },
+  { id: "education-research", label: "Education & Research", ko: "교육·학습·연구", icon: "🎓", roomIds: ["education", "ai-tutor", "university-research", "translation-languages", "research-intelligence", "personal-research"] },
+  { id: "sports-fitness", label: "Sports & Fitness", ko: "스포츠·운동", icon: "⚽", roomIds: ["sports", "sports-club-team", "athlete-coach", "fitness-gym"] },
+  { id: "games-hobby", label: "Games & Hobbies", ko: "게임·취미", icon: "🎮", roomIds: ["hobby-room", "chess-janggi", "baduk-go", "board-games", "video-games", "pro-gaming-esports", "hobby", "gaming-esports", "music", "dance"] },
+  { id: "travel-hospitality", label: "Travel & Hospitality", ko: "여행·숙박", icon: "✈️", roomIds: ["travel", "hotel-hospitality", "events-wedding"] },
+  { id: "food-dining", label: "Food & Dining", ko: "음식·맛집·식당", icon: "🍽️", roomIds: ["restaurant-cafe", "food-grocery"] },
+  { id: "shopping-commerce", label: "Shopping & Commerce", ko: "쇼핑·판매·상거래", icon: "🛍️", roomIds: ["retail", "online-store", "marketplace", "home-shopping", "shopping-assistant", "fashion", "beauty-salon"] },
   { id: "technology-ai", label: "Technology & AI", ko: "기술·AI", icon: "🤖", roomIds: ["it-software", "ai-automation", "cybersecurity", "telecom-phone", "electronics-appliances", "website-builder", "app-development", "coding-developer", "security-safety"] },
   { id: "industry-transport", label: "Industry, Transport & Resources", ko: "산업·운송·자원", icon: "🏭", roomIds: ["manufacturing", "transport-logistics", "automotive", "agriculture-farming", "greenhouse-horticulture", "inventory-warehouse"] },
-  { id: "media-creative", label: "Media & Creative", ko: "미디어·콘텐츠", icon: "🎬", roomIds: ["marketing-media", "creative-studio", "photo-video", "creator-influencer", "news-current-affairs"] },
+  { id: "media-creative", label: "Media & Creative", ko: "미디어·콘텐츠·창작", icon: "🎬", roomIds: ["marketing-media", "creative-studio", "photo-video", "creator-influencer", "news-current-affairs"] },
   { id: "government-global", label: "Government, Community & Global", ko: "정부·공공·국제", icon: "🌍", roomIds: ["government-public", "nonprofit-association", "community", "charity-social-support", "international-trade", "import-export", "emergency-disaster"] },
-  { id: "personal-family", label: "Personal & Family", ko: "개인·가족", icon: "👨‍👩‍👧", roomIds: ["personal-assistant", "family", "career-job-search", "shopping-assistant", "personal-finance", "personal-research"] },
+  { id: "personal-family", label: "Personal & Family", ko: "개인·가족·생활", icon: "👨‍👩‍👧", roomIds: ["personal-assistant", "family", "career-job-search", "personal-finance", "personal-research"] },
   { id: "space-future", label: "Space & Future", ko: "우주·미래기술", icon: "🚀", roomIds: ["space-services", "satellite-internet", "earth-observation", "space-research", "environment-sustainability", "energy-solar"] },
   { id: "custom", label: "Anything / Custom", ko: "맞춤형", icon: "✨", roomIds: ["custom"] },
 ];
@@ -80,13 +83,13 @@ export default function RoomDirectoryPicker() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="rc-input !border-red-500/70 !pl-9 text-sm focus:!border-red-400"
-            placeholder="Room 바로 검색: 취미, 장기, 바둑, 게임"
+            placeholder="Room 바로 검색: 여행, 음식, 바둑, 법률"
             aria-label="Room 검색"
           />
         </div>
         <div className="mt-2 flex items-center justify-between text-[10px] text-[var(--muted)]">
           <span>전체 {ALL_ROOMS.length}개</span>
-          {showingRooms ? <span>표시 {visibleRooms.length}개</span> : <span>14개 분야</span>}
+          {showingRooms ? <span>표시 {visibleRooms.length}개</span> : <span>{CATEGORIES.length}개 분야</span>}
         </div>
       </div>
 
