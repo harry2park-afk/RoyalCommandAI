@@ -8,6 +8,7 @@ import TopRoomFinderOverlay from "./TopRoomFinderOverlay";
 import RoomSiteLinks from "./RoomSiteLinks";
 import SavedConversationInspector from "./SavedConversationInspector";
 import FirstRoomWelcome from "./FirstRoomWelcome";
+import AIHelperChat from "./AIHelperChat";
 
 type Conversation = {
   id: string;
@@ -148,6 +149,7 @@ export default function StableRoomV3() {
       <CustomerProfileHub />
       <RoomSiteLinks />
       <SavedConversationInspector />
+      <AIHelperChat />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
   );
