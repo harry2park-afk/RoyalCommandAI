@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import RoomV3 from "./RoomV3";
-import RoomFinderShortcut from "./RoomFinderShortcut";
 import CustomerProfileHub from "./CustomerProfileHub";
 
 type Conversation = {
@@ -140,7 +139,6 @@ export default function StableRoomV3() {
 
   return (
     <>
-      <RoomFinderShortcut />
       <CustomerProfileHub />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
