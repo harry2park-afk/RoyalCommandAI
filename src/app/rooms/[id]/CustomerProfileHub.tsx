@@ -23,12 +23,10 @@ type SpeechRecognitionLike = {
   onerror: (() => void) | null;
 };
 
-declare global {
-  interface Window {
-    SpeechRecognition?: new () => SpeechRecognitionLike;
-    webkitSpeechRecognition?: new () => SpeechRecognitionLike;
-  }
-}
+type SpeechWindow = Window & {
+  SpeechRecognition?: new () => SpeechRecognitionLike;
+  webkitSpeechRecognition?: new () => SpeechRecognitionLike;
+};
 
 export default function CustomerProfileHub() {
   const [open, setOpen] = useState(false);
@@ -52,7 +50,8 @@ export default function CustomerProfileHub() {
   }
 
   function startVoiceEntry() {
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const speechWindow = window as SpeechWindow;
+    const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!Recognition) {
       window.alert("이 브라우저에서는 음성 입력을 지원하지 않습니다. 타이핑 또는 파일 업로드를 사용해 주세요.");
       return;
