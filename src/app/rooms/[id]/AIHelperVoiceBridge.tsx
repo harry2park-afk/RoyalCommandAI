@@ -7,13 +7,13 @@ function helperIsVisible() {
 }
 
 function fireUtteranceEvent(
-  handler: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisEvent) => any) | null,
+  handler: ((this: SpeechSynthesisUtterance, ev: any) => any) | null,
   utterance: SpeechSynthesisUtterance,
   type: "start" | "end" | "error",
 ) {
   if (!handler) return;
   try {
-    handler.call(utterance, new Event(type) as unknown as SpeechSynthesisEvent);
+    handler.call(utterance, new Event(type));
   } catch {}
 }
 
@@ -55,8 +55,8 @@ export default function AIHelperVoiceBridge() {
       const isGreeting = greetingPending;
       greetingPending = false;
 
-      // Critical: there must be exactly one voice path for AI Help.
-      // Cancel any queued browser TTS and never fall back to it.
+      // Exactly one voice path for AI Help: cancel queued browser TTS,
+      // generate the Royal Command AI voice, and never fall back to browser TTS.
       stopGeneratedAudio();
       originalCancel();
 
@@ -81,28 +81,26 @@ export default function AIHelperVoiceBridge() {
           audio.preload = "auto";
           audio.volume = 1;
 
-          audio.onplay = () => fireUtteranceEvent(utterance.onstart, utterance, "start");
+          audio.onplay = () => fireUtteranceEvent(utterance.onstart as any, utterance, "start");
           audio.onended = () => {
-            // Detach handlers before cleanup so clearing src cannot trigger an error fallback.
             audio.onplay = null;
             audio.onended = null;
             audio.onerror = null;
             stopGeneratedAudio();
-            fireUtteranceEvent(utterance.onend, utterance, "end");
+            fireUtteranceEvent(utterance.onend as any, utterance, "end");
           };
           audio.onerror = () => {
             audio.onplay = null;
             audio.onended = null;
             audio.onerror = null;
             stopGeneratedAudio();
-            fireUtteranceEvent(utterance.onerror, utterance, "error");
+            fireUtteranceEvent(utterance.onerror as any, utterance, "error");
           };
 
           await audio.play();
         } catch {
           stopGeneratedAudio();
-          // Intentionally NO browser-TTS fallback. One youthful AI voice only.
-          fireUtteranceEvent(utterance.onerror, utterance, "error");
+          fireUtteranceEvent(utterance.onerror as any, utterance, "error");
         }
       })();
     };
