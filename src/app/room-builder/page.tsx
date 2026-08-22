@@ -21,6 +21,28 @@ const APPROVAL_OPTIONS: Array<{ id: ApprovalMode; label: string; detail: string 
   { id: "autonomous", label: "Autonomous Mode", detail: "Runs automatically only within the allowed scope." },
 ];
 
+const ROOM_LANGUAGES = [
+  { tag: "en-AU", label: "English (Australia)" },
+  { tag: "en-US", label: "English (United States)" },
+  { tag: "en-GB", label: "English (United Kingdom)" },
+  { tag: "ko-KR", label: "Korean" },
+  { tag: "ja-JP", label: "Japanese" },
+  { tag: "zh-CN", label: "Chinese (Simplified)" },
+  { tag: "zh-TW", label: "Chinese (Traditional)" },
+  { tag: "es-ES", label: "Spanish" },
+  { tag: "fr-FR", label: "French" },
+  { tag: "de-DE", label: "German" },
+  { tag: "it-IT", label: "Italian" },
+  { tag: "pt-BR", label: "Portuguese" },
+  { tag: "ar-AE", label: "Arabic" },
+  { tag: "hi-IN", label: "Hindi" },
+  { tag: "id-ID", label: "Indonesian" },
+  { tag: "vi-VN", label: "Vietnamese" },
+  { tag: "th-TH", label: "Thai" },
+  { tag: "ms-MY", label: "Malay" },
+  { tag: "ru-RU", label: "Russian" },
+] as const;
+
 export default function RoomBuilderPage() {
   const router = useRouter();
   const [templateId, setTemplateId] = useState("custom");
@@ -54,6 +76,10 @@ export default function RoomBuilderPage() {
     () => ROOM_MATERIALS.filter((item) => selectedMaterials.includes(item.id) || item.id === "website-builder"),
     [selectedMaterials],
   );
+
+  const roomLanguageSelectValue = ROOM_LANGUAGES.some((item) => item.tag === globalSettings.languageTag)
+    ? globalSettings.languageTag
+    : "CUSTOM";
 
   function setAnswer(id: string, value: string) {
     setAnswers((current) => ({ ...current, [id]: value }));
@@ -115,7 +141,7 @@ export default function RoomBuilderPage() {
       <div className="rounded-3xl border border-[var(--gold)]/35 bg-black/20 p-5 shadow-[0_20px_60px_rgba(0,0,0,.3)] md:p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--gold-soft)]">Royal Command Room Builder · Global Core + Template + Warehouse</p>
         <h1 className="mt-2 text-3xl font-semibold" style={{ fontFamily: "var(--font-display), serif" }}>Create {roomName}</h1>
-        <p className="mt-2 text-sm text-[var(--muted)]">Global Core and recommended materials are prepared automatically. Keep what you need, choose country and language settings, review the Preview, then create the Room.</p>
+        <p className="mt-2 text-sm text-[var(--muted)]">Global Core and recommended materials are prepared automatically. Keep what you need, choose country and Room language, review the Preview, then create the Room.</p>
 
         <form onSubmit={createRoom} className="mt-6 space-y-7">
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
@@ -184,8 +210,8 @@ export default function RoomBuilderPage() {
           </section>
 
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
-            <div className="text-sm font-semibold text-[var(--gold-soft)]">4. Global Settings & Safe Copy</div>
-            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Use one Global Core worldwide. Copies include structure only and exclude customer data, Memory, API keys and secrets.</p>
+            <div className="text-sm font-semibold text-[var(--gold-soft)]">4. Country, Room Language & Global Settings</div>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Country and Room language are separate choices. The Room stays in English by default until the customer selects another Room language.</p>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               <div>
@@ -196,14 +222,46 @@ export default function RoomBuilderPage() {
                     setGlobalSettings((current) => ({ ...current, countryCode: "OTHER" }));
                     return;
                   }
-                  setGlobalSettings((current) => applyGlobalPreset(current, value));
+                  setGlobalSettings((current) => {
+                    const previousLanguage = current.languageTag;
+                    const next = applyGlobalPreset(current, value);
+                    return { ...next, languageTag: previousLanguage };
+                  });
                 }}>
                   {GLOBAL_ROOM_PRESETS.map((preset) => <option key={preset.id} value={preset.id}>{preset.label}</option>)}
                   <option value="OTHER">Other / Custom country</option>
                 </select>
               </div>
 
-              <div><label className="mb-2 block text-sm font-semibold">Language Tag</label><input className="rc-input" value={globalSettings.languageTag} onChange={(event) => setGlobal("languageTag", event.target.value.slice(0, 35))} placeholder="e.g. en-AU, ko-KR, ar-AE" /></div>
+              <div>
+                <label className="mb-2 block text-sm font-semibold">Room Language</label>
+                <select
+                  className="rc-input"
+                  value={roomLanguageSelectValue}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    if (value === "CUSTOM") {
+                      setGlobal("languageTag", "");
+                      return;
+                    }
+                    setGlobal("languageTag", value);
+                    if (value.startsWith("ar")) setGlobal("textDirection", "rtl");
+                    else setGlobal("textDirection", "ltr");
+                  }}
+                >
+                  {ROOM_LANGUAGES.map((language) => <option key={language.tag} value={language.tag}>{language.label}</option>)}
+                  <option value="CUSTOM">Other / Custom language</option>
+                </select>
+                <p className="mt-1 text-[11px] text-[var(--muted)]">This controls the default language used inside the new Room.</p>
+              </div>
+
+              {roomLanguageSelectValue === "CUSTOM" ? (
+                <div>
+                  <label className="mb-2 block text-sm font-semibold">Custom Language Tag</label>
+                  <input className="rc-input" value={globalSettings.languageTag} onChange={(event) => setGlobal("languageTag", event.target.value.slice(0, 35))} placeholder="e.g. nl-NL" />
+                </div>
+              ) : null}
+
               <div><label className="mb-2 block text-sm font-semibold">Time Zone</label><input className="rc-input" value={globalSettings.timeZone} onChange={(event) => setGlobal("timeZone", event.target.value.slice(0, 80))} placeholder="e.g. Australia/Sydney" /></div>
               <div><label className="mb-2 block text-sm font-semibold">Currency</label><input className="rc-input" value={globalSettings.currencyCode} onChange={(event) => setGlobal("currencyCode", event.target.value.toUpperCase().slice(0, 3))} placeholder="AUD" /></div>
               <div><label className="mb-2 block text-sm font-semibold">Text Direction</label><select className="rc-input" value={globalSettings.textDirection} onChange={(event) => setGlobal("textDirection", event.target.value as GlobalRoomSettings["textDirection"])}><option value="auto">Auto</option><option value="ltr">Left to Right</option><option value="rtl">Right to Left</option></select></div>
@@ -220,7 +278,7 @@ export default function RoomBuilderPage() {
 
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><div className="text-sm font-semibold text-[var(--gold-soft)]">6. Preview & Test</div><p className="mt-1 text-xs text-[var(--muted)]">Review configuration, global settings and copy safety before creating the Room.</p></div>
+              <div><div className="text-sm font-semibold text-[var(--gold-soft)]">6. Preview & Test</div><p className="mt-1 text-xs text-[var(--muted)]">Review configuration, Room language, global settings and copy safety before creating the Room.</p></div>
               <button type="button" onClick={() => setPreviewOpen((value) => !value)} className="rc-btn rc-btn-ghost text-sm">{previewOpen ? "Close Preview" : "View Preview"}</button>
             </div>
 
@@ -232,7 +290,7 @@ export default function RoomBuilderPage() {
                 <div><strong>Memory:</strong> Room Memory ON by default</div>
                 <div><strong>Approval:</strong> {APPROVAL_OPTIONS.find((item) => item.id === approvalMode)?.label}</div>
                 <div><strong>Country:</strong> {globalSettings.countryCode}</div>
-                <div><strong>Language:</strong> {globalSettings.languageTag}</div>
+                <div><strong>Room Language:</strong> {globalSettings.languageTag || "Custom language not set"}</div>
                 <div><strong>Time Zone:</strong> {globalSettings.timeZone}</div>
                 <div><strong>Currency:</strong> {globalSettings.currencyCode}</div>
                 <div><strong>Copy:</strong> Structure only · Data/Memory/API keys/Secrets excluded</div>
