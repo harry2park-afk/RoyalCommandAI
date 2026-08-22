@@ -30,6 +30,31 @@ function activeKey(roomId: string) {
   return `royalcommand:room:${roomId}:active-conversation`;
 }
 
+function conversationTimestamp(conversation: Conversation) {
+  return conversation.last_message_at || conversation.updated_at || conversation.created_at;
+}
+
+function shortChatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "--/--";
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  return `${day}/${month}`;
+}
+
+function fullChatDate(value: string) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Date unavailable";
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).format(date);
+}
+
 export default function ChatHistorySidebar() {
   const pathname = usePathname();
   const roomId = pathname.split("/").filter(Boolean).pop() || "";
@@ -40,6 +65,7 @@ export default function ChatHistorySidebar() {
   const [activeId, setActiveId] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingTitle, setEditingTitle] = useState("");
+  const [dateInfoId, setDateInfoId] = useState<string | null>(null);
   const [status, setStatus] = useState("");
   const [width, setWidth] = useState(DEFAULT_WIDTH);
   const [collapsed, setCollapsed] = useState(false);
@@ -63,6 +89,7 @@ export default function ChatHistorySidebar() {
       const next = Array.isArray(data.conversations) ? data.conversations as Conversation[] : [];
       setConversations(next);
       setSelectedIds((previous) => previous.filter((id) => next.some((item) => item.id === id && item.status !== "archived")));
+      setDateInfoId((previous) => previous && next.some((item) => item.id === previous && item.status !== "archived") ? previous : null);
     } catch {}
     finally { setLoaded(true); }
   }
@@ -152,6 +179,7 @@ export default function ChatHistorySidebar() {
         setActiveId("");
       }
       setSelectedIds([]);
+      setDateInfoId(null);
       setStatus("Deleted");
       await refreshHistory();
       window.setTimeout(() => setStatus(""), 1200);
@@ -200,6 +228,7 @@ export default function ChatHistorySidebar() {
         setActiveId("");
       }
       setSelectedIds([]);
+      setDateInfoId(null);
       setStatus(`${savedIds.length} saved`);
       await refreshHistory();
       window.setTimeout(() => setStatus(""), 1200);
@@ -218,6 +247,13 @@ export default function ChatHistorySidebar() {
       } catch {}
     })();
   }, [roomId]);
+
+  useEffect(() => {
+    if (!dateInfoId) return;
+    const close = () => setDateInfoId(null);
+    document.addEventListener("click", close);
+    return () => document.removeEventListener("click", close);
+  }, [dateInfoId]);
 
   useEffect(() => {
     const main = document.querySelector("main");
@@ -316,8 +352,10 @@ export default function ChatHistorySidebar() {
             const editing = editingId === conversation.id;
             const selected = selectedIds.includes(conversation.id);
             const active = activeId === conversation.id;
+            const timestamp = conversationTimestamp(conversation);
+            const dateOpen = dateInfoId === conversation.id;
             return (
-              <div key={conversation.id} className={`group flex h-[30px] items-center rounded-lg border ${active ? "border-[#FFD700] bg-[#FFD700]/15" : selected ? "border-[var(--gold)] bg-[var(--gold)]/15" : "border-[var(--gold)]/50 bg-[var(--gold)]/8"}`}>
+              <div key={conversation.id} className={`group relative flex h-[30px] items-center rounded-lg border ${active ? "border-[#FFD700] bg-[#FFD700]/15" : selected ? "border-[var(--gold)] bg-[var(--gold)]/15" : "border-[var(--gold)]/50 bg-[var(--gold)]/8"}`}>
                 {editing ? (
                   <>
                     <input autoFocus value={editingTitle} onChange={(event) => setEditingTitle(event.target.value)} onKeyDown={(event) => {
@@ -330,8 +368,28 @@ export default function ChatHistorySidebar() {
                 ) : (
                   <>
                     <input type="checkbox" checked={selected} onChange={() => setSelectedIds((previous) => previous.includes(conversation.id) ? previous.filter((id) => id !== conversation.id) : [...previous, conversation.id])} onClick={(event) => event.stopPropagation()} className="ml-2 h-4 w-4 shrink-0 accent-[#2563eb]" />
-                    <button type="button" onClick={() => void openConversation(conversation)} onDoubleClick={(event) => { event.preventDefault(); setEditingId(conversation.id); setEditingTitle(conversation.title); }} className="min-w-0 flex-1 truncate px-2 text-left text-xs text-[var(--gold-soft)]" title="Click: open full conversation · Double-click: edit title">{conversation.title}</button>
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setDateInfoId((current) => current === conversation.id ? null : conversation.id);
+                      }}
+                      className="ml-1 shrink-0 px-1 text-[9px] font-semibold tabular-nums text-cyan-300/80 hover:text-cyan-200"
+                      title="Click to view full chat date and time"
+                    >
+                      {shortChatDate(timestamp)}
+                    </button>
+                    <button type="button" onClick={() => void openConversation(conversation)} onDoubleClick={(event) => { event.preventDefault(); setEditingId(conversation.id); setEditingTitle(conversation.title); }} className="min-w-0 flex-1 truncate px-1.5 text-left text-xs text-[var(--gold-soft)]" title="Click: open full conversation · Double-click: edit title">{conversation.title}</button>
                     <button type="button" onClick={(event) => { event.stopPropagation(); setEditingId(conversation.id); setEditingTitle(conversation.title); }} className="mr-1 grid h-6 w-6 shrink-0 place-items-center text-[#FFD700] hover:bg-white/[0.04]" title="Edit conversation title"><Pencil size={13} /></button>
+                    {dateOpen ? (
+                      <div
+                        className="absolute left-7 top-full z-[160] mt-1 w-[190px] rounded-md border border-cyan-300/25 bg-[#07111f] px-2.5 py-2 text-[10px] leading-4 text-white shadow-xl"
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <div className="font-semibold text-cyan-200">Chat date & time</div>
+                        <div className="mt-0.5 text-white/80">{fullChatDate(timestamp)}</div>
+                      </div>
+                    ) : null}
                   </>
                 )}
               </div>
