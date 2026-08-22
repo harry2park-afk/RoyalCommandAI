@@ -10,6 +10,7 @@ import SavedConversationInspector from "./SavedConversationInspector";
 import FirstRoomWelcome from "./FirstRoomWelcome";
 import AIHelperChat from "./AIHelperChat";
 import LiveAvatarLayer from "./LiveAvatarLayer";
+import AIHelperVoiceBridge from "./AIHelperVoiceBridge";
 
 type Conversation = {
   id: string;
@@ -151,6 +152,7 @@ export default function StableRoomV3() {
       <RoomSiteLinks />
       <SavedConversationInspector />
       <AIHelperChat />
+      <AIHelperVoiceBridge />
       <LiveAvatarLayer />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
