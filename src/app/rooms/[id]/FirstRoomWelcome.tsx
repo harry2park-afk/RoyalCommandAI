@@ -56,9 +56,10 @@ export default function FirstRoomWelcome() {
     <div
       className="pointer-events-none fixed left-1/2 top-[12px] z-[345] w-[min(760px,52vw)] -translate-x-1/2 text-center text-white/55 drop-shadow-[0_1px_8px_rgba(255,255,255,0.12)]"
       style={{
-        fontFamily: '"Snell Roundhand", "Segoe Script", "Lucida Handwriting", "Brush Script MT", cursive',
+        fontFamily: '"Bodoni Bd BT", "Bodoni 72", Didot, "Times New Roman", serif',
         fontSize: "23px",
-        fontWeight: 400,
+        fontWeight: 700,
+        fontStyle: "italic",
         lineHeight: 1.15,
         letterSpacing: "0.015em",
       }}
