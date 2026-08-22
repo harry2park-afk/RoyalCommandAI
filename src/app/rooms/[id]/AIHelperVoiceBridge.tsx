@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 
 const FEMALE_VOICE_HINTS: Record<string, string[]> = {
-  ko: ["SunHi", "Yumi", "Seoyeon", "Heami", "Sora", "Google 한국의", "Korean Female"],
-  en: ["Aria", "Jenny", "Samantha", "Zira", "Karen", "Natasha", "Sonia", "Google UK English Female", "Female"],
+  ko: ["SunHi", "Yumi", "Seoyeon", "Heami", "Sora", "Korean Female"],
+  en: ["Aria", "Jenny", "Samantha", "Zira", "Karen", "Natasha", "Sonia", "Female"],
   zh: ["Xiaoxiao", "Xiaoyi", "Huihui", "Yaoyao", "Tingting", "Chinese Female"],
   ja: ["Nanami", "Haruka", "Ayumi", "Kyoko", "Japanese Female"],
   es: ["Elvira", "Dalia", "Helena", "Monica", "Spanish Female"],
@@ -29,7 +29,7 @@ function localeKey(locale: string) {
   return "en";
 }
 
-function selectYoungFemaleVoice(voices: SpeechSynthesisVoice[], locale: string) {
+function selectFallbackFemaleVoice(voices: SpeechSynthesisVoice[], locale: string) {
   const key = localeKey(locale);
   const hints = FEMALE_VOICE_HINTS[key] || FEMALE_VOICE_HINTS.en;
   const matchingLocale = voices.filter((voice) => voice.lang.toLowerCase().startsWith(key));
@@ -40,21 +40,25 @@ function selectYoungFemaleVoice(voices: SpeechSynthesisVoice[], locale: string) 
     if (voice) return voice;
   }
 
-  const natural = pool.find((voice) => /natural|neural|online/i.test(voice.name));
-  return natural || pool[0] || null;
+  return pool.find((voice) => /natural|neural|online/i.test(voice.name)) || pool[0] || null;
 }
 
 function helperIsVisible() {
   return Boolean(document.querySelector('img[alt="Royal Command AI Helper"]'));
 }
 
-function looksLikeGreeting(text: string) {
-  const t = text.trim().toLowerCase();
-  return /^(안녕하세요|안녕|hello|hi\b|您好|こんにちは|hola|bonjour|hallo|xin chào|สวัสดี|halo)/i.test(t);
+function fireUtteranceEvent(
+  handler: ((this: SpeechSynthesisUtterance, ev: SpeechSynthesisEvent) => any) | null,
+  utterance: SpeechSynthesisUtterance,
+  type: "start" | "end" | "error",
+) {
+  if (!handler) return;
+  try {
+    handler.call(utterance, new Event(type) as unknown as SpeechSynthesisEvent);
+  } catch {}
 }
 
 export default function AIHelperVoiceBridge() {
-  const streamRef = useRef<MediaStream | null>(null);
   const [micProblem, setMicProblem] = useState("");
 
   useEffect(() => {
@@ -62,65 +66,156 @@ export default function AIHelperVoiceBridge() {
 
     const synth = window.speechSynthesis;
     let voices = synth.getVoices();
+    let greetingPending = false;
+    let activeAudio: HTMLAudioElement | null = null;
+    let activeUrl = "";
+
     const refreshVoices = () => { voices = synth.getVoices(); };
     synth.addEventListener("voiceschanged", refreshVoices);
 
     const originalSpeak = synth.speak.bind(synth);
-    const patchedSpeak = (utterance: SpeechSynthesisUtterance) => {
-      if (helperIsVisible()) {
-        refreshVoices();
-        const chosen = selectYoungFemaleVoice(voices, utterance.lang || "en-AU");
-        if (chosen) utterance.voice = chosen;
+    const originalCancel = synth.cancel.bind(synth);
 
-        if (looksLikeGreeting(utterance.text || "")) {
-          // Brighter, smiling first greeting: slightly quicker and lighter than normal conversation.
-          utterance.rate = 1.06;
-          utterance.pitch = 1.22;
-        } else {
-          utterance.rate = Math.max(0.99, Math.min(1.05, utterance.rate || 1));
-          utterance.pitch = Math.max(1.08, utterance.pitch || 1.08);
-        }
-        utterance.volume = 1;
+    const stopGeneratedAudio = () => {
+      if (activeAudio) {
+        try { activeAudio.pause(); } catch {}
+        activeAudio.src = "";
+        activeAudio = null;
       }
+      if (activeUrl) {
+        URL.revokeObjectURL(activeUrl);
+        activeUrl = "";
+      }
+    };
+
+    const fallbackSpeak = (utterance: SpeechSynthesisUtterance) => {
+      refreshVoices();
+      const chosen = selectFallbackFemaleVoice(voices, utterance.lang || "en-AU");
+      if (chosen) utterance.voice = chosen;
+      utterance.rate = greetingPending ? 1.06 : 1.0;
+      utterance.pitch = greetingPending ? 1.12 : 1.06;
+      utterance.volume = 1;
       originalSpeak(utterance);
     };
-    (synth as typeof synth & { speak: (utterance: SpeechSynthesisUtterance) => void }).speak = patchedSpeak;
 
-    const releaseMic = () => {
-      const stream = streamRef.current;
-      streamRef.current = null;
-      stream?.getTracks().forEach((track) => track.stop());
+    const patchedSpeak = (utterance: SpeechSynthesisUtterance) => {
+      const useRoyalVoice = helperIsVisible() || greetingPending;
+      if (!useRoyalVoice) {
+        originalSpeak(utterance);
+        return;
+      }
+
+      const isGreeting = greetingPending;
+      greetingPending = false;
+      stopGeneratedAudio();
+      originalCancel();
+
+      void (async () => {
+        try {
+          const response = await fetch("/api/ai/helper/speech", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              text: utterance.text,
+              language: utterance.lang || document.documentElement.lang || "en",
+              greeting: isGreeting,
+            }),
+          });
+          if (!response.ok) throw new Error("Natural voice request failed");
+
+          const blob = await response.blob();
+          activeUrl = URL.createObjectURL(blob);
+          const audio = new Audio(activeUrl);
+          activeAudio = audio;
+          audio.preload = "auto";
+          audio.volume = 1;
+
+          audio.onplay = () => fireUtteranceEvent(utterance.onstart, utterance, "start");
+          audio.onended = () => {
+            stopGeneratedAudio();
+            fireUtteranceEvent(utterance.onend, utterance, "end");
+          };
+          audio.onerror = () => {
+            stopGeneratedAudio();
+            fallbackSpeak(utterance);
+          };
+
+          await audio.play();
+        } catch {
+          stopGeneratedAudio();
+          fallbackSpeak(utterance);
+        }
+      })();
+    };
+
+    const patchedCancel = () => {
+      stopGeneratedAudio();
+      originalCancel();
+    };
+
+    (synth as typeof synth & { speak: (utterance: SpeechSynthesisUtterance) => void }).speak = patchedSpeak;
+    (synth as typeof synth & { cancel: () => void }).cancel = patchedCancel;
+
+    const describeMicError = (error: unknown, audioInputs: MediaDeviceInfo[]) => {
+      const name = error instanceof DOMException ? error.name : "";
+      if (name === "NotAllowedError" || name === "SecurityError") {
+        return "Microphone blocked — click the site controls beside the address bar and allow Microphone for royalcommand.ai.";
+      }
+      if (name === "NotFoundError" || audioInputs.length === 0) {
+        return "No microphone input device is connected. Connect a headset/earphone microphone or an external microphone, then try again.";
+      }
+      if (name === "NotReadableError" || name === "AbortError") {
+        return "A microphone exists but Windows cannot give it to Chrome. Check Windows Sound > Input and close any app that may be using the microphone exclusively.";
+      }
+      return "The microphone could not start. Check Chrome microphone permission and Windows Sound > Input.";
     };
 
     const ensureMic = async () => {
-      if (streamRef.current?.getAudioTracks().some((track) => track.readyState === "live")) {
-        setMicProblem("");
-        return true;
-      }
       if (!navigator.mediaDevices?.getUserMedia) {
         setMicProblem("Microphone is not available in this browser.");
         return false;
       }
+
+      let devices: MediaDeviceInfo[] = [];
+      try {
+        devices = await navigator.mediaDevices.enumerateDevices();
+      } catch {}
+      let audioInputs = devices.filter((device) => device.kind === "audioinput");
+
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
           video: false,
         });
-        releaseMic();
-        streamRef.current = stream;
+        // Permission/health check only. Release immediately so Web Speech recognition can own the mic.
+        stream.getTracks().forEach((track) => track.stop());
         setMicProblem("");
         return true;
-      } catch (error) {
-        const name = error instanceof DOMException ? error.name : "";
-        setMicProblem(
-          name === "NotAllowedError"
-            ? "Microphone blocked — allow microphone access for royalcommand.ai in Chrome."
-            : "No working microphone was detected. Check the Windows input microphone.",
-        );
+      } catch (firstError) {
+        try {
+          devices = await navigator.mediaDevices.enumerateDevices();
+          audioInputs = devices.filter((device) => device.kind === "audioinput");
+        } catch {}
+
+        for (const device of audioInputs) {
+          if (!device.deviceId || device.deviceId === "default") continue;
+          try {
+            const stream = await navigator.mediaDevices.getUserMedia({
+              audio: {
+                deviceId: { exact: device.deviceId },
+                echoCancellation: true,
+                noiseSuppression: true,
+                autoGainControl: true,
+              },
+              video: false,
+            });
+            stream.getTracks().forEach((track) => track.stop());
+            setMicProblem("");
+            return true;
+          } catch {}
+        }
+
+        setMicProblem(describeMicError(firstError, audioInputs));
         return false;
       }
     };
@@ -134,27 +229,24 @@ export default function AIHelperVoiceBridge() {
       const text = button.textContent?.trim() || "";
 
       if ((title === "AI Help" || text === "AI Help") && !helperIsVisible()) {
+        greetingPending = true;
         void ensureMic();
       } else if (/Microphone off/i.test(title)) {
         void ensureMic();
       } else if (title === "Close" && helperIsVisible()) {
-        window.setTimeout(releaseMic, 150);
+        setMicProblem("");
+        stopGeneratedAudio();
       }
     };
 
     document.addEventListener("click", onClickCapture, true);
 
-    const observer = new MutationObserver(() => {
-      if (!helperIsVisible()) releaseMic();
-    });
-    observer.observe(document.body, { childList: true, subtree: true });
-
     return () => {
       document.removeEventListener("click", onClickCapture, true);
-      observer.disconnect();
       synth.removeEventListener("voiceschanged", refreshVoices);
+      stopGeneratedAudio();
       (synth as typeof synth & { speak: (utterance: SpeechSynthesisUtterance) => void }).speak = originalSpeak;
-      releaseMic();
+      (synth as typeof synth & { cancel: () => void }).cancel = originalCancel;
     };
   }, []);
 
