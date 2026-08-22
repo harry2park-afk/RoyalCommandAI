@@ -256,6 +256,8 @@ export default function RightWorkSidebar() {
     >
       <input ref={fileInputRef} type="file" multiple className="hidden" onChange={onFilesPicked} />
 
+      <RightRoomFinder />
+
       <div className="rc-right-search shrink-0 px-1.5 py-1.5">
         <div className="relative">
           <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
@@ -275,8 +277,6 @@ export default function RightWorkSidebar() {
           />
         </div>
       </div>
-
-      <RightRoomFinder />
 
       <div ref={menuScrollRef} className="rc-right-menu min-h-0 flex-1 overflow-y-auto px-1.5 pb-[118px]">
         {visibleSelectedApps.map((app) => (
