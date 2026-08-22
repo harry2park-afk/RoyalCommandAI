@@ -6,20 +6,20 @@
   const FINDER_ID = "rc-room-finder-top";
   const currentRoomId = window.location.pathname.split("/").filter(Boolean).pop() || "";
   const PLACEHOLDER_ROOMS = [
-    { name: "법률룸", template: "legal" },
-    { name: "취미룸", template: "custom" },
-    { name: "학습룸", template: "education" },
-    { name: "기술룸", template: "technology" },
-    { name: "사업룸", template: "business" },
-    { name: "부동산룸", template: "realestate" },
-    { name: "여행룸", template: "hotel" },
-    { name: "문서룸", template: "custom" },
-    { name: "프로젝트룸", template: "business" },
-    { name: "상담룸", template: "consultation" },
-    { name: "건강룸", template: "medical" },
-    { name: "가족룸", template: "custom" },
-    { name: "쇼핑룸", template: "retail" },
-    { name: "아이디어룸", template: "custom" },
+    { name: "Legal Room", template: "legal" },
+    { name: "Hobby Room", template: "custom" },
+    { name: "Learning Room", template: "education" },
+    { name: "Technology Room", template: "technology" },
+    { name: "Business Room", template: "business" },
+    { name: "Property Room", template: "realestate" },
+    { name: "Travel Room", template: "hotel" },
+    { name: "Documents Room", template: "custom" },
+    { name: "Project Room", template: "business" },
+    { name: "Consultation Room", template: "consultation" },
+    { name: "Health Room", template: "medical" },
+    { name: "Family Room", template: "custom" },
+    { name: "Shopping Room", template: "retail" },
+    { name: "Ideas Room", template: "custom" },
   ];
 
   function installStyle() {
@@ -157,8 +157,8 @@
       finder = document.createElement("button");
       finder.id = FINDER_ID;
       finder.type = "button";
-      finder.textContent = "🔎 Room 찾기";
-      finder.title = "Room 찾기";
+      finder.textContent = "🔎 Room Finder";
+      finder.title = "Room Finder";
       finder.addEventListener("click", () => {
         window.dispatchEvent(new CustomEvent("rc:open-room-finder"));
       });
@@ -195,9 +195,9 @@
 
     const actualRooms = specialistRooms.length
       ? specialistRooms
-      : [{ id: currentRoomId, name: "회계룸 샘플", status: "active", sample: true }];
+      : [{ id: currentRoomId, name: "Accounting Room Sample", status: "active", sample: true }];
 
-    const existingNames = new Set(actualRooms.map((room) => String(room.name || "").replace(/\s*샘플\s*$/u, "").trim()));
+    const existingNames = new Set(actualRooms.map((room) => String(room.name || "").replace(/\s*sample\s*$/i, "").trim()));
     const placeholders = PLACEHOLDER_ROOMS
       .filter((room) => !existingNames.has(room.name))
       .slice(0, Math.max(0, 14 - actualRooms.length))
@@ -215,7 +215,7 @@
       const tone = isReal ? ` rc-room-tone-${realIndex % 3}` : "";
       button.className = `rc-room-switcher-button${room.placeholder ? " rc-room-switcher-placeholder" : ""}${isReal ? " rc-room-switcher-real" : ""}${tone}`;
       button.textContent = String(room.name);
-      button.title = room.placeholder ? `${room.name} 만들기` : room.sample ? "테스트용 샘플 룸" : String(room.name);
+      button.title = room.placeholder ? `Create ${room.name}` : room.sample ? "Sample Room for testing" : String(room.name);
 
       if (isReal) {
         if (String(room.id) === currentRoomId) button.setAttribute("aria-current", "page");
@@ -226,7 +226,7 @@
         button.addEventListener("click", () => {
           const url = new URL("/room-builder", window.location.origin);
           url.searchParams.set("template", String(room.template || "custom"));
-          url.searchParams.set("name", String(room.name || "새 Room"));
+          url.searchParams.set("name", String(room.name || "New Room"));
           url.searchParams.set("returnRoom", currentRoomId);
           window.location.assign(url.toString());
         });
