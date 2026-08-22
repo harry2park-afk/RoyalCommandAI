@@ -401,7 +401,7 @@ export default function ChatHistorySidebar() {
       </div>
 
       <button type="button" onMouseDown={(event) => { event.preventDefault(); dragging.current = true; document.body.style.cursor = "col-resize"; document.body.style.userSelect = "none"; }} onDoubleClick={toggleCollapsed} className="absolute right-0 top-0 z-30 flex h-full w-3 translate-x-1/2 cursor-col-resize items-center justify-center"><GripVertical size={14} className="text-white/35" /></button>
-      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-8 w-5 -translate-y-1/2 items-center justify-center rounded-r-lg border border-l-0 border-white/20 bg-black/90 text-[var(--gold-soft)] shadow-lg hover:bg-white/10" title="Close conversation list"><ChevronLeft size={11} /></button>
+      <button type="button" onClick={toggleCollapsed} className="fixed left-0 top-1/2 z-[100] flex h-8 w-5 -translate-y-1/2 items-center justify-center rounded-r-lg border border-l-0 border-[#d7bb68]/70 bg-black/95 text-[#FFD700] shadow-lg hover:bg-white/10" title="Close conversation list"><ChevronLeft size={11} strokeWidth={4} /></button>
     </aside>
   );
 }
