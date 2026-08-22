@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import RoomV3 from "./RoomV3";
+import RoomFinderShortcut from "./RoomFinderShortcut";
 
 type Conversation = {
   id: string;
@@ -136,5 +137,10 @@ export default function StableRoomV3() {
     return () => document.removeEventListener("click", onClickCapture, true);
   }, [roomId]);
 
-  return <RoomV3 key={`${roomId}:${version}`} />;
+  return (
+    <>
+      <RoomFinderShortcut />
+      <RoomV3 key={`${roomId}:${version}`} />
+    </>
+  );
 }
