@@ -11,6 +11,9 @@ const EXTRA_SPECIAL_ROOMS = [
   { id: "board-games", label: "Board Games", ko: "보드게임", templateId: "custom" },
   { id: "video-games", label: "Video Games", ko: "비디오·온라인 게임", templateId: "custom" },
   { id: "pro-gaming-esports", label: "Pro Gaming & Esports", ko: "프로게임·e스포츠", templateId: "custom" },
+  { id: "gym-fitness-center", label: "Gym & Fitness Center", ko: "짐·헬스클럽", templateId: "fitness" },
+  { id: "hang-gliding", label: "Hang Gliding", ko: "행글라이딩", templateId: "fitness" },
+  { id: "paragliding", label: "Paragliding", ko: "패러글라이딩", templateId: "fitness" },
   { id: "marine-water-sports", label: "Marine & Water Sports", ko: "해양·수상스포츠", templateId: "fitness" },
   { id: "surfing", label: "Surfing", ko: "서핑", templateId: "fitness" },
   { id: "sailing-yachting", label: "Sailing & Yachting", ko: "요트·세일링", templateId: "custom" },
@@ -37,7 +40,7 @@ const CATEGORIES: Category[] = [
   { id: "property-home", label: "Property, Building & Home", ko: "부동산·건축·주택", icon: "🏠", roomIds: ["real-estate", "property-management", "construction-trades", "architecture-design", "dream-home-3d", "renovation-home-repair", "building-materials", "hardware-tools", "energy-solar"] },
   { id: "health-care", label: "Health & Care", ko: "의료·건강·복지", icon: "🏥", roomIds: ["medical-clinic", "dental", "allied-health", "pharmacy", "mental-health", "aged-care", "disability-support", "pet-care"] },
   { id: "education-research", label: "Education & Research", ko: "교육·학습·연구", icon: "🎓", roomIds: ["education", "ai-tutor", "university-research", "translation-languages", "research-intelligence", "personal-research"] },
-  { id: "sports-fitness", label: "Sports & Fitness", ko: "스포츠·운동", icon: "⚽", roomIds: ["sports", "sports-club-team", "athlete-coach", "fitness-gym"] },
+  { id: "sports-fitness", label: "Sports & Fitness", ko: "스포츠·운동·짐", icon: "⚽", roomIds: ["sports", "sports-club-team", "athlete-coach", "fitness-gym", "gym-fitness-center", "hang-gliding", "paragliding"] },
   { id: "marine-sports", label: "Marine & Water Sports", ko: "해양·수상스포츠", icon: "🌊", roomIds: ["marine-water-sports", "surfing", "sailing-yachting", "diving-snorkeling", "fishing", "kayak-canoe", "jetski-waterski", "swimming-open-water"] },
   { id: "games-hobby", label: "Games & Hobbies", ko: "게임·취미", icon: "🎮", roomIds: ["hobby-room", "chess-janggi", "baduk-go", "board-games", "video-games", "pro-gaming-esports", "hobby", "gaming-esports", "music", "dance"] },
   { id: "travel-hospitality", label: "Travel & Hospitality", ko: "여행·숙박", icon: "✈️", roomIds: ["travel", "hotel-hospitality", "events-wedding"] },
@@ -92,7 +95,7 @@ export default function RoomDirectoryPicker() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             className="rc-input !border-red-500/70 !pl-9 text-sm focus:!border-red-400"
-            placeholder="Room 바로 검색: 해양, 여행, 음식, 바둑, 법률"
+            placeholder="Room 바로 검색: 짐, 패러글라이딩, 해양, 여행, 음식"
             aria-label="Room 검색"
           />
         </div>
