@@ -184,8 +184,24 @@ export default function ChatHistorySidebar() {
         body: JSON.stringify({ importantConversations: next }),
       });
       if (!res.ok) throw new Error("save failed");
+
+      const savedIds = selectedConversations.map((item) => item.id);
+      const archiveResponses = await Promise.all(selectedConversations.map((item) => fetch(`/api/rooms/${roomId}/conversations/${item.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "archived" }),
+      })));
+      if (archiveResponses.some((response) => !response.ok)) throw new Error("saved conversation could not be removed from the active list");
+
       setImportantItems(next);
-      setStatus(`${selectedConversations.length} saved`);
+      setConversations((previous) => previous.map((item) => savedIds.includes(item.id) ? { ...item, status: "archived" } : item));
+      if (savedIds.includes(activeId)) {
+        window.sessionStorage.removeItem(activeKey(roomId));
+        setActiveId("");
+      }
+      setSelectedIds([]);
+      setStatus(`${savedIds.length} saved`);
+      await refreshHistory();
       window.setTimeout(() => setStatus(""), 1200);
     } catch { setStatus("Save failed"); }
   }
