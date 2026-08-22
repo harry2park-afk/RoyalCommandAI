@@ -5,23 +5,6 @@
   const SWITCHER_ID = "rc-room-switcher";
   const FINDER_ID = "rc-room-finder-top";
   const currentRoomId = window.location.pathname.split("/").filter(Boolean).pop() || "";
-  const PLACEHOLDER_ROOMS = [
-    { name: "Accounting Room", template: "accounting" },
-    { name: "Legal Room", template: "legal" },
-    { name: "Hobby Room", template: "custom" },
-    { name: "Learning Room", template: "education" },
-    { name: "Technology Room", template: "technology" },
-    { name: "Business Room", template: "business" },
-    { name: "Property Room", template: "realestate" },
-    { name: "Travel Room", template: "hotel" },
-    { name: "Documents Room", template: "custom" },
-    { name: "Project Room", template: "business" },
-    { name: "Consultation Room", template: "consultation" },
-    { name: "Health Room", template: "medical" },
-    { name: "Family Room", template: "custom" },
-    { name: "Shopping Room", template: "retail" },
-    { name: "Ideas Room", template: "custom" },
-  ];
 
   function installStyle() {
     if (document.getElementById(STYLE_ID)) return;
@@ -84,22 +67,9 @@
         outline: 1px solid rgba(255,225,120,.7) !important;
         outline-offset: 1px !important;
       }
-      #${SWITCHER_ID} .rc-room-switcher-placeholder {
-        opacity: .34 !important;
-        color: #e8dfcf !important;
-        background: rgba(214, 200, 166, 0.10) !important;
-        border-color: rgba(188, 174, 141, 0.50) !important;
-        cursor: pointer !important;
-        font-weight: 400 !important;
-      }
-      #${SWITCHER_ID} .rc-room-switcher-placeholder:hover {
-        opacity: .62 !important;
-        border-color: rgba(232,215,170,.78) !important;
-        background: rgba(214,200,166,.18) !important;
-      }
       #${FINDER_ID} {
-        flex: 0 0 104px !important;
-        width: 104px !important;
+        flex: 0 0 112px !important;
+        width: 112px !important;
         height: 30px !important;
         margin-right: 8px !important;
         border: 1px solid #d9b44a !important;
@@ -124,7 +94,7 @@
       }
       @media (max-width: 1200px) {
         #${SWITCHER_ID} {
-          width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 610px)) !important;
+          width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 620px)) !important;
           gap: 2px !important;
           margin-left: 6px !important;
           margin-right: 4px !important;
@@ -136,8 +106,8 @@
           font-size: 9px !important;
         }
         #${FINDER_ID} {
-          flex-basis: 88px !important;
-          width: 88px !important;
+          flex-basis: 96px !important;
+          width: 96px !important;
           height: 28px !important;
           line-height: 26px !important;
           font-size: 9px !important;
@@ -158,12 +128,12 @@
       finder = document.createElement("button");
       finder.id = FINDER_ID;
       finder.type = "button";
-      finder.textContent = "🔎 Room Finder";
-      finder.title = "Room Finder";
       finder.addEventListener("click", () => {
         window.dispatchEvent(new CustomEvent("rc:open-room-finder"));
       });
     }
+    finder.textContent = "+ Build Your Room";
+    finder.title = "Build Your Room";
     if (dock.nextElementSibling !== finder) dock.insertAdjacentElement("afterend", finder);
   }
 
@@ -187,59 +157,28 @@
       if (title && dock.previousElementSibling !== title) title.insertAdjacentElement("afterend", dock);
     }
 
-    ensureFinder(header, dock);
-
-    const specialistRooms = rooms
+    const visibleRooms = rooms
       .filter((room) => room && room.id && room.name && room.status !== "archived")
       .filter((room) => String(room.name).trim().toLowerCase() !== "command room")
       .slice(0, 14);
 
-    const actualRooms = specialistRooms.length
-      ? specialistRooms
-      : [{ id: currentRoomId, name: "Accounting Room Sample", status: "active", sample: true }];
-
-    const existingNames = new Set(actualRooms.map((room) => String(room.name || "").replace(/\s*sample\s*$/i, "").trim()));
-    const placeholders = PLACEHOLDER_ROOMS
-      .filter((room) => !existingNames.has(room.name))
-      .slice(0, Math.max(0, 14 - actualRooms.length))
-      .map((room, index) => ({ id: `placeholder-${index}`, ...room, placeholder: true }));
-
-    const visibleRooms = [...actualRooms, ...placeholders].slice(0, 14);
     dock.style.setProperty("--rc-room-count", String(Math.max(visibleRooms.length, 1)));
     dock.replaceChildren();
 
-    let realIndex = 0;
-    for (const room of visibleRooms) {
+    visibleRooms.forEach((room, index) => {
       const button = document.createElement("button");
       button.type = "button";
-      const isReal = !room.placeholder && !room.sample;
-      const tone = isReal ? ` rc-room-tone-${realIndex % 3}` : "";
-      button.className = `rc-room-switcher-button${room.placeholder ? " rc-room-switcher-placeholder" : ""}${isReal ? " rc-room-switcher-real" : ""}${tone}`;
+      button.className = `rc-room-switcher-button rc-room-switcher-real rc-room-tone-${index % 3}`;
       button.textContent = String(room.name);
-      button.title = room.placeholder ? `Create ${room.name}` : room.sample ? "Sample Room for testing" : String(room.name);
-
-      if (isReal) {
-        if (String(room.id) === currentRoomId) button.setAttribute("aria-current", "page");
-        realIndex += 1;
-      }
-
-      if (room.placeholder) {
-        button.addEventListener("click", () => {
-          const url = new URL("/room-builder", window.location.origin);
-          url.searchParams.set("template", String(room.template || "custom"));
-          url.searchParams.set("name", String(room.name || "New Room"));
-          url.searchParams.set("returnRoom", currentRoomId);
-          window.location.assign(url.toString());
-        });
-      } else {
-        button.addEventListener("click", () => {
-          const targetId = String(room.id || currentRoomId);
-          if (!targetId || targetId === currentRoomId) return;
-          window.location.assign(`/rooms/${encodeURIComponent(targetId)}`);
-        });
-      }
+      button.title = String(room.name);
+      if (String(room.id) === currentRoomId) button.setAttribute("aria-current", "page");
+      button.addEventListener("click", () => {
+        const targetId = String(room.id || "");
+        if (!targetId || targetId === currentRoomId) return;
+        window.location.assign(`/rooms/${encodeURIComponent(targetId)}`);
+      });
       dock.appendChild(button);
-    }
+    });
 
     ensureFinder(header, dock);
     dock.style.display = visibleRooms.length ? "grid" : "none";
