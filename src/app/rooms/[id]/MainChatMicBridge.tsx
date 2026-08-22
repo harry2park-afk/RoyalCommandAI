@@ -46,18 +46,22 @@ export default function MainChatMicBridge() {
   const [problem, setProblem] = useState("");
 
   useEffect(() => {
-    const stop = () => {
-      const recognition = recognitionRef.current;
-      recognitionRef.current = null;
-      if (recognition) {
-        try { recognition.abort(); } catch {}
-      }
+    const resetButton = () => {
       const button = buttonRef.current;
       if (button) {
         button.style.boxShadow = "";
         button.style.color = "";
         button.title = "Voice input";
       }
+    };
+
+    const stop = () => {
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+      if (recognition) {
+        try { recognition.abort(); } catch {}
+      }
+      resetButton();
       setStatus("");
     };
 
@@ -65,24 +69,6 @@ export default function MainChatMicBridge() {
       setProblem("");
       setStatus("마이크 확인 중…");
       buttonRef.current = button;
-
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setProblem("이 브라우저에서는 마이크 입력을 사용할 수 없습니다.");
-        setStatus("");
-        return;
-      }
-
-      try {
-        const permissionStream = await navigator.mediaDevices.getUserMedia({
-          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-          video: false,
-        });
-        permissionStream.getTracks().forEach((track) => track.stop());
-      } catch (error) {
-        setProblem(micErrorMessage(error));
-        setStatus("");
-        return;
-      }
 
       const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
       const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
@@ -93,7 +79,11 @@ export default function MainChatMicBridge() {
       }
 
       const textarea = findComposer();
-      if (!textarea) return;
+      if (!textarea) {
+        setProblem("채팅 입력창을 찾지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.");
+        setStatus("");
+        return;
+      }
 
       const languageSelect = Array.from(document.querySelectorAll<HTMLSelectElement>("select")).find((select) => /kr|ko|한국|en|english/i.test(`${select.value} ${select.options[select.selectedIndex]?.text || ""}`));
       const rawLanguage = `${languageSelect?.value || ""} ${languageSelect?.options[languageSelect.selectedIndex]?.text || ""}`.toLowerCase();
@@ -104,16 +94,28 @@ export default function MainChatMicBridge() {
       recognition.lang = locale;
       recognition.interimResults = true;
       recognition.continuous = false;
+
       let finalTranscript = "";
       const originalText = textarea.value.trim();
+      let audioStarted = false;
+      let hadError = false;
 
-      recognition.onaudiostart = () => {
-        setStatus("마이크 준비됨");
-        button.style.boxShadow = "0 0 0 2px rgba(52,211,153,.45), 0 0 18px rgba(52,211,153,.55)";
+      recognition.onstart = () => {
+        setStatus("마이크 연결 중…");
+        button.style.boxShadow = "0 0 0 2px rgba(52,211,153,.35), 0 0 14px rgba(52,211,153,.4)";
         button.style.color = "#6ee7b7";
         button.title = "Listening — click to stop";
       };
+
+      recognition.onaudiostart = () => {
+        audioStarted = true;
+        setStatus("마이크 준비됨");
+        button.style.boxShadow = "0 0 0 2px rgba(52,211,153,.45), 0 0 18px rgba(52,211,153,.55)";
+        button.style.color = "#6ee7b7";
+      };
+
       recognition.onspeechstart = () => setStatus("말씀을 듣고 있습니다…");
+
       recognition.onresult = (event: any) => {
         let interim = "";
         for (let i = event.resultIndex; i < event.results.length; i += 1) {
@@ -125,26 +127,43 @@ export default function MainChatMicBridge() {
         const combined = [originalText, spoken].filter(Boolean).join(originalText && spoken ? " " : "");
         updateReactTextarea(textarea, combined);
       };
+
       recognition.onerror = (event: any) => {
+        hadError = true;
         const code = String(event?.error || "");
         if (code === "not-allowed" || code === "service-not-allowed") {
-          setProblem("Chrome에서 royalcommand.ai의 마이크 권한이 차단되어 있습니다.");
+          setProblem("Chrome에서 royalcommand.ai의 마이크 또는 음성인식 권한이 차단되어 있습니다.");
         } else if (code === "audio-capture") {
           setProblem("Chrome이 입력 마이크를 잡지 못했습니다. Windows Sound > Input에서 마이크를 선택해 주세요.");
         } else if (code === "no-speech") {
           setProblem("마이크는 켜졌지만 음성을 듣지 못했습니다. 마이크 가까이에서 다시 말씀해 주세요.");
+        } else if (code === "network") {
+          setProblem("Chrome 음성인식 서비스 연결에 실패했습니다. 인터넷 연결을 확인한 뒤 다시 시도해 주세요.");
         } else if (code !== "aborted") {
           setProblem(`음성인식 오류: ${code || "unknown"}`);
         }
-        stop();
       };
-      recognition.onend = () => stop();
+
+      recognition.onend = () => {
+        if (recognitionRef.current === recognition) recognitionRef.current = null;
+        resetButton();
+        setStatus("");
+        if (!audioStarted && !hadError) {
+          setProblem("Chrome 음성인식이 시작 직후 종료되었습니다. 페이지를 새로고침한 뒤 마이크를 다시 눌러 주세요.");
+        }
+      };
 
       try {
+        // Start Web Speech directly. A separate getUserMedia preflight can grab and
+        // release the same device immediately before SpeechRecognition starts,
+        // which causes Chrome to end the recognition session before audio starts
+        // on some Windows/Conexant drivers.
         recognition.start();
       } catch (error) {
+        recognitionRef.current = null;
+        resetButton();
         setProblem(micErrorMessage(error));
-        stop();
+        setStatus("");
       }
     };
 
