@@ -98,7 +98,7 @@ export default function RoomSiteLinks() {
     const text = `${room?.name || ""}\n${room?.description || ""}`.toLowerCase();
     if (/(accounting|tax office|bookkeeping|gst|bas|payroll)/.test(text)) return "accounting";
     if (/(hobby|game|gaming|esports|chess|janggi|baduk|go room|board game)/.test(text)) return "hobby";
-    return null;
+    return "general";
   }, [room]);
 
   const presetLinks = roomKind === "accounting" ? ACCOUNTING_AU_SITES : roomKind === "hobby" ? HOBBY_GAME_SITES : [];
@@ -148,8 +148,6 @@ export default function RoomSiteLinks() {
     await persist(customLinks.filter((item) => item.url !== urlToRemove));
   }
 
-  if (!roomKind) return null;
-
   return (
     <>
       <button
@@ -167,7 +165,7 @@ export default function RoomSiteLinks() {
             <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-3">
               <div>
                 <div className="text-sm font-semibold text-[#f3d98c]">{roomKind === "accounting" ? "Accounting Sites" : "My Sites"}</div>
-                <div className="mt-1 text-[11px] leading-4 text-white/55">Open your subscribed services from this Room. Royal Command stores links only, never passwords.</div>
+                <div className="mt-1 text-[11px] leading-4 text-white/55">Add any service or website you already use and open it from this Room. Royal Command stores links only, never passwords.</div>
               </div>
               <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-md border border-white/10 text-white/65 hover:bg-white/5" title="Close"><X size={15} /></button>
             </div>
@@ -187,6 +185,7 @@ export default function RoomSiteLinks() {
                   </div>
                 );
               })}
+              {!allLinks.length ? <div className="py-5 text-center text-[11px] text-white/45">No sites added yet.</div> : null}
             </div>
 
             <form onSubmit={addSite} className="mt-5 rounded-xl border border-[#d7bb68]/25 bg-white/[0.02] p-3">
