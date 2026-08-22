@@ -65,13 +65,28 @@ export default function AIHelperChat() {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
+  const [micEnabled, setMicEnabled] = useState(false);
   const [helperPosition, setHelperPosition] = useState<HelperPosition | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const helperButtonRef = useRef<HTMLButtonElement>(null);
+  const recognitionRef = useRef<any>(null);
+  const openRef = useRef(false);
+  const micEnabledRef = useRef(false);
+  const speakingRef = useRef(false);
+  const loadingRef = useRef(false);
+  const langRef = useRef<Lang>("en");
+  const messagesRef = useRef<Message[]>([]);
 
   const copy = COPY[lang];
   const latestAssistant = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant")?.content || copy.greeting, [messages, copy.greeting]);
   const latestUser = useMemo(() => [...messages].reverse().find((message) => message.role === "user")?.content || "", [messages]);
+
+  useEffect(() => { openRef.current = open; }, [open]);
+  useEffect(() => { micEnabledRef.current = micEnabled; }, [micEnabled]);
+  useEffect(() => { speakingRef.current = speaking; }, [speaking]);
+  useEffect(() => { loadingRef.current = loading; }, [loading]);
+  useEffect(() => { langRef.current = lang; }, [lang]);
+  useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   useEffect(() => {
     const sync = () => setLang(detectSelectedLanguage());
@@ -90,7 +105,7 @@ export default function AIHelperChat() {
   useEffect(() => {
     if (!open) return;
     const close = (event: MouseEvent) => {
-      if (panelRef.current && !panelRef.current.contains(event.target as Node)) setOpen(false);
+      if (panelRef.current && !panelRef.current.contains(event.target as Node)) closeHelper();
     };
     window.setTimeout(() => document.addEventListener("mousedown", close), 0);
     return () => document.removeEventListener("mousedown", close);
@@ -127,62 +142,163 @@ export default function AIHelperChat() {
     };
   }, [open, lang]);
 
-  function speak(text: string) {
-    if (!("speechSynthesis" in window) || !text.trim()) return;
+  useEffect(() => () => {
+    micEnabledRef.current = false;
+    stopRecognition();
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  }, []);
+
+  function stopRecognition() {
+    const recognition = recognitionRef.current;
+    recognitionRef.current = null;
+    if (!recognition) return;
+    recognition.onend = null;
+    recognition.onresult = null;
+    try { recognition.abort(); } catch {}
+    setListening(false);
+  }
+
+  function scheduleListening(delay = 250) {
+    window.setTimeout(() => {
+      if (openRef.current && micEnabledRef.current && !speakingRef.current && !loadingRef.current) startRecognition();
+    }, delay);
+  }
+
+  function startRecognition() {
+    if (!openRef.current || !micEnabledRef.current || speakingRef.current || loadingRef.current || recognitionRef.current) return;
+    const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
+    const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!Recognition) {
+      setListening(false);
+      return;
+    }
+
+    const recognition = new Recognition();
+    recognitionRef.current = recognition;
+    recognition.lang = LOCALE[langRef.current];
+    recognition.interimResults = false;
+    recognition.continuous = false;
+    recognition.onstart = () => setListening(true);
+    recognition.onerror = () => {
+      setListening(false);
+      recognitionRef.current = null;
+    };
+    recognition.onend = () => {
+      setListening(false);
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      if (openRef.current && micEnabledRef.current && !speakingRef.current && !loadingRef.current) scheduleListening(350);
+    };
+    recognition.onresult = (event: any) => {
+      const transcript = String(event.results?.[0]?.[0]?.transcript || "").trim();
+      if (!transcript) return;
+      setInput(transcript);
+      stopRecognition();
+      void sendMessage(transcript);
+    };
+
+    try { recognition.start(); } catch { recognitionRef.current = null; }
+  }
+
+  function speak(text: string, resumeListening = true) {
+    if (!("speechSynthesis" in window) || !text.trim()) {
+      if (resumeListening) scheduleListening(100);
+      return;
+    }
+
+    speakingRef.current = true;
+    setSpeaking(true);
+    stopRecognition();
+
     const speech = window.speechSynthesis;
     speech.cancel();
     const utterance = new SpeechSynthesisUtterance(text.slice(0, 3000));
-    utterance.lang = speechLocale(text, lang);
+    utterance.lang = speechLocale(text, langRef.current);
     utterance.rate = 0.96;
     utterance.pitch = 1.02;
-    utterance.onstart = () => setSpeaking(true);
-    utterance.onend = () => setSpeaking(false);
-    utterance.onerror = () => setSpeaking(false);
+    utterance.onend = () => {
+      speakingRef.current = false;
+      setSpeaking(false);
+      if (resumeListening) scheduleListening(220);
+    };
+    utterance.onerror = () => {
+      speakingRef.current = false;
+      setSpeaking(false);
+      if (resumeListening) scheduleListening(220);
+    };
     speech.speak(utterance);
   }
 
-  async function send(event?: FormEvent) {
-    event?.preventDefault();
-    const message = input.trim();
-    if (!message || loading) return;
-    const history = messages.slice(-12);
-    setMessages((prev) => [...prev, { role: "user", content: message }]);
+  function openHelper() {
+    openRef.current = true;
+    micEnabledRef.current = true;
+    setOpen(true);
+    setMicEnabled(true);
+    speak(COPY[langRef.current].greeting, true);
+  }
+
+  function closeHelper() {
+    openRef.current = false;
+    micEnabledRef.current = false;
+    setOpen(false);
+    setMicEnabled(false);
+    stopRecognition();
+    speakingRef.current = false;
+    setSpeaking(false);
+    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  }
+
+  function toggleMicrophone() {
+    const next = !micEnabledRef.current;
+    micEnabledRef.current = next;
+    setMicEnabled(next);
+    if (!next) {
+      stopRecognition();
+      return;
+    }
+    if (!speakingRef.current && !loadingRef.current) startRecognition();
+  }
+
+  async function sendMessage(rawMessage: string) {
+    const message = rawMessage.trim();
+    if (!message || loadingRef.current) return;
+    stopRecognition();
+    const history = messagesRef.current.slice(-12);
+    const nextUser: Message = { role: "user", content: message };
+    messagesRef.current = [...messagesRef.current, nextUser];
+    setMessages(messagesRef.current);
     setInput("");
+    loadingRef.current = true;
     setLoading(true);
+
     try {
       const response = await fetch("/api/ai/helper", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, message, selectedLanguage: lang, history }),
+        body: JSON.stringify({ roomId, message, selectedLanguage: langRef.current, history }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.answer) throw new Error(data?.error || "AI Helper failed");
       const answer = String(data.answer);
-      setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
-      speak(answer);
-    } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: copy.error }]);
-    } finally {
+      const nextAssistant: Message = { role: "assistant", content: answer };
+      messagesRef.current = [...messagesRef.current, nextAssistant];
+      setMessages(messagesRef.current);
+      loadingRef.current = false;
       setLoading(false);
+      speak(answer, true);
+    } catch {
+      const errorText = COPY[langRef.current].error;
+      const nextAssistant: Message = { role: "assistant", content: errorText };
+      messagesRef.current = [...messagesRef.current, nextAssistant];
+      setMessages(messagesRef.current);
+      loadingRef.current = false;
+      setLoading(false);
+      speak(errorText, true);
     }
   }
 
-  function startVoice() {
-    const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
-    const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Recognition) return;
-    const recognition = new Recognition();
-    recognition.lang = LOCALE[lang];
-    recognition.interimResults = false;
-    recognition.continuous = false;
-    recognition.onstart = () => setListening(true);
-    recognition.onend = () => setListening(false);
-    recognition.onerror = () => setListening(false);
-    recognition.onresult = (event: any) => {
-      const transcript = event.results?.[0]?.[0]?.transcript || "";
-      if (transcript) setInput(transcript);
-    };
-    recognition.start();
+  async function send(event?: FormEvent) {
+    event?.preventDefault();
+    await sendMessage(input);
   }
 
   const closedStyle = !open && helperPosition
@@ -199,7 +315,7 @@ export default function AIHelperChat() {
         <div className="relative flex h-[560px] w-[390px] max-w-[calc(100vw-24px)] flex-col overflow-hidden bg-[#07111f]/96 shadow-[0_18px_50px_rgba(0,0,0,.52)] backdrop-blur-md">
           <div className="absolute right-2 top-2 z-10 flex items-center gap-3">
             <span className="flex items-center gap-1 text-[10px] font-semibold tracking-[0.18em] text-[#f3d36a]"><span className={`h-2 w-2 rounded-full ${speaking || listening ? "animate-pulse bg-emerald-400" : "bg-[#d7b64d]"}`} />LIVE</span>
-            <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-white/70 hover:bg-white/10 hover:text-white" title="Close"><X size={17} /></button>
+            <button type="button" onClick={closeHelper} className="grid h-8 w-8 place-items-center rounded-full text-white/70 hover:bg-white/10 hover:text-white" title="Close"><X size={17} /></button>
           </div>
 
           <div className="shrink-0 px-4 pt-3 text-center font-[Times_New_Roman] text-lg font-semibold text-[#f3d36a]">{copy.title}</div>
@@ -209,7 +325,7 @@ export default function AIHelperChat() {
             <img
               src="/ai-helper-woman.svg"
               alt="Royal Command AI Helper"
-              className={`relative h-full w-full object-contain object-bottom transition-transform duration-500 ${speaking ? "scale-[1.015]" : "scale-100"}`}
+              className={`relative h-full w-full object-contain object-bottom transition-all duration-500 ${speaking ? "scale-[1.02] brightness-110" : "scale-100"}`}
             />
           </div>
 
@@ -218,7 +334,7 @@ export default function AIHelperChat() {
               <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#d7b64d]/70 ${speaking ? "shadow-[0_0_16px_rgba(215,182,77,.6)]" : ""}`}><Mic size={15} /></span>
               <div className="flex h-8 flex-1 items-center gap-[3px] overflow-hidden">
                 {Array.from({ length: 24 }).map((_, index) => (
-                  <span key={index} className={`w-[2px] rounded-full bg-[#d7b64d] ${speaking ? "animate-pulse" : "opacity-45"}`} style={{ height: `${8 + ((index * 7) % 20)}px`, animationDelay: `${index * 45}ms` }} />
+                  <span key={index} className={`w-[2px] rounded-full bg-[#d7b64d] ${speaking || listening ? "animate-pulse" : "opacity-45"}`} style={{ height: `${8 + ((index * 7) % 20)}px`, animationDelay: `${index * 45}ms` }} />
                 ))}
               </div>
             </div>
@@ -242,7 +358,7 @@ export default function AIHelperChat() {
                   placeholder={listening ? copy.listening : copy.placeholder}
                   className="max-h-20 min-h-[36px] flex-1 resize-none bg-transparent px-1 py-2 text-[13px] text-white outline-none placeholder:text-white/35"
                 />
-                <button type="button" onClick={startVoice} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${listening ? "bg-emerald-500/20 text-emerald-300" : "text-[#d7b64d] hover:bg-white/5"}`} title="Voice"><Mic size={17} /></button>
+                <button type="button" onClick={toggleMicrophone} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${micEnabled ? "bg-emerald-500/20 text-emerald-300" : "text-[#d7b64d] hover:bg-white/5"}`} title={micEnabled ? "Microphone on — click to turn off" : "Microphone off — click to turn on"}><Mic size={17} /></button>
                 <button type="submit" disabled={!input.trim() || loading} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#f6d56d] hover:bg-white/5 disabled:opacity-30" title="Send"><Send size={17} /></button>
               </div>
             </form>
@@ -252,7 +368,7 @@ export default function AIHelperChat() {
         <button
           ref={helperButtonRef}
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={openHelper}
           className="flex h-10 items-center gap-2 whitespace-nowrap rounded-xl border border-[#d7b64d] bg-[#7A0C2E] px-4 text-[13px] font-semibold leading-none text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]"
           title={copy.title}
         >
