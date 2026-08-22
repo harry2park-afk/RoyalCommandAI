@@ -90,33 +90,42 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { id } = await context.params;
-  let body: { name?: unknown };
+  let body: { name?: unknown; description?: unknown };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const name = typeof body.name === "string" ? body.name.trim().slice(0, 120) : "";
-  if (!name) return NextResponse.json({ error: "Room name is required" }, { status: 400 });
+  const hasName = typeof body.name === "string";
+  const hasDescription = typeof body.description === "string";
+  if (!hasName && !hasDescription) return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+
+  const name = hasName ? String(body.name).trim().slice(0, 120) : undefined;
+  const description = hasDescription ? String(body.description).slice(0, 20000) : undefined;
+  if (hasName && !name) return NextResponse.json({ error: "Room name is required" }, { status: 400 });
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
+    const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
+    if (name !== undefined) update.name = name;
+    if (description !== undefined) update.description = description;
     const { data: room, error } = await supabase
       .from("rooms")
-      .update({ name, updated_at: new Date().toISOString() })
+      .update(update)
       .eq("id", id)
       .eq("room_owner_id", user.id)
-      .select("id, name")
+      .select("id, name, description")
       .single();
     if (error || !room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
     return NextResponse.json({ ok: true, room });
   }
 
-  const room = localDb.renameRoom(id, name);
-  return room
-    ? NextResponse.json({ ok: true, room })
-    : NextResponse.json({ error: "Room not found" }, { status: 404 });
+  let room = localDb.getRoom(id);
+  if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  if (name !== undefined) room = localDb.renameRoom(id, name) || room;
+  if (description !== undefined) room = localDb.updateRoomDescription(id, description) || room;
+  return NextResponse.json({ ok: true, room });
 }
 
 export async function DELETE(
