@@ -9,16 +9,16 @@ type Message = { role: "user" | "assistant"; content: string };
 type HelperPosition = { left: number; top: number };
 
 const COPY: Record<Lang, { button: string; title: string; greeting: string; placeholder: string; listening: string; error: string }> = {
-  en: { button: "AI Help", title: "Royal Command AI Helper", greeting: "Hello. Ask me anything. I can help with Royal Command or any general question.", placeholder: "Ask anything…", listening: "Listening…", error: "AI Helper could not answer. Please try again." },
-  ko: { button: "AI Help", title: "Royal Command AI Helper", greeting: "안녕하세요. 무엇이든 물어보세요. Royal Command 사용법부터 일반 질문까지 도와드릴게요.", placeholder: "무엇이든 물어보세요…", listening: "듣고 있습니다…", error: "AI 도우미가 답변하지 못했습니다. 다시 시도해 주세요." },
-  zh: { button: "AI Help", title: "Royal Command AI Helper", greeting: "您好。您可以问我任何问题。无论是 Royal Command 还是一般问题，我都可以帮助您。", placeholder: "请问任何问题…", listening: "正在聆听…", error: "AI 助手暂时无法回答，请再试一次。" },
-  ja: { button: "AI Help", title: "Royal Command AI Helper", greeting: "こんにちは。何でも聞いてください。Royal Command の使い方から一般的な質問までお手伝いします。", placeholder: "何でも聞いてください…", listening: "聞いています…", error: "AI ヘルパーが回答できませんでした。もう一度お試しください。" },
-  es: { button: "AI Help", title: "Royal Command AI Helper", greeting: "Hola. Pregúntame lo que quieras. Puedo ayudarte con Royal Command o con preguntas generales.", placeholder: "Pregunta lo que quieras…", listening: "Escuchando…", error: "El asistente de IA no pudo responder. Inténtalo de nuevo." },
-  fr: { button: "AI Help", title: "Royal Command AI Helper", greeting: "Bonjour. Posez-moi n’importe quelle question. Je peux vous aider avec Royal Command ou des questions générales.", placeholder: "Posez votre question…", listening: "Écoute…", error: "L’assistant IA n’a pas pu répondre. Réessayez." },
-  de: { button: "AI Help", title: "Royal Command AI Helper", greeting: "Hallo. Fragen Sie mich alles. Ich helfe bei Royal Command und bei allgemeinen Fragen.", placeholder: "Fragen Sie alles…", listening: "Ich höre zu…", error: "Der KI-Helfer konnte nicht antworten. Bitte versuchen Sie es erneut." },
-  vi: { button: "AI Help", title: "Royal Command AI Helper", greeting: "Xin chào. Hãy hỏi tôi bất cứ điều gì. Tôi có thể hỗ trợ Royal Command và các câu hỏi chung.", placeholder: "Hỏi bất cứ điều gì…", listening: "Đang nghe…", error: "Trợ lý AI chưa thể trả lời. Vui lòng thử lại." },
-  th: { button: "AI Help", title: "Royal Command AI Helper", greeting: "สวัสดี ถามฉันได้ทุกเรื่อง ฉันช่วยได้ทั้งการใช้ Royal Command และคำถามทั่วไป", placeholder: "ถามอะไรก็ได้…", listening: "กำลังฟัง…", error: "ผู้ช่วย AI ไม่สามารถตอบได้ กรุณาลองอีกครั้ง" },
-  id: { button: "AI Help", title: "Royal Command AI Helper", greeting: "Halo. Tanyakan apa saja. Saya dapat membantu tentang Royal Command maupun pertanyaan umum.", placeholder: "Tanyakan apa saja…", listening: "Mendengarkan…", error: "AI Helper belum dapat menjawab. Silakan coba lagi." },
+  en: { button: "AI Help", title: "AI Help", greeting: "Hello. Ask me anything. I can help with Royal Command or any general question.", placeholder: "Ask anything…", listening: "Listening…", error: "AI Helper could not answer. Please try again." },
+  ko: { button: "AI Help", title: "AI Help", greeting: "안녕하세요. 무엇이든 물어보세요. Royal Command 사용부터 일반 질문까지 도와드릴게요.", placeholder: "무엇이든 물어보세요…", listening: "듣고 있습니다…", error: "AI 도우미가 답변하지 못했습니다. 다시 시도해 주세요." },
+  zh: { button: "AI Help", title: "AI Help", greeting: "您好。您可以问我任何问题。无论是 Royal Command 还是一般问题，我都可以帮助您。", placeholder: "请问任何问题…", listening: "正在聆听…", error: "AI 助手暂时无法回答，请再试一次。" },
+  ja: { button: "AI Help", title: "AI Help", greeting: "こんにちは。何でも聞いてください。Royal Command の使い方から一般的な質問までお手伝いします。", placeholder: "何でも聞いてください…", listening: "聞いています…", error: "AI ヘルパーが回答できませんでした。もう一度お試しください。" },
+  es: { button: "AI Help", title: "AI Help", greeting: "Hola. Pregúntame lo que quieras. Puedo ayudarte con Royal Command o con preguntas generales.", placeholder: "Pregunta lo que quieras…", listening: "Escuchando…", error: "El asistente de IA no pudo responder. Inténtalo de nuevo." },
+  fr: { button: "AI Help", title: "AI Help", greeting: "Bonjour. Posez-moi n’importe quelle question. Je peux vous aider avec Royal Command ou des questions générales.", placeholder: "Posez votre question…", listening: "Écoute…", error: "L’assistant IA n’a pas pu répondre. Réessayez." },
+  de: { button: "AI Help", title: "AI Help", greeting: "Hallo. Fragen Sie mich alles. Ich helfe bei Royal Command und bei allgemeinen Fragen.", placeholder: "Fragen Sie alles…", listening: "Ich höre zu…", error: "Der KI-Helfer konnte nicht antworten. Bitte versuchen Sie es erneut." },
+  vi: { button: "AI Help", title: "AI Help", greeting: "Xin chào. Hãy hỏi tôi bất cứ điều gì. Tôi có thể hỗ trợ Royal Command và các câu hỏi chung.", placeholder: "Hỏi bất cứ điều gì…", listening: "Đang nghe…", error: "Trợ lý AI chưa thể trả lời. Vui lòng thử lại." },
+  th: { button: "AI Help", title: "AI Help", greeting: "สวัสดี ถามฉันได้ทุกเรื่อง ฉันช่วยได้ทั้งการใช้ Royal Command และคำถามทั่วไป", placeholder: "ถามอะไรก็ได้…", listening: "กำลังฟัง…", error: "ผู้ช่วย AI ไม่สามารถตอบได้ กรุณาลองอีกครั้ง" },
+  id: { button: "AI Help", title: "AI Help", greeting: "Halo. Tanyakan apa saja. Saya dapat membantu tentang Royal Command maupun pertanyaan umum.", placeholder: "Tanyakan apa saja…", listening: "Mendengarkan…", error: "AI Helper belum dapat menjawab. Silakan coba lagi." },
 };
 
 const LOCALE: Record<Lang, string> = {
@@ -48,6 +48,13 @@ function findMainSendButton() {
     .find((button) => button.textContent?.trim() === "Send") || null;
 }
 
+function speechLocale(text: string, fallback: Lang) {
+  if (/[가-힣]/.test(text)) return "ko-KR";
+  if (/[ぁ-んァ-ン]/.test(text)) return "ja-JP";
+  if (/[一-龯]/.test(text)) return "zh-CN";
+  return LOCALE[fallback];
+}
+
 export default function AIHelperChat() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -57,13 +64,14 @@ export default function AIHelperChat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
   const [helperPosition, setHelperPosition] = useState<HelperPosition | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const helperButtonRef = useRef<HTMLButtonElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   const copy = COPY[lang];
-  const visibleMessages = useMemo(() => messages.length ? messages : [{ role: "assistant" as const, content: copy.greeting }], [messages, copy.greeting]);
+  const latestAssistant = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant")?.content || copy.greeting, [messages, copy.greeting]);
+  const latestUser = useMemo(() => [...messages].reverse().find((message) => message.role === "user")?.content || "", [messages]);
 
   useEffect(() => {
     const sync = () => setLang(detectSelectedLanguage());
@@ -78,8 +86,6 @@ export default function AIHelperChat() {
       observer.disconnect();
     };
   }, []);
-
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [visibleMessages, loading]);
 
   useEffect(() => {
     if (!open) return;
@@ -121,6 +127,20 @@ export default function AIHelperChat() {
     };
   }, [open, lang]);
 
+  function speak(text: string) {
+    if (!("speechSynthesis" in window) || !text.trim()) return;
+    const speech = window.speechSynthesis;
+    speech.cancel();
+    const utterance = new SpeechSynthesisUtterance(text.slice(0, 3000));
+    utterance.lang = speechLocale(text, lang);
+    utterance.rate = 0.96;
+    utterance.pitch = 1.02;
+    utterance.onstart = () => setSpeaking(true);
+    utterance.onend = () => setSpeaking(false);
+    utterance.onerror = () => setSpeaking(false);
+    speech.speak(utterance);
+  }
+
   async function send(event?: FormEvent) {
     event?.preventDefault();
     const message = input.trim();
@@ -137,7 +157,9 @@ export default function AIHelperChat() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok || !data?.answer) throw new Error(data?.error || "AI Helper failed");
-      setMessages((prev) => [...prev, { role: "assistant", content: String(data.answer) }]);
+      const answer = String(data.answer);
+      setMessages((prev) => [...prev, { role: "assistant", content: answer }]);
+      speak(answer);
     } catch {
       setMessages((prev) => [...prev, { role: "assistant", content: copy.error }]);
     } finally {
@@ -170,33 +192,61 @@ export default function AIHelperChat() {
   return (
     <div
       ref={panelRef}
-      className={open ? "fixed bottom-[46px] right-[190px] z-[380] max-lg:right-4" : "fixed z-[380]"}
+      className={open ? "fixed bottom-[28px] right-[190px] z-[380] max-lg:right-4" : "fixed z-[380]"}
       style={closedStyle}
     >
       {open ? (
-        <div className="flex h-[470px] w-[360px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-[#d7b64d]/55 bg-[#07111f]/98 shadow-2xl backdrop-blur">
-          <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#d7b64d]/25 bg-[#102030] px-3">
-            <div className="flex items-center gap-2 text-sm font-semibold text-[#f3d36a]"><Bot size={18} />{copy.title}</div>
+        <div className="relative flex h-[560px] w-[390px] max-w-[calc(100vw-24px)] flex-col overflow-hidden bg-[#07111f]/96 shadow-[0_18px_50px_rgba(0,0,0,.52)] backdrop-blur-md">
+          <div className="absolute right-2 top-2 z-10 flex items-center gap-3">
+            <span className="flex items-center gap-1 text-[10px] font-semibold tracking-[0.18em] text-[#f3d36a]"><span className={`h-2 w-2 rounded-full ${speaking || listening ? "animate-pulse bg-emerald-400" : "bg-[#d7b64d]"}`} />LIVE</span>
             <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-white/70 hover:bg-white/10 hover:text-white" title="Close"><X size={17} /></button>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3 text-[13px] leading-5">
-            {visibleMessages.map((message, index) => (
-              <div key={`${message.role}-${index}`} className={message.role === "user" ? "ml-8 rounded-xl bg-[#17375e] px-3 py-2 text-white" : "mr-5 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-white/90"}>
-                {message.content}
-              </div>
-            ))}
-            {loading ? <div className="mr-5 rounded-xl border border-white/10 bg-white/[0.045] px-3 py-2 text-white/60">…</div> : null}
-            <div ref={bottomRef} />
+          <div className="shrink-0 px-4 pt-3 text-center font-[Times_New_Roman] text-lg font-semibold text-[#f3d36a]">{copy.title}</div>
+
+          <div className="relative mx-auto mt-1 h-[245px] w-[275px] shrink-0">
+            <div className="absolute inset-x-8 bottom-2 h-20 rounded-full bg-[#d7b64d]/10 blur-2xl" />
+            <img
+              src="/ai-helper-woman.svg"
+              alt="Royal Command AI Helper"
+              className={`relative h-full w-full object-contain object-bottom transition-transform duration-500 ${speaking ? "scale-[1.015]" : "scale-100"}`}
+            />
           </div>
 
-          <form onSubmit={send} className="shrink-0 border-t border-white/10 p-2.5">
-            <div className="flex items-end gap-2 rounded-xl border border-[#d7b64d]/35 bg-black/25 p-2">
-              <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={2} placeholder={listening ? copy.listening : copy.placeholder} className="max-h-28 min-h-[42px] flex-1 resize-none bg-transparent text-[13px] text-white outline-none placeholder:text-white/35" />
-              <button type="button" onClick={startVoice} className={`grid h-9 w-9 shrink-0 place-items-center rounded-lg border ${listening ? "border-emerald-400 text-emerald-300" : "border-white/15 text-white/65"}`} title="Voice"><Mic size={17} /></button>
-              <button type="submit" disabled={!input.trim() || loading} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#d7b64d]/60 bg-[#7A0C2E] text-[#f6d56d] disabled:opacity-35" title="Send"><Send size={16} /></button>
+          <div className="px-5">
+            <div className="flex items-center gap-2 text-[#d7b64d]">
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#d7b64d]/70 ${speaking ? "shadow-[0_0_16px_rgba(215,182,77,.6)]" : ""}`}><Mic size={15} /></span>
+              <div className="flex h-8 flex-1 items-center gap-[3px] overflow-hidden">
+                {Array.from({ length: 24 }).map((_, index) => (
+                  <span key={index} className={`w-[2px] rounded-full bg-[#d7b64d] ${speaking ? "animate-pulse" : "opacity-45"}`} style={{ height: `${8 + ((index * 7) % 20)}px`, animationDelay: `${index * 45}ms` }} />
+                ))}
+              </div>
             </div>
-          </form>
+
+            <div className="mt-1 min-h-[72px] whitespace-pre-wrap text-[13px] leading-5 text-white/92">
+              {loading ? "…" : latestAssistant}
+            </div>
+
+            <div className="my-3 h-px w-full bg-gradient-to-r from-transparent via-[#d7b64d] to-transparent" />
+
+            <div className="mb-1 text-[12px] font-semibold text-[#d7b64d]">You</div>
+            {latestUser ? <div className="mb-2 line-clamp-2 text-[12px] leading-4 text-white/65">{latestUser}</div> : null}
+
+            <form onSubmit={send}>
+              <div className="flex items-center gap-2 rounded-xl bg-black/25 px-2 py-1.5">
+                <textarea
+                  value={input}
+                  onChange={(event) => setInput(event.target.value)}
+                  onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }}
+                  rows={1}
+                  placeholder={listening ? copy.listening : copy.placeholder}
+                  className="max-h-20 min-h-[36px] flex-1 resize-none bg-transparent px-1 py-2 text-[13px] text-white outline-none placeholder:text-white/35"
+                />
+                <button type="button" onClick={startVoice} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${listening ? "bg-emerald-500/20 text-emerald-300" : "text-[#d7b64d] hover:bg-white/5"}`} title="Voice"><Mic size={17} /></button>
+                <button type="submit" disabled={!input.trim() || loading} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#f6d56d] hover:bg-white/5 disabled:opacity-30" title="Send"><Send size={17} /></button>
+              </div>
+            </form>
+          </div>
         </div>
       ) : (
         <button
