@@ -54,14 +54,15 @@ export default function FirstRoomWelcome() {
 
   return (
     <div
-      className="pointer-events-none fixed left-1/2 top-[12px] z-[345] w-[min(760px,52vw)] -translate-x-1/2 text-center text-white/55 drop-shadow-[0_1px_8px_rgba(255,255,255,0.12)]"
+      className="pointer-events-none fixed left-1/2 top-[12px] z-[345] w-[min(820px,58vw)] -translate-x-1/2 text-center drop-shadow-[0_1px_8px_rgba(212,175,55,0.28)]"
       style={{
-        fontFamily: '"Bodoni Bd BT", "Bodoni 72", Didot, "Times New Roman", serif',
-        fontSize: "23px",
+        fontFamily: '\"Bodoni Bd BT\", \"Bodoni 72\", Didot, \"Times New Roman\", serif',
+        fontSize: "27px",
         fontWeight: 700,
         fontStyle: "italic",
         lineHeight: 1.15,
         letterSpacing: "0.015em",
+        color: "#d4af37",
       }}
       aria-hidden="true"
     >
