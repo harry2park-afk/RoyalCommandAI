@@ -153,7 +153,7 @@ export default function AIHelperChat() {
           </form>
         </div>
       ) : (
-        <button type="button" onClick={() => setOpen(true)} className="flex h-11 items-center gap-2 rounded-full border border-[#d7b64d] bg-[#7A0C2E] px-4 font-semibold text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]" title={copy.title}><Bot size={18} />{copy.button}</button>
+        <button type="button" onClick={() => setOpen(true)} className="flex h-[30px] items-center gap-2 rounded-full border border-[#d7b64d] bg-[#7A0C2E] px-4 text-[13px] font-semibold text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]" title={copy.title}><Bot size={15} />{copy.button}</button>
       )}
     </div>
   );
