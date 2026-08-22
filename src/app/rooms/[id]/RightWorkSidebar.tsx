@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { File, LogOut, Search } from "lucide-react";
+import RightRoomFinder from "./RightRoomFinder";
 import {
   APP_CATALOG,
   DEFAULT_APPS,
@@ -274,6 +275,8 @@ export default function RightWorkSidebar() {
           />
         </div>
       </div>
+
+      <RightRoomFinder />
 
       <div ref={menuScrollRef} className="rc-right-menu min-h-0 flex-1 overflow-y-auto px-1.5 pb-[118px]">
         {visibleSelectedApps.map((app) => (
