@@ -71,7 +71,8 @@
         flex: 0 0 112px !important;
         width: 112px !important;
         height: 30px !important;
-        margin-right: 8px !important;
+        margin-left: auto !important;
+        margin-right: 72px !important;
         border: 1px solid #d9b44a !important;
         border-radius: 6px !important;
         background: #7A0C2E !important;
@@ -111,7 +112,8 @@
           height: 28px !important;
           line-height: 26px !important;
           font-size: 9px !important;
-          margin-right: 4px !important;
+          margin-left: auto !important;
+          margin-right: 58px !important;
         }
       }
     `;
