@@ -3,7 +3,7 @@
 
   const STYLE_ID = "rc-compact-conversation-rows-style";
   const GROUP_KEY = `royalcommand:chat-groups:${window.location.pathname}`;
-  const SIDEBAR_TITLE_PREFIX = "Click: view conversation";
+  const SIDEBAR_TITLE_PREFIX = "Click: open full conversation";
   const USER_TITLES = new Set(["클릭하면 전체 내용을 봅니다", "Click to view full content"]);
 
   if (!document.getElementById(STYLE_ID)) {
@@ -17,7 +17,7 @@
         border-radius: 6px !important;
       }
 
-      aside button[title^="Click: view conversation"] {
+      aside button[title^="Click: open full conversation"] {
         min-height: 30px !important;
         height: 30px !important;
         padding-top: 0 !important;
