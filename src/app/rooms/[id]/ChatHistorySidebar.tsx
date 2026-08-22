@@ -374,7 +374,7 @@ export default function ChatHistorySidebar() {
                         event.stopPropagation();
                         setDateInfoId((current) => current === conversation.id ? null : conversation.id);
                       }}
-                      className="ml-1 shrink-0 px-1 text-[9px] font-semibold tabular-nums text-cyan-300/80 hover:text-cyan-200"
+                      className="ml-1 shrink-0 px-1 text-[8px] font-semibold tabular-nums text-cyan-300/80 hover:text-cyan-200"
                       title="Click to view full chat date and time"
                     >
                       {shortChatDate(timestamp)}
