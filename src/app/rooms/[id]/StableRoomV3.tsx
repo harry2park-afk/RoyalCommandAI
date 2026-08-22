@@ -6,6 +6,7 @@ import RoomV3 from "./RoomV3";
 import CustomerProfileHub from "./CustomerProfileHub";
 import TopRoomFinderOverlay from "./TopRoomFinderOverlay";
 import RoomSiteLinks from "./RoomSiteLinks";
+import SavedConversationInspector from "./SavedConversationInspector";
 
 type Conversation = {
   id: string;
@@ -144,6 +145,7 @@ export default function StableRoomV3() {
       <TopRoomFinderOverlay />
       <CustomerProfileHub />
       <RoomSiteLinks />
+      <SavedConversationInspector />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
   );
