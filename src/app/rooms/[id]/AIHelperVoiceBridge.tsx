@@ -48,6 +48,11 @@ function helperIsVisible() {
   return Boolean(document.querySelector('img[alt="Royal Command AI Helper"]'));
 }
 
+function looksLikeGreeting(text: string) {
+  const t = text.trim().toLowerCase();
+  return /^(안녕하세요|안녕|hello|hi\b|您好|こんにちは|hola|bonjour|hallo|xin chào|สวัสดี|halo)/i.test(t);
+}
+
 export default function AIHelperVoiceBridge() {
   const streamRef = useRef<MediaStream | null>(null);
   const [micProblem, setMicProblem] = useState("");
@@ -66,8 +71,15 @@ export default function AIHelperVoiceBridge() {
         refreshVoices();
         const chosen = selectYoungFemaleVoice(voices, utterance.lang || "en-AU");
         if (chosen) utterance.voice = chosen;
-        utterance.rate = Math.max(0.98, Math.min(1.06, utterance.rate || 1));
-        utterance.pitch = Math.max(1.06, utterance.pitch || 1.06);
+
+        if (looksLikeGreeting(utterance.text || "")) {
+          // Brighter, smiling first greeting: slightly quicker and lighter than normal conversation.
+          utterance.rate = 1.06;
+          utterance.pitch = 1.22;
+        } else {
+          utterance.rate = Math.max(0.99, Math.min(1.05, utterance.rate || 1));
+          utterance.pitch = Math.max(1.08, utterance.pitch || 1.08);
+        }
         utterance.volume = 1;
       }
       originalSpeak(utterance);
