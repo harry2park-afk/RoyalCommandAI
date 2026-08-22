@@ -11,6 +11,7 @@ import FirstRoomWelcome from "./FirstRoomWelcome";
 import AIHelperChat from "./AIHelperChat";
 import LiveAvatarLayer from "./LiveAvatarLayer";
 import AIHelperVoiceBridge from "./AIHelperVoiceBridge";
+import MainChatMicBridge from "./MainChatMicBridge";
 
 type Conversation = {
   id: string;
@@ -153,6 +154,7 @@ export default function StableRoomV3() {
       <SavedConversationInspector />
       <AIHelperChat />
       <AIHelperVoiceBridge />
+      <MainChatMicBridge />
       <LiveAvatarLayer />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
