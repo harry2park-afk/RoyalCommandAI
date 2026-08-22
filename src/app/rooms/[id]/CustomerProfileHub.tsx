@@ -75,11 +75,11 @@ export default function CustomerProfileHub() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed right-3 top-[14px] z-[360] flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border-2 border-[#d7bb68] bg-[#102030] shadow-[0_6px_24px_rgba(0,0,0,.38)]"
+        className="fixed right-3 top-[4px] z-[360] flex h-[45px] w-[45px] items-center justify-center overflow-hidden rounded-full border-2 border-[#d7bb68] bg-[#102030] shadow-[0_6px_24px_rgba(0,0,0,.38)]"
         aria-label="고객 프로필과 건강 기록 열기"
         title="내 프로필 · 건강 기록"
       >
-        {photoUrl ? <img src={photoUrl} alt="고객 사진" className="h-full w-full object-cover" /> : <UserRound size={26} className="text-[#f3d98c]" />}
+        {photoUrl ? <img src={photoUrl} alt="고객 사진" className="h-full w-full object-cover" /> : <UserRound size={21} className="text-[#f3d98c]" />}
       </button>
 
       {open ? (
