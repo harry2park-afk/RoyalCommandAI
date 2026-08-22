@@ -23,7 +23,7 @@
         padding-top: 0 !important;
         padding-bottom: 0 !important;
         line-height: 30px !important;
-        font-size: 6px !important;
+        font-size: 9px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
         text-overflow: ellipsis !important;
@@ -39,7 +39,7 @@
         min-height: 24px !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
-        font-size: 6px !important;
+        font-size: 9px !important;
         line-height: 24px !important;
       }
     `;
