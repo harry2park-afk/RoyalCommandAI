@@ -118,6 +118,12 @@ export const localDb = {
     room.name = name;
     return room;
   },
+  updateRoomDescription(id: string, description: string) {
+    const room = store().rooms.find((r) => r.id === id);
+    if (!room) return null;
+    room.description = description;
+    return room;
+  },
   deleteRoom(id: string) {
     const before = store().rooms.length;
     store().rooms = store().rooms.filter((r) => r.id !== id);
