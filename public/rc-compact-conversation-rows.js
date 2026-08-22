@@ -10,19 +10,25 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
+      aside .space-y-1 > :not([hidden]) ~ :not([hidden]) {
+        margin-top: 1px !important;
+      }
+
       aside .space-y-1 > div.group.flex {
-        height: 30px !important;
-        min-height: 30px !important;
-        max-height: 30px !important;
-        border-radius: 6px !important;
+        height: 22px !important;
+        min-height: 22px !important;
+        max-height: 22px !important;
+        border: 0 !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
       }
 
       aside button[title^="Click: open full conversation"] {
-        min-height: 30px !important;
-        height: 30px !important;
+        min-height: 22px !important;
+        height: 22px !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
-        line-height: 30px !important;
+        line-height: 22px !important;
         font-size: 10px !important;
         white-space: nowrap !important;
         overflow: hidden !important;
@@ -35,12 +41,12 @@
 
       aside .space-y-1 > div.group.flex input[type="text"],
       aside .space-y-1 > div.group.flex input:not([type]) {
-        height: 24px !important;
-        min-height: 24px !important;
+        height: 18px !important;
+        min-height: 18px !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
         font-size: 10px !important;
-        line-height: 24px !important;
+        line-height: 18px !important;
       }
     `;
     document.head.appendChild(style);
