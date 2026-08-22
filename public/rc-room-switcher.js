@@ -3,6 +3,7 @@
 
   const STYLE_ID = "rc-room-switcher-style";
   const SWITCHER_ID = "rc-room-switcher";
+  const FINDER_ID = "rc-room-finder-top";
   const currentRoomId = window.location.pathname.split("/").filter(Boolean).pop() || "";
   const PLACEHOLDER_ROOMS = [
     { name: "법률룸", template: "legal" },
@@ -30,10 +31,10 @@
         display: grid !important;
         grid-template-columns: repeat(var(--rc-room-count, 1), minmax(0, 1fr)) !important;
         gap: 4px !important;
-        width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 610px)) !important;
+        width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 720px)) !important;
         min-width: 0 !important;
         margin-left: 14px !important;
-        margin-right: 10px !important;
+        margin-right: 8px !important;
         align-items: center !important;
         flex: 0 1 auto !important;
       }
@@ -95,12 +96,34 @@
         border-color: rgba(232,215,170,.78) !important;
         background: rgba(214,200,166,.18) !important;
       }
+      #${FINDER_ID} {
+        flex: 0 0 104px !important;
+        width: 104px !important;
+        height: 30px !important;
+        margin-right: 8px !important;
+        border: 1px solid #d9b44a !important;
+        border-radius: 6px !important;
+        background: #7A0C2E !important;
+        color: #fff4c2 !important;
+        font-family: "Times New Roman", Times, serif !important;
+        font-size: 11px !important;
+        font-weight: 700 !important;
+        line-height: 28px !important;
+        text-align: center !important;
+        white-space: nowrap !important;
+        cursor: pointer !important;
+        box-shadow: 0 0 8px rgba(217,180,74,.28) !important;
+      }
+      #${FINDER_ID}:hover {
+        background: #94113a !important;
+        border-color: #ffe38a !important;
+      }
       .royal-room-main main > div.fixed:first-of-type > div:first-child > a[href="/dashboard"] {
         display: none !important;
       }
       @media (max-width: 1200px) {
         #${SWITCHER_ID} {
-          width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 520px)) !important;
+          width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 610px)) !important;
           gap: 2px !important;
           margin-left: 6px !important;
           margin-right: 4px !important;
@@ -111,6 +134,14 @@
           padding: 0 4px !important;
           font-size: 9px !important;
         }
+        #${FINDER_ID} {
+          flex-basis: 88px !important;
+          width: 88px !important;
+          height: 28px !important;
+          line-height: 26px !important;
+          font-size: 9px !important;
+          margin-right: 4px !important;
+        }
       }
     `;
     document.head.appendChild(style);
@@ -118,6 +149,21 @@
 
   function findHeaderRow() {
     return document.querySelector(".royal-room-main main > div.fixed:first-of-type > div:first-child");
+  }
+
+  function ensureFinder(header, dock) {
+    let finder = document.getElementById(FINDER_ID);
+    if (!(finder instanceof HTMLButtonElement)) {
+      finder = document.createElement("button");
+      finder.id = FINDER_ID;
+      finder.type = "button";
+      finder.textContent = "🔎 Room 찾기";
+      finder.title = "Room 찾기";
+      finder.addEventListener("click", () => {
+        window.dispatchEvent(new CustomEvent("rc:open-room-finder"));
+      });
+    }
+    if (dock.nextElementSibling !== finder) dock.insertAdjacentElement("afterend", finder);
   }
 
   function mount(rooms) {
@@ -139,6 +185,8 @@
       const title = header.querySelector("h1");
       if (title && dock.previousElementSibling !== title) title.insertAdjacentElement("afterend", dock);
     }
+
+    ensureFinder(header, dock);
 
     const specialistRooms = rooms
       .filter((room) => room && room.id && room.name && room.status !== "archived")
@@ -192,6 +240,7 @@
       dock.appendChild(button);
     }
 
+    ensureFinder(header, dock);
     dock.style.display = visibleRooms.length ? "grid" : "none";
     return true;
   }
