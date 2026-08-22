@@ -11,16 +11,23 @@
     const style = document.createElement("style");
     style.id = STYLE_ID;
     style.textContent = `
+      .royal-room-main main > div.fixed:first-of-type > div:first-child {
+        position: relative !important;
+      }
       #${SWITCHER_ID} {
+        position: absolute !important;
+        left: 50% !important;
+        top: 50% !important;
+        transform: translate(-50%, -50%) !important;
         display: grid !important;
-        grid-template-columns: repeat(var(--rc-room-count, 1), minmax(0, 1fr)) !important;
+        grid-template-columns: repeat(var(--rc-room-count, 1), minmax(0, 72px)) !important;
+        justify-content: center !important;
         gap: 4px !important;
-        width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 720px)) !important;
+        width: min(calc(var(--rc-room-count, 1) * 76px), calc(100vw - 720px)) !important;
         min-width: 0 !important;
-        margin-left: 14px !important;
-        margin-right: 8px !important;
+        margin: 0 !important;
         align-items: center !important;
-        flex: 0 1 auto !important;
+        z-index: 12 !important;
       }
       #${SWITCHER_ID} .rc-room-switcher-button {
         height: 30px !important;
@@ -95,10 +102,9 @@
       }
       @media (max-width: 1200px) {
         #${SWITCHER_ID} {
-          width: min(calc(var(--rc-room-count, 1) * 72px), calc(100vw - 620px)) !important;
+          grid-template-columns: repeat(var(--rc-room-count, 1), minmax(0, 64px)) !important;
+          width: min(calc(var(--rc-room-count, 1) * 66px), calc(100vw - 620px)) !important;
           gap: 2px !important;
-          margin-left: 6px !important;
-          margin-right: 4px !important;
         }
         #${SWITCHER_ID} .rc-room-switcher-button {
           height: 28px !important;
@@ -139,6 +145,12 @@
     if (dock.nextElementSibling !== finder) dock.insertAdjacentElement("afterend", finder);
   }
 
+  function roomCreatedTime(room, fallbackIndex) {
+    const raw = room?.created_at || room?.createdAt || room?.created || room?.inserted_at || room?.insertedAt || "";
+    const time = raw ? new Date(raw).getTime() : NaN;
+    return Number.isFinite(time) ? time : fallbackIndex;
+  }
+
   function mount(rooms) {
     const header = findHeaderRow();
     if (!(header instanceof HTMLElement)) return false;
@@ -160,8 +172,11 @@
     }
 
     const visibleRooms = rooms
-      .filter((room) => room && room.id && room.name && room.status !== "archived")
-      .filter((room) => String(room.name).trim().toLowerCase() !== "command room")
+      .map((room, index) => ({ room, index }))
+      .filter(({ room }) => room && room.id && room.name && room.status !== "archived")
+      .filter(({ room }) => String(room.name).trim().toLowerCase() !== "command room")
+      .sort((a, b) => roomCreatedTime(a.room, a.index) - roomCreatedTime(b.room, b.index))
+      .map(({ room }) => room)
       .slice(0, 14);
 
     dock.style.setProperty("--rc-room-count", String(Math.max(visibleRooms.length, 1)));
