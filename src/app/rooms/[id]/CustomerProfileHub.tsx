@@ -88,8 +88,8 @@ export default function CustomerProfileHub() {
     <button type="button" onClick={()=>setOpen(true)} className="fixed right-3 top-[4px] z-[360] flex h-[45px] w-[45px] items-center justify-center overflow-hidden rounded-full border-2 border-[#d7bb68] bg-[#102030] shadow-[0_6px_24px_rgba(0,0,0,.38)]" aria-label={t.openProfile} title={t.profile}>
       {photoUrl?<img src={photoUrl} alt={t.customerPhoto} className="h-full w-full object-cover"/>:<UserRound size={21} className="text-[#f3d98c]"/>}
     </button>
-    {open?<div className="fixed inset-0 z-[500] flex justify-end bg-black/45" role="dialog" aria-modal="true" aria-label="My Royal Command">
-      <section className="h-full w-full max-w-[430px] overflow-y-auto border-l border-[#d7bb68]/60 bg-[#08131f] text-white shadow-2xl">
+    {open?<div className="fixed inset-0 z-[500] flex justify-end bg-black/45" role="dialog" aria-modal="true" aria-label="My Royal Command" onClick={()=>setOpen(false)}>
+      <section className="h-full w-full max-w-[430px] overflow-y-auto border-l border-[#d7bb68]/60 bg-[#08131f] text-white shadow-2xl" onClick={(event)=>event.stopPropagation()}>
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-white/10 bg-[#08131f]/95 px-4 py-3 backdrop-blur">
           <div><div className="text-sm font-semibold text-[#f3d98c]">My Royal Command</div><div className="text-xs text-white/55">{t.subtitle}</div></div>
           <button type="button" onClick={()=>setOpen(false)} className="rounded-lg p-2 hover:bg-white/10" aria-label={t.close}><X size={18}/></button>
