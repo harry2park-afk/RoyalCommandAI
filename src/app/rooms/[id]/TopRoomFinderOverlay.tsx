@@ -130,41 +130,46 @@ export default function TopRoomFinderOverlay() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto p-2">
+      <div className="min-h-0 flex-1 overflow-y-auto p-3">
         {!clean && !selectedCategory ? (
           <>
-            <div className="mb-2 px-1 text-[10px] font-bold text-red-300">🔴 1단계 · 분야를 선택하세요</div>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="mb-3 text-[10px] font-bold text-red-300">🔴 1단계 · 분야를 선택하세요</div>
+            <div className="grid grid-cols-2 gap-x-5 gap-y-3">
               {CATEGORIES.map((category) => (
-                <button key={category[0]} type="button" onClick={() => setCategoryId(category[0])} className="min-h-[94px] rounded-lg border border-white/10 bg-black/15 p-2 text-left hover:border-[#d9b44a]/70 hover:bg-[#d9b44a]/10">
-                  <span className="text-base">{category[1]}</span>
-                  <span className="mt-1 block text-[10px] font-bold leading-4 text-white">{category[2]}</span>
-                  <span className="block text-[9px] text-white/55">{category[3]}</span>
-                  <span className="mt-1 block text-[8px] leading-3 text-cyan-300">⚡ {category[4]}</span>
+                <button
+                  key={category[0]}
+                  type="button"
+                  onClick={() => setCategoryId(category[0])}
+                  className="group min-w-0 bg-transparent p-0 text-left"
+                  title={`${category[2]} / ${category[3]}`}
+                >
+                  <span className="block truncate text-[11px] font-semibold leading-4 text-white group-hover:text-[#f6d873]">{category[2]}</span>
+                  <span className="block truncate text-[10px] leading-4 text-white/55 group-hover:text-white/80">{category[3]}</span>
                 </button>
               ))}
             </div>
           </>
         ) : (
           <>
-            <div className="sticky top-0 z-10 mb-2 flex items-center justify-between rounded-md border border-white/10 bg-[#07111f]/96 px-2 py-1.5">
-              <button type="button" onClick={() => { setCategoryId(null); setQuery(""); }} className="flex items-center gap-1 text-[10px] font-semibold text-[#f6d873]"><ArrowLeft size={12} /> 분야로</button>
-              <span className="text-[9px] text-white/45">2단계 · Room 선택</span>
+            <div className="sticky top-0 z-10 mb-2 flex items-center justify-between bg-[#07111f]/96 py-1.5">
+              <button type="button" onClick={() => { setCategoryId(null); setQuery(""); }} className="flex items-center gap-1 text-[10px] font-semibold text-[#f6d873]"><ArrowLeft size={12} /> 1차 분야로</button>
+              <span className="text-[9px] text-white/45">2차 · 세분화 Room 선택</span>
             </div>
             {selectedCategory && !clean ? (
-              <div className="mb-2 rounded-md border border-[#d9b44a]/25 bg-[#d9b44a]/5 px-2 py-2">
-                <div className="text-[11px] font-bold text-[#f6d873]">{selectedCategory[1]} {selectedCategory[2]}</div>
-                <div className="text-[9px] text-cyan-300">⚡ {selectedCategory[4]}</div>
+              <div className="mb-3 border-b border-white/10 pb-2">
+                <div className="text-[11px] font-bold text-[#f6d873]">{selectedCategory[2]}</div>
+                <div className="text-[10px] text-white/55">{selectedCategory[3]}</div>
+                <div className="mt-1 text-[9px] text-cyan-300">⚡ {selectedCategory[4]}</div>
               </div>
             ) : null}
-            <div className="space-y-1">
+            <div className="divide-y divide-white/8">
               {visibleRooms.map((room) => (
-                <button key={room.id} type="button" onClick={() => void chooseRoom(room)} className="flex w-full items-center gap-2 rounded-md border border-white/8 bg-black/10 px-2 py-2 text-left hover:border-[#d9b44a]/55 hover:bg-[#d9b44a]/10">
+                <button key={room.id} type="button" onClick={() => void chooseRoom(room)} className="flex w-full items-center gap-2 bg-transparent px-0 py-2 text-left hover:bg-white/[0.03]">
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[10px] font-bold text-white">{room.label}</span>
                     <span className="block truncate text-[9px] text-white/55">{room.ko}</span>
                   </span>
-                  <span className="shrink-0 text-[9px] font-semibold text-[#f6d873]">열기 ›</span>
+                  <span className="shrink-0 text-[9px] font-semibold text-[#f6d873]">선택 ›</span>
                 </button>
               ))}
               {!visibleRooms.length ? <div className="px-2 py-5 text-center text-[10px] text-white/45">찾는 Room이 없습니다.</div> : null}
