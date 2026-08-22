@@ -49,7 +49,22 @@ function providerSystem(id: AIProviderId, languageHint: string, systemExtra?: st
   ].filter(Boolean).join("\n\n");
 }
 
+function explicitLanguageRequestHint(prompt: string) {
+  const asksForTranslation = /(번역|통역|translate|translation|in\s+(?:korean|english|japanese|chinese|french|german|spanish|italian|portuguese|arabic|hindi|vietnamese|thai|indonesian)|한국어로|한글로|영어로|일본어로|중국어로|프랑스어로|독일어로|스페인어로|이탈리아어로|포르투갈어로|아랍어로|힌디어로|베트남어로|태국어로|인도네시아어로)/i.test(prompt);
+  const asksForMultiple = /(다국어|여러\s*언어|복수\s*언어|2개\s*언어|3개\s*언어|4개\s*언어|5개\s*언어|multilingual|bilingual|two\s+languages|three\s+languages|multiple\s+languages|korean\s*(?:and|\+|,)|english\s*(?:and|\+|,))/i.test(prompt);
+
+  if (!asksForTranslation && !asksForMultiple) return "";
+
+  return [
+    "The user explicitly requested a translation or a specific output language. This explicit language request overrides automatic language detection and any manually selected locale.",
+    "Follow the exact language or languages requested in the current user message. If multiple languages are requested, provide each requested language clearly separated and labeled. If a translation is requested, preserve the meaning faithfully and do not omit the original requested content.",
+  ].join(" ");
+}
+
 function responseLanguageHint(prompt: string, selectedLanguage?: string) {
+  const explicit = explicitLanguageRequestHint(prompt);
+  if (explicit) return explicit;
+
   const userText = prompt.replace(/^\s*\d+-Time\s+\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{6}\s*\/[^\n]*\n*/i, "").trim();
   const hangulCount = (userText.match(/[\uac00-\ud7af\u1100-\u11ff\u3130-\u318f]/g) || []).length;
   const letterCount = (userText.match(/[\p{L}]/gu) || []).length;
