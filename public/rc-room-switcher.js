@@ -6,6 +6,7 @@
   const FINDER_ID = "rc-room-finder-top";
   const currentRoomId = window.location.pathname.split("/").filter(Boolean).pop() || "";
   const PLACEHOLDER_ROOMS = [
+    { name: "Accounting Room", template: "accounting" },
     { name: "Legal Room", template: "legal" },
     { name: "Hobby Room", template: "custom" },
     { name: "Learning Room", template: "education" },
