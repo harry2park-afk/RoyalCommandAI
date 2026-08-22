@@ -35,6 +35,12 @@
         text-overflow: ellipsis !important;
       }
 
+      aside button[title="Click to view full chat date and time"] {
+        font-size: 8px !important;
+        line-height: 1 !important;
+        font-weight: 500 !important;
+      }
+
       aside .space-y-1 > div.group.flex > input[type="checkbox"] {
         align-self: center !important;
       }
