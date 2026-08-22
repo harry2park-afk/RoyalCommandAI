@@ -126,7 +126,7 @@ export default function AIHelperChat() {
   }
 
   return (
-    <div ref={panelRef} className="fixed bottom-4 right-[190px] z-[380] max-lg:right-4">
+    <div ref={panelRef} className="fixed bottom-[46px] right-[190px] z-[380] max-lg:right-4">
       {open ? (
         <div className="flex h-[470px] w-[360px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border border-[#d7b64d]/55 bg-[#07111f]/98 shadow-2xl backdrop-blur">
           <div className="flex h-12 shrink-0 items-center justify-between border-b border-[#d7b64d]/25 bg-[#102030] px-3">
