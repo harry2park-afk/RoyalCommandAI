@@ -140,7 +140,7 @@ export default function RoomBuilderPage() {
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-5xl px-4 py-8 md:px-6">
+    <main className="min-h-screen w-full px-4 py-8 md:px-6 lg:ml-6 lg:mr-[560px] lg:w-auto lg:max-w-none">
       <div className="rounded-3xl border border-[var(--gold)]/35 bg-black/20 p-5 shadow-[0_20px_60px_rgba(0,0,0,.3)] md:p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--gold-soft)]">Royal Command Room Builder · Global Core + Template + Warehouse</p>
         <h1 className="mt-2 text-3xl font-semibold" style={{ fontFamily: "var(--font-display), serif" }}>Create {roomName}</h1>
@@ -154,14 +154,14 @@ export default function RoomBuilderPage() {
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
               {template.fields.map((field) => (
-                <div key={field.id}>
+                <div key={field.id} className="min-w-0">
                   <label className="mb-2 block text-sm font-semibold">{field.label}</label>
                   {field.options ? (
                     <div className="grid gap-2 sm:grid-cols-2">
                       {field.options.map((option) => {
                         const selected = answers[field.id] === option;
                         return (
-                          <button key={option} type="button" onClick={() => setAnswer(field.id, option)} className={`rounded-xl border px-3 py-2 text-left text-sm transition ${selected ? "border-[var(--gold)] bg-[var(--gold)]/15 text-[var(--gold-soft)]" : "border-white/15 bg-black/15 hover:border-[var(--gold)]/60"}`}>
+                          <button key={option} type="button" onClick={() => setAnswer(field.id, option)} className={`min-w-0 rounded-xl border px-3 py-2 text-left text-sm transition ${selected ? "border-[var(--gold)] bg-[var(--gold)]/15 text-[var(--gold-soft)]" : "border-white/15 bg-black/15 hover:border-[var(--gold)]/60"}`}>
                             {option}
                           </button>
                         );
@@ -184,16 +184,16 @@ export default function RoomBuilderPage() {
               <span className="rounded-full border border-[var(--gold)]/35 px-3 py-1 text-xs text-[var(--gold-soft)]">Selected {selectedMaterials.length}</span>
             </div>
 
-            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="mt-4 grid gap-2 sm:grid-cols-2">
               {materials.filter((item) => item.id !== "website-builder").map((material) => {
                 const selected = selectedMaterials.includes(material.id);
                 return (
-                  <button key={material.id} type="button" onClick={() => toggleMaterial(material.id)} className={`rounded-xl border p-3 text-left transition ${selected ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/10 opacity-55"}`}>
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold">{material.name}</span>
-                      <span className="text-[10px] uppercase text-[var(--muted)]">{material.required ? "Core" : material.risk}</span>
+                  <button key={material.id} type="button" onClick={() => toggleMaterial(material.id)} className={`min-w-0 rounded-xl border p-3 text-left transition ${selected ? "border-[var(--gold)]/70 bg-[var(--gold)]/10" : "border-white/10 bg-black/10 opacity-55"}`}>
+                    <div className="flex min-w-0 items-center justify-between gap-2">
+                      <span className="min-w-0 break-words text-sm font-semibold">{material.name}</span>
+                      <span className="shrink-0 text-[10px] uppercase text-[var(--muted)]">{material.required ? "Core" : material.risk}</span>
                     </div>
-                    <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{material.description}</p>
+                    <p className="mt-1 break-words text-xs leading-5 text-[var(--muted)]">{material.description}</p>
                   </button>
                 );
               })}
@@ -202,11 +202,11 @@ export default function RoomBuilderPage() {
 
           <section className="rounded-2xl border border-white/10 bg-black/15 p-4">
             <div className="text-sm font-semibold text-[var(--gold-soft)]">3. Approval Rules</div>
-            <div className="mt-3 grid gap-2 md:grid-cols-3">
+            <div className="mt-3 grid gap-2 md:grid-cols-2">
               {APPROVAL_OPTIONS.map((option) => (
-                <button key={option.id} type="button" onClick={() => setApprovalMode(option.id)} className={`rounded-xl border p-3 text-left ${approvalMode === option.id ? "border-[var(--gold)] bg-[var(--gold)]/12" : "border-white/10 bg-black/10"}`}>
-                  <div className="text-sm font-semibold">{option.label}</div>
-                  <div className="mt-1 text-xs text-[var(--muted)]">{option.detail}</div>
+                <button key={option.id} type="button" onClick={() => setApprovalMode(option.id)} className={`min-w-0 rounded-xl border p-3 text-left ${approvalMode === option.id ? "border-[var(--gold)] bg-[var(--gold)]/12" : "border-white/10 bg-black/10"}`}>
+                  <div className="break-words text-sm font-semibold">{option.label}</div>
+                  <div className="mt-1 break-words text-xs text-[var(--muted)]">{option.detail}</div>
                 </button>
               ))}
             </div>
@@ -217,7 +217,7 @@ export default function RoomBuilderPage() {
             <p className="mt-1 text-xs leading-5 text-[var(--muted)]">Country and Room language are separate choices. Royal Command controls, buttons, menus, product names and AI names always stay in English. Only language-dependent Room content changes.</p>
 
             <div className="mt-4 grid gap-4 md:grid-cols-2">
-              <div>
+              <div className="min-w-0">
                 <label className="mb-2 block text-sm font-semibold">Country / Region</label>
                 <select className="rc-input" value={GLOBAL_ROOM_PRESETS.some((item) => item.id === globalSettings.countryCode) ? globalSettings.countryCode : "OTHER"} onChange={(event) => {
                   const value = event.target.value;
@@ -236,7 +236,7 @@ export default function RoomBuilderPage() {
                 </select>
               </div>
 
-              <div>
+              <div className="min-w-0">
                 <label className="mb-2 block text-sm font-semibold">Room Language</label>
                 <select
                   className="rc-input"
@@ -259,16 +259,16 @@ export default function RoomBuilderPage() {
               </div>
 
               {roomLanguageSelectValue === "CUSTOM" ? (
-                <div>
+                <div className="min-w-0">
                   <label className="mb-2 block text-sm font-semibold">Custom Language Tag</label>
                   <input className="rc-input" value={globalSettings.languageTag} onChange={(event) => setGlobal("languageTag", event.target.value.slice(0, 35))} placeholder="e.g. nl-NL" />
                 </div>
               ) : null}
 
-              <div><label className="mb-2 block text-sm font-semibold">Time Zone</label><input className="rc-input" value={globalSettings.timeZone} onChange={(event) => setGlobal("timeZone", event.target.value.slice(0, 80))} placeholder="e.g. Australia/Sydney" /></div>
-              <div><label className="mb-2 block text-sm font-semibold">Currency</label><input className="rc-input" value={globalSettings.currencyCode} onChange={(event) => setGlobal("currencyCode", event.target.value.toUpperCase().slice(0, 3))} placeholder="AUD" /></div>
-              <div><label className="mb-2 block text-sm font-semibold">Text Direction</label><select className="rc-input" value={globalSettings.textDirection} onChange={(event) => setGlobal("textDirection", event.target.value as GlobalRoomSettings["textDirection"])}><option value="auto">Auto</option><option value="ltr">Left to Right</option><option value="rtl">Right to Left</option></select></div>
-              <div><label className="mb-2 block text-sm font-semibold">Encoding / Copy Safety</label><div className="rounded-xl border border-[var(--gold)]/25 bg-black/20 px-3 py-3 text-sm leading-6">UTF-8 · Structure-only clone · Sensitive data excluded</div></div>
+              <div className="min-w-0"><label className="mb-2 block text-sm font-semibold">Time Zone</label><input className="rc-input" value={globalSettings.timeZone} onChange={(event) => setGlobal("timeZone", event.target.value.slice(0, 80))} placeholder="e.g. Australia/Sydney" /></div>
+              <div className="min-w-0"><label className="mb-2 block text-sm font-semibold">Currency</label><input className="rc-input" value={globalSettings.currencyCode} onChange={(event) => setGlobal("currencyCode", event.target.value.toUpperCase().slice(0, 3))} placeholder="AUD" /></div>
+              <div className="min-w-0"><label className="mb-2 block text-sm font-semibold">Text Direction</label><select className="rc-input" value={globalSettings.textDirection} onChange={(event) => setGlobal("textDirection", event.target.value as GlobalRoomSettings["textDirection"])}><option value="auto">Auto</option><option value="ltr">Left to Right</option><option value="rtl">Right to Left</option></select></div>
+              <div className="min-w-0"><label className="mb-2 block text-sm font-semibold">Encoding / Copy Safety</label><div className="rounded-xl border border-[var(--gold)]/25 bg-black/20 px-3 py-3 text-sm leading-6">UTF-8 · Structure-only clone · Sensitive data excluded</div></div>
             </div>
           </section>
 
