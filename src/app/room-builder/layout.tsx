@@ -11,7 +11,7 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <CommandRoomReturnButton />
       <RoomBuilderAIFormAssistant />
       <RoomGuideLiveInputMirror />
-      <div className="w-full lg:pr-[540px]">{children}</div>
+      <div className="w-full lg:pr-[620px]">{children}</div>
     </>
   );
 }
