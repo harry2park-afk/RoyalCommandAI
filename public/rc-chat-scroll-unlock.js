@@ -71,6 +71,7 @@
         max-height: 30px !important;
         padding-top: 0 !important;
         padding-bottom: 0 !important;
+        transform: translateY(6px) !important;
       }
 
       [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="send"] button {
