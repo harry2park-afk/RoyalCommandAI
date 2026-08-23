@@ -71,3 +71,39 @@ main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{displ
   .royal-room-layout>aside:last-child .rc-right-search{padding-left:6px!important;padding-right:6px!important}
   .royal-room-layout>aside:last-child .rc-right-search input{width:158px!important;min-width:158px!important;max-width:158px!important;height:29px!important;min-height:29px!important;max-height:29px!important}
 }
+
+/* RC Room structural bottom toolbox overrides: keep composer text area roomy and keep AI Help/Send aligned inside the toolbox row. */
+.royal-room-layout section form:has([data-rc-chat-toolbox="true"]) textarea{
+  height:88px!important;
+  min-height:88px!important;
+  max-height:88px!important;
+}
+.royal-room-layout section form:has([data-rc-chat-toolbox="true"]) [data-rc-chat-toolbox="true"]{
+  position:relative!important;
+  border-top:0!important;
+}
+.royal-room-layout section form:has([data-rc-chat-toolbox="true"]) [data-rc-chat-toolbox="true"]::before{
+  content:"";
+  position:absolute;
+  left:8px;
+  right:270px;
+  top:0;
+  border-top:1px solid rgba(215,182,77,.35);
+  pointer-events:none;
+}
+.royal-room-layout section form:has([data-rc-chat-toolbox="true"]) button[type="submit"]{
+  position:static!important;
+  right:auto!important;
+  bottom:auto!important;
+  height:40px!important;
+  min-height:40px!important;
+  padding:0 24px!important;
+  border-radius:12px!important;
+  font-size:14px!important;
+  line-height:1!important;
+  gap:8px!important;
+}
+.royal-room-layout section form:has([data-rc-chat-toolbox="true"]) button[type="submit"] svg{
+  width:17px!important;
+  height:17px!important;
+}
