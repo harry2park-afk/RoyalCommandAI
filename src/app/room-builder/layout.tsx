@@ -11,7 +11,24 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <CommandRoomReturnButton />
       <RoomBuilderAIFormAssistant />
       <RoomGuideLiveInputMirror />
-      <div className="w-full lg:pr-[620px]">{children}</div>
+      <style>{`
+        @media (min-width: 1024px) {
+          .rc-room-builder-workspace {
+            width: calc(100vw - 600px) !important;
+            max-width: calc(100vw - 600px) !important;
+            padding-right: 0 !important;
+            box-sizing: border-box !important;
+          }
+          .rc-room-builder-workspace > main {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin-left: 0 !important;
+            margin-right: 0 !important;
+            box-sizing: border-box !important;
+          }
+        }
+      `}</style>
+      <div className="rc-room-builder-workspace w-full">{children}</div>
     </>
   );
 }
