@@ -636,12 +636,41 @@ export default function RoomV3() {
                   onPaste={pasteAttachment}
                   onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                   placeholder="Type or speak your order… · 화면 캡처는 Ctrl+V로 붙여넣기"
-                  className="block w-full min-w-0 resize-none bg-transparent px-2 py-2 text-base text-[#E8E6DD] outline-none placeholder:text-[#7C8BC4]" />
-                <div className="flex min-w-0 items-center gap-2 px-0 pb-0 lg:pl-[220px] lg:pr-[220px]">
+                  className="block h-[64px] max-h-[64px] w-full min-w-0 resize-none overflow-y-auto bg-transparent px-2 py-2 text-base text-[#E8E6DD] outline-none placeholder:text-[#7C8BC4]" />
+
+                <div
+                  data-rc-chat-toolbox="true"
+                  className="mt-1 flex h-[54px] min-h-[54px] w-full min-w-0 items-center gap-2 overflow-hidden border-t border-[#d7b64d]/35 bg-[#0b1524] px-2"
+                >
                   <input ref={fileRef} type="file" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.currentTarget.value = ""; }} />
-                  <button type="button" onClick={() => fileRef.current?.click()} className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-[#07101d]" title="파일 첨부"><Paperclip size={18} /></button>
-                  <button type="button" onClick={toggleMic} className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border bg-[#07101d] ${listening ? "border-[#d7b64d] text-[#f4d66c]" : "border-white/10"}`} title="마이크"><Mic size={18} /></button>
-                  <button type="submit" disabled={!prompt.trim()} className="ml-auto flex h-10 shrink-0 items-center gap-2 rounded-xl bg-[#d7b64d] px-6 font-semibold text-[#111827] disabled:opacity-40"><Send size={17} /> Send</button>
+
+                  <div data-rc-toolbox-slot="clip" className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border border-white/10 bg-[#07101d]">
+                    <button type="button" onClick={() => fileRef.current?.click()} className="grid h-full w-full place-items-center rounded-xl" title="파일 첨부"><Paperclip size={18} /></button>
+                  </div>
+
+                  <div data-rc-toolbox-slot="mic" className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl border bg-[#07101d] ${listening ? "border-[#d7b64d] text-[#f4d66c]" : "border-white/10"}`}>
+                    <button type="button" onClick={toggleMic} className="grid h-full w-full place-items-center rounded-xl" title="마이크"><Mic size={18} /></button>
+                  </div>
+
+                  <div
+                    id="rc-main-wave-slot"
+                    data-rc-toolbox-slot="wave"
+                    aria-label="Main voice waveform slot"
+                    className="h-10 w-[220px] shrink-0 rounded-xl border border-dashed border-[#d7b64d]/35 bg-[#07101d]/70"
+                  />
+
+                  <div className="min-w-4 flex-1" aria-hidden="true" />
+
+                  <div
+                    id="rc-ai-help-slot"
+                    data-rc-toolbox-slot="ai-help"
+                    aria-label="AI Help slot"
+                    className="h-10 w-[112px] shrink-0 rounded-xl border border-dashed border-white/10 bg-[#07101d]/40"
+                  />
+
+                  <div data-rc-toolbox-slot="send" className="shrink-0">
+                    <button type="submit" disabled={!prompt.trim()} className="flex h-10 items-center gap-2 rounded-xl bg-[#d7b64d] px-6 font-semibold text-[#111827] disabled:opacity-40"><Send size={17} /> Send</button>
+                  </div>
                 </div>
               </div>
             </form>
