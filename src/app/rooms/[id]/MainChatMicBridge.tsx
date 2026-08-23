@@ -83,9 +83,6 @@ export default function MainChatMicBridge() {
   const [hasText, setHasText] = useState(false);
 
   useEffect(() => {
-    const composer = findComposer();
-    if (composer) setHasText(Boolean(composer.value.trim()));
-
     const renderTranscript = () => {
       const textarea = textareaRef.current;
       if (!textarea) return;
@@ -179,7 +176,10 @@ export default function MainChatMicBridge() {
       finalsRef.current.clear();
 
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+          video: false,
+        });
         streamRef.current = stream;
         activeRef.current = true;
         setActive(true);
@@ -201,7 +201,9 @@ export default function MainChatMicBridge() {
         const dc = pc.createDataChannel("oai-events");
         dcRef.current = dc;
 
-        dc.addEventListener("open", () => { if (!closingRef.current) setStatus("말씀하세요…"); });
+        dc.addEventListener("open", () => {
+          if (!closingRef.current) setStatus("말씀하세요…");
+        });
         dc.addEventListener("message", (event) => {
           let message: any;
           try { message = JSON.parse(String(event.data || "{}")); } catch { return; }
@@ -222,13 +224,19 @@ export default function MainChatMicBridge() {
             setProblem("실시간 음성인식 연결에 문제가 생겼습니다. 마이크를 다시 눌러 주세요.");
           }
         });
-        dc.addEventListener("close", () => { if (!closingRef.current) setProblem("실시간 음성 연결이 끊겼습니다. 마이크를 다시 눌러 주세요."); });
+        dc.addEventListener("close", () => {
+          if (!closingRef.current) setProblem("실시간 음성 연결이 끊겼습니다. 마이크를 다시 눌러 주세요.");
+        });
 
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         const sdp = offer.sdp || pc.localDescription?.sdp || "";
         if (!sdp) throw new Error("no-sdp");
-        const response = await fetch("https://api.openai.com/v1/realtime/calls", { method: "POST", headers: { Authorization: `Bearer ${String(tokenPayload.value)}`, "Content-Type": "application/sdp" }, body: sdp });
+        const response = await fetch("https://api.openai.com/v1/realtime/calls", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${String(tokenPayload.value)}`, "Content-Type": "application/sdp" },
+          body: sdp,
+        });
         const answerSdp = await response.text();
         if (!response.ok || !answerSdp.includes("v=0")) throw new Error("webrtc-connect-failed");
         await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
@@ -257,16 +265,9 @@ export default function MainChatMicBridge() {
       else void start(button);
     };
 
-    const onInput = () => {
-      const textarea = findComposer();
-      if (textarea) setHasText(Boolean(textarea.value.trim()));
-    };
-
     document.addEventListener("click", onClick, true);
-    document.addEventListener("input", onInput, true);
     return () => {
       document.removeEventListener("click", onClick, true);
-      document.removeEventListener("input", onInput, true);
       cleanup();
     };
   }, []);
@@ -281,21 +282,37 @@ export default function MainChatMicBridge() {
       setActive(false);
     }
     const send = findNativeSendButton();
-    if (send) { send.click(); return; }
+    if (send) {
+      send.click();
+      return;
+    }
     const form = textarea.closest("form");
     if (form) form.requestSubmit();
     else textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
   };
 
+  if (!status && !problem && !active && !hasText) return null;
+
   return (
     <div className="fixed bottom-[72px] left-1/2 z-[510] flex -translate-x-1/2 items-center gap-3 rounded-xl border border-[#d7b64d]/60 bg-[#07111f]/96 px-4 py-2.5 text-[12px] shadow-2xl backdrop-blur">
-      <div className="flex h-9 items-center gap-[3px]" aria-label="Live microphone level">
-        {(active ? levels : EMPTY_LEVELS).map((level, index) => (
-          <span key={index} className="block w-[3px] rounded-full bg-emerald-300 transition-[height] duration-75" style={{ height: `${Math.round(5 + level * 28)}px`, opacity: active ? 0.6 + level * 0.4 : 0.35 }} />
-        ))}
-      </div>
+      {active && (
+        <div className="flex h-9 items-center gap-[3px]" aria-label="Live microphone level">
+          {levels.map((level, index) => (
+            <span key={index} className="block w-[3px] rounded-full bg-emerald-300 transition-[height] duration-75" style={{ height: `${Math.round(5 + level * 28)}px`, opacity: 0.6 + level * 0.4 }} />
+          ))}
+        </div>
+      )}
       {problem ? <span className="max-w-[620px] text-amber-200">{problem}</span> : <span className="whitespace-nowrap text-emerald-300">{status || "입력 준비됨"}</span>}
-      <button type="button" onClick={sendCurrentText} disabled={!hasText} title="말한 내용을 보내기" aria-label="말한 내용을 보내기" className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d7b64d] bg-[#8f1028] text-xl font-bold text-[#f6d56b] shadow disabled:cursor-not-allowed disabled:opacity-35">↑</button>
+      <button
+        type="button"
+        onClick={sendCurrentText}
+        disabled={!hasText}
+        title="말한 내용을 보내기"
+        aria-label="말한 내용을 보내기"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d7b64d] bg-[#8f1028] text-xl font-bold text-[#f6d56b] shadow disabled:cursor-not-allowed disabled:opacity-35"
+      >
+        ↑
+      </button>
     </div>
   );
 }
