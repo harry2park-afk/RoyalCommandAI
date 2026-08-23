@@ -44,7 +44,14 @@
     const textarea = findMainComposer();
     const root = textarea?.closest("form") || textarea?.parentElement?.parentElement || textarea?.parentElement;
     if (!root) return null;
-    return Array.from(root.querySelectorAll("button")).find((button) => Boolean(button.querySelector("svg.lucide-mic"))) || null;
+
+    const visibleMics = Array.from(root.querySelectorAll("button"))
+      .filter((button) => Boolean(button.querySelector("svg.lucide-mic")))
+      .map((button) => ({ button, rect: button.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.width > 8 && rect.height > 8 && rect.bottom > 0 && rect.right > 0)
+      .sort((a, b) => (b.rect.top - a.rect.top) || (b.rect.left - a.rect.left));
+
+    return visibleMics[0]?.button || null;
   }
 
   function findMainVoicePanel() {
@@ -98,8 +105,8 @@
 
     const micRect = mic.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    const gap = 8;
-    const left = Math.max(8, Math.min(window.innerWidth - panelRect.width - 8, micRect.right + gap));
+    const gap = 14;
+    const left = Math.max(micRect.right + gap, Math.min(window.innerWidth - panelRect.width - 8, micRect.right + gap));
     const top = Math.max(8, Math.min(window.innerHeight - 38, micRect.top + (micRect.height - 30) / 2));
 
     panel.style.left = `${Math.round(left)}px`;
@@ -119,5 +126,5 @@
   observer.observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener("resize", positionMainVoicePanel);
   window.addEventListener("scroll", positionMainVoicePanel, true);
-  window.setInterval(positionMainVoicePanel, 150);
+  window.setInterval(positionMainVoicePanel, 120);
 })();
