@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Bot, Mic, Send, X } from "lucide-react";
+import { ArrowUp, Bot, Mic, Volume2, VolumeX, X } from "lucide-react";
 
 type Lang = "en" | "ko" | "zh" | "ja" | "es" | "fr" | "de" | "vi" | "th" | "id";
 type Message = { role: "user" | "assistant"; content: string };
@@ -93,6 +93,7 @@ export default function AIHelperChat() {
   const [listening, setListening] = useState(false);
   const [speaking, setSpeaking] = useState(false);
   const [micEnabled, setMicEnabled] = useState(false);
+  const [speakerEnabled, setSpeakerEnabled] = useState(true);
   const [micStatus, setMicStatus] = useState("");
   const [micIssue, setMicIssue] = useState("");
   const [helperPosition, setHelperPosition] = useState<HelperPosition | null>(null);
@@ -101,6 +102,7 @@ export default function AIHelperChat() {
   const recognitionRef = useRef<any>(null);
   const openRef = useRef(false);
   const micEnabledRef = useRef(false);
+  const speakerEnabledRef = useRef(true);
   const speakingRef = useRef(false);
   const loadingRef = useRef(false);
   const langRef = useRef<Lang>("en");
@@ -112,6 +114,7 @@ export default function AIHelperChat() {
 
   useEffect(() => { openRef.current = open; }, [open]);
   useEffect(() => { micEnabledRef.current = micEnabled; }, [micEnabled]);
+  useEffect(() => { speakerEnabledRef.current = speakerEnabled; }, [speakerEnabled]);
   useEffect(() => { speakingRef.current = speaking; }, [speaking]);
   useEffect(() => { loadingRef.current = loading; }, [loading]);
   useEffect(() => { langRef.current = lang; }, [lang]);
@@ -220,7 +223,7 @@ export default function AIHelperChat() {
     }
   }
 
-  function scheduleListening(delay = 300) {
+  function scheduleListening(delay = 120) {
     window.setTimeout(() => {
       if (openRef.current && micEnabledRef.current && !speakingRef.current && !loadingRef.current) startRecognition();
     }, delay);
@@ -240,14 +243,14 @@ export default function AIHelperChat() {
     const recognition = new Recognition();
     recognitionRef.current = recognition;
     recognition.lang = LOCALE[langRef.current];
-    recognition.interimResults = false;
-    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.continuous = true;
     recognition.maxAlternatives = 1;
 
-    let gotResult = false;
     let blockingError = false;
+    let finalText = "";
 
-    recognition.onstart = () => setMicStatus(micText(langRef.current, "checking"));
+    recognition.onstart = () => setMicStatus(micText(langRef.current, "listening"));
     recognition.onaudiostart = () => {
       setListening(true);
       setMicIssue("");
@@ -281,20 +284,23 @@ export default function AIHelperChat() {
     };
 
     recognition.onresult = (event: any) => {
-      const transcript = String(event.results?.[0]?.[0]?.transcript || "").trim();
-      if (!transcript) return;
-      gotResult = true;
-      setInput(transcript);
-      setMicStatus("");
-      stopRecognition();
-      void sendMessage(transcript);
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i += 1) {
+        const text = String(event.results[i]?.[0]?.transcript || "");
+        if (event.results[i].isFinal) finalText += `${text} `;
+        else interim += text;
+      }
+      const liveText = `${finalText}${interim}`.replace(/\s+/g, " ").trim();
+      if (!liveText) return;
+      setInput(liveText);
+      setMicStatus(interim ? "실시간 입력 중…" : micText(langRef.current, "listening"));
     };
 
     recognition.onend = () => {
       setListening(false);
       if (recognitionRef.current === recognition) recognitionRef.current = null;
-      if (!gotResult && !blockingError && openRef.current && micEnabledRef.current && !speakingRef.current && !loadingRef.current) {
-        scheduleListening(500);
+      if (!blockingError && openRef.current && micEnabledRef.current && !speakingRef.current && !loadingRef.current) {
+        scheduleListening(120);
       }
     };
 
@@ -307,8 +313,14 @@ export default function AIHelperChat() {
   }
 
   function speak(text: string, resumeListening = true) {
+    if (!speakerEnabledRef.current) {
+      speakingRef.current = false;
+      setSpeaking(false);
+      if (resumeListening && micEnabledRef.current) scheduleListening(80);
+      return;
+    }
     if (!("speechSynthesis" in window) || !text.trim()) {
-      if (resumeListening) scheduleListening(100);
+      if (resumeListening) scheduleListening(80);
       return;
     }
     speakingRef.current = true;
@@ -321,12 +333,12 @@ export default function AIHelperChat() {
     utterance.onend = () => {
       speakingRef.current = false;
       setSpeaking(false);
-      if (resumeListening && micEnabledRef.current) scheduleListening(250);
+      if (resumeListening && micEnabledRef.current) scheduleListening(100);
     };
     utterance.onerror = () => {
       speakingRef.current = false;
       setSpeaking(false);
-      if (resumeListening && micEnabledRef.current) scheduleListening(250);
+      if (resumeListening && micEnabledRef.current) scheduleListening(100);
     };
     speech.speak(utterance);
   }
@@ -336,16 +348,19 @@ export default function AIHelperChat() {
     setOpen(true);
     setMicIssue("");
     setMicStatus("");
+    speakerEnabledRef.current = true;
+    setSpeakerEnabled(true);
     micEnabledRef.current = false;
     setMicEnabled(false);
 
-    // Greeting starts immediately. Microphone permission/device check runs from the same user click.
     speak(COPY[langRef.current].greeting, true);
     void prepareMicrophone().then((ok) => {
       if (!openRef.current || !ok) return;
       micEnabledRef.current = true;
       setMicEnabled(true);
-      if (!speakingRef.current && !loadingRef.current) scheduleListening(150);
+      speakerEnabledRef.current = true;
+      setSpeakerEnabled(true);
+      if (!speakingRef.current && !loadingRef.current) scheduleListening(80);
     });
   }
 
@@ -370,12 +385,26 @@ export default function AIHelperChat() {
       stopRecognition();
       return;
     }
+    speakerEnabledRef.current = true;
+    setSpeakerEnabled(true);
     void prepareMicrophone().then((ok) => {
       if (!ok || !openRef.current) return;
       micEnabledRef.current = true;
       setMicEnabled(true);
       if (!speakingRef.current && !loadingRef.current) startRecognition();
     });
+  }
+
+  function toggleSpeaker() {
+    const next = !speakerEnabledRef.current;
+    speakerEnabledRef.current = next;
+    setSpeakerEnabled(next);
+    if (!next && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      speakingRef.current = false;
+      setSpeaking(false);
+      if (micEnabledRef.current) scheduleListening(80);
+    }
   }
 
   async function sendMessage(rawMessage: string) {
@@ -444,7 +473,7 @@ export default function AIHelperChat() {
 
           <div className="px-5">
             <div className="flex items-center gap-2 text-[#d7b64d]">
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#d7b64d]/70 ${speaking ? "shadow-[0_0_16px_rgba(215,182,77,.6)]" : ""}`}><Mic size={15} /></span>
+              <button type="button" onClick={toggleSpeaker} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${speakerEnabled ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-300" : "border-[#d7b64d]/70 text-[#d7b64d]"}`} title={speakerEnabled ? "AI Help speaker on" : "AI Help speaker off"}>{speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
               <div className="flex h-8 flex-1 items-center gap-[3px] overflow-hidden">
                 {Array.from({ length: 24 }).map((_, index) => (
                   <span key={index} className={`w-[2px] rounded-full bg-[#d7b64d] ${speaking || listening ? "animate-pulse" : "opacity-45"}`} style={{ height: `${8 + ((index * 7) % 20)}px`, animationDelay: `${index * 45}ms` }} />
@@ -466,8 +495,8 @@ export default function AIHelperChat() {
             <form onSubmit={send}>
               <div className="flex items-center gap-2 rounded-xl bg-black/25 px-2 py-1.5">
                 <textarea value={input} onChange={(event) => setInput(event.target.value)} onKeyDown={(event) => { if (event.key === "Enter" && !event.shiftKey) { event.preventDefault(); void send(); } }} rows={1} placeholder={listening ? copy.listening : copy.placeholder} className="max-h-20 min-h-[36px] flex-1 resize-none bg-transparent px-1 py-2 text-[13px] text-white outline-none placeholder:text-white/35" />
-                <button type="button" onClick={toggleMicrophone} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${micEnabled ? "bg-emerald-500/20 text-emerald-300" : "text-[#d7b64d] hover:bg-white/5"}`} title={micEnabled ? "Microphone on — click to turn off" : "Microphone off — click to turn on"}><Mic size={17} /></button>
-                <button type="submit" disabled={!input.trim() || loading} className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-[#f6d56d] hover:bg-white/5 disabled:opacity-30" title="Send"><Send size={17} /></button>
+                <button type="button" onClick={toggleMicrophone} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full ${micEnabled ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/70" : "text-[#d7b64d] hover:bg-white/5"}`} title={micEnabled ? "AI Help microphone on" : "AI Help microphone off"}><Mic size={17} /></button>
+                <button type="submit" disabled={!input.trim() || loading} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#d7b64d] bg-[#7A0C2E] text-[#ffe18a] shadow-[0_0_14px_rgba(215,182,77,.28)] hover:bg-[#94113a] disabled:opacity-30" title="Send"><ArrowUp size={18} /></button>
               </div>
             </form>
           </div>
