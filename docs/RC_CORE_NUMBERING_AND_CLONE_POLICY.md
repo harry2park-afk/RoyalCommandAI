@@ -81,3 +81,49 @@ Priority order for existing code review:
 
 ## 10. Safety rule for refactoring
 Do not perform bulk renames or broad rewrites simply for tidiness. Existing production behaviour must be preserved. Refactor in small tested modules and keep rollback possible through Git history.
+
+## 11. Royal Command Approval ID standard
+This section is an approved permanent numbering rule for customer approvals, especially approvals that can lead to charges, purchases, subscriptions, contracts or other external actions.
+
+### 11.1 Short approval-number format
+Use:
+`A{YEAR}-{MD}-{ITEM}-{AMOUNT}-{SEQ}`
+
+Example:
+`A1-823-425-1500-01`
+
+Meaning:
+- `A` = Approval.
+- `1` = Royal Command year code. Royal Command birth year 2026 is Year 1; 2027 is Year 2; 2028 is Year 3; continue sequentially.
+- `823` = month/day for 23 August. Use the shortest unambiguous month/day form in the approval record.
+- `425` = approved item/service code.
+- `1500` = approved monetary amount in the approval currency.
+- `01` = sequence number for otherwise similar approvals.
+
+### 11.2 Country rule
+Do not repeat a country code inside the Approval ID when the linked customer number already identifies the customer's country.
+
+The Approval ID must always be linked to the customer number/customer ID. The database must still store country and currency as separate authoritative fields even though they are omitted from the short Approval ID.
+
+### 11.3 What one Approval ID must resolve to
+Looking up the Approval ID must show at minimum:
+- customer number/customer ID and Room ID;
+- country and currency;
+- item/service name and item code;
+- exact approved amount;
+- approval date and time;
+- exact terms, scope and any recurring or additional charges presented to the customer;
+- customer approval response;
+- customer-written text and relevant conversation messages;
+- voice transcript and recording reference where recording was lawfully consented to and retained;
+- attachments, quotes, contracts or invoices presented for approval;
+- who requested the approval and who approved it;
+- execution result, receipt and final status;
+- immutable audit/version history or integrity hash sufficient to detect later alteration.
+
+### 11.4 Approval security and evidence rule
+Any action that can spend money, create a subscription, enter a contract, send funds, order a paid service or otherwise create a material customer obligation must stop at an approval gate until the required customer approval is captured.
+
+The approved evidence package must be retained in an Approval Ledger / Evidence Vault or equivalent secure server-side record. It must not rely only on browser state or local storage.
+
+An issued Approval ID is permanent and must never be reused for a different approval. If the price, scope, item, recurring terms or other material condition changes after approval, issue a new Approval ID and preserve the old record unchanged.
