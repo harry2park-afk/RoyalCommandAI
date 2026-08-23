@@ -6,6 +6,7 @@
   let dragging = false;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
+  let dragPointerId = null;
 
   function findViewport() {
     return Array.from(document.querySelectorAll("div")).find((el) => {
@@ -66,19 +67,49 @@
     }) || null;
   }
 
+  function ensureDragHandle(panel) {
+    if (!(panel instanceof HTMLElement)) return null;
+    let handle = panel.querySelector('[data-rc-voice-drag-handle="1"]');
+    if (handle instanceof HTMLElement) return handle;
+
+    handle = document.createElement("span");
+    handle.dataset.rcVoiceDragHandle = "1";
+    handle.textContent = "↔";
+    handle.title = "여기를 잡고 끌어서 웨이브 창을 이동하세요";
+    handle.setAttribute("aria-label", "웨이브 창 이동");
+    handle.style.display = "inline-flex";
+    handle.style.alignItems = "center";
+    handle.style.justifyContent = "center";
+    handle.style.width = "22px";
+    handle.style.minWidth = "22px";
+    handle.style.height = "26px";
+    handle.style.borderRadius = "7px";
+    handle.style.border = "1px solid rgba(215,182,77,.75)";
+    handle.style.color = "#f6d56b";
+    handle.style.background = "rgba(122,12,46,.7)";
+    handle.style.fontSize = "15px";
+    handle.style.fontWeight = "700";
+    handle.style.cursor = "move";
+    handle.style.userSelect = "none";
+    handle.style.touchAction = "none";
+    handle.style.pointerEvents = "auto";
+    panel.insertBefore(handle, panel.firstChild);
+    return handle;
+  }
+
   function compactMainVoicePanel(panel) {
     if (!(panel instanceof HTMLElement)) return;
     panel.style.height = "30px";
     panel.style.minHeight = "30px";
     panel.style.maxHeight = "30px";
-    panel.style.padding = "0 8px";
-    panel.style.gap = "7px";
+    panel.style.padding = "0 5px";
+    panel.style.gap = "5px";
     panel.style.borderRadius = "10px";
     panel.style.alignItems = "center";
     panel.style.whiteSpace = "nowrap";
-    panel.style.cursor = "grab";
     panel.style.userSelect = "none";
-    panel.title = "끌어서 원하는 위치로 이동하면 자동으로 고정됩니다";
+    panel.title = "왼쪽 ↔ 손잡이를 끌어서 위치를 옮길 수 있습니다";
+    ensureDragHandle(panel);
 
     const wave = Array.from(panel.querySelectorAll("div")).find((el) => el.getAttribute("aria-label") === "Live microphone level");
     if (wave instanceof HTMLElement) {
@@ -105,7 +136,7 @@
   }
 
   function clampPosition(left, top, panel) {
-    const width = panel.offsetWidth || 220;
+    const width = panel.offsetWidth || 240;
     const height = panel.offsetHeight || 30;
     return {
       left: Math.max(8, Math.min(window.innerWidth - width - 8, left)),
@@ -167,23 +198,26 @@
   }
 
   function onPointerDown(event) {
-    const panel = findMainVoicePanel();
-    if (!(panel instanceof HTMLElement)) return;
     const target = event.target;
-    if (!(target instanceof Element) || !panel.contains(target)) return;
-    if (target.closest("button")) return;
+    if (!(target instanceof Element)) return;
+    const handle = target.closest('[data-rc-voice-drag-handle="1"]');
+    if (!(handle instanceof HTMLElement)) return;
+    const panel = findMainVoicePanel();
+    if (!(panel instanceof HTMLElement) || !panel.contains(handle)) return;
 
     const rect = panel.getBoundingClientRect();
     dragging = true;
+    dragPointerId = event.pointerId;
     dragOffsetX = event.clientX - rect.left;
     dragOffsetY = event.clientY - rect.top;
-    panel.style.cursor = "grabbing";
-    try { panel.setPointerCapture(event.pointerId); } catch {}
+    handle.style.cursor = "grabbing";
+    try { handle.setPointerCapture(event.pointerId); } catch {}
     event.preventDefault();
+    event.stopPropagation();
   }
 
   function onPointerMove(event) {
-    if (!dragging) return;
+    if (!dragging || (dragPointerId !== null && event.pointerId !== dragPointerId)) return;
     const panel = findMainVoicePanel();
     if (!(panel instanceof HTMLElement)) return;
     applyPanelPosition(panel, event.clientX - dragOffsetX, event.clientY - dragOffsetY);
@@ -191,15 +225,17 @@
   }
 
   function onPointerUp(event) {
-    if (!dragging) return;
+    if (!dragging || (dragPointerId !== null && event.pointerId !== dragPointerId)) return;
     dragging = false;
+    dragPointerId = null;
     const panel = findMainVoicePanel();
     if (!(panel instanceof HTMLElement)) return;
     const rect = panel.getBoundingClientRect();
     const placed = applyPanelPosition(panel, rect.left, rect.top);
     savePosition(placed.left, placed.top);
-    panel.style.cursor = "grab";
-    try { panel.releasePointerCapture(event.pointerId); } catch {}
+    const handle = panel.querySelector('[data-rc-voice-drag-handle="1"]');
+    if (handle instanceof HTMLElement) handle.style.cursor = "move";
+    event.preventDefault();
   }
 
   function run() {
