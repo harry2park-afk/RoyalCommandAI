@@ -16,15 +16,15 @@ function normaliseLanguage(value: string | null) {
   return "en";
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 503 });
-    }
+    if (!apiKey) return Response.json({ error: "Voice service is not configured" }, { status: 503 });
 
     const sdp = await request.text();
     if (!sdp || !sdp.includes("v=0")) {
@@ -56,18 +56,23 @@ export async function POST(request: Request) {
       },
     };
 
-    const form = new FormData();
-    form.set("sdp", sdp);
-    form.set("session", JSON.stringify(session));
+    const callRealtime = async () => {
+      const form = new FormData();
+      form.set("sdp", sdp);
+      form.set("session", JSON.stringify(session));
+      return fetch("https://api.openai.com/v1/realtime/calls", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        body: form,
+        cache: "no-store",
+      });
+    };
 
-    const response = await fetch("https://api.openai.com/v1/realtime/calls", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: form,
-      cache: "no-store",
-    });
+    let response = await callRealtime();
+    if ([502, 503, 504].includes(response.status)) {
+      await sleep(500);
+      response = await callRealtime();
+    }
 
     const answer = await response.text();
     if (!response.ok) {
@@ -75,9 +80,10 @@ export async function POST(request: Request) {
         status: response.status,
         body: answer.slice(0, 1000),
       });
+      const transient = [502, 503, 504].includes(response.status);
       return Response.json(
-        { error: answer || `Realtime session failed with HTTP ${response.status}` },
-        { status: response.status },
+        { error: transient ? "실시간 음성 서버 연결이 지연되고 있습니다. 잠시 후 마이크를 다시 눌러 주세요." : "실시간 음성 연결에 실패했습니다." },
+        { status: transient ? 503 : 502 },
       );
     }
 
@@ -92,9 +98,6 @@ export async function POST(request: Request) {
     logger.error("voice.realtime_session.failed", {
       error: error instanceof Error ? error.message : error,
     });
-    return Response.json(
-      { error: error instanceof Error ? error.message : "Realtime session failed" },
-      { status: 500 },
-    );
+    return Response.json({ error: "실시간 음성 연결에 실패했습니다." }, { status: 500 });
   }
 }
