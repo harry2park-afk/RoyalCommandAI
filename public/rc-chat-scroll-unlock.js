@@ -2,6 +2,87 @@
   if (!/^\/rooms\//.test(window.location.pathname)) return;
 
   const PATCH_FLAG = "rcScrollUnlockPatched";
+  const TOOLBOX_STYLE_ID = "rcToolboxLowerCompactStyle";
+
+  function ensureToolboxLayoutStyle() {
+    if (document.getElementById(TOOLBOX_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = TOOLBOX_STYLE_ID;
+    style.textContent = `
+      textarea[placeholder*="Type or speak your order"] {
+        height: 101px !important;
+        min-height: 101px !important;
+        max-height: 101px !important;
+      }
+
+      [data-rc-chat-toolbox="true"] {
+        height: 28px !important;
+        min-height: 28px !important;
+        max-height: 28px !important;
+        margin-top: 0 !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        gap: 6px !important;
+        align-items: center !important;
+      }
+
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="clip"],
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="mic"] {
+        width: 28px !important;
+        height: 24px !important;
+        min-width: 28px !important;
+        min-height: 24px !important;
+        border-radius: 8px !important;
+      }
+
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="clip"] button,
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="mic"] button {
+        width: 28px !important;
+        height: 24px !important;
+        min-width: 28px !important;
+        min-height: 24px !important;
+        padding: 0 !important;
+      }
+
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="clip"] svg,
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="mic"] svg {
+        width: 15px !important;
+        height: 15px !important;
+      }
+
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="wave"] {
+        height: 24px !important;
+        min-height: 24px !important;
+        max-height: 24px !important;
+        width: 205px !important;
+        border-radius: 8px !important;
+      }
+
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="ai-help"] {
+        height: 24px !important;
+        min-height: 24px !important;
+        max-height: 24px !important;
+        border-radius: 8px !important;
+      }
+
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="send"] button {
+        position: static !important;
+        width: auto !important;
+        height: 24px !important;
+        min-height: 24px !important;
+        padding: 0 10px !important;
+        border-radius: 8px !important;
+        font-size: 10px !important;
+        line-height: 1 !important;
+      }
+
+      [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="send"] button svg {
+        width: 12px !important;
+        height: 12px !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
 
   function findViewport() {
     return Array.from(document.querySelectorAll("div")).find((el) => {
@@ -113,6 +194,7 @@
   }
 
   function run() {
+    ensureToolboxLayoutStyle();
     patchScroll();
     positionMainVoicePanel();
   }
