@@ -176,8 +176,6 @@ export default function MainChatMicBridge() {
         streamRef.current = stream;
         startWaveform(stream);
 
-        // Show the real local microphone level immediately. This does not depend on
-        // OpenAI or Vercel, so the user can always see whether the S10 mic is heard.
         setActive(true);
         setStatus("마이크 소리 확인 중…");
         button.style.boxShadow = "0 0 0 2px rgba(52,211,153,.55), 0 0 22px rgba(52,211,153,.7)";
@@ -259,9 +257,9 @@ export default function MainChatMicBridge() {
         const sdp = offer.sdp || pc.localDescription?.sdp || "";
         if (!sdp) throw new Error("no-sdp");
 
-        // Send SDP directly from the browser with a short-lived client secret.
-        // This prevents Vercel's function timeout from sitting in the WebRTC path.
-        const response = await fetch("https://api.openai.com/v1/realtime", {
+        // Current OpenAI WebRTC API: an ephemeral client secret authenticates
+        // the SDP POST to /v1/realtime/calls (not the legacy /v1/realtime path).
+        const response = await fetch("https://api.openai.com/v1/realtime/calls", {
           method: "POST",
           headers: {
             Authorization: `Bearer ${ephemeralKey}`,
