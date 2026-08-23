@@ -23,7 +23,7 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
         .rc-room-builder-workspace form > section:nth-of-type(6),
         .rc-room-builder-workspace form > section:nth-of-type(6) button,
         .rc-room-builder-workspace form > div:last-child > button {
-          border-color: rgba(215, 182, 77, 0.72) !important;
+          border-color: rgba(215, 182, 77, 0.95) !important;
         }
         @media (min-width: 1024px) {
           .rc-room-builder-workspace {
