@@ -12,6 +12,10 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <RoomBuilderAIFormAssistant />
       <RoomGuideLiveInputMirror />
       <style>{`
+        .rc-room-builder-workspace form > section:first-of-type input,
+        .rc-room-builder-workspace form > section:first-of-type button {
+          border-color: rgba(215, 182, 77, 0.72) !important;
+        }
         @media (min-width: 1024px) {
           .rc-room-builder-workspace {
             width: calc(100vw - 600px) !important;
