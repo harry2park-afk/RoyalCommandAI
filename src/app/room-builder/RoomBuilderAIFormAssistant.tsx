@@ -436,9 +436,10 @@ export default function RoomBuilderAIFormAssistant() {
       <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
         <div className="text-[12px] font-semibold text-[#d7b64d]">Room Guide</div>
         <div className="mt-1 whitespace-pre-wrap text-[14px] leading-6 text-white/92">{lastAssistant}</div>
-        <div className="my-4 h-px w-full bg-gradient-to-r from-transparent via-[#d7b64d] to-transparent" />
-        <div className="text-[12px] font-semibold text-[#d7b64d]">You</div>
-        {lastUser ? <div className="mt-1 whitespace-pre-wrap text-[13px] leading-5 text-white/68">{lastUser}</div> : null}
+        <div className="mt-4 flex items-baseline gap-2">
+          <div className="shrink-0 text-[12px] font-semibold text-[#d7b64d]">You</div>
+          {lastUser ? <div className="min-w-0 whitespace-pre-wrap text-[13px] leading-5 text-white/68">{lastUser}</div> : null}
+        </div>
       </div>
 
       <form onSubmit={submit} className="h-[70px] min-h-[70px] max-h-[70px] shrink-0 border-t border-[#d7b64d]/30 bg-[#07111f] px-3 py-1">
