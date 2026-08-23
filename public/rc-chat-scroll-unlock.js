@@ -4,10 +4,22 @@
   const PATCH_FLAG = "rcScrollUnlockPatched";
   const POSITION_KEY = "rc:main-voice-panel-position";
   const LOCK_KEY = "rc:main-voice-panel-locked";
+  const VERSION_KEY = "rc:main-voice-panel-layout-version";
+  const VERSION = "2";
   let dragging = false;
   let dragOffsetX = 0;
   let dragOffsetY = 0;
   let dragPointerId = null;
+
+  function resetOldLayoutOnce() {
+    try {
+      if (localStorage.getItem(VERSION_KEY) !== VERSION) {
+        localStorage.removeItem(POSITION_KEY);
+        localStorage.removeItem(LOCK_KEY);
+        localStorage.setItem(VERSION_KEY, VERSION);
+      }
+    } catch {}
+  }
 
   function findViewport() {
     return Array.from(document.querySelectorAll("div")).find((el) => {
@@ -40,12 +52,11 @@
     const textarea = findMainComposer();
     const root = textarea?.closest("form") || textarea?.parentElement?.parentElement || textarea?.parentElement;
     if (!root) return null;
-    const visibleMics = Array.from(root.querySelectorAll("button"))
+    return Array.from(root.querySelectorAll("button"))
       .filter((button) => Boolean(button.querySelector("svg.lucide-mic")))
       .map((button) => ({ button, rect: button.getBoundingClientRect() }))
       .filter(({ rect }) => rect.width > 8 && rect.height > 8 && rect.bottom > 0 && rect.right > 0)
-      .sort((a, b) => (b.rect.top - a.rect.top) || (b.rect.left - a.rect.left));
-    return visibleMics[0]?.button || null;
+      .sort((a, b) => (b.rect.top - a.rect.top) || (b.rect.left - a.rect.left))[0]?.button || null;
   }
 
   function findMainVoicePanel() {
@@ -79,7 +90,7 @@
   }
 
   function clampPosition(left, top, panel) {
-    const width = panel.offsetWidth || 260;
+    const width = panel.offsetWidth || 250;
     const height = panel.offsetHeight || 30;
     return {
       left: Math.max(8, Math.min(window.innerWidth - width - 8, left)),
@@ -97,6 +108,15 @@
     return pos;
   }
 
+  function overlaps(a, b, pad = 0) {
+    return !(
+      a.right + pad <= b.left ||
+      a.left >= b.right + pad ||
+      a.bottom + pad <= b.top ||
+      a.top >= b.bottom + pad
+    );
+  }
+
   function ensureControls(panel) {
     let move = panel.querySelector('[data-rc-voice-move-handle="1"]');
     if (!(move instanceof HTMLButtonElement)) {
@@ -107,9 +127,9 @@
       move.title = "잠금 해제 후 이 버튼을 잡고 끌어 이동하세요";
       Object.assign(move.style, {
         display: "inline-flex", alignItems: "center", justifyContent: "center",
-        width: "54px", minWidth: "54px", height: "28px", padding: "0 5px",
-        borderRadius: "8px", border: "1px solid #d7b64d", color: "#f6d56b",
-        background: "#5f1026", fontSize: "12px", fontWeight: "700",
+        width: "48px", minWidth: "48px", height: "26px", padding: "0 4px",
+        borderRadius: "7px", border: "1px solid #d7b64d", color: "#f6d56b",
+        background: "#5f1026", fontSize: "11px", fontWeight: "700",
         cursor: "grab", userSelect: "none", touchAction: "none", pointerEvents: "auto"
       });
       panel.insertBefore(move, panel.firstChild);
@@ -122,9 +142,9 @@
       lock.dataset.rcVoiceLock = "1";
       Object.assign(lock.style, {
         display: "inline-flex", alignItems: "center", justifyContent: "center",
-        minWidth: "54px", height: "28px", padding: "0 6px",
-        borderRadius: "8px", border: "1px solid #d7b64d", color: "#f6d56b",
-        background: "#123d2f", fontSize: "12px", fontWeight: "700",
+        minWidth: "46px", height: "26px", padding: "0 4px",
+        borderRadius: "7px", border: "1px solid #d7b64d", color: "#f6d56b",
+        background: "#123d2f", fontSize: "11px", fontWeight: "700",
         cursor: "pointer", userSelect: "none", pointerEvents: "auto"
       });
       move.insertAdjacentElement("afterend", lock);
@@ -132,7 +152,6 @@
 
     const locked = isLocked();
     lock.textContent = locked ? "🔒 고정" : "🔓 이동";
-    lock.title = locked ? "현재 위치 고정됨 — 클릭하면 이동 가능" : "현재 이동 가능 — 클릭하면 이 위치 고정";
     move.disabled = locked;
     move.style.opacity = locked ? "0.45" : "1";
     move.style.cursor = locked ? "not-allowed" : "grab";
@@ -143,31 +162,49 @@
     Object.assign(panel.style, {
       height: "30px", minHeight: "30px", maxHeight: "30px",
       padding: "0 4px", gap: "4px", borderRadius: "10px",
-      alignItems: "center", whiteSpace: "nowrap", userSelect: "none"
+      alignItems: "center", whiteSpace: "nowrap", userSelect: "none",
+      zIndex: "510"
     });
     ensureControls(panel);
 
     const wave = Array.from(panel.querySelectorAll("div")).find((el) => el.getAttribute("aria-label") === "Live microphone level");
     if (wave instanceof HTMLElement) {
-      wave.style.height = "24px";
-      wave.style.maxHeight = "24px";
-      wave.style.gap = "2px";
+      wave.style.height = "22px";
+      wave.style.maxHeight = "22px";
+      wave.style.gap = "1px";
       Array.from(wave.querySelectorAll("span")).forEach((bar) => {
-        if (bar instanceof HTMLElement) { bar.style.width = "2px"; bar.style.maxHeight = "22px"; }
+        if (bar instanceof HTMLElement) { bar.style.width = "2px"; bar.style.maxHeight = "20px"; }
       });
     }
+
     const arrow = Array.from(panel.querySelectorAll("button")).find((button) => (button.textContent || "").trim() === "↑");
-    if (arrow instanceof HTMLElement) Object.assign(arrow.style, { width: "28px", height: "28px", minWidth: "28px", minHeight: "28px", fontSize: "16px" });
+    if (arrow instanceof HTMLElement) Object.assign(arrow.style, { width: "26px", height: "26px", minWidth: "26px", minHeight: "26px", fontSize: "15px" });
   }
 
   function placeDefault(panel, mic) {
     const micRect = mic.getBoundingClientRect();
-    const panelWidth = panel.offsetWidth || 260;
-    const gap = 28;
-    const right = micRect.right + gap;
-    const left = right + panelWidth <= window.innerWidth - 8 ? right : Math.max(8, micRect.left - panelWidth - gap);
+    const panelWidth = panel.offsetWidth || 250;
+    const gap = 18;
+    const desiredTop = micRect.top + (micRect.height - 30) / 2;
+    let desiredLeft = micRect.right + gap;
+    if (desiredLeft + panelWidth > window.innerWidth - 8) desiredLeft = micRect.left - panelWidth - gap;
+    const pos = applyPanelPosition(panel, desiredLeft, desiredTop);
+    savePosition(pos.left, pos.top);
+    return pos;
+  }
+
+  function keepClearOfMic(panel, mic) {
+    const panelRect = panel.getBoundingClientRect();
+    const micRect = mic.getBoundingClientRect();
+    if (!overlaps(panelRect, micRect, 12)) return;
+
+    const panelWidth = panel.offsetWidth || 250;
+    const gap = 18;
+    let left = micRect.right + gap;
+    if (left + panelWidth > window.innerWidth - 8) left = micRect.left - panelWidth - gap;
     const top = micRect.top + (micRect.height - 30) / 2;
-    return applyPanelPosition(panel, left, top);
+    const pos = applyPanelPosition(panel, left, top);
+    savePosition(pos.left, pos.top);
   }
 
   function positionMainVoicePanel() {
@@ -176,14 +213,12 @@
     if (!(panel instanceof HTMLElement)) return;
     compactPanel(panel);
 
-    const saved = readSavedPosition();
-    if (saved) {
-      applyPanelPosition(panel, saved.left, saved.top);
-      return;
-    }
-
     const mic = findMainMicButton();
-    if (mic instanceof HTMLElement) placeDefault(panel, mic);
+    const saved = readSavedPosition();
+    if (saved) applyPanelPosition(panel, saved.left, saved.top);
+    else if (mic instanceof HTMLElement) placeDefault(panel, mic);
+
+    if (mic instanceof HTMLElement) keepClearOfMic(panel, mic);
   }
 
   function onPointerDown(event) {
@@ -229,6 +264,8 @@
     panel.style.zIndex = "510";
     panel.style.boxShadow = "";
     compactPanel(panel);
+    const mic = findMainMicButton();
+    if (mic instanceof HTMLElement) keepClearOfMic(panel, mic);
     event.preventDefault();
   }
 
@@ -237,33 +274,19 @@
     if (!(target instanceof Element)) return;
     const lock = target.closest('[data-rc-voice-lock="1"]');
     if (!(lock instanceof HTMLButtonElement)) return;
-    const panel = findMainVoicePanel();
-    if (!(panel instanceof HTMLElement)) return;
     setLocked(!isLocked());
-    compactPanel(panel);
+    const panel = findMainVoicePanel();
+    if (panel instanceof HTMLElement) compactPanel(panel);
     event.preventDefault();
     event.stopPropagation();
   }
 
-  function onKeyDown(event) {
-    const target = event.target;
-    if (!(target instanceof Element) || !target.closest('[data-rc-voice-move-handle="1"]') || isLocked()) return;
-    const panel = findMainVoicePanel();
-    if (!(panel instanceof HTMLElement)) return;
-    const step = event.shiftKey ? 20 : 5;
-    const rect = panel.getBoundingClientRect();
-    let left = rect.left, top = rect.top;
-    if (event.key === "ArrowLeft") left -= step;
-    else if (event.key === "ArrowRight") left += step;
-    else if (event.key === "ArrowUp") top -= step;
-    else if (event.key === "ArrowDown") top += step;
-    else return;
-    const pos = applyPanelPosition(panel, left, top);
-    savePosition(pos.left, pos.top);
-    event.preventDefault();
+  function run() {
+    patchScroll();
+    positionMainVoicePanel();
   }
 
-  function run() { patchScroll(); positionMainVoicePanel(); }
+  resetOldLayoutOnce();
   run();
   new MutationObserver(run).observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener("resize", positionMainVoicePanel);
@@ -273,6 +296,4 @@
   document.addEventListener("pointerup", finishDrag, true);
   document.addEventListener("pointercancel", finishDrag, true);
   document.addEventListener("click", onClick, true);
-  document.addEventListener("keydown", onKeyDown, true);
-  window.setInterval(positionMainVoicePanel, 250);
 })();
