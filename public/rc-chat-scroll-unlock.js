@@ -55,16 +55,52 @@
     }) || null;
   }
 
+  function compactMainVoicePanel(panel) {
+    if (!(panel instanceof HTMLElement)) return;
+    panel.style.height = "30px";
+    panel.style.minHeight = "30px";
+    panel.style.maxHeight = "30px";
+    panel.style.padding = "0 8px";
+    panel.style.gap = "7px";
+    panel.style.borderRadius = "10px";
+    panel.style.alignItems = "center";
+    panel.style.whiteSpace = "nowrap";
+
+    const wave = Array.from(panel.querySelectorAll("div")).find((el) => el.getAttribute("aria-label") === "Live microphone level");
+    if (wave instanceof HTMLElement) {
+      wave.style.height = "24px";
+      wave.style.maxHeight = "24px";
+      wave.style.gap = "2px";
+      Array.from(wave.querySelectorAll("span")).forEach((bar) => {
+        if (bar instanceof HTMLElement) {
+          bar.style.width = "2px";
+          bar.style.maxHeight = "22px";
+        }
+      });
+    }
+
+    const arrow = Array.from(panel.querySelectorAll("button")).find((button) => (button.textContent || "").trim() === "↑");
+    if (arrow instanceof HTMLElement) {
+      arrow.style.width = "28px";
+      arrow.style.height = "28px";
+      arrow.style.minWidth = "28px";
+      arrow.style.minHeight = "28px";
+      arrow.style.fontSize = "16px";
+    }
+  }
+
   function positionMainVoicePanel() {
     const mic = findMainMicButton();
     const panel = findMainVoicePanel();
     if (!(mic instanceof HTMLElement) || !(panel instanceof HTMLElement)) return;
 
+    compactMainVoicePanel(panel);
+
     const micRect = mic.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    const gap = 10;
-    const left = Math.min(window.innerWidth - panelRect.width - 8, micRect.right + gap);
-    const top = Math.max(8, Math.min(window.innerHeight - panelRect.height - 8, micRect.top + (micRect.height - panelRect.height) / 2));
+    const gap = 8;
+    const left = Math.max(8, Math.min(window.innerWidth - panelRect.width - 8, micRect.right + gap));
+    const top = Math.max(8, Math.min(window.innerHeight - 38, micRect.top + (micRect.height - 30) / 2));
 
     panel.style.left = `${Math.round(left)}px`;
     panel.style.top = `${Math.round(top)}px`;
