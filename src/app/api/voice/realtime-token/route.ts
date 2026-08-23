@@ -39,12 +39,6 @@ export async function GET(request: Request) {
               prompt: "Royal Command room dictation. Preserve names, numbers, punctuation, Korean and English accurately. Common terms: Royal Command, ChatGPT, Claude, Gemini, Grok, Katie, Kevin.",
               keywords: ["Royal Command", "ChatGPT", "Claude", "Gemini", "Grok", "Katie", "Kevin"],
             },
-            turn_detection: {
-              type: "server_vad",
-              threshold: 0.45,
-              prefix_padding_ms: 300,
-              silence_duration_ms: 650,
-            },
           },
         },
       },
