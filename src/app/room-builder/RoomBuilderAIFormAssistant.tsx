@@ -442,7 +442,7 @@ export default function RoomBuilderAIFormAssistant() {
         </div>
       </div>
 
-      <form onSubmit={submit} className="h-[70px] min-h-[70px] max-h-[70px] shrink-0 border-t border-[#d7b64d]/30 bg-[#07111f] px-3 py-1">
+      <form onSubmit={submit} className="h-[70px] min-h-[70px] max-h-[70px] shrink-0 bg-[#07111f] px-3 py-1">
         <input ref={fileRef} type="file" className="hidden" />
         <textarea
           value={input}
