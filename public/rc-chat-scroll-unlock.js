@@ -56,6 +56,7 @@
         max-height: 24px !important;
         width: 205px !important;
         border-radius: 8px !important;
+        overflow: hidden !important;
       }
 
       [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="ai-help"] {
@@ -121,25 +122,6 @@
     viewport.dataset[PATCH_FLAG] = "1";
   }
 
-  function findMainComposer() {
-    return Array.from(document.querySelectorAll("textarea")).find((textarea) => {
-      const placeholder = textarea.getAttribute("placeholder") || "";
-      return /type or speak your order|화면 캡처|order/i.test(placeholder);
-    }) || null;
-  }
-
-  function findMainMicButton() {
-    const textarea = findMainComposer();
-    const root = textarea?.closest("form") || textarea?.parentElement?.parentElement || textarea?.parentElement;
-    if (!root) return null;
-
-    return Array.from(root.querySelectorAll("button"))
-      .filter((button) => Boolean(button.querySelector("svg.lucide-mic")))
-      .map((button) => ({ button, rect: button.getBoundingClientRect() }))
-      .filter(({ rect }) => rect.width > 8 && rect.height > 8 && rect.bottom > 0 && rect.right > 0)
-      .sort((a, b) => (b.rect.top - a.rect.top) || (b.rect.left - a.rect.left))[0]?.button || null;
-  }
-
   function findMainVoicePanel() {
     return Array.from(document.querySelectorAll("div.fixed")).find((panel) => {
       const hasTextArrow = Array.from(panel.querySelectorAll("button")).some((button) => (button.textContent || "").trim() === "↑");
@@ -148,70 +130,76 @@
     }) || null;
   }
 
-  function compactPanel(panel) {
-    if (!(panel instanceof HTMLElement)) return;
-    panel.style.height = "30px";
-    panel.style.minHeight = "30px";
-    panel.style.maxHeight = "30px";
-    panel.style.padding = "0 8px";
-    panel.style.gap = "7px";
-    panel.style.borderRadius = "10px";
+  function dockMainVoicePanel() {
+    const slot = document.getElementById("rc-main-wave-slot");
+    const panel = findMainVoicePanel();
+    if (!(slot instanceof HTMLElement) || !(panel instanceof HTMLElement)) return;
+
+    if (panel.parentElement !== slot) slot.appendChild(panel);
+
+    panel.style.position = "static";
+    panel.style.left = "auto";
+    panel.style.top = "auto";
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.style.transform = "none";
+    panel.style.width = "100%";
+    panel.style.maxWidth = "100%";
+    panel.style.height = "24px";
+    panel.style.minHeight = "24px";
+    panel.style.maxHeight = "24px";
+    panel.style.padding = "0 4px";
+    panel.style.margin = "0";
+    panel.style.gap = "4px";
+    panel.style.border = "0";
+    panel.style.borderRadius = "8px";
+    panel.style.background = "transparent";
+    panel.style.boxShadow = "none";
+    panel.style.backdropFilter = "none";
+    panel.style.zIndex = "auto";
     panel.style.alignItems = "center";
-    panel.style.whiteSpace = "nowrap";
+    panel.style.overflow = "hidden";
     panel.style.pointerEvents = "none";
 
     const wave = Array.from(panel.querySelectorAll("div")).find((el) => el.getAttribute("aria-label") === "Live microphone level");
     if (wave instanceof HTMLElement) {
-      wave.style.height = "22px";
-      wave.style.maxHeight = "22px";
+      wave.style.height = "20px";
+      wave.style.minHeight = "20px";
+      wave.style.maxHeight = "20px";
       wave.style.gap = "2px";
+      wave.style.flexShrink = "0";
       Array.from(wave.querySelectorAll("span")).forEach((bar) => {
         if (bar instanceof HTMLElement) {
           bar.style.width = "2px";
-          bar.style.maxHeight = "20px";
+          bar.style.maxHeight = "18px";
         }
       });
     }
 
-    Array.from(panel.querySelectorAll("button")).forEach((button) => {
-      button.style.pointerEvents = "auto";
+    Array.from(panel.querySelectorAll("span")).forEach((label) => {
+      if (label.closest('[aria-label="Live microphone level"]')) return;
+      if (!(label instanceof HTMLElement)) return;
+      label.style.fontSize = "9px";
+      label.style.lineHeight = "1";
+      label.style.overflow = "hidden";
+      label.style.textOverflow = "ellipsis";
+      label.style.whiteSpace = "nowrap";
+      label.style.minWidth = "0";
+      label.style.flex = "1 1 auto";
     });
-  }
 
-  function positionMainVoicePanel() {
-    const mic = findMainMicButton();
-    const panel = findMainVoicePanel();
-    if (!(mic instanceof HTMLElement) || !(panel instanceof HTMLElement)) return;
-
-    compactPanel(panel);
-
-    const micRect = mic.getBoundingClientRect();
-    const panelRect = panel.getBoundingClientRect();
-    const gap = 18;
-    const rightLeft = micRect.right + gap;
-    const leftLeft = micRect.left - panelRect.width - gap;
-    const left = rightLeft + panelRect.width <= window.innerWidth - 8
-      ? rightLeft
-      : Math.max(8, leftLeft);
-    const top = Math.max(8, Math.min(window.innerHeight - 38, micRect.top + (micRect.height - 30) / 2));
-
-    panel.style.left = `${Math.round(left)}px`;
-    panel.style.top = `${Math.round(top)}px`;
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
-    panel.style.transform = "none";
+    Array.from(panel.querySelectorAll("button")).forEach((button) => {
+      button.style.display = "none";
+    });
   }
 
   function run() {
     ensureToolboxLayoutStyle();
     patchScroll();
-    positionMainVoicePanel();
+    dockMainVoicePanel();
   }
 
   run();
   const observer = new MutationObserver(run);
   observer.observe(document.documentElement, { childList: true, subtree: true });
-  window.addEventListener("resize", positionMainVoicePanel);
-  window.addEventListener("scroll", positionMainVoicePanel, true);
-  window.setInterval(positionMainVoicePanel, 150);
 })();
