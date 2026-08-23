@@ -28,34 +28,30 @@ function updateReactTextarea(textarea: HTMLTextAreaElement, value: string) {
 function micErrorMessage(error: unknown) {
   const name = error instanceof DOMException ? error.name : "";
   if (name === "NotAllowedError" || name === "SecurityError") {
-    return "채팅 마이크가 차단되어 있습니다. 주소창 왼쪽 사이트 설정에서 Microphone을 Allow로 바꿔 주세요.";
+    return "채팅 마이크가 차단되어 있습니다. Chrome 마이크 권한을 확인해 주세요.";
   }
   if (name === "NotFoundError" || name === "DevicesNotFoundError") {
-    return "Windows에서 사용할 수 있는 입력 마이크를 찾지 못했습니다.";
+    return "사용할 수 있는 입력 마이크를 찾지 못했습니다.";
   }
   if (name === "NotReadableError" || name === "TrackStartError") {
-    return "마이크는 있지만 Chrome이 사용할 수 없습니다. Windows Sound > Input에서 입력 장치를 확인해 주세요.";
+    return "Chrome이 현재 마이크를 열지 못했습니다.";
   }
   return "채팅 마이크를 시작하지 못했습니다.";
 }
 
-function currentLanguage() {
+function currentLocale() {
   const languageSelect = Array.from(document.querySelectorAll<HTMLSelectElement>("select")).find((select) =>
     /kr|ko|한국|en|english/i.test(`${select.value} ${select.options[select.selectedIndex]?.text || ""}`),
   );
   const raw = `${languageSelect?.value || ""} ${languageSelect?.options[languageSelect.selectedIndex]?.text || ""}`.toLowerCase();
-  if (/kr|ko|한국/.test(raw)) return "ko";
-  if (/ja|jp|日本/.test(raw)) return "ja";
-  if (/zh|cn|中文/.test(raw)) return "zh";
-  return "en";
+  if (/kr|ko|한국/.test(raw)) return "ko-KR";
+  if (/ja|jp|日本/.test(raw)) return "ja-JP";
+  if (/zh|cn|中文/.test(raw)) return "zh-CN";
+  return "en-AU";
 }
 
 export default function MainChatMicBridge() {
-  const recorderRef = useRef<MediaRecorder | null>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const analyserContextRef = useRef<AudioContext | null>(null);
-  const rafRef = useRef<number | null>(null);
-  const hardStopRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognitionRef = useRef<any>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const [status, setStatus] = useState("");
   const [problem, setProblem] = useState("");
@@ -70,30 +66,28 @@ export default function MainChatMicBridge() {
       }
     };
 
-    const releaseAudio = () => {
-      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
-      rafRef.current = null;
-      if (hardStopRef.current) clearTimeout(hardStopRef.current);
-      hardStopRef.current = null;
-      streamRef.current?.getTracks().forEach((track) => track.stop());
-      streamRef.current = null;
-      const context = analyserContextRef.current;
-      analyserContextRef.current = null;
-      if (context) void context.close().catch(() => undefined);
-      resetButton();
-    };
-
-    const finishRecording = () => {
-      const recorder = recorderRef.current;
-      if (recorder && recorder.state !== "inactive") {
-        try { recorder.stop(); } catch {}
+    const stop = () => {
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+      if (recognition) {
+        try { recognition.stop(); } catch {}
       }
+      resetButton();
+      setStatus("");
     };
 
-    const start = async (button: HTMLButtonElement) => {
+    const start = (button: HTMLButtonElement) => {
       setProblem("");
       setStatus("마이크 연결 중…");
       buttonRef.current = button;
+
+      const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
+      const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+      if (!SR) {
+        setProblem("현재 Chrome에서 실시간 음성인식을 사용할 수 없습니다.");
+        setStatus("");
+        return;
+      }
 
       const textarea = findComposer();
       if (!textarea) {
@@ -102,130 +96,65 @@ export default function MainChatMicBridge() {
         return;
       }
 
-      if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-        setProblem("현재 브라우저에서는 음성 녹음을 사용할 수 없습니다.");
-        setStatus("");
-        return;
-      }
+      const recognition = new SR();
+      recognitionRef.current = recognition;
+      recognition.lang = currentLocale();
+      recognition.interimResults = true;
+      recognition.continuous = true;
 
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
-          video: false,
-        });
-        streamRef.current = stream;
+      let finalTranscript = "";
+      const originalText = textarea.value.trim();
 
-        const mimeType = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((type) => MediaRecorder.isTypeSupported(type));
-        const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-        recorderRef.current = recorder;
-        const chunks: BlobPart[] = [];
-        const originalText = textarea.value.trim();
-
-        recorder.ondataavailable = (event) => {
-          if (event.data.size > 0) chunks.push(event.data);
-        };
-
-        recorder.onerror = () => {
-          setProblem("마이크 녹음 중 오류가 발생했습니다.");
-          setStatus("");
-          recorderRef.current = null;
-          releaseAudio();
-        };
-
-        recorder.onstop = async () => {
-          recorderRef.current = null;
-          releaseAudio();
-          const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-          if (blob.size < 1000) {
-            setProblem("녹음된 소리가 너무 짧습니다. 다시 말씀해 주세요.");
-            setStatus("");
-            return;
-          }
-
-          setStatus("음성을 글자로 바꾸는 중…");
-          try {
-            const form = new FormData();
-            const ext = recorder.mimeType.includes("mp4") ? "m4a" : "webm";
-            form.append("audio", blob, `room-mic.${ext}`);
-            form.append("language", currentLanguage());
-
-            const response = await fetch("/api/voice/transcribe", {
-              method: "POST",
-              body: form,
-            });
-            const payload = await response.json().catch(() => ({}));
-            if (!response.ok) throw new Error(payload?.error || "Transcription failed");
-
-            const spoken = String(payload?.transcript || "").trim();
-            if (!spoken) {
-              setProblem("녹음은 됐지만 음성을 글자로 바꾸지 못했습니다. 다시 말씀해 주세요.");
-              setStatus("");
-              return;
-            }
-
-            const combined = [originalText, spoken].filter(Boolean).join(originalText ? " " : "");
-            updateReactTextarea(textarea, combined);
-            setStatus("입력 완료");
-            window.setTimeout(() => setStatus(""), 900);
-          } catch (error) {
-            setProblem(error instanceof Error ? `음성 변환 오류: ${error.message}` : "음성 변환에 실패했습니다.");
-            setStatus("");
-          }
-        };
-
-        recorder.start(250);
+      recognition.onstart = () => {
         setStatus("말씀하세요…");
         button.style.boxShadow = "0 0 0 2px rgba(52,211,153,.55), 0 0 20px rgba(52,211,153,.65)";
         button.style.color = "#6ee7b7";
         button.title = "Listening — click to stop";
+      };
 
-        // Bluetooth hands-free microphones often work in MediaRecorder even when
-        // Chrome Web Speech reports no-speech. Detect real signal and stop after
-        // a short silence so the user does not need to click twice.
-        const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
-        if (AudioContextClass) {
-          const context: AudioContext = new AudioContextClass();
-          analyserContextRef.current = context;
-          const source = context.createMediaStreamSource(stream);
-          const analyser = context.createAnalyser();
-          analyser.fftSize = 1024;
-          source.connect(analyser);
-          const samples = new Uint8Array(analyser.fftSize);
-          let heardVoice = false;
-          let lastVoiceAt = performance.now();
-          const startedAt = performance.now();
+      recognition.onspeechstart = () => setStatus("말씀을 듣고 있습니다…");
 
-          const watch = () => {
-            analyser.getByteTimeDomainData(samples);
-            let sum = 0;
-            for (const sample of samples) {
-              const value = (sample - 128) / 128;
-              sum += value * value;
-            }
-            const rms = Math.sqrt(sum / samples.length);
-            const now = performance.now();
-            if (rms > 0.008) {
-              heardVoice = true;
-              lastVoiceAt = now;
-              setStatus("말씀을 듣고 있습니다…");
-            }
-            if (heardVoice && now - lastVoiceAt > 1800 && now - startedAt > 2200) {
-              finishRecording();
-              return;
-            }
-            rafRef.current = requestAnimationFrame(watch);
-          };
-          rafRef.current = requestAnimationFrame(watch);
+      recognition.onresult = (event: any) => {
+        let interim = "";
+        for (let i = event.resultIndex; i < event.results.length; i += 1) {
+          const text = String(event.results[i]?.[0]?.transcript || "");
+          if (event.results[i].isFinal) finalTranscript += `${text} `;
+          else interim += text;
         }
+        const spoken = `${finalTranscript}${interim}`.trim();
+        const combined = [originalText, spoken].filter(Boolean).join(originalText && spoken ? " " : "");
+        updateReactTextarea(textarea, combined);
+      };
 
-        hardStopRef.current = setTimeout(() => finishRecording(), 30000);
+      recognition.onerror = (event: any) => {
+        const code = String(event?.error || "");
+        if (code === "not-allowed" || code === "service-not-allowed") {
+          setProblem("Chrome에서 royalcommand.ai의 마이크 사용이 차단되어 있습니다.");
+        } else if (code === "audio-capture") {
+          setProblem("Chrome이 선택된 마이크를 잡지 못했습니다.");
+        } else if (code === "no-speech") {
+          setProblem("음성이 감지되지 않았습니다. Chrome 기본 마이크가 S10 Hands-Free로 선택되어 있는지 확인해 주세요.");
+        } else if (code === "network") {
+          setProblem("Chrome 음성인식 서비스 연결에 실패했습니다.");
+        } else if (code !== "aborted") {
+          setProblem(`음성인식 오류: ${code || "unknown"}`);
+        }
+        recognitionRef.current = null;
+        resetButton();
+        setStatus("");
+      };
+
+      recognition.onend = () => {
+        if (recognitionRef.current === recognition) recognitionRef.current = null;
+        resetButton();
+        setStatus("");
+      };
+
+      try {
+        recognition.start();
       } catch (error) {
-        recorderRef.current = null;
-        releaseAudio();
+        recognitionRef.current = null;
+        resetButton();
         setProblem(micErrorMessage(error));
         setStatus("");
       }
@@ -242,24 +171,22 @@ export default function MainChatMicBridge() {
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      const recorder = recorderRef.current;
-      if (recorder && recorder.state !== "inactive") {
-        finishRecording();
+      if (recognitionRef.current) {
+        stop();
         return;
       }
-      void start(button);
+      start(button);
     };
 
     document.addEventListener("click", onClick, true);
     return () => {
       document.removeEventListener("click", onClick, true);
-      const recorder = recorderRef.current;
-      if (recorder && recorder.state !== "inactive") {
-        recorder.onstop = null;
-        try { recorder.stop(); } catch {}
+      const recognition = recognitionRef.current;
+      recognitionRef.current = null;
+      if (recognition) {
+        try { recognition.abort(); } catch {}
       }
-      recorderRef.current = null;
-      releaseAudio();
+      resetButton();
     };
   }, []);
 
