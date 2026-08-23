@@ -45,6 +45,16 @@ export default function AIHelperVoiceBridge() {
       }
     };
 
+    const fallbackToBrowserVoice = (utterance: SpeechSynthesisUtterance) => {
+      stopGeneratedAudio();
+      try {
+        originalCancel();
+        originalSpeak(utterance);
+      } catch {
+        fireUtteranceEvent(utterance.onerror as any, utterance, "error");
+      }
+    };
+
     const patchedSpeak = (utterance: SpeechSynthesisUtterance) => {
       const useRoyalVoice = helperIsVisible() || greetingPending;
       if (!useRoyalVoice) {
@@ -55,8 +65,6 @@ export default function AIHelperVoiceBridge() {
       const isGreeting = greetingPending;
       greetingPending = false;
 
-      // Exactly one voice path for AI Help: cancel queued browser TTS,
-      // generate the Royal Command AI voice, and never fall back to browser TTS.
       stopGeneratedAudio();
       originalCancel();
 
@@ -93,14 +101,16 @@ export default function AIHelperVoiceBridge() {
             audio.onplay = null;
             audio.onended = null;
             audio.onerror = null;
-            stopGeneratedAudio();
-            fireUtteranceEvent(utterance.onerror as any, utterance, "error");
+            fallbackToBrowserVoice(utterance);
           };
 
-          await audio.play();
+          try {
+            await audio.play();
+          } catch {
+            fallbackToBrowserVoice(utterance);
+          }
         } catch {
-          stopGeneratedAudio();
-          fireUtteranceEvent(utterance.onerror as any, utterance, "error");
+          fallbackToBrowserVoice(utterance);
         }
       })();
     };
