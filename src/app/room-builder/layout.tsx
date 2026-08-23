@@ -6,6 +6,11 @@ import RoomBuilderAIFormAssistant from "./RoomBuilderAIFormAssistant";
 export default function RoomBuilderLayout({ children }: { children: ReactNode }) {
   return (
     <>
+      <style>{`
+        aside.fixed textarea::placeholder {
+          color: transparent !important;
+        }
+      `}</style>
       <RoomBuilderScrollUnlock />
       <CommandRoomReturnButton />
       <RoomBuilderAIFormAssistant />
