@@ -68,6 +68,15 @@ export default function AIHelperVoiceBridge() {
       stopGeneratedAudio();
       originalCancel();
 
+      // Do not block the AI Help microphone with the opening greeting.
+      // The greeting remains visible as text, while the microphone can start immediately.
+      // All actual AI Help answers still use the independent AI Help speaker path below.
+      if (isGreeting) {
+        fireUtteranceEvent(utterance.onstart as any, utterance, "start");
+        window.setTimeout(() => fireUtteranceEvent(utterance.onend as any, utterance, "end"), 0);
+        return;
+      }
+
       void (async () => {
         try {
           const response = await fetch("/api/ai/helper/speech", {
@@ -76,7 +85,7 @@ export default function AIHelperVoiceBridge() {
             body: JSON.stringify({
               text: utterance.text,
               language: utterance.lang || document.documentElement.lang || "en",
-              greeting: isGreeting,
+              greeting: false,
             }),
           });
 
