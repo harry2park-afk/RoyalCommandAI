@@ -65,6 +65,14 @@
         border-radius: 8px !important;
       }
 
+      button[title="AI Help"] {
+        height: 30px !important;
+        min-height: 30px !important;
+        max-height: 30px !important;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+      }
+
       [data-rc-chat-toolbox="true"] [data-rc-toolbox-slot="send"] button {
         position: static !important;
         width: auto !important;
