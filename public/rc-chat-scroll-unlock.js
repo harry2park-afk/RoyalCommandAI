@@ -2,6 +2,10 @@
   if (!/^\/rooms\//.test(window.location.pathname)) return;
 
   const PATCH_FLAG = "rcScrollUnlockPatched";
+  const POSITION_KEY = "rc:main-voice-panel-position";
+  let dragging = false;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
 
   function findViewport() {
     return Array.from(document.querySelectorAll("div")).find((el) => {
@@ -72,6 +76,9 @@
     panel.style.borderRadius = "10px";
     panel.style.alignItems = "center";
     panel.style.whiteSpace = "nowrap";
+    panel.style.cursor = "grab";
+    panel.style.userSelect = "none";
+    panel.title = "끌어서 원하는 위치로 이동하면 자동으로 고정됩니다";
 
     const wave = Array.from(panel.querySelectorAll("div")).find((el) => el.getAttribute("aria-label") === "Live microphone level");
     if (wave instanceof HTMLElement) {
@@ -93,27 +100,106 @@
       arrow.style.minWidth = "28px";
       arrow.style.minHeight = "28px";
       arrow.style.fontSize = "16px";
+      arrow.style.cursor = "pointer";
     }
   }
 
+  function clampPosition(left, top, panel) {
+    const width = panel.offsetWidth || 220;
+    const height = panel.offsetHeight || 30;
+    return {
+      left: Math.max(8, Math.min(window.innerWidth - width - 8, left)),
+      top: Math.max(8, Math.min(window.innerHeight - height - 8, top)),
+    };
+  }
+
+  function readSavedPosition() {
+    try {
+      const raw = window.localStorage.getItem(POSITION_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!Number.isFinite(parsed?.left) || !Number.isFinite(parsed?.top)) return null;
+      return { left: Number(parsed.left), top: Number(parsed.top) };
+    } catch {
+      return null;
+    }
+  }
+
+  function savePosition(left, top) {
+    try {
+      window.localStorage.setItem(POSITION_KEY, JSON.stringify({ left: Math.round(left), top: Math.round(top) }));
+    } catch {}
+  }
+
+  function applyPanelPosition(panel, left, top) {
+    const clamped = clampPosition(left, top, panel);
+    panel.style.left = `${Math.round(clamped.left)}px`;
+    panel.style.top = `${Math.round(clamped.top)}px`;
+    panel.style.right = "auto";
+    panel.style.bottom = "auto";
+    panel.style.transform = "none";
+    return clamped;
+  }
+
   function positionMainVoicePanel() {
+    if (dragging) return;
     const mic = findMainMicButton();
     const panel = findMainVoicePanel();
     if (!(mic instanceof HTMLElement) || !(panel instanceof HTMLElement)) return;
 
     compactMainVoicePanel(panel);
 
+    const saved = readSavedPosition();
+    if (saved) {
+      applyPanelPosition(panel, saved.left, saved.top);
+      return;
+    }
+
     const micRect = mic.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
     const gap = 14;
-    const left = Math.max(micRect.right + gap, Math.min(window.innerWidth - panelRect.width - 8, micRect.right + gap));
-    const top = Math.max(8, Math.min(window.innerHeight - 38, micRect.top + (micRect.height - 30) / 2));
+    const desiredLeft = micRect.right + gap;
+    const desiredTop = micRect.top + (micRect.height - 30) / 2;
+    const placed = applyPanelPosition(panel, desiredLeft, desiredTop);
+    if (placed.left < micRect.right + 6 && micRect.left - panelRect.width - gap >= 8) {
+      applyPanelPosition(panel, micRect.left - panelRect.width - gap, desiredTop);
+    }
+  }
 
-    panel.style.left = `${Math.round(left)}px`;
-    panel.style.top = `${Math.round(top)}px`;
-    panel.style.right = "auto";
-    panel.style.bottom = "auto";
-    panel.style.transform = "none";
+  function onPointerDown(event) {
+    const panel = findMainVoicePanel();
+    if (!(panel instanceof HTMLElement)) return;
+    const target = event.target;
+    if (!(target instanceof Element) || !panel.contains(target)) return;
+    if (target.closest("button")) return;
+
+    const rect = panel.getBoundingClientRect();
+    dragging = true;
+    dragOffsetX = event.clientX - rect.left;
+    dragOffsetY = event.clientY - rect.top;
+    panel.style.cursor = "grabbing";
+    try { panel.setPointerCapture(event.pointerId); } catch {}
+    event.preventDefault();
+  }
+
+  function onPointerMove(event) {
+    if (!dragging) return;
+    const panel = findMainVoicePanel();
+    if (!(panel instanceof HTMLElement)) return;
+    applyPanelPosition(panel, event.clientX - dragOffsetX, event.clientY - dragOffsetY);
+    event.preventDefault();
+  }
+
+  function onPointerUp(event) {
+    if (!dragging) return;
+    dragging = false;
+    const panel = findMainVoicePanel();
+    if (!(panel instanceof HTMLElement)) return;
+    const rect = panel.getBoundingClientRect();
+    const placed = applyPanelPosition(panel, rect.left, rect.top);
+    savePosition(placed.left, placed.top);
+    panel.style.cursor = "grab";
+    try { panel.releasePointerCapture(event.pointerId); } catch {}
   }
 
   function run() {
@@ -126,5 +212,9 @@
   observer.observe(document.documentElement, { childList: true, subtree: true });
   window.addEventListener("resize", positionMainVoicePanel);
   window.addEventListener("scroll", positionMainVoicePanel, true);
-  window.setInterval(positionMainVoicePanel, 120);
+  document.addEventListener("pointerdown", onPointerDown, true);
+  document.addEventListener("pointermove", onPointerMove, true);
+  document.addEventListener("pointerup", onPointerUp, true);
+  document.addEventListener("pointercancel", onPointerUp, true);
+  window.setInterval(positionMainVoicePanel, 180);
 })();
