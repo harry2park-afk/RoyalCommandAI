@@ -282,7 +282,7 @@ export default function RoomBuilderAIFormAssistant() {
   }
 
   return (
-    <aside className="fixed bottom-4 right-4 z-[260] flex h-[470px] w-[370px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border-2 border-[var(--gold)]/70 bg-[#07111f]/97 shadow-[0_20px_70px_rgba(0,0,0,.6)] backdrop-blur-md">
+    <aside className="fixed bottom-4 right-4 top-4 z-[260] flex w-[465px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border-2 border-[var(--gold)]/70 bg-[#07111f]/97 shadow-[0_20px_70px_rgba(0,0,0,.6)] backdrop-blur-md">
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--gold)]/60 bg-[#7A0C2E]">🤖</div>
         <div className="min-w-0 flex-1">
@@ -295,7 +295,7 @@ export default function RoomBuilderAIFormAssistant() {
 
       <div className="flex-1 overflow-y-auto px-4 py-3">
         <div className="rounded-xl border border-[var(--gold)]/35 bg-black/20 px-3 py-3 text-[13px] leading-5 text-white/90">{lastAssistant}</div>
-        {messages.slice(-4).map((message, index) => message.role === "user" ? (
+        {messages.slice(-8).map((message, index) => message.role === "user" ? (
           <div key={`${message.role}-${index}`} className="mt-2 ml-8 rounded-xl bg-[#1d3b67]/65 px-3 py-2 text-[12px] text-white/85">{message.text}</div>
         ) : null)}
       </div>
