@@ -199,7 +199,7 @@ function applyRequest(raw: string, ko: boolean) {
     return ko ? "다음 단계로 이동했습니다." : "I moved to the next section.";
   }
   if (actions.length) return ko ? `입력했습니다: ${actions.join(" · ")}.` : `Updated: ${actions.join(" · ")}.`;
-  return ko ? "원하시는 내용을 말씀해 주세요. 제가 해당 항목을 직접 채우겠습니다." : "Tell me what you want and I will fill the matching fields.";
+  return "";
 }
 
 export default function RoomBuilderAIFormAssistant() {
@@ -244,17 +244,37 @@ export default function RoomBuilderAIFormAssistant() {
 
   useEffect(() => () => cleanupMicrophone(), []);
 
-  function reply(text: string) {
-    const answer = applyRequest(text, ko);
+  async function reply(text: string) {
+    const localAnswer = applyRequest(text, ko);
+    let answer = localAnswer;
+
+    if (!answer) {
+      try {
+        const history = messages.slice(-10).map((message) => ({ role: message.role, content: message.text }));
+        const response = await fetch("/api/room-builder/assistant", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ message: text, selectedLanguage: languageTag, history }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok || !payload?.answer) throw new Error(payload?.error || "Room Builder AI failed");
+        answer = String(payload.answer).trim();
+      } catch {
+        answer = /[가-힣]/.test(text)
+          ? "말씀하신 뜻을 정확히 처리하지 못했습니다. 같은 내용을 짧게 한 번 더 말씀해 주세요."
+          : "I could not process that accurately. Please say the same request once more in a shorter sentence.";
+      }
+    }
+
     setMessages((current) => [...current, { role: "user", text }, { role: "assistant", text: answer }]);
     setInput("");
-    if (speakerEnabled) speak(answer, languageTag);
+    if (speakerEnabled) speak(answer, /[가-힣]/.test(text) ? "ko-KR" : languageTag);
   }
 
   function submit(event: FormEvent) {
     event.preventDefault();
     const clean = input.trim();
-    if (clean) reply(clean);
+    if (clean) void reply(clean);
   }
 
   function stopWaveform() {
