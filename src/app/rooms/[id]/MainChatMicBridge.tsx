@@ -48,17 +48,16 @@ function friendlyMicError(error: unknown) {
   if (name === "NotReadableError" || name === "TrackStartError") {
     return "선택된 마이크를 다른 앱이 사용 중이거나 Chrome이 열지 못했습니다.";
   }
-  return error instanceof Error ? error.message : "실시간 마이크를 시작하지 못했습니다.";
+  return "실시간 음성 연결을 시작하지 못했습니다. 잠시 후 다시 눌러 주세요.";
 }
 
-const EMPTY_LEVELS = Array.from({ length: 14 }, () => 0.14);
+const EMPTY_LEVELS = Array.from({ length: 16 }, () => 0.12);
 
 export default function MainChatMicBridge() {
   const pcRef = useRef<RTCPeerConnection | null>(null);
   const dcRef = useRef<RTCDataChannel | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
-  const analyserRef = useRef<AnalyserNode | null>(null);
   const rafRef = useRef<number | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -78,7 +77,6 @@ export default function MainChatMicBridge() {
     const renderTranscript = () => {
       const textarea = textareaRef.current;
       if (!textarea) return;
-
       const segments = orderRef.current
         .map((id) => finalsRef.current.get(id) || partialsRef.current.get(id) || "")
         .filter(Boolean);
@@ -103,7 +101,6 @@ export default function MainChatMicBridge() {
       setLevels(EMPTY_LEVELS);
       const context = audioContextRef.current;
       audioContextRef.current = null;
-      analyserRef.current = null;
       if (context) void context.close().catch(() => undefined);
     };
 
@@ -127,25 +124,25 @@ export default function MainChatMicBridge() {
       if (!AudioContextClass) return;
       const context: AudioContext = new AudioContextClass();
       audioContextRef.current = context;
+      void context.resume().catch(() => undefined);
       const source = context.createMediaStreamSource(stream);
       const analyser = context.createAnalyser();
       analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.62;
+      analyser.smoothingTimeConstant = 0.58;
       source.connect(analyser);
-      analyserRef.current = analyser;
       const bins = new Uint8Array(analyser.frequencyBinCount);
 
       const paint = (now: number) => {
         analyser.getByteFrequencyData(bins);
-        if (now - levelsLastPaintRef.current > 60) {
+        if (now - levelsLastPaintRef.current > 55) {
           levelsLastPaintRef.current = now;
-          const next = Array.from({ length: 14 }, (_, index) => {
-            const start = Math.floor((index / 14) * Math.min(bins.length, 84));
-            const end = Math.max(start + 1, Math.floor(((index + 1) / 14) * Math.min(bins.length, 84)));
+          const next = Array.from({ length: 16 }, (_, index) => {
+            const start = Math.floor((index / 16) * Math.min(bins.length, 96));
+            const end = Math.max(start + 1, Math.floor(((index + 1) / 16) * Math.min(bins.length, 96)));
             let total = 0;
             for (let i = start; i < end; i += 1) total += bins[i] || 0;
             const average = total / Math.max(1, end - start);
-            return Math.max(0.14, Math.min(1, average / 112));
+            return Math.max(0.12, Math.min(1, average / 105));
           });
           setLevels(next);
         }
@@ -156,7 +153,7 @@ export default function MainChatMicBridge() {
 
     const start = async (button: HTMLButtonElement) => {
       setProblem("");
-      setStatus("실시간 마이크 연결 중…");
+      setStatus("마이크 여는 중…");
       buttonRef.current = button;
 
       const textarea = findComposer();
@@ -173,20 +170,33 @@ export default function MainChatMicBridge() {
 
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-          },
+          audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
           video: false,
         });
         streamRef.current = stream;
         startWaveform(stream);
 
+        // Show the real local microphone level immediately. This does not depend on
+        // OpenAI or Vercel, so the user can always see whether the S10 mic is heard.
+        setActive(true);
+        setStatus("마이크 소리 확인 중…");
+        button.style.boxShadow = "0 0 0 2px rgba(52,211,153,.55), 0 0 22px rgba(52,211,153,.7)";
+        button.style.color = "#6ee7b7";
+        button.title = "마이크 켜짐 — 클릭하면 종료";
+
+        const tokenResponse = await fetch(`/api/voice/realtime-token?lang=${encodeURIComponent(currentLanguage())}`, {
+          cache: "no-store",
+        });
+        const tokenPayload = await tokenResponse.json().catch(() => ({}));
+        if (!tokenResponse.ok || !tokenPayload?.value) {
+          throw new Error("token-unavailable");
+        }
+        const ephemeralKey = String(tokenPayload.value);
+
         const pc = new RTCPeerConnection();
         pcRef.current = pc;
         const track = stream.getAudioTracks()[0];
-        if (!track) throw new Error("선택된 마이크에서 오디오 트랙을 찾지 못했습니다.");
+        if (!track) throw new Error("no-audio-track");
         pc.addTrack(track, stream);
 
         const dc = pc.createDataChannel("oai-events");
@@ -194,11 +204,7 @@ export default function MainChatMicBridge() {
 
         dc.addEventListener("open", () => {
           if (closingRef.current) return;
-          setActive(true);
           setStatus("듣고 있습니다…");
-          button.style.boxShadow = "0 0 0 2px rgba(52,211,153,.55), 0 0 22px rgba(52,211,153,.7)";
-          button.style.color = "#6ee7b7";
-          button.title = "실시간 듣는 중 — 클릭하면 종료";
         });
 
         dc.addEventListener("message", (event) => {
@@ -232,8 +238,7 @@ export default function MainChatMicBridge() {
             return;
           }
           if (type === "error") {
-            const text = String(message?.error?.message || message?.message || "실시간 음성인식 오류");
-            setProblem(text);
+            setProblem("실시간 음성인식 연결에 문제가 생겼습니다. 마이크를 다시 눌러 주세요.");
             setStatus("");
           }
         });
@@ -252,19 +257,21 @@ export default function MainChatMicBridge() {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         const sdp = offer.sdp || pc.localDescription?.sdp || "";
-        if (!sdp) throw new Error("WebRTC 연결 정보를 만들지 못했습니다.");
+        if (!sdp) throw new Error("no-sdp");
 
-        const response = await fetch(`/api/voice/realtime-session?lang=${encodeURIComponent(currentLanguage())}`, {
+        // Send SDP directly from the browser with a short-lived client secret.
+        // This prevents Vercel's function timeout from sitting in the WebRTC path.
+        const response = await fetch("https://api.openai.com/v1/realtime", {
           method: "POST",
-          headers: { "Content-Type": "application/sdp" },
+          headers: {
+            Authorization: `Bearer ${ephemeralKey}`,
+            "Content-Type": "application/sdp",
+          },
           body: sdp,
-          cache: "no-store",
         });
         const answerSdp = await response.text();
-        if (!response.ok) {
-          let message = answerSdp;
-          try { message = JSON.parse(answerSdp)?.error || answerSdp; } catch {}
-          throw new Error(message || "Realtime session failed");
+        if (!response.ok || !answerSdp.includes("v=0")) {
+          throw new Error("webrtc-connect-failed");
         }
 
         await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
@@ -281,7 +288,7 @@ export default function MainChatMicBridge() {
         try { dc.send(JSON.stringify({ type: "input_audio_buffer.commit" })); } catch {}
       }
       setStatus("마이크 종료 중…");
-      window.setTimeout(cleanup, 500);
+      window.setTimeout(cleanup, 350);
     };
 
     const onClick = (event: MouseEvent) => {
@@ -295,7 +302,7 @@ export default function MainChatMicBridge() {
       event.stopPropagation();
       event.stopImmediatePropagation();
 
-      if (pcRef.current || active) stop();
+      if (streamRef.current || pcRef.current || active) stop();
       else void start(button);
     };
 
@@ -311,12 +318,12 @@ export default function MainChatMicBridge() {
   return (
     <div className="fixed bottom-[72px] left-1/2 z-[510] flex -translate-x-1/2 items-center gap-3 rounded-xl border border-[#d7b64d]/60 bg-[#07111f]/96 px-4 py-2.5 text-[12px] shadow-2xl backdrop-blur">
       {active && (
-        <div className="flex h-7 items-center gap-[3px]" aria-label="Live microphone level">
+        <div className="flex h-8 items-center gap-[3px]" aria-label="Live microphone level">
           {levels.map((level, index) => (
             <span
               key={index}
               className="block w-[3px] rounded-full bg-emerald-300 transition-[height] duration-75"
-              style={{ height: `${Math.round(5 + level * 22)}px`, opacity: 0.58 + level * 0.42 }}
+              style={{ height: `${Math.round(5 + level * 24)}px`, opacity: 0.58 + level * 0.42 }}
             />
           ))}
         </div>
