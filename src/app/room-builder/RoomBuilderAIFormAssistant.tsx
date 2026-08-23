@@ -417,19 +417,16 @@ export default function RoomBuilderAIFormAssistant() {
   return (
     <aside className="fixed bottom-[10px] right-[10px] top-[10px] z-[260] flex w-[520px] max-w-[calc(100vw-20px)] flex-col overflow-hidden bg-[#07111f]/97 shadow-[0_22px_75px_rgba(0,0,0,.62)] backdrop-blur-md">
       <div className="relative shrink-0 border-b border-white/10 px-5 pt-3">
-        <div className="absolute right-3 top-3 z-10 flex items-center gap-3">
-          <span className="flex items-center gap-1 text-[10px] font-semibold tracking-[0.18em] text-[#f3d36a]"><span className={`h-2 w-2 rounded-full ${listening ? "animate-pulse bg-emerald-400" : "bg-[#d7b64d]"}`} />LIVE</span>
+        <div className="absolute right-3 top-3 z-10 flex items-start gap-2">
+          <div className="flex flex-col items-center gap-1">
+            <span className="flex items-center gap-1 text-[10px] font-semibold tracking-[0.18em] text-[#f3d36a]"><span className={`h-2 w-2 rounded-full ${listening ? "animate-pulse bg-emerald-400" : "bg-[#d7b64d]"}`} />LIVE</span>
+            <button type="button" onClick={() => setSpeakerEnabled((value) => !value)} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${speakerEnabled ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-300" : "border-[#d7b64d]/70 text-[#d7b64d]"}`} title="Speaker">🔊</button>
+          </div>
           <button type="button" onClick={() => { cleanupMicrophone(); setOpen(false); }} className="grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-white/70 hover:bg-white/10">×</button>
         </div>
         <div className="text-center font-[Times_New_Roman] text-xl font-semibold text-[#f3d36a]">Royal Command Room Guide</div>
         <div className="relative mx-auto mt-1 h-[265px] w-[330px] max-w-[70%]">
           <img src="/ai-helper-woman.svg" alt="Royal Command Room Guide" className="relative h-full w-full object-contain object-bottom" />
-        </div>
-        <div className="flex items-center gap-2 pb-2 text-[#d7b64d]">
-          <button type="button" onClick={() => setSpeakerEnabled((value) => !value)} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${speakerEnabled ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-300" : "border-[#d7b64d]/70 text-[#d7b64d]"}`}>🔊</button>
-          <div className="flex h-8 flex-1 items-center gap-[3px] overflow-hidden">
-            {Array.from({ length: 30 }).map((_, index) => <span key={index} className={`w-[2px] rounded-full bg-[#d7b64d] ${listening ? "animate-pulse" : "opacity-45"}`} style={{ height: `${8 + ((index * 7) % 20)}px`, animationDelay: `${index * 45}ms` }} />)}
-          </div>
         </div>
       </div>
 
