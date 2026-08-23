@@ -23,7 +23,11 @@ export async function GET(request: Request) {
 
     const url = new URL(request.url);
     const language = normaliseLanguage(url.searchParams.get("lang"));
-    const languages = language === "en" ? ["en"] : [language, "en"];
+    const languages = language === "ko"
+      ? ["ko", "en"]
+      : language === "en"
+        ? ["ko", "en"]
+        : [language, "ko", "en"];
 
     const body = {
       expires_after: { anchor: "created_at", seconds: 120 },
@@ -36,7 +40,7 @@ export async function GET(request: Request) {
               model: process.env.OPENAI_REALTIME_TRANSCRIBE_MODEL || "gpt-live-transcribe",
               languages,
               delay: "minimal",
-              prompt: "Royal Command room dictation. Preserve names, numbers, punctuation, Korean and English accurately. Common terms: Royal Command, ChatGPT, Claude, Gemini, Grok, Katie, Kevin.",
+              prompt: "Royal Command room dictation. Preserve names, numbers, punctuation, Korean and English accurately. The user may switch naturally between Korean and English. Common terms: Royal Command, ChatGPT, Claude, Gemini, Grok, Katie, Kevin.",
               keywords: ["Royal Command", "ChatGPT", "Claude", "Gemini", "Grok", "Katie", "Kevin"],
             },
           },
