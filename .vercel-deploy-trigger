@@ -1,3 +1,4 @@
-Production deploy trigger for latest master.
-Target baseline commit: 31f4b5fc2c05335ac32bacaa8c4165285f225087
-Triggered: 2026-08-11T23:11:55+10:00
+Production deploy trigger for restored master.
+Target baseline commit: 7f3080f51c4f2ebf2f61a80adb04d1db5b1229e1
+Reason: restore pre-incident READY production state after incorrect partial restore.
+Triggered: 2026-08-23T22:59:00+10:00
