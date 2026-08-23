@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import RoomBuilderScrollUnlock from "./RoomBuilderScrollUnlock";
 import CommandRoomReturnButton from "./CommandRoomReturnButton";
 import RoomBuilderAIFormAssistant from "./RoomBuilderAIFormAssistant";
+import RoomGuideLiveInputMirror from "./RoomGuideLiveInputMirror";
 
 export default function RoomBuilderLayout({ children }: { children: ReactNode }) {
   return (
@@ -9,6 +10,7 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <RoomBuilderScrollUnlock />
       <CommandRoomReturnButton />
       <RoomBuilderAIFormAssistant />
+      <RoomGuideLiveInputMirror />
       {children}
     </>
   );
