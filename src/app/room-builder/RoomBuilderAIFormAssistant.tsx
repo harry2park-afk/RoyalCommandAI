@@ -221,6 +221,7 @@ export default function RoomBuilderAIFormAssistant() {
   const recognitionRef = useRef<any>(null);
   const ko = isKorean(languageTag);
   const lastAssistant = useMemo(() => [...messages].reverse().find((message) => message.role === "assistant")?.text || initialText(ko), [messages, ko]);
+  const lastUser = useMemo(() => [...messages].reverse().find((message) => message.role === "user")?.text || "", [messages]);
 
   useEffect(() => {
     const sync = () => {
@@ -275,38 +276,67 @@ export default function RoomBuilderAIFormAssistant() {
 
   if (!open) {
     return (
-      <button type="button" onClick={() => setOpen(true)} className="fixed bottom-5 right-5 z-[260] rounded-full border-2 border-[var(--gold)] bg-[#7A0C2E] px-5 py-3 text-sm font-semibold text-[var(--gold-soft)] shadow-2xl">
-        🤖 Room Help
+      <button type="button" onClick={() => setOpen(true)} className="fixed bottom-5 right-5 z-[260] flex h-12 items-center gap-2 rounded-xl border border-[#d7b64d] bg-[#7A0C2E] px-4 text-[13px] font-semibold text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]">
+        <span className="grid h-8 w-8 place-items-center overflow-hidden rounded-full border border-[#d7b64d]/65 bg-[#07111f]">
+          <img src="/ai-helper-woman.svg" alt="Room Guide" className="h-10 w-10 object-contain object-bottom" />
+        </span>
+        Room Guide
       </button>
     );
   }
 
   return (
-    <aside className="fixed bottom-4 right-4 top-4 z-[260] flex w-[465px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-2xl border-2 border-[var(--gold)]/70 bg-[#07111f]/97 shadow-[0_20px_70px_rgba(0,0,0,.6)] backdrop-blur-md">
-      <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--gold)]/60 bg-[#7A0C2E]">🤖</div>
-        <div className="min-w-0 flex-1">
-          <div className="font-semibold text-[var(--gold-soft)]">Royal Command Room Guide</div>
-          <div className="text-[11px] text-[var(--muted)]">{ko ? "말하거나 입력하면 폼을 직접 작성합니다" : "Speak or type and I will fill the form"}</div>
+    <aside className="fixed bottom-[10px] right-[10px] top-[10px] z-[260] flex w-[520px] max-w-[calc(100vw-20px)] flex-col overflow-hidden bg-[#07111f]/97 shadow-[0_22px_75px_rgba(0,0,0,.62)] backdrop-blur-md">
+      <div className="relative shrink-0 border-b border-white/10 px-5 pt-3">
+        <div className="absolute right-3 top-3 z-10 flex items-center gap-3">
+          <span className="flex items-center gap-1 text-[10px] font-semibold tracking-[0.18em] text-[#f3d36a]"><span className={`h-2 w-2 rounded-full ${listening ? "animate-pulse bg-emerald-400" : "bg-[#d7b64d]"}`} />LIVE</span>
+          <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-xl leading-none text-white/70 hover:bg-white/10 hover:text-white" title="Close">×</button>
         </div>
-        <button type="button" onClick={() => setSpeakerEnabled((value) => !value)} className={`grid h-8 w-8 place-items-center rounded-full border ${speakerEnabled ? "border-emerald-400/60 text-emerald-300" : "border-white/15 text-white/45"}`} title="Speaker">🔊</button>
-        <button type="button" onClick={() => setOpen(false)} className="grid h-8 w-8 place-items-center rounded-full text-white/60 hover:bg-white/10" title="Close">×</button>
+        <div className="text-center font-[Times_New_Roman] text-xl font-semibold text-[#f3d36a]">Royal Command Room Guide</div>
+        <div className="mt-1 text-center text-[11px] text-white/45">{ko ? "AI Help 방식으로 대화하며 Room 폼을 직접 작성합니다" : "AI Help style assistant that fills the Room form with you"}</div>
+
+        <div className="relative mx-auto mt-1 h-[265px] w-[330px] max-w-[70%]">
+          <div className="absolute inset-x-10 bottom-2 h-20 rounded-full bg-[#d7b64d]/10 blur-2xl" />
+          <img src="/ai-helper-woman.svg" alt="Royal Command Room Guide" className="relative h-full w-full object-contain object-bottom" />
+        </div>
+
+        <div className="flex items-center gap-2 pb-2 text-[#d7b64d]">
+          <button type="button" onClick={() => setSpeakerEnabled((value) => !value)} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${speakerEnabled ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-300" : "border-[#d7b64d]/70 text-[#d7b64d]"}`} title="Speaker">🔊</button>
+          <div className="flex h-8 flex-1 items-center gap-[3px] overflow-hidden">
+            {Array.from({ length: 30 }).map((_, index) => (
+              <span key={index} className={`w-[2px] rounded-full bg-[#d7b64d] ${listening ? "animate-pulse" : "opacity-45"}`} style={{ height: `${8 + ((index * 7) % 20)}px`, animationDelay: `${index * 45}ms` }} />
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3">
-        <div className="rounded-xl border border-[var(--gold)]/35 bg-black/20 px-3 py-3 text-[13px] leading-5 text-white/90">{lastAssistant}</div>
-        {messages.slice(-8).map((message, index) => message.role === "user" ? (
-          <div key={`${message.role}-${index}`} className="mt-2 ml-8 rounded-xl bg-[#1d3b67]/65 px-3 py-2 text-[12px] text-white/85">{message.text}</div>
-        ) : null)}
+      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+        <div className="text-[12px] font-semibold text-[#d7b64d]">Room Guide</div>
+        <div className="mt-1 whitespace-pre-wrap text-[14px] leading-6 text-white/92">{lastAssistant}</div>
+
+        <div className="my-4 h-px w-full bg-gradient-to-r from-transparent via-[#d7b64d] to-transparent" />
+
+        <div className="text-[12px] font-semibold text-[#d7b64d]">You</div>
+        {lastUser ? <div className="mt-1 whitespace-pre-wrap text-[13px] leading-5 text-white/68">{lastUser}</div> : <div className="mt-1 text-[12px] text-white/35">{ko ? "말하거나 아래에 입력해 주세요." : "Speak or type below."}</div>}
+
+        {messages.length > 2 ? (
+          <div className="mt-5 space-y-2 border-t border-white/8 pt-4">
+            {messages.slice(-8, -2).map((message, index) => (
+              <div key={`${message.role}-${index}`} className={`rounded-xl px-3 py-2 text-[12px] leading-5 ${message.role === "user" ? "ml-10 bg-[#1d3b67]/45 text-white/75" : "mr-8 border border-[#d7b64d]/18 bg-black/15 text-white/62"}`}>
+                {message.text}
+              </div>
+            ))}
+          </div>
+        ) : null}
       </div>
 
-      <form onSubmit={submit} className="border-t border-white/10 p-3">
-        <div className="flex items-end gap-2 rounded-xl border border-white/10 bg-black/25 p-2">
-          <textarea value={input} onChange={(event) => setInput(event.target.value)} rows={2} placeholder={ko ? "예: 이름은 Family Legal, 가족법, 2-3명, 호주, 한국어" : "e.g. Family Legal, Family, 2-3, Australia, Korean"} className="min-h-[46px] flex-1 resize-none bg-transparent px-1 py-1 text-[13px] text-white outline-none placeholder:text-white/35" />
-          <button type="button" onClick={toggleMic} className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border ${listening ? "border-emerald-400 bg-emerald-500/20 text-emerald-300" : "border-[var(--gold)]/50 text-[var(--gold-soft)]"}`} title="Microphone">🎤</button>
-          <button type="submit" disabled={!input.trim()} className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[var(--gold)] bg-[#7A0C2E] text-[var(--gold-soft)] disabled:opacity-30" title="Send">➤</button>
+      <form onSubmit={submit} className="shrink-0 border-t border-white/10 px-5 pb-4 pt-3">
+        <div className="flex items-end gap-2 rounded-xl bg-black/25 px-2 py-2">
+          <textarea value={input} onChange={(event) => setInput(event.target.value)} rows={2} placeholder={ko ? "예: 이름은 Family Legal, 가족법, 2-3명, 호주, 한국어" : "e.g. Family Legal, Family, 2-3, Australia, Korean"} className="max-h-28 min-h-[52px] flex-1 resize-none bg-transparent px-2 py-2 text-[14px] text-white outline-none placeholder:text-white/35" />
+          <button type="button" onClick={toggleMic} className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${listening ? "bg-emerald-500/20 text-emerald-300 ring-1 ring-emerald-400/70" : "text-[#d7b64d] hover:bg-white/5"}`} title="Microphone">🎤</button>
+          <button type="submit" disabled={!input.trim()} className="grid h-10 w-10 shrink-0 place-items-center rounded-full border border-[#d7b64d] bg-[#7A0C2E] text-lg text-[#ffe18a] shadow-[0_0_14px_rgba(215,182,77,.28)] hover:bg-[#94113a] disabled:opacity-30" title="Send">↑</button>
         </div>
-        <div className="mt-2 text-[10px] text-[var(--muted)]">{ko ? "최종 Room 생성 버튼은 고객이 직접 눌러 완료합니다." : "The customer presses the final Create Room button."}</div>
+        <div className="mt-2 text-[10px] text-white/40">{ko ? "유료 작업·계약·결제 등은 별도 승인 절차를 거친 뒤 실행합니다." : "Paid actions, contracts and payments require a separate approval before execution."}</div>
       </form>
     </aside>
   );
