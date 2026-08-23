@@ -24,9 +24,7 @@
         first.behavior === "auto" &&
         typeof first.top === "number" &&
         first.top >= viewport.scrollHeight - 2
-      ) {
-        return;
-      }
+      ) return;
       nativeScrollTo(...args);
     };
 
@@ -44,7 +42,12 @@
     const textarea = findMainComposer();
     const root = textarea?.closest("form") || textarea?.parentElement?.parentElement || textarea?.parentElement;
     if (!root) return null;
-    return Array.from(root.querySelectorAll("button")).find((button) => Boolean(button.querySelector("svg.lucide-mic"))) || null;
+
+    return Array.from(root.querySelectorAll("button"))
+      .filter((button) => Boolean(button.querySelector("svg.lucide-mic")))
+      .map((button) => ({ button, rect: button.getBoundingClientRect() }))
+      .filter(({ rect }) => rect.width > 8 && rect.height > 8 && rect.bottom > 0 && rect.right > 0)
+      .sort((a, b) => (b.rect.top - a.rect.top) || (b.rect.left - a.rect.left))[0]?.button || null;
   }
 
   function findMainVoicePanel() {
@@ -55,16 +58,52 @@
     }) || null;
   }
 
+  function compactPanel(panel) {
+    if (!(panel instanceof HTMLElement)) return;
+    panel.style.height = "30px";
+    panel.style.minHeight = "30px";
+    panel.style.maxHeight = "30px";
+    panel.style.padding = "0 8px";
+    panel.style.gap = "7px";
+    panel.style.borderRadius = "10px";
+    panel.style.alignItems = "center";
+    panel.style.whiteSpace = "nowrap";
+    panel.style.pointerEvents = "none";
+
+    const wave = Array.from(panel.querySelectorAll("div")).find((el) => el.getAttribute("aria-label") === "Live microphone level");
+    if (wave instanceof HTMLElement) {
+      wave.style.height = "22px";
+      wave.style.maxHeight = "22px";
+      wave.style.gap = "2px";
+      Array.from(wave.querySelectorAll("span")).forEach((bar) => {
+        if (bar instanceof HTMLElement) {
+          bar.style.width = "2px";
+          bar.style.maxHeight = "20px";
+        }
+      });
+    }
+
+    Array.from(panel.querySelectorAll("button")).forEach((button) => {
+      button.style.pointerEvents = "auto";
+    });
+  }
+
   function positionMainVoicePanel() {
     const mic = findMainMicButton();
     const panel = findMainVoicePanel();
     if (!(mic instanceof HTMLElement) || !(panel instanceof HTMLElement)) return;
 
+    compactPanel(panel);
+
     const micRect = mic.getBoundingClientRect();
     const panelRect = panel.getBoundingClientRect();
-    const gap = 10;
-    const left = Math.min(window.innerWidth - panelRect.width - 8, micRect.right + gap);
-    const top = Math.max(8, Math.min(window.innerHeight - panelRect.height - 8, micRect.top + (micRect.height - panelRect.height) / 2));
+    const gap = 18;
+    const rightLeft = micRect.right + gap;
+    const leftLeft = micRect.left - panelRect.width - gap;
+    const left = rightLeft + panelRect.width <= window.innerWidth - 8
+      ? rightLeft
+      : Math.max(8, leftLeft);
+    const top = Math.max(8, Math.min(window.innerHeight - 38, micRect.top + (micRect.height - 30) / 2));
 
     panel.style.left = `${Math.round(left)}px`;
     panel.style.top = `${Math.round(top)}px`;
