@@ -12,19 +12,6 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <RoomBuilderAIFormAssistant />
       <RoomGuideLiveInputMirror />
       <style>{`
-        .rc-room-builder-workspace form > section:first-of-type input,
-        .rc-room-builder-workspace form > section:first-of-type button {
-          border-color: rgba(215, 182, 77, 0.72) !important;
-        }
-        .rc-room-builder-workspace form > section:nth-of-type(4) .rc-input,
-        .rc-room-builder-workspace form > section:nth-of-type(4) .rounded-xl.border,
-        .rc-room-builder-workspace form > section:nth-of-type(5),
-        .rc-room-builder-workspace form > section:nth-of-type(5) button,
-        .rc-room-builder-workspace form > section:nth-of-type(6),
-        .rc-room-builder-workspace form > section:nth-of-type(6) button,
-        .rc-room-builder-workspace form > div:last-child > button {
-          border-color: rgba(215, 182, 77, 0.95) !important;
-        }
         @media (min-width: 1024px) {
           .rc-room-builder-workspace {
             width: calc(100vw - 600px) !important;
