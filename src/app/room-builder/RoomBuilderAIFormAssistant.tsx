@@ -430,7 +430,7 @@ export default function RoomBuilderAIFormAssistant() {
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4">
+      <div className="relative z-10 -mt-[84px] min-h-0 flex-1 overflow-y-auto bg-[#07111f]/97 px-6 pb-4 pt-3">
         <div className="text-[12px] font-semibold text-[#d7b64d]">Room Guide</div>
         <div className="mt-1 whitespace-pre-wrap text-[14px] leading-6 text-white/92">{lastAssistant}</div>
         <div className="mt-4 flex items-baseline gap-2">
