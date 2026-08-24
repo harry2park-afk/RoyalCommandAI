@@ -71,7 +71,9 @@ function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
   return named.length ? named : (selectedProviders.length ? selectedProviders : undefined);
 }
 
-function chooseDeveloperProvider(_prompt: string, providers?: AIProviderId[]) {
+function chooseDeveloperProvider(prompt: string, providers?: AIProviderId[]) {
+  const explicitlyNamed = PROVIDER_MENTIONS.find(({ pattern }) => pattern.test(prompt))?.id;
+  if (explicitlyNamed && DEV_PROVIDER_NAMES[explicitlyNamed]) return explicitlyNamed;
   const selected = (providers || []).find((id) => DEV_PROVIDER_NAMES[id]);
   return selected || "openai";
 }
@@ -124,7 +126,7 @@ async function fetchJsonWithTimeout(
 
 async function runDeveloper(request: Request, instruction: string, provider: AIProviderId) {
   const cookie = request.headers.get("cookie") || "";
-  const path = provider === "google" ? "/api/dev/gemini" : "/api/dev/agent";
+  const path = "/api/dev/agent";
   const url = new URL(path, request.url);
   const headers = { "Content-Type": "application/json", cookie };
   const agentName = DEV_PROVIDER_NAMES[provider] || provider;
@@ -152,6 +154,9 @@ async function runDeveloper(request: Request, instruction: string, provider: AIP
       summary: review.summary || `${agentName}가 수정안을 준비했습니다.`,
       actions,
       commits: [],
+      branch: "",
+      pr: null,
+      evidenceVerified: false,
     };
   }
 
@@ -175,6 +180,9 @@ async function runDeveloper(request: Request, instruction: string, provider: AIP
     summary: review.summary || `${agentName} 개발 작업을 실행했습니다.`,
     actions,
     commits: Array.isArray(executed.commits) ? executed.commits : [],
+    branch: String(executed.branch || ""),
+    pr: executed.pr || null,
+    evidenceVerified: executed.evidenceVerified === true,
   };
 }
 
@@ -211,29 +219,42 @@ export async function POST(request: Request) {
       const failures: string[] = [];
       let executionSection = "";
       let executionProvider: AIProviderId | undefined;
+      const verifiedInstruction = [
+        "ROYAL COMMAND HOST VERIFIED WORK METADATA — REQUIRED FOR EXECUTION",
+        `Work ID: ${independent.workId || ""}`,
+        `Revision: ${independent.revision || 1}`,
+        `Room ID: ${data.roomId}`,
+        "Every code change, branch, commit, PR and report must use this Work ID and Revision.",
+        "Do not write directly to master. Use the Work-ID branch and return verified evidence.",
+        "",
+        data.prompt,
+      ].join("\n");
 
       for (const provider of agentOrder) {
         const agentName = DEV_PROVIDER_NAMES[provider] || provider;
         try {
-          const dev = await runDeveloper(request, data.prompt, provider);
+          const dev = await runDeveloper(request, verifiedInstruction, provider);
           const changed = dev.actions.map((action: { operation?: string; path?: string }) => `${action.operation || "update"}: ${action.path || ""}`);
           const commitIds = dev.commits.map((item: { commit?: string }) => item.commit).filter(Boolean);
+          const prNumber = dev.pr?.number ? String(dev.pr.number) : "";
+          const prUrl = dev.pr?.url ? String(dev.pr.url) : "";
 
           executionProvider = provider;
-          executionSection = dev.executed
-            ? `### 실행 결과 — ${agentName}\n${agentName} 개발 Agent가 실제 작업을 완료했습니다.\n\n${dev.summary}${changed.length ? `\n\n작업 파일:\n- ${changed.join("\n- ")}` : ""}${commitIds.length ? `\n\nGitHub Commit:\n- ${commitIds.join("\n- ")}` : ""}\n\nVercel Git 연동으로 자동 배포가 진행됩니다.`
-            : `### 실행 준비 — ${agentName}\n${agentName} 개발 Agent가 수정안을 준비했습니다.\n\n${dev.summary}${changed.length ? `\n\n수정 예정:\n- ${changed.join("\n- ")}` : ""}\n\n실행을 원하시면 ‘승인, 진행해’라고 지시해 주세요.`;
+          executionSection = dev.executed && dev.evidenceVerified
+            ? `### 실행 결과 — ${agentName}\nWork ID: ${independent.workId}\nRevision: ${independent.revision || 1}\nAI: ${agentName}\nStatus: CODE_CHANGED_ON_SAFE_BRANCH\n\n${dev.summary}${changed.length ? `\n\n작업 파일:\n- ${changed.join("\n- ")}` : ""}${dev.branch ? `\n\nBranch:\n- ${dev.branch}` : ""}${commitIds.length ? `\n\nGitHub Commit:\n- ${commitIds.join("\n- ")}` : ""}${prNumber ? `\n\nPR:\n- #${prNumber}${prUrl ? ` — ${prUrl}` : ""}` : ""}\n\nProduction에는 아직 반영하지 않았습니다. 사용자 승인 후 merge/배포합니다.`
+            : `### 실행 상태 — ${agentName}\nWork ID: ${independent.workId}\nRevision: ${independent.revision || 1}\nStatus: BLOCKED\n\n실제 GitHub 변경 증거가 확인되지 않아 ‘수정 완료’로 보고하지 않습니다.\n${dev.summary}`;
           break;
         } catch (devError) {
           const message = devError instanceof Error ? devError.message : `${agentName} development agent failed`;
 
           if (/development execution (?:timed out|returned non-JSON)/i.test(message)) {
             executionProvider = provider;
-            executionSection = `### 실행 상태 — ${agentName}\n개발 실행 요청은 시작됐지만 서버가 제한 시간 안에 확정 결과를 반환하지 못했습니다. 중복 코드 변경을 막기 위해 다른 Agent로 자동 전환하지 않았습니다.\n\n확인 기록:\n- ${message}`;
+            executionSection = `### 실행 상태 — ${agentName}\nWork ID: ${independent.workId}\nRevision: ${independent.revision || 1}\nStatus: BLOCKED\n\n개발 실행 요청은 시작됐지만 서버가 제한 시간 안에 확정 결과를 반환하지 못했습니다. 중복 코드 변경을 막기 위해 다른 Agent로 자동 전환하지 않았습니다.\n\nEvidence:\n- ${message}`;
             logger.warn("chat.developer_agent.execution_uncertain", {
               provider,
               agentName,
               message,
+              workId: independent.workId,
             });
             break;
           }
@@ -243,12 +264,13 @@ export async function POST(request: Request) {
             provider,
             agentName,
             message,
+            workId: independent.workId,
           });
         }
       }
 
       if (!executionSection) {
-        executionSection = `### 실행 상태\n선택된 AI들의 독립 의견은 정상적으로 수집됐지만, 개발 Agent 실행은 모두 실패했습니다.\n\n실패 기록:\n- ${failures.join("\n- ")}`;
+        executionSection = `### 실행 상태\nWork ID: ${independent.workId}\nRevision: ${independent.revision || 1}\nStatus: BLOCKED\n\n선택된 AI들의 독립 의견은 정상적으로 수집됐지만, 개발 Agent 실행은 모두 실패했습니다.\n\n실패 기록:\n- ${failures.join("\n- ")}`;
       } else if (failures.length) {
         executionSection += `\n\n자동 전환 기록:\n- ${failures.join("\n- ")}`;
       }
@@ -260,13 +282,14 @@ export async function POST(request: Request) {
           ...independent.comparison,
           notes: [
             ...independent.comparison.notes,
-            "Natural-language AI targeting overrides the UI selection when the user explicitly asks only named AIs to answer.",
+            "Natural-language AI targeting selects the named AI as the preferred development executor.",
+            "ChatGPT, Claude, Gemini and Grok use the same development execution endpoint and the same Work-ID branch policy.",
             "The complete original user order was shared unchanged with every routed AI so dependencies and relationships are preserved.",
             "Each AI determines its own responsibility from the shared order rather than receiving an isolated split instruction.",
             "Living Rules apply to development execution: newer approved orders supersede conflicting older rules.",
             "All routed AIs gave independent opinions before development execution.",
             executionProvider
-              ? `${DEV_PROVIDER_NAMES[executionProvider] || executionProvider} handled the development execution route.`
+              ? `${DEV_PROVIDER_NAMES[executionProvider] || executionProvider} handled the development execution route under Work ID ${independent.workId}.`
               : "All routed development-agent routes failed after automatic failover.",
           ],
         },

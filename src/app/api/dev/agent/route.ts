@@ -5,16 +5,17 @@ import { getConnector } from "@/lib/ai/connectors";
 import type { AIProviderId } from "@/lib/ai/types";
 
 const REPO = process.env.ROYAL_COMMAND_GITHUB_REPO || "harry2park-afk/RoyalCommandAI";
-const BRANCH = process.env.ROYAL_COMMAND_GITHUB_BRANCH || "master";
+const BASE_BRANCH = process.env.ROYAL_COMMAND_GITHUB_BRANCH || "master";
 const MAX_FILES = 6;
 const MAX_FILE_BYTES = 180_000;
 const OWNER_DEV_EMAILS = ["harry2park@gmail.com", "harry@royalcommand.ai"];
-const DEV_PROVIDERS = ["openai", "anthropic", "xai"] as const;
+const DEV_PROVIDERS = ["openai", "anthropic", "google", "xai"] as const;
 type DevProvider = (typeof DEV_PROVIDERS)[number];
 
 const PROVIDER_NAMES: Record<DevProvider, string> = {
   openai: "ChatGPT",
   anthropic: "Claude",
+  google: "Gemini",
   xai: "Grok",
 };
 
@@ -29,6 +30,11 @@ type PlannedAction = {
   path: string;
   operation: "create" | "update" | "delete";
   reason?: string;
+};
+
+type WorkMeta = {
+  workId: string;
+  revision: number;
 };
 
 function developerEmails() {
@@ -69,6 +75,21 @@ function pathForApi(path: string) {
   return encodeURIComponent(path).replace(/%2F/g, "/");
 }
 
+function parseWorkMeta(instruction: string): WorkMeta {
+  const workIdMatch = instruction.match(/Work ID:\s*(RC-[A-Z0-9-]+)/i);
+  const revisionMatch = instruction.match(/Revision:\s*(\d+)/i);
+  if (!workIdMatch) throw new Error("Host-verified Work ID is required before code execution");
+  return {
+    workId: workIdMatch[1].toUpperCase(),
+    revision: Math.max(1, Number(revisionMatch?.[1] || 1)),
+  };
+}
+
+function workBranch(meta: WorkMeta, provider: DevProvider) {
+  const safeWork = meta.workId.toLowerCase().replace(/[^a-z0-9-]/g, "-").slice(0, 80);
+  return `rc-work/${safeWork}/${provider}-rev-${String(meta.revision).padStart(2, "0")}`;
+}
+
 async function github(path: string, init?: RequestInit) {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN is not configured in the Royal Command server environment");
@@ -89,6 +110,28 @@ async function github(path: string, init?: RequestInit) {
   try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
   if (!response.ok) throw new Error(data?.message || `GitHub HTTP ${response.status}`);
   return data;
+}
+
+async function ensureWorkBranch(branch: string) {
+  try {
+    await github(`/git/ref/heads/${encodeURIComponent(branch)}`);
+    return;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/not found/i.test(message)) throw error;
+  }
+
+  const baseRef = await github(`/git/ref/heads/${encodeURIComponent(BASE_BRANCH)}`);
+  try {
+    await github("/git/refs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha }),
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (!/reference already exists/i.test(message)) throw error;
+  }
 }
 
 async function developerModel(provider: DevProvider, prompt: string) {
@@ -114,9 +157,9 @@ async function developerModel(provider: DevProvider, prompt: string) {
   return parseJsonObject(response.content);
 }
 
-async function getFile(path: string) {
+async function getFile(path: string, ref = BASE_BRANCH) {
   try {
-    const file = await github(`/contents/${pathForApi(path)}?ref=${encodeURIComponent(BRANCH)}`);
+    const file = await github(`/contents/${pathForApi(path)}?ref=${encodeURIComponent(ref)}`);
     return {
       exists: true,
       sha: String(file.sha || ""),
@@ -129,22 +172,28 @@ async function getFile(path: string) {
   }
 }
 
-async function executeAction(action: DevAction, instruction: string, provider: DevProvider) {
+async function executeAction(
+  action: DevAction,
+  instruction: string,
+  provider: DevProvider,
+  branch: string,
+  meta: WorkMeta,
+) {
   const path = String(action.path || "").trim();
   if (!safePath(path)) throw new Error(`Unsafe path rejected: ${path}`);
   if (sensitivePath(path) && !explicitSensitiveInstruction(instruction)) {
     throw new Error(`Sensitive file requires an explicit security/auth instruction: ${path}`);
   }
 
-  const current = await getFile(path);
-  const commitMessage = `${PROVIDER_NAMES[provider]} dev agent: ${instruction.slice(0, 72)}`;
+  const current = await getFile(path, branch);
+  const commitMessage = `[${meta.workId}][REV-${String(meta.revision).padStart(2, "0")}][${PROVIDER_NAMES[provider]}] ${action.operation} ${path}`;
 
   if (action.operation === "delete") {
     if (!current.exists) throw new Error(`Cannot delete missing file: ${path}`);
     const result = await github(`/contents/${pathForApi(path)}`, {
       method: "DELETE",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ message: commitMessage, sha: current.sha, branch: BRANCH }),
+      body: JSON.stringify({ message: commitMessage, sha: current.sha, branch }),
     });
     return { path, operation: action.operation, commit: result.commit?.sha || "" };
   }
@@ -158,7 +207,7 @@ async function executeAction(action: DevAction, instruction: string, provider: D
   const body: Record<string, unknown> = {
     message: commitMessage,
     content: Buffer.from(content, "utf8").toString("base64"),
-    branch: BRANCH,
+    branch,
   };
   if (current.exists) body.sha = current.sha;
 
@@ -170,10 +219,40 @@ async function executeAction(action: DevAction, instruction: string, provider: D
   return { path, operation: action.operation, commit: result.commit?.sha || "" };
 }
 
+async function createPullRequest(meta: WorkMeta, provider: DevProvider, branch: string, commits: Array<{ path: string; operation: string; commit: string }>) {
+  const title = `[${meta.workId}][REV-${String(meta.revision).padStart(2, "0")}][${PROVIDER_NAMES[provider]}] Royal Command work`;
+  const body = [
+    `Work ID: ${meta.workId}`,
+    `Revision: ${meta.revision}`,
+    `AI: ${PROVIDER_NAMES[provider]}`,
+    `Branch: ${branch}`,
+    "",
+    "Verified changes:",
+    ...commits.map((item) => `- ${item.operation}: ${item.path} — ${item.commit}`),
+    "",
+    "Production merge requires user approval.",
+  ].join("\n");
+
+  try {
+    const pr = await github("/pulls", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, head: branch, base: BASE_BRANCH, body }),
+    });
+    return { number: pr.number || null, url: pr.html_url || "" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/pull request.*already exists|validation failed/i.test(message)) {
+      return { number: null, url: "", warning: message };
+    }
+    throw error;
+  }
+}
+
 async function generateOneAction(plan: PlannedAction, instruction: string, provider: DevProvider): Promise<DevAction> {
   if (plan.operation === "delete") return { ...plan };
 
-  const current = await getFile(plan.path);
+  const current = await getFile(plan.path, BASE_BRANCH);
   const currentBlock = current.exists
     ? `CURRENT FILE (${plan.path}):\n${current.content}`
     : `CURRENT FILE (${plan.path}): DOES NOT EXIST`;
@@ -197,13 +276,14 @@ export async function GET() {
     providers: {
       openai: Boolean(process.env.OPENAI_API_KEY),
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
+      google: Boolean(process.env.GOOGLE_AI_API_KEY || process.env.OPENROUTER_API_KEY),
       xai: Boolean(process.env.XAI_API_KEY),
-      google: Boolean(process.env.GOOGLE_AI_API_KEY),
     },
     githubConfigured: Boolean(process.env.GITHUB_TOKEN),
     developerAccessConfigured: developerEmails().length > 0,
     repo: REPO,
-    branch: BRANCH,
+    branch: BASE_BRANCH,
+    executionPolicy: "work-id branch only; PR required; no direct master write",
   });
 }
 
@@ -219,23 +299,39 @@ export async function POST(request: Request) {
     const execute = body?.execute === true;
     const proposed = Array.isArray(body?.actions) ? body.actions : Array.isArray(body?.files) ? body.files : null;
 
-    if (!provider) return NextResponse.json({ error: "Developer provider must be openai, anthropic, or xai" }, { status: 400 });
+    if (!provider) return NextResponse.json({ error: "Developer provider must be openai, anthropic, google, or xai" }, { status: 400 });
     if (!instruction) return NextResponse.json({ error: "Instruction is required" }, { status: 400 });
 
     if (execute) {
       if (!proposed?.length) return NextResponse.json({ error: "No approved actions supplied" }, { status: 400 });
+      const meta = parseWorkMeta(instruction);
+      const branch = workBranch(meta, provider);
+      await ensureWorkBranch(branch);
+
       const actions: DevAction[] = proposed.slice(0, MAX_FILES).map((item: any) => ({
         path: String(item.path || ""),
         operation: item.operation === "create" || item.operation === "delete" ? item.operation : "update",
         content: typeof item.content === "string" ? item.content : undefined,
         reason: typeof item.reason === "string" ? item.reason : undefined,
       }));
-      const commits = [];
-      for (const action of actions) commits.push(await executeAction(action, instruction, provider));
-      return NextResponse.json({ ok: true, executed: true, provider, commits });
+      const commits: Array<{ path: string; operation: "create" | "update" | "delete"; commit: string }> = [];
+      for (const action of actions) commits.push(await executeAction(action, instruction, provider, branch, meta));
+      const pr = await createPullRequest(meta, provider, branch, commits);
+
+      return NextResponse.json({
+        ok: true,
+        executed: true,
+        provider,
+        workId: meta.workId,
+        revision: meta.revision,
+        branch,
+        commits,
+        pr,
+        evidenceVerified: commits.length > 0 && commits.every((item) => Boolean(item.commit)),
+      });
     }
 
-    const tree = await github(`/git/trees/${encodeURIComponent(BRANCH)}?recursive=1`);
+    const tree = await github(`/git/trees/${encodeURIComponent(BASE_BRANCH)}?recursive=1`);
     const paths = (tree.tree || [])
       .filter((entry: { type?: string; path?: string; size?: number }) => entry.type === "blob" && entry.path && safePath(entry.path) && (entry.size || 0) <= MAX_FILE_BYTES)
       .map((entry: { path: string }) => entry.path)
@@ -248,7 +344,7 @@ export async function POST(request: Request) {
 
     const summaries = [];
     for (const path of readPaths) {
-      const file = await getFile(path);
+      const file = await getFile(path, BASE_BRANCH);
       if (file.exists) summaries.push(`--- ${path} ---\n${file.content.slice(0, 30000)}`);
     }
 
