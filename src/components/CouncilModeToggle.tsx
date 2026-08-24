@@ -1,10 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useParams } from "next/navigation";
-
-type CouncilMode = "off" | "on";
 
 type Position = {
   top: number;
@@ -22,29 +19,34 @@ function requestUrl(input: RequestInfo | URL) {
   }
 }
 
+function selectedAiCount() {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>("button[title]"))
+    .filter((button) => !button.title.startsWith("AI Warehouse"))
+    .filter((button) => button.className.includes('bg-[#7A0C2E]'))
+    .length;
+}
+
+function latestUserQuestion() {
+  const items = Array.from(document.querySelectorAll<HTMLButtonElement>('button[title="클릭하면 전체 내용을 봅니다"]'));
+  return (items.at(-1)?.textContent || "").trim();
+}
+
+function setReactTextareaValue(textarea: HTMLTextAreaElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
+  setter?.call(textarea, value);
+  textarea.dispatchEvent(new Event("input", { bubbles: true }));
+  textarea.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
 export default function CouncilModeToggle() {
-  const params = useParams<{ id: string }>();
-  const roomId = params?.id || "room";
-  const storageKey = useMemo(() => `royalcommand:room:${roomId}:council-mode`, [roomId]);
   const [mounted, setMounted] = useState(false);
-  const [mode, setMode] = useState<CouncilMode>("off");
+  const [status, setStatus] = useState<"hold" | "requested" | "need-ai" | "no-question">("hold");
   const [position, setPosition] = useState<Position>({ top: -9999, left: -9999, visible: false });
+  const oneShotCouncilRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
-    try {
-      setMode(localStorage.getItem(storageKey) === "on" ? "on" : "off");
-    } catch {
-      setMode("off");
-    }
-  }, [storageKey]);
-
-  useEffect(() => {
-    if (!mounted) return;
-    try {
-      localStorage.setItem(storageKey, mode);
-    } catch {}
-  }, [mounted, mode, storageKey]);
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;
@@ -57,9 +59,12 @@ export default function CouncilModeToggle() {
       if (url?.pathname === "/api/ai/chat/stream" && method === "POST" && typeof init?.body === "string") {
         try {
           const parsed = JSON.parse(init.body) as Record<string, unknown>;
-          parsed.councilMode = mode;
+          const runCouncil = oneShotCouncilRef.current;
+          parsed.councilMode = runCouncil ? "on" : "off";
+          oneShotCouncilRef.current = false;
           return originalFetch(input, { ...init, body: JSON.stringify(parsed) });
         } catch {
+          oneShotCouncilRef.current = false;
           return originalFetch(input, init);
         }
       }
@@ -71,13 +76,13 @@ export default function CouncilModeToggle() {
     return () => {
       if (window.fetch === patchedFetch) window.fetch = originalFetch;
     };
-  }, [mounted, mode]);
+  }, [mounted]);
 
   useEffect(() => {
     if (!mounted) return;
 
     let frame = 0;
-    const width = 94;
+    const width = 104;
     const gap = 6;
     const reserve = width + gap;
 
@@ -91,18 +96,15 @@ export default function CouncilModeToggle() {
         }
 
         const reservedMargin = `${reserve}px`;
-        if (warehouse.style.marginRight !== reservedMargin) {
-          warehouse.style.marginRight = reservedMargin;
-        }
+        if (warehouse.style.marginRight !== reservedMargin) warehouse.style.marginRight = reservedMargin;
 
         const rect = warehouse.getBoundingClientRect();
         const desiredLeft = rect.right + gap;
         const maxLeft = Math.max(4, window.innerWidth - width - 4);
-        const left = Math.min(desiredLeft, maxLeft);
 
         setPosition({
           top: rect.top,
-          left,
+          left: Math.min(desiredLeft, maxLeft),
           visible: rect.width > 0 && rect.height > 0,
         });
       });
@@ -124,16 +126,56 @@ export default function CouncilModeToggle() {
     };
   }, [mounted]);
 
+  function runCouncilOnce() {
+    if (status !== "hold") return;
+
+    if (selectedAiCount() < 2) {
+      setStatus("need-ai");
+      window.setTimeout(() => setStatus("hold"), 1800);
+      return;
+    }
+
+    const question = latestUserQuestion();
+    if (!question) {
+      setStatus("no-question");
+      window.setTimeout(() => setStatus("hold"), 1800);
+      return;
+    }
+
+    const textarea = document.querySelector<HTMLTextAreaElement>('textarea[placeholder^="Type or speak your order"]');
+    const sendButton = document.querySelector<HTMLButtonElement>('button[type="submit"]');
+    if (!textarea || !sendButton) return;
+
+    oneShotCouncilRef.current = true;
+    setStatus("requested");
+
+    setReactTextareaValue(
+      textarea,
+      `Council 종합 요청입니다. 아래의 원래 질문을 선택된 AI들이 다시 검토하고, Council에서 하나의 최종 종합 답변만 작성하십시오.\n\n원래 질문:\n${question}`,
+    );
+
+    window.setTimeout(() => sendButton.click(), 80);
+    window.setTimeout(() => setStatus("hold"), 2600);
+  }
+
   if (!mounted) return null;
 
-  const on = mode === "on";
+  const label = status === "requested"
+    ? "Council 실행"
+    : status === "need-ai"
+      ? "AI 2개 필요"
+      : status === "no-question"
+        ? "질문 없음"
+        : "Council 보류";
+
   return createPortal(
     <button
       id="rc-council-mode-toggle"
       type="button"
-      onClick={() => setMode((current) => current === "on" ? "off" : "on")}
-      aria-pressed={on}
-      title={on ? "Council ON — 선택된 AI 답변을 Council로 통합" : "Council OFF — 각 AI가 독립적으로 답변"}
+      onClick={runCouncilOnce}
+      disabled={status !== "hold"}
+      aria-label="Council 보류. 클릭하면 마지막 질문에 대해 Council을 한 번 실행합니다."
+      title="기본은 Council 보류입니다. 각 AI 답변을 먼저 받은 뒤 필요할 때 클릭하면 마지막 질문으로 Council을 1회 실행합니다."
       style={{
         position: "fixed",
         top: position.top,
@@ -141,22 +183,23 @@ export default function CouncilModeToggle() {
         zIndex: 195,
         display: position.visible ? "flex" : "none",
         height: 32,
-        width: 94,
+        width: 104,
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 6,
-        border: on ? "2px solid #86efac" : "2px solid #22c55e",
-        background: on ? "#16a34a" : "#064e3b",
+        border: "2px solid #22c55e",
+        background: status === "requested" ? "#16a34a" : "#064e3b",
         color: "#f0fdf4",
         fontSize: 10,
         fontWeight: 800,
         lineHeight: 1,
-        boxShadow: on ? "0 0 10px rgba(34,197,94,.65)" : "0 0 4px rgba(34,197,94,.28)",
-        cursor: "pointer",
+        boxShadow: status === "requested" ? "0 0 10px rgba(34,197,94,.65)" : "0 0 4px rgba(34,197,94,.28)",
+        cursor: status === "hold" ? "pointer" : "default",
+        opacity: status === "hold" || status === "requested" ? 1 : 0.88,
         whiteSpace: "nowrap",
       }}
     >
-      {on ? "Council ON" : "Council OFF"}
+      {label}
     </button>,
     document.body,
   );
