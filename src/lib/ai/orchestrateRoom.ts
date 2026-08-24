@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { orchestrate, type OrchestrateInput } from "./orchestrator";
+import { orchestrate, type OrchestrateInput, type OrchestrateResult } from "./orchestrator";
 import { boundClientHistory, normalizeRoomHistory, MAX_ROOM_HISTORY_MESSAGES } from "./roomConversationMemory";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
@@ -8,14 +8,36 @@ import { logger } from "@/lib/logger";
 const MAX_CONTEXT_CHARS = 36_000;
 const MAX_DOCUMENTS = 3;
 
+export interface RoomWorkRecord {
+  workId: string;
+  revision: number;
+  roomId: string;
+  createdAt: string;
+}
+
+export type OrchestrateRoomResult = OrchestrateResult & {
+  workId: string;
+  revision: number;
+  workRecord: RoomWorkRecord;
+};
+
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function createWorkMetadata(roomId: string) {
+function createWorkMetadata(roomId: string, prompt: string): RoomWorkRecord {
   const createdAt = new Date().toISOString();
-  const datePart = createdAt.slice(0, 10).replace(/-/g, "");
-  const workId = `RC-${datePart}-${randomUUID().slice(0, 8).toUpperCase()}`;
+  const stampedOrder = prompt.match(/^\s*\d+-Time\s+(\d{2})\.(\d{2})\.(\d{4})\s*\/\s*(\d{6})\s*\//i);
+
+  let workId: string;
+  if (stampedOrder) {
+    const [, day, month, year, time] = stampedOrder;
+    const roomPart = roomId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase() || "ROOM";
+    workId = `RC-${year}${month}${day}-${time}-${roomPart}`;
+  } else {
+    const datePart = createdAt.slice(0, 10).replace(/-/g, "");
+    workId = `RC-${datePart}-${randomUUID().slice(0, 8).toUpperCase()}`;
+  }
 
   return {
     workId,
@@ -25,7 +47,7 @@ function createWorkMetadata(roomId: string) {
   };
 }
 
-function workSystemContext(work: ReturnType<typeof createWorkMetadata>) {
+function workSystemContext(work: RoomWorkRecord) {
   return [
     "ROYAL COMMAND WORK METADATA — HOST VERIFIED",
     `Work ID: ${work.workId}`,
@@ -96,8 +118,8 @@ async function loadRoomConversationHistory(roomId: string, fallbackHistory: Orch
   return history.length ? history : boundClientHistory(fallbackHistory);
 }
 
-export async function orchestrateRoom(roomId: string, input: OrchestrateInput) {
-  const work = createWorkMetadata(roomId);
+export async function orchestrateRoom(roomId: string, input: OrchestrateInput): Promise<OrchestrateRoomResult> {
+  const work = createWorkMetadata(roomId, input.prompt);
   const [documentContext, history] = await Promise.all([
     loadRoomDocumentContext(roomId),
     loadRoomConversationHistory(roomId, input.history),
