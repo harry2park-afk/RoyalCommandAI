@@ -3,12 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-type Position = {
-  top: number;
-  left: number;
-  visible: boolean;
-};
-
 function requestUrl(input: RequestInfo | URL) {
   try {
     if (typeof input === "string") return new URL(input, window.location.origin);
@@ -22,6 +16,7 @@ function requestUrl(input: RequestInfo | URL) {
 function selectedAiCount() {
   return Array.from(document.querySelectorAll<HTMLButtonElement>("button[title]"))
     .filter((button) => !button.title.startsWith("AI Warehouse"))
+    .filter((button) => button.id !== "rc-council-mode-toggle")
     .filter((button) => button.className.includes('bg-[#7A0C2E]'))
     .length;
 }
@@ -38,15 +33,30 @@ function setReactTextareaValue(textarea: HTMLTextAreaElement, value: string) {
   textarea.dispatchEvent(new Event("change", { bubbles: true }));
 }
 
+function findAiDock() {
+  const warehouse = document.querySelector<HTMLButtonElement>('button[title^="AI Warehouse"]');
+  return warehouse?.parentElement instanceof HTMLElement ? warehouse.parentElement : null;
+}
+
 export default function CouncilModeToggle() {
   const [mounted, setMounted] = useState(false);
+  const [dock, setDock] = useState<HTMLElement | null>(null);
   const [status, setStatus] = useState<"hold" | "requested" | "need-ai" | "no-question">("hold");
-  const [position, setPosition] = useState<Position>({ top: -9999, left: -9999, visible: false });
   const oneShotCouncilRef = useRef(false);
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const locate = () => setDock(findAiDock());
+    locate();
+    const observer = new MutationObserver(locate);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    return () => observer.disconnect();
+  }, [mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -75,54 +85,6 @@ export default function CouncilModeToggle() {
     window.fetch = patchedFetch;
     return () => {
       if (window.fetch === patchedFetch) window.fetch = originalFetch;
-    };
-  }, [mounted]);
-
-  useEffect(() => {
-    if (!mounted) return;
-
-    let frame = 0;
-    const width = 104;
-    const gap = 6;
-    const reserve = width + gap;
-
-    const place = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(() => {
-        const warehouse = document.querySelector<HTMLButtonElement>('button[title^="AI Warehouse"]');
-        if (!warehouse) {
-          setPosition((prev) => prev.visible ? { ...prev, visible: false } : prev);
-          return;
-        }
-
-        const reservedMargin = `${reserve}px`;
-        if (warehouse.style.marginRight !== reservedMargin) warehouse.style.marginRight = reservedMargin;
-
-        const rect = warehouse.getBoundingClientRect();
-        const desiredLeft = rect.right + gap;
-        const maxLeft = Math.max(4, window.innerWidth - width - 4);
-
-        setPosition({
-          top: rect.top,
-          left: Math.min(desiredLeft, maxLeft),
-          visible: rect.width > 0 && rect.height > 0,
-        });
-      });
-    };
-
-    place();
-    const observer = new MutationObserver(place);
-    observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true });
-    window.addEventListener("resize", place);
-    window.addEventListener("scroll", place, true);
-
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", place);
-      window.removeEventListener("scroll", place, true);
-      window.cancelAnimationFrame(frame);
-      const warehouse = document.querySelector<HTMLButtonElement>('button[title^="AI Warehouse"]');
-      if (warehouse) warehouse.style.removeProperty("margin-right");
     };
   }, [mounted]);
 
@@ -158,7 +120,7 @@ export default function CouncilModeToggle() {
     window.setTimeout(() => setStatus("hold"), 2600);
   }
 
-  if (!mounted) return null;
+  if (!mounted || !dock) return null;
 
   const label = status === "requested"
     ? "Council Run"
@@ -177,13 +139,13 @@ export default function CouncilModeToggle() {
       aria-label="Council Hold. Click to run Council once for the latest question."
       title="Council is held by default. After individual AI answers arrive, click once to run Council on the latest question."
       style={{
-        position: "fixed",
-        top: position.top,
-        left: position.left,
-        zIndex: 195,
-        display: position.visible ? "flex" : "none",
-        height: 32,
-        width: 104,
+        position: "relative",
+        zIndex: 1,
+        display: "inline-flex",
+        flex: "0 0 auto",
+        height: 30,
+        minWidth: 104,
+        padding: "2px 10px",
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 6,
@@ -201,6 +163,6 @@ export default function CouncilModeToggle() {
     >
       {label}
     </button>,
-    document.body,
+    dock,
   );
 }
