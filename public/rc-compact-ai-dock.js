@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = `royalcommand:room:${window.location.pathname}:compact-ai-dock`;
   const WAREHOUSE_LABEL = "AI Warehouse";
+  const COUNCIL_ID = "rc-council-mode-toggle";
   let seeded = false;
   let scheduled = false;
   let pendingWarehouseName = "";
@@ -82,7 +83,7 @@
     const dock = topDock();
     if (!(dock instanceof HTMLElement)) return [];
     const warehouse = warehouseButton(dock);
-    return Array.from(dock.querySelectorAll(":scope > button")).filter((button) => button !== warehouse);
+    return Array.from(dock.querySelectorAll(":scope > button")).filter((button) => button !== warehouse && button.id !== COUNCIL_ID);
   }
 
   function shortName(button) {
@@ -221,11 +222,17 @@
     if (warehouse instanceof HTMLButtonElement) {
       if (dock.firstElementChild !== warehouse) dock.insertBefore(warehouse, dock.firstElementChild);
       warehouse.style.marginLeft = "0";
+      warehouse.style.marginRight = "0";
       warehouse.style.height = "30px";
       warehouse.style.minWidth = "116px";
       warehouse.style.padding = "2px 8px";
       warehouse.style.borderWidth = "1px";
       warehouse.style.flex = "0 0 auto";
+
+      const council = document.getElementById(COUNCIL_ID);
+      if (council instanceof HTMLButtonElement && warehouse.nextElementSibling !== council) {
+        dock.insertBefore(council, warehouse.nextSibling);
+      }
     }
 
     buttons.forEach((button) => styleButton(button, visibleNames));
