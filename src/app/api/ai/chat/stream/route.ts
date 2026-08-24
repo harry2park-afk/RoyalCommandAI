@@ -115,7 +115,11 @@ export async function POST(request: Request) {
     const councilCandidates = routed?.length
       ? routed
       : (data.providers as AIProviderId[] | undefined) || [];
-    const councilRequested = isCouncilIntent(data.prompt, councilCandidates.length);
+    const councilRequested = data.councilMode === "on"
+      ? councilCandidates.length >= 2
+      : data.councilMode === "off"
+        ? false
+        : isCouncilIntent(data.prompt, councilCandidates.length);
 
     if (!councilRequested && shouldRunDeveloperAgent(data.prompt)) {
       const cookie = request.headers.get("cookie") || "";
@@ -337,6 +341,7 @@ export async function POST(request: Request) {
             roomId: data.roomId,
             providers,
             councilRequested,
+            councilMode: data.councilMode || "auto",
             modelSelections: modelSelections || {},
             workId: result.workId,
             revision: result.revision,
