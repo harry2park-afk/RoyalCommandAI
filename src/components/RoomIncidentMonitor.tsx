@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import { useParams } from "next/navigation";
+import CouncilModeToggle from "@/components/CouncilModeToggle";
 
 function makeRequestId() {
   try {
@@ -85,5 +86,5 @@ export default function RoomIncidentMonitor() {
     };
   }, [roomId]);
 
-  return null;
+  return <CouncilModeToggle />;
 }
