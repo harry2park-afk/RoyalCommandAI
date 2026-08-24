@@ -7,6 +7,7 @@ import { logger } from "@/lib/logger";
 
 const MAX_CONTEXT_CHARS = 36_000;
 const MAX_DOCUMENTS = 3;
+const WORK_CACHE_TTL_MS = 120_000;
 
 export interface RoomWorkRecord {
   workId: string;
@@ -24,12 +25,29 @@ export type OrchestrateRoomResult = OrchestrateResult & {
   };
 };
 
+type CachedWork = {
+  work: RoomWorkRecord;
+  expiresAt: number;
+};
+
+const workCache = new Map<string, CachedWork>();
+
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
+function workCacheKey(roomId: string, prompt: string) {
+  return `${roomId}\n${prompt}`;
+}
+
 function createWorkMetadata(roomId: string, prompt: string): RoomWorkRecord {
-  const createdAt = new Date().toISOString();
+  const cacheKey = workCacheKey(roomId, prompt);
+  const now = Date.now();
+  const cached = workCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) return cached.work;
+  if (cached) workCache.delete(cacheKey);
+
+  const createdAt = new Date(now).toISOString();
   const stampedOrder = prompt.match(/^\s*\d+-Time\s+(\d{2})\.(\d{2})\.(\d{4})\s*\/\s*(\d{6})\s*\//i);
 
   let workId: string;
@@ -42,12 +60,15 @@ function createWorkMetadata(roomId: string, prompt: string): RoomWorkRecord {
     workId = `RC-${datePart}-${randomUUID().slice(0, 8).toUpperCase()}`;
   }
 
-  return {
+  const work: RoomWorkRecord = {
     workId,
     revision: 1,
     roomId,
     createdAt,
   };
+
+  workCache.set(cacheKey, { work, expiresAt: now + WORK_CACHE_TTL_MS });
+  return work;
 }
 
 function workSystemContext(work: RoomWorkRecord) {
@@ -57,10 +78,9 @@ function workSystemContext(work: RoomWorkRecord) {
     `Revision: ${work.revision}`,
     `Room ID: ${work.roomId}`,
     `Created At: ${work.createdAt}`,
-    "This metadata belongs to the CURRENT user order and is the single authoritative work record for every AI participating in this order.",
-    "All selected AIs must use exactly this same Work ID and Revision for the current order.",
-    "Any different Work ID, Revision, Created At, or work metadata appearing in prior conversation history belongs to an older order and must not be reported as the current order.",
-    "When the user asks for the current Work ID, Revision, Room ID, creation time, or work-record information, report exactly the values above. Never substitute, reconstruct, infer, or reuse a previous Work ID.",
+    "This one metadata record is shared by every AI handling the same current order.",
+    "For this current order, ignore every older Work ID, Revision, Created At, or work-record value that appears in conversation history or prior assistant messages.",
+    "If the user asks for Work ID, Revision, creation time, Room ID, or work-record information, report exactly the host-verified values above. Do not invent, reuse, infer, or substitute another Work ID.",
   ].join("\n");
 }
 
