@@ -77,6 +77,10 @@ export default function CouncilModeToggle() {
     if (!mounted) return;
 
     let frame = 0;
+    const width = 94;
+    const gap = 6;
+    const reserve = width + gap;
+
     const place = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
@@ -86,9 +90,12 @@ export default function CouncilModeToggle() {
           return;
         }
 
+        const reservedMargin = `${reserve}px`;
+        if (warehouse.style.marginRight !== reservedMargin) {
+          warehouse.style.marginRight = reservedMargin;
+        }
+
         const rect = warehouse.getBoundingClientRect();
-        const width = 94;
-        const gap = 6;
         const desiredLeft = rect.right + gap;
         const maxLeft = Math.max(4, window.innerWidth - width - 4);
         const left = Math.min(desiredLeft, maxLeft);
@@ -112,6 +119,8 @@ export default function CouncilModeToggle() {
       window.removeEventListener("resize", place);
       window.removeEventListener("scroll", place, true);
       window.cancelAnimationFrame(frame);
+      const warehouse = document.querySelector<HTMLButtonElement>('button[title^="AI Warehouse"]');
+      if (warehouse) warehouse.style.removeProperty("margin-right");
     };
   }, [mounted]);
 
