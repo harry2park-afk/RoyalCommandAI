@@ -154,6 +154,7 @@ export async function POST(request: Request) {
           }
 
           const responsesByProvider = new Map<AIProviderId, AIProviderResponse>();
+          const resultsByProvider = new Map<AIProviderId, Awaited<ReturnType<typeof orchestrateRoom>>>();
           let blockedResult: Awaited<ReturnType<typeof orchestrateRoom>> | null = null;
 
           await Promise.all(providers.map(async (provider) => {
@@ -164,6 +165,7 @@ export async function POST(request: Request) {
               modelSelections,
             });
 
+            resultsByProvider.set(provider, result);
             if (result.blocked && !blockedResult) blockedResult = result;
             if (response) responsesByProvider.set(provider, response);
 
@@ -186,6 +188,16 @@ export async function POST(request: Request) {
             .map((provider) => responsesByProvider.get(provider))
             .filter((item): item is AIProviderResponse => Boolean(item));
 
+          const workSource = providers
+            .map((provider) => resultsByProvider.get(provider))
+            .find((item) => Boolean(item?.workId && item?.revision && item?.workRecord));
+          const workId = workSource?.workId;
+          const revision = workSource?.revision;
+          const workRecord = workSource?.workRecord;
+          const workHeader = workId && revision ? `**Work ID:** ${workId} | **Revision:** ${revision}` : "";
+          const withWorkHeader = (answer: string) => workHeader ? `${workHeader}\n\n${answer}` : answer;
+          const workNote = workId && revision ? `Royal Command work record: ${workId}, Revision ${revision}.` : "";
+
           let result: StreamCouncilResult;
 
           if (blockedResult) {
@@ -202,9 +214,13 @@ export async function POST(request: Request) {
               blocked: false,
               providers,
               responses,
-              finalAnswer: council.finalAnswer,
+              workId,
+              revision,
+              workRecord,
+              finalAnswer: withWorkHeader(council.finalAnswer),
               comparison: {
                 ...scoring.comparison,
+                ...(workRecord ? { work: workRecord } : {}),
                 notes: [
                   "Council Round 1 used actual independent outputs from the selected providers.",
                   `Council Round 2 completed ${council.reviews.filter((review) => !review.error && review.content.trim()).length} successful peer reviews.`,
@@ -213,6 +229,7 @@ export async function POST(request: Request) {
                     : "Final synthesis used the safe single-answer fallback.",
                   council.synthesisError ? `Synthesis fallback reason: ${council.synthesisError}` : "Final synthesis completed successfully.",
                   "Council mode suppresses intermediate provider messages and returns one integrated final answer to the Command Room.",
+                  ...(workNote ? [workNote] : []),
                   ...scoring.comparison.notes,
                 ],
               },
@@ -234,13 +251,18 @@ export async function POST(request: Request) {
               blocked: false,
               providers,
               responses,
-              finalAnswer,
+              workId,
+              revision,
+              workRecord,
+              finalAnswer: withWorkHeader(finalAnswer),
               comparison: {
                 ...scoring.comparison,
+                ...(workRecord ? { work: workRecord } : {}),
                 notes: [
                   "Each selected AI ran independently and was released to the user immediately on completion without waiting for sibling AIs.",
                   "Explicit model selections are resolved through the Royal Command Model Registry and are never silently substituted with a different model.",
                   "Empty or failed provider output receives one automatic retry before being reported as incomplete.",
+                  ...(workNote ? [workNote] : []),
                   ...scoring.comparison.notes,
                 ],
               },
@@ -265,7 +287,14 @@ export async function POST(request: Request) {
                 author_type: "ai",
                 content: result.finalAnswer,
                 language,
-                metadata: { blocked: result.blocked, comparison: result.comparison, providers: result.providers },
+                metadata: {
+                  blocked: result.blocked,
+                  comparison: result.comparison,
+                  providers: result.providers,
+                  workId: result.workId,
+                  revision: result.revision,
+                  workRecord: result.workRecord,
+                },
               })
               .select("*")
               .single();
@@ -290,7 +319,15 @@ export async function POST(request: Request) {
               authorType: "ai",
               content: result.finalAnswer,
               language,
-              metadata: { blocked: result.blocked, comparison: result.comparison, providers: result.providers, responses: result.responses },
+              metadata: {
+                blocked: result.blocked,
+                comparison: result.comparison,
+                providers: result.providers,
+                responses: result.responses,
+                workId: result.workId,
+                revision: result.revision,
+                workRecord: result.workRecord,
+              },
             });
           }
 
@@ -299,6 +336,8 @@ export async function POST(request: Request) {
             providers,
             councilRequested,
             modelSelections: modelSelections || {},
+            workId: result.workId,
+            revision: result.revision,
             latencyMs: result.latencyMs,
           });
           sendLine(controller, { type: "final", result: { ...result, userMessage, aiMessage } });
