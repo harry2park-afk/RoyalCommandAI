@@ -151,7 +151,7 @@ export default function CouncilModeToggle() {
 
     setReactTextareaValue(
       textarea,
-      `Council 종합 요청입니다. 아래의 원래 질문을 선택된 AI들이 다시 검토하고, Council에서 하나의 최종 종합 답변만 작성하십시오.\n\n원래 질문:\n${question}`,
+      `Council synthesis request. Review the original question below with the currently selected AIs and return one final Council answer only.\n\nOriginal question:\n${question}`,
     );
 
     window.setTimeout(() => sendButton.click(), 80);
@@ -161,12 +161,12 @@ export default function CouncilModeToggle() {
   if (!mounted) return null;
 
   const label = status === "requested"
-    ? "Council 실행"
+    ? "Council Run"
     : status === "need-ai"
-      ? "AI 2개 필요"
+      ? "Need 2 AIs"
       : status === "no-question"
-        ? "질문 없음"
-        : "Council 보류";
+        ? "No Question"
+        : "Council Hold";
 
   return createPortal(
     <button
@@ -174,8 +174,8 @@ export default function CouncilModeToggle() {
       type="button"
       onClick={runCouncilOnce}
       disabled={status !== "hold"}
-      aria-label="Council 보류. 클릭하면 마지막 질문에 대해 Council을 한 번 실행합니다."
-      title="기본은 Council 보류입니다. 각 AI 답변을 먼저 받은 뒤 필요할 때 클릭하면 마지막 질문으로 Council을 1회 실행합니다."
+      aria-label="Council Hold. Click to run Council once for the latest question."
+      title="Council is held by default. After individual AI answers arrive, click once to run Council on the latest question."
       style={{
         position: "fixed",
         top: position.top,
