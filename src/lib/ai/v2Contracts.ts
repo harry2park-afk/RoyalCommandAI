@@ -264,13 +264,15 @@ export type EvidenceRecord = {
   payloadHash?: string;
 };
 
+const evidenceKinds = (...kinds: EvidenceKind[]): readonly EvidenceKind[] => Object.freeze(kinds);
+
 export const REQUIRED_EVIDENCE_BY_MODE: Readonly<Record<WorkMode, readonly EvidenceKind[]>> = Object.freeze({
-  CHAT: Object.freeze(["RESPONSE"]),
-  ANALYSE: Object.freeze(["RESPONSE"]),
-  RESEARCH: Object.freeze(["RESPONSE", "SOURCE"]),
-  TOOL_TASK: Object.freeze(["TOOL_RESULT"]),
-  DEVELOP: Object.freeze(["CODE_CHANGE", "TEST", "COMMIT", "PULL_REQUEST", "PREVIEW"]),
-  BENCHMARK: Object.freeze(["RESPONSE"]),
+  CHAT: evidenceKinds("RESPONSE"),
+  ANALYSE: evidenceKinds("RESPONSE"),
+  RESEARCH: evidenceKinds("RESPONSE", "SOURCE"),
+  TOOL_TASK: evidenceKinds("TOOL_RESULT"),
+  DEVELOP: evidenceKinds("CODE_CHANGE", "TEST", "COMMIT", "PULL_REQUEST", "PREVIEW"),
+  BENCHMARK: evidenceKinds("RESPONSE"),
 });
 
 export function missingRequiredEvidence(mode: WorkMode, evidence: readonly EvidenceRecord[]): EvidenceKind[] {
@@ -338,16 +340,18 @@ export const CANCELLATION_ACTIONS = [
 ] as const;
 export type CancellationAction = (typeof CANCELLATION_ACTIONS)[number];
 
+const cancellationActions = (...actions: CancellationAction[]): readonly CancellationAction[] => Object.freeze(actions);
+
 export const CANCELLATION_MATRIX: Readonly<Record<string, readonly CancellationAction[]>> = Object.freeze({
-  provider_inference: Object.freeze(["ABORT", "STOP_DELIVERY"]),
-  streaming: Object.freeze(["STOP_DELIVERY"]),
-  tool_R0: Object.freeze(["ABORT"]),
-  tool_R1: Object.freeze(["ABORT", "PRESERVE_RESULT"]),
-  tool_R2: Object.freeze(["PRESERVE_RESULT", "CLEANUP_ASYNC"]),
-  tool_R3: Object.freeze(["REQUIRE_REVERT"]),
-  git_commit: Object.freeze(["CLOSE_OR_ABANDON", "PRESERVE_RESULT"]),
-  pull_request: Object.freeze(["CLOSE_OR_ABANDON"]),
-  preview: Object.freeze(["CLEANUP_ASYNC"]),
+  provider_inference: cancellationActions("ABORT", "STOP_DELIVERY"),
+  streaming: cancellationActions("STOP_DELIVERY"),
+  tool_R0: cancellationActions("ABORT"),
+  tool_R1: cancellationActions("ABORT", "PRESERVE_RESULT"),
+  tool_R2: cancellationActions("PRESERVE_RESULT", "CLEANUP_ASYNC"),
+  tool_R3: cancellationActions("REQUIRE_REVERT"),
+  git_commit: cancellationActions("CLOSE_OR_ABANDON", "PRESERVE_RESULT"),
+  pull_request: cancellationActions("CLOSE_OR_ABANDON"),
+  preview: cancellationActions("CLEANUP_ASYNC"),
 });
 
 export const ACK_SYNC_ALLOWLIST = Object.freeze([
