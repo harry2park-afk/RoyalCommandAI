@@ -14,6 +14,8 @@ export interface RoomWorkRecord {
   revision: number;
   roomId: string;
   createdAt: string;
+  title?: string;
+  parentRevision?: number;
 }
 
 export type OrchestrateRoomResult = OrchestrateResult & {
@@ -40,7 +42,37 @@ function workCacheKey(roomId: string, prompt: string) {
   return `${roomId}\n${prompt}`;
 }
 
-function createWorkMetadata(roomId: string, prompt: string): RoomWorkRecord {
+function titleFromPrompt(prompt: string) {
+  const cleaned = prompt
+    .replace(/^\s*\d+-Time\s+\d{2}\.\d{2}\.\d{4}\s*\/\s*\d{6}\s*\/[^\n]*\n*/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned.slice(0, 120) || "Royal Command work";
+}
+
+function latestWorkFromHistory(history: OrchestrateInput["history"]): { workId: string; revision: number } | null {
+  if (!history?.length) return null;
+  for (let index = history.length - 1; index >= 0; index -= 1) {
+    const content = history[index]?.content || "";
+    const match = content.match(/\*\*Work ID:\*\*\s*(RC-[A-Z0-9-]+)\s*\|\s*\*\*Revision:\*\*\s*(\d+)/i)
+      || content.match(/Work ID:\s*(RC-[A-Z0-9-]+)[\s\S]{0,80}?Revision:\s*(\d+)/i);
+    if (match) return { workId: match[1].toUpperCase(), revision: Math.max(1, Number(match[2] || 1)) };
+  }
+  return null;
+}
+
+function explicitWorkFromPrompt(prompt: string): { workId: string; revision?: number } | null {
+  const work = prompt.match(/\b(RC-\d{8}(?:-[A-Z0-9]+)+)\b/i);
+  if (!work) return null;
+  const revision = prompt.match(/(?:REV(?:ISION)?[-\s:]*)?(\d+)\b/i);
+  return { workId: work[1].toUpperCase(), revision: revision ? Math.max(1, Number(revision[1])) : undefined };
+}
+
+function isContinuationPrompt(prompt: string) {
+  return /((이|그|위|방금|이전|같은)\s*(작업|오더|수정|내용|건)|이어(?:서|가기|서서)?|계속|다음\s*ai|다음\s*에이아이|검토|점검|리뷰|review|revision|rev\b|수정한\s*것|고친\s*것)/i.test(prompt);
+}
+
+function createWorkMetadata(roomId: string, prompt: string, history: OrchestrateInput["history"]): RoomWorkRecord {
   const cacheKey = workCacheKey(roomId, prompt);
   const now = Date.now();
   const cached = workCache.get(cacheKey);
@@ -49,9 +81,24 @@ function createWorkMetadata(roomId: string, prompt: string): RoomWorkRecord {
 
   const createdAt = new Date(now).toISOString();
   const stampedOrder = prompt.match(/^\s*\d+-Time\s+(\d{2})\.(\d{2})\.(\d{4})\s*\/\s*(\d{6})\s*\//i);
+  const explicitWork = explicitWorkFromPrompt(prompt);
+  const previousWork = latestWorkFromHistory(history);
+  const continuing = Boolean(explicitWork || (previousWork && isContinuationPrompt(prompt)));
 
   let workId: string;
-  if (stampedOrder) {
+  let revision = 1;
+  let parentRevision: number | undefined;
+
+  if (explicitWork) {
+    workId = explicitWork.workId;
+    const previousRevision = previousWork?.workId === workId ? previousWork.revision : (explicitWork.revision || 1);
+    parentRevision = previousRevision;
+    revision = previousRevision + 1;
+  } else if (continuing && previousWork) {
+    workId = previousWork.workId;
+    parentRevision = previousWork.revision;
+    revision = previousWork.revision + 1;
+  } else if (stampedOrder) {
     const [, day, month, year, time] = stampedOrder;
     const roomPart = roomId.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase() || "ROOM";
     workId = `RC-${year}${month}${day}-${time}-${roomPart}`;
@@ -62,9 +109,11 @@ function createWorkMetadata(roomId: string, prompt: string): RoomWorkRecord {
 
   const work: RoomWorkRecord = {
     workId,
-    revision: 1,
+    revision,
     roomId,
     createdAt,
+    title: titleFromPrompt(prompt),
+    ...(parentRevision ? { parentRevision } : {}),
   };
 
   workCache.set(cacheKey, { work, expiresAt: now + WORK_CACHE_TTL_MS });
@@ -76,10 +125,12 @@ function workSystemContext(work: RoomWorkRecord) {
     "ROYAL COMMAND CURRENT ORDER WORK METADATA — HOST VERIFIED — AUTHORITATIVE",
     `Work ID: ${work.workId}`,
     `Revision: ${work.revision}`,
+    work.parentRevision ? `Parent Revision: ${work.parentRevision}` : "Parent Revision: none",
+    `Title: ${work.title || "Royal Command work"}`,
     `Room ID: ${work.roomId}`,
     `Created At: ${work.createdAt}`,
     "This one metadata record is shared by every AI handling the same current order.",
-    "For this current order, ignore every older Work ID, Revision, Created At, or work-record value that appears in conversation history or prior assistant messages.",
+    "For this current order, ignore every older Work ID, Revision, Created At, or work-record value that appears in conversation history or prior assistant messages unless it is the parent revision explicitly referenced above.",
     "If the user asks for Work ID, Revision, creation time, Room ID, or work-record information, report exactly the host-verified values above. Do not invent, reuse, infer, or substitute another Work ID.",
   ].join("\n");
 }
@@ -145,11 +196,11 @@ async function loadRoomConversationHistory(roomId: string, fallbackHistory: Orch
 }
 
 export async function orchestrateRoom(roomId: string, input: OrchestrateInput): Promise<OrchestrateRoomResult> {
-  const work = createWorkMetadata(roomId, input.prompt);
   const [documentContext, history] = await Promise.all([
     loadRoomDocumentContext(roomId),
     loadRoomConversationHistory(roomId, input.history),
   ]);
+  const work = createWorkMetadata(roomId, input.prompt, history);
   const systemExtra = [workSystemContext(work), input.systemExtra, documentContext]
     .filter(Boolean)
     .join("\n\n");
@@ -158,6 +209,7 @@ export async function orchestrateRoom(roomId: string, input: OrchestrateInput): 
     roomId,
     workId: work.workId,
     revision: work.revision,
+    parentRevision: work.parentRevision,
     documentIncluded: Boolean(documentContext),
     documentChars: documentContext.length,
     historyMessages: history.length,
@@ -189,7 +241,7 @@ export async function orchestrateRoom(roomId: string, input: OrchestrateInput): 
       work,
       notes: [
         ...result.comparison.notes,
-        `Royal Command work record: ${work.workId}, Revision ${work.revision}.`,
+        `Royal Command work record: ${work.workId}, Revision ${work.revision}${work.parentRevision ? `, Parent Revision ${work.parentRevision}` : ""}.`,
       ],
     },
   };
