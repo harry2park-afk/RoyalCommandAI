@@ -3,6 +3,7 @@
 
   const STORAGE_KEY = `royalcommand:room:${window.location.pathname}:compact-ai-dock`;
   const WAREHOUSE_LABEL = "AI Warehouse";
+  const REQUIRED_VISIBLE = ["ChatGPT"];
   let seeded = false;
   let scheduled = false;
   let pendingWarehouseName = "";
@@ -199,6 +200,12 @@
 
     seedVisible(buttons);
     let visibleNames = readVisible();
+    const availableNames = buttons.map(shortName);
+    const requiredMissing = REQUIRED_VISIBLE.filter((name) => availableNames.includes(name) && !visibleNames.includes(name));
+    if (requiredMissing.length) {
+      visibleNames = [...REQUIRED_VISIBLE.filter((name) => availableNames.includes(name)), ...visibleNames];
+      writeVisible(visibleNames);
+    }
 
     if (pendingWarehouseName) {
       const match = buttons.find((button) => shortName(button) === pendingWarehouseName);
