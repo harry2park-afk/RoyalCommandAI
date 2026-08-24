@@ -16,9 +16,12 @@ export interface RoomWorkRecord {
 }
 
 export type OrchestrateRoomResult = OrchestrateResult & {
-  workId: string;
-  revision: number;
-  workRecord: RoomWorkRecord;
+  workId?: string;
+  revision?: number;
+  workRecord?: RoomWorkRecord;
+  comparison: OrchestrateResult["comparison"] & {
+    work?: RoomWorkRecord;
+  };
 };
 
 function cleanText(value: unknown) {
