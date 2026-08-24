@@ -49,7 +49,9 @@ function shouldRunDeveloperAgent(prompt: string) {
   if (hasExplicitNoExecutionIntent(prompt)) return false;
   const subject = /(코드|개발|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능|파일|github|commit|push|merge|배포|vercel|component|tsx|typescript|css|시스템|라우팅|api|웹사이트|홈페이지|페이지|앱|agent|에이전트)/i.test(prompt);
   const action = /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|바꿔(?:\s*줘|\s*주세요)?|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|붙여\s*넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|배포해(?:\s*줘|\s*주세요)?|배포하세요|실행해(?:\s*줘|\s*주세요)?|실행하세요|commit\b|push\b|merge\b|코드를\s*(?:써|작성|변경|수정)|파일을\s*(?:생성|수정|변경|삭제)|실제로\s*(?:수정|변경|구현|배포|실행))/i.test(prompt);
-  return subject && action;
+  const workContinuation = /\bRC-\d{8}(?:-[A-Z0-9]+)+\b/i.test(prompt)
+    && /(다시\s*실행|재실행|계속|이어(?:서|가기)?|진행|실행(?:해|하세요|해줘|해주세요)?|고쳐|수정(?:해|하세요|해줘|해주세요)?)/i.test(prompt);
+  return (subject && action) || workContinuation;
 }
 
 function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
