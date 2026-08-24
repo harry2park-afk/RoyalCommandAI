@@ -64,7 +64,7 @@ function latestWorkFromHistory(history: OrchestrateInput["history"]): { workId: 
 function explicitWorkFromPrompt(prompt: string): { workId: string; revision?: number } | null {
   const work = prompt.match(/\b(RC-\d{8}(?:-[A-Z0-9]+)+)\b/i);
   if (!work) return null;
-  const revision = prompt.match(/(?:REV(?:ISION)?[-\s:]*)?(\d+)\b/i);
+  const revision = prompt.match(/\b(?:REV(?:ISION)?\s*[-:#]?\s*)(\d+)\b/i);
   return { workId: work[1].toUpperCase(), revision: revision ? Math.max(1, Number(revision[1])) : undefined };
 }
 
