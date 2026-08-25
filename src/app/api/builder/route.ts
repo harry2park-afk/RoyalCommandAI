@@ -46,6 +46,44 @@ type BuilderAction = {
   content?: string;
 };
 
+type GitHubObject = {
+  message?: string;
+  sha?: string;
+  content?: string;
+  object?: { sha?: string };
+  commit?: { sha?: string };
+  number?: number;
+  html_url?: string;
+  tree?: Array<{ type?: string; path?: string; size?: number }>;
+  [key: string]: unknown;
+};
+
+type CodexResponseBody = {
+  output_text?: string;
+  output?: Array<{ content?: Array<{ text?: string }> }>;
+  status?: string;
+  incomplete_details?: { reason?: string };
+  error?: { message?: string };
+  model?: string;
+  id?: string;
+};
+
+type BuilderChatData = {
+  roomId: string;
+  prompt: string;
+  language?: string;
+  history?: unknown;
+};
+
+type BuilderPersistResult = {
+  finalAnswer: string;
+  workId: string;
+  revision: number;
+  evidence: Record<string, unknown>;
+  latencyMs: number;
+  [key: string]: unknown;
+};
+
 function developerEmails() {
   const configured = (process.env.ROYAL_COMMAND_DEV_EMAILS || "")
     .split(",")
@@ -118,7 +156,7 @@ function titleFromPrompt(prompt: string) {
   return prompt.replace(/\s+/g, " ").trim().slice(0, 120) || "Royal Command Builder work";
 }
 
-async function github(path: string, init?: RequestInit) {
+async function github<T extends GitHubObject | GitHubObject[] = GitHubObject>(path: string, init?: RequestInit): Promise<T> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN is not configured in the Royal Command server environment");
 
@@ -134,10 +172,11 @@ async function github(path: string, init?: RequestInit) {
   });
 
   const text = await response.text();
-  let data: any = {};
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
-  if (!response.ok) throw new Error(data?.message || `GitHub HTTP ${response.status}`);
-  return data;
+  let data: GitHubObject | GitHubObject[] = {};
+  try { data = text ? JSON.parse(text) as GitHubObject | GitHubObject[] : {}; } catch { data = { message: text }; }
+  const errorMessage = !Array.isArray(data) && typeof data.message === "string" ? data.message : `GitHub HTTP ${response.status}`;
+  if (!response.ok) throw new Error(errorMessage);
+  return data as T;
 }
 
 async function getFile(path: string, ref = BASE_BRANCH) {
@@ -155,12 +194,12 @@ async function getFile(path: string, ref = BASE_BRANCH) {
   }
 }
 
-function responseText(body: any) {
-  if (typeof body?.output_text === "string" && body.output_text.trim()) return body.output_text.trim();
+function responseText(body: CodexResponseBody) {
+  if (typeof body.output_text === "string" && body.output_text.trim()) return body.output_text.trim();
   const parts: string[] = [];
-  for (const item of Array.isArray(body?.output) ? body.output : []) {
-    for (const content of Array.isArray(item?.content) ? item.content : []) {
-      if (typeof content?.text === "string") parts.push(content.text);
+  for (const item of Array.isArray(body.output) ? body.output : []) {
+    for (const content of Array.isArray(item.content) ? item.content : []) {
+      if (typeof content.text === "string") parts.push(content.text);
     }
   }
   return parts.join("\n").trim();
@@ -170,42 +209,63 @@ async function codexJson(instruction: string, maxOutputTokens = 12_000) {
   const key = (process.env.OPENAI_API_KEY || "").trim();
   if (!key) throw new Error("OPENAI_API_KEY is not configured for RC Builder");
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CODEX_TIMEOUT_MS);
-  try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: CODEX_MODEL,
-        input: instruction,
-        reasoning: { effort: "high" },
-        max_output_tokens: maxOutputTokens,
-      }),
-      signal: controller.signal,
-      cache: "no-store",
-    });
+  const requestOnce = async (effort: "high" | "medium", outputBudget: number) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CODEX_TIMEOUT_MS);
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: CODEX_MODEL,
+          input: instruction,
+          reasoning: { effort },
+          max_output_tokens: outputBudget,
+        }),
+        signal: controller.signal,
+        cache: "no-store",
+      });
 
-    const text = await response.text();
-    let body: any = {};
-    try { body = text ? JSON.parse(text) : {}; }
-    catch { throw new Error(`Codex returned non-JSON HTTP ${response.status}`); }
-    if (!response.ok) {
-      throw new Error(body?.error?.message || `Codex Responses API HTTP ${response.status}`);
+      const text = await response.text();
+      let body: CodexResponseBody = {};
+      try { body = text ? JSON.parse(text) as CodexResponseBody : {}; }
+      catch { throw new Error(`Codex returned non-JSON HTTP ${response.status}`); }
+      if (!response.ok) {
+        throw new Error(body?.error?.message || `Codex Responses API HTTP ${response.status}`);
+      }
+
+      return {
+        body,
+        output: responseText(body),
+        exhausted: body?.status === "incomplete" && body?.incomplete_details?.reason === "max_output_tokens",
+      };
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error(`Codex Builder timed out after ${Math.round(CODEX_TIMEOUT_MS / 1000)}s`);
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
+  };
 
-    const output = responseText(body);
-    if (!output) throw new Error("Codex returned an empty Builder response");
-    return parseJsonObject(output);
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error(`Codex Builder timed out after ${Math.round(CODEX_TIMEOUT_MS / 1000)}s`);
-    throw error;
-  } finally {
-    clearTimeout(timer);
+  const first = await requestOnce("high", maxOutputTokens);
+  if (first.output) return parseJsonObject(first.output);
+
+  if (first.exhausted) {
+    const retryBudget = Math.min(Math.max(maxOutputTokens * 2, 8_000), 24_000);
+    logger.warn("builder.codex_output_retry", {
+      model: CODEX_MODEL,
+      firstBudget: maxOutputTokens,
+      retryBudget,
+      reason: "reasoning consumed output budget before final JSON",
+    });
+    const retry = await requestOnce("medium", retryBudget);
+    if (retry.output) return parseJsonObject(retry.output);
   }
+
+  throw new Error("Codex returned an empty Builder response");
 }
 
 async function updateWork(work: WorkMeta, status: WorkState, patch: { evidence?: Record<string, unknown>; builderModel?: string } = {}) {
@@ -333,11 +393,13 @@ async function ensureWorkBranch(branch: string) {
     if (!/not found/i.test(message)) throw error;
   }
   const baseRef = await github(`/git/ref/heads/${encodeURIComponent(BASE_BRANCH)}`);
+  const baseSha = baseRef.object?.sha;
+  if (!baseSha) throw new Error("Base branch SHA is missing");
   try {
     await github("/git/refs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha }),
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseSha }),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -384,38 +446,31 @@ async function executeAction(action: BuilderAction, instruction: string, branch:
   return { path, operation: action.operation, commit: String(result.commit?.sha || "") };
 }
 
-async function createPullRequest(work: WorkMeta, branch: string, commits: Array<{ path: string; operation: string; commit: string }>) {
-  const title = `[${work.workId}][REV-${String(work.revision).padStart(2, "0")}][Codex] Royal Command Builder work`;
-  const body = [
-    `Work ID: ${work.workId}`,
-    `Revision: ${work.revision}`,
-    `Builder: Codex (${CODEX_MODEL})`,
-    `Branch: ${branch}`,
-    "",
-    "Verified changes:",
-    ...commits.map((item) => `- ${item.operation}: ${item.path} — ${item.commit}`),
-    "",
-    "Production merge requires user approval.",
-  ].join("\n");
-  try {
-    const pr = await github("/pulls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, head: branch, base: BASE_BRANCH, body }),
-    });
-    return { number: pr.number || null, url: pr.html_url || "" };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (/pull request.*already exists|validation failed/i.test(message)) {
-      const prs = await github(`/pulls?head=${encodeURIComponent(REPO.split("/")[0] + ":" + branch)}&base=${encodeURIComponent(BASE_BRANCH)}&state=open`);
-      const first = Array.isArray(prs) ? prs[0] : null;
-      if (first) return { number: first.number || null, url: first.html_url || "" };
-    }
-    throw error;
-  }
+async function findOpenBuilderPullRequest(branch: string) {
+  const owner = REPO.split("/")[0] || "";
+  const prs = await github<GitHubObject[]>(`/pulls?head=${encodeURIComponent(owner + ":" + branch)}&base=${encodeURIComponent(BASE_BRANCH)}&state=open`);
+  const first = Array.isArray(prs) ? prs[0] : null;
+  return first ? { number: first.number || null, url: first.html_url || "" } : null;
 }
 
-async function persistMessages(user: Awaited<ReturnType<typeof getCurrentUser>>, data: any, result: any) {
+async function createPullRequest(work: WorkMeta, branch: string, commits: Array<{ path: string; operation: string; commit: string }>) {
+  void work;
+  void commits;
+
+  const existing = await findOpenBuilderPullRequest(branch);
+  if (existing) return existing;
+
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 2_500));
+    const created = await findOpenBuilderPullRequest(branch);
+    if (created) return created;
+  }
+
+  throw new Error("GitHub-native RC Builder PR workflow did not create a PR within 45 seconds");
+}
+
+async function persistMessages(user: Awaited<ReturnType<typeof getCurrentUser>>, data: BuilderChatData, result: BuilderPersistResult) {
   if (!user) return result;
   const language = data.language || user.defaultLanguage;
   if (isSupabaseConfigured()) {
@@ -516,7 +571,8 @@ export async function POST(request: Request) {
     const tree = await github(`/git/trees/${encodeURIComponent(BASE_BRANCH)}?recursive=1`);
     const paths = (tree.tree || [])
       .filter((entry: { type?: string; path?: string; size?: number }) => entry.type === "blob" && entry.path && safePath(entry.path) && (entry.size || 0) <= MAX_FILE_BYTES)
-      .map((entry: { path: string }) => entry.path)
+      .map((entry) => entry.path)
+      .filter((path): path is string => typeof path === "string")
       .slice(0, 1800);
 
     const selection = await codexJson([
@@ -570,18 +626,19 @@ export async function POST(request: Request) {
     ].join("\n"), 16_000);
 
     const rawActions = Array.isArray(generated.actions) ? generated.actions.slice(0, MAX_FILES) : [];
-    const actions: BuilderAction[] = rawActions.map((item: any) => {
-      const path = String(item?.path || "").trim();
-      const operation: BuilderAction["operation"] = item?.operation === "create" || item?.operation === "delete" ? item.operation : "update";
+    const actions: BuilderAction[] = rawActions.map((value: unknown) => {
+      const item = value && typeof value === "object" ? value as Record<string, unknown> : {};
+      const path = String(item.path || "").trim();
+      const operation: BuilderAction["operation"] = item.operation === "create" || item.operation === "delete" ? item.operation : "update";
       if (!safePath(path)) throw new Error(`Unsafe Codex path rejected: ${path}`);
       if (sensitivePath(path) && !explicitSensitiveInstruction(data.prompt)) throw new Error(`Sensitive file requires explicit security/auth instruction: ${path}`);
-      if (operation === "delete") return { path, operation, reason: typeof item?.reason === "string" ? item.reason : undefined };
-      const encoded = typeof item?.contentBase64 === "string" ? item.contentBase64.trim() : "";
+      if (operation === "delete") return { path, operation, reason: typeof item.reason === "string" ? item.reason : undefined };
+      const encoded = typeof item.contentBase64 === "string" ? item.contentBase64.trim() : "";
       if (!encoded) throw new Error(`Codex returned no complete file content for ${path}`);
       const content = Buffer.from(encoded, "base64").toString("utf8");
       if (!content.trim()) throw new Error(`Decoded Codex file is empty: ${path}`);
       if (Buffer.byteLength(content, "utf8") > MAX_FILE_BYTES) throw new Error(`Codex generated file too large: ${path}`);
-      return { path, operation, reason: typeof item?.reason === "string" ? item.reason : undefined, content };
+      return { path, operation, reason: typeof item.reason === "string" ? item.reason : undefined, content };
     });
     if (!actions.length) throw new Error("Codex did not produce any safe executable actions");
 
