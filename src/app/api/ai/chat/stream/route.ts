@@ -63,23 +63,35 @@ function validResponse(response?: AIProviderResponse) {
   return Boolean(response && !response.error && response.content.trim().length > 1);
 }
 
-function escapeRegExp(value: string) {
-  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
 function enforceAuthoritativeWorkMetadata(content: string, work?: RoomWorkRecord) {
   if (!work || !content.trim()) return content;
 
-  const workId = escapeRegExp(work.workId);
-  const head = content.slice(0, 1400);
-  const tail = content.slice(1400);
-  const normalizedHead = head.replace(
-    new RegExp(`(${workId}[\\s\\S]{0,120}?(?:Revision|리비전)(?:\\s*(?:is|은|는|:|-))?\\s*)(\\d+)`, "gi"),
-    `$1${work.revision}`,
-  );
-  const header = `**Work ID:** ${work.workId} | **Revision:** ${work.revision}`;
+  const currentWorkId = work.workId.toUpperCase();
+  const lines = content.split("\n");
+  const cleanedLines = lines.filter((line, index) => {
+    if (index > 24) return true;
 
-  return `${header}\n\n${normalizedHead}${tail}`;
+    const plain = line.replace(/[*_`#]/g, "").trim();
+    if (!plain) return true;
+
+    const containsCurrentWork = plain.toUpperCase().includes(currentWorkId);
+    if (containsCurrentWork && /(work\s*id|revision|리비전)/i.test(plain)) return false;
+    if (/^(?:현재\s*)?(?:work\s*id|revision|parent\s+revision|room\s*id|created\s+at)\s*(?::|-|is\b|은\b|는\b)/i.test(plain)) return false;
+    if (/^(?:host-verified\s+work\s+metadata|현재\s+host\s+지정\s+메타데이터\s+보고)$/i.test(plain)) return false;
+
+    return true;
+  });
+
+  const body = cleanedLines.join("\n").replace(/^\s*(?:---\s*)?\n+/, "").trimStart();
+  const header = [
+    "**Host-Verified Work Metadata**",
+    `**Work ID:** ${work.workId}`,
+    `**Revision:** ${work.revision}`,
+    `**Parent Revision:** ${work.parentRevision ?? "none"}`,
+    `**Room ID:** ${work.roomId}`,
+  ].join("\n");
+
+  return body ? `${header}\n\n${body}` : header;
 }
 
 async function runProviderWithOneRetry(
