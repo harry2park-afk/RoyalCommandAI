@@ -62,8 +62,9 @@ export default function CouncilModeToggle() {
     const patchedFetch: typeof window.fetch = async (input, init) => {
       const url = requestUrl(input);
       const method = String(init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
+      const isRoomChat = url?.pathname === "/api/ai/chat/stream" || url?.pathname === "/api/ai/chat";
 
-      if (url?.pathname === "/api/ai/chat/stream" && method === "POST" && typeof init?.body === "string") {
+      if (isRoomChat && method === "POST" && typeof init?.body === "string") {
         try {
           const parsed = JSON.parse(init.body) as Record<string, unknown>;
           parsed.councilMode = mode;
@@ -93,7 +94,7 @@ export default function CouncilModeToggle() {
       onClick={() => setMode((current) => current === "on" ? "off" : "on")}
       aria-pressed={on}
       aria-label={on ? "Council ON. Click to stop Council." : "Council Stop. Click to turn Council on."}
-      title={on ? "Council ON — click to stop Council" : "Council STOP — click only when Council is needed"}
+      title={on ? "Council ON — click to stop Council" : "Council STOP — Council is completely disabled until you turn it on"}
       style={{
         position: "relative",
         zIndex: 1,
