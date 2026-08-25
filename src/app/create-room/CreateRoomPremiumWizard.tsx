@@ -6,9 +6,7 @@ import {
   BASIC_TRIAL_DAYS,
   CATALOG,
   CREATE_ROOM_FORM_VERSION,
-  INDUSTRIES,
   PROMOTION_PERCENT,
-  WEBSITE_BENEFIT_THRESHOLD_AUD,
   type CatalogItem,
 } from "@/lib/rooms/universal-create-room-config";
 import {
@@ -22,18 +20,6 @@ type Props = {
   initialLocale?: string;
   initialRoomName?: string;
   initialCountryCode?: string;
-};
-
-const CONTROL = {
-  aiRecommend: "AI Recommend My Room",
-  direct: "Choose Myself",
-  back: "Back",
-  review: "Review Selection",
-  edit: "Edit",
-  agreementPayment: "Agreement & Payment",
-  readyPreview: "Ready for Preview Integration",
-  included: "Included",
-  priceToConfirm: "Price to confirm",
 };
 
 function normaliseLocale(value?: string): CreateRoomLocale {
@@ -60,47 +46,46 @@ function money(value: number) {
   }).format(value);
 }
 
-function inferIndustry(text: string) {
-  const value = text.toLowerCase();
-  return INDUSTRIES.find((industry) => industry.keywords.some((keyword) => value.includes(keyword.toLowerCase()))) || INDUSTRIES.find((industry) => industry.id === "general")!;
-}
-
-function packageSelection(profileId: string, level: "essential" | "recommended" | "full") {
-  const profile = INDUSTRIES.find((item) => item.id === profileId) || INDUSTRIES[INDUSTRIES.length - 1];
-  const base = profile.recommended;
-  if (level === "essential") return base.slice(0, Math.min(3, base.length));
-  if (level === "recommended") return base;
-  return Array.from(new Set([...base, "incoming-calls", "outgoing-calls", "customer-portal", "staff-accounts", "mail-service"]));
-}
-
 function categoryLabel(category: CatalogItem["category"], locale: CreateRoomLocale) {
   if (locale === "ko") {
-    return ({ ai: "AI", secretary: "AI 비서", communication: "전화·SMS·이메일", business: "문서·업무", mail: "우편 서비스", website: "웹사이트 제작", maintenance: "웹사이트 관리·업그레이드" } as const)[category];
+    return ({
+      ai: "AI 선택",
+      secretary: "AI 비서",
+      communication: "전화 · SMS · 이메일",
+      business: "문서 · 업무",
+      mail: "우편 서비스",
+      website: "웹사이트 제작",
+      maintenance: "웹사이트 관리",
+    } as const)[category];
   }
-  return ({ ai: "AI", secretary: "AI Secretary", communication: "Communication", business: "Documents & Business", mail: "Mail Service", website: "Website", maintenance: "Website Management & Upgrade" } as const)[category];
+  return ({
+    ai: "AI",
+    secretary: "AI Secretary",
+    communication: "Phone · SMS · Email",
+    business: "Documents · Business",
+    mail: "Mail Service",
+    website: "Website Production",
+    maintenance: "Website Management",
+  } as const)[category];
 }
 
 export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName, initialCountryCode }: Props) {
-  const [step, setStep] = useState(1);
-  const [request, setRequest] = useState("");
-  const [industryId, setIndustryId] = useState("general");
-  const [teamSize, setTeamSize] = useState("1");
-  const [countryCode, setCountryCode] = useState(validCountry(initialCountryCode));
   const [locale, setLocale] = useState<CreateRoomLocale>(normaliseLocale(initialLocale));
+  const [countryCode, setCountryCode] = useState(validCountry(initialCountryCode));
   const [selected, setSelected] = useState<string[]>([]);
   const [promotion, setPromotion] = useState(true);
   const [agreement, setAgreement] = useState(false);
+  const [purchaseReview, setPurchaseReview] = useState(false);
 
   const t = createRoomCopy(locale);
   const isKorean = locale === "ko";
-  const selectedCountry = CREATE_ROOM_COUNTRIES.find((item) => item.code === countryCode) || CREATE_ROOM_COUNTRIES[0];
   const selectedItems = useMemo(() => CATALOG.filter((item) => selected.includes(item.id)), [selected]);
   const monthlyKnown = BASIC_ROOM_MONTHLY_AUD + selectedItems.reduce((sum, item) => sum + (item.billing === "monthly" ? item.priceAud || 0 : 0), 0);
   const oneTimeKnown = selectedItems.reduce((sum, item) => sum + (item.billing === "one_time" ? item.priceAud || 0 : 0), 0);
   const discount = promotion ? monthlyKnown * (PROMOTION_PERCENT / 100) : 0;
-  const monthlyAfterDiscount = Math.max(0, monthlyKnown - discount);
-  const websiteBenefitEligible = monthlyAfterDiscount >= WEBSITE_BENEFIT_THRESHOLD_AUD;
-  const hasUnconfirmed = selectedItems.some((item) => item.billing === "monthly" && item.priceAud == null);
+  const monthlyTotal = Math.max(0, monthlyKnown - discount);
+  const unconfirmed = selectedItems.some((item) => item.priceAud == null && item.billing !== "included");
+
   const categories = ["ai", "secretary", "communication", "business", "mail", "website", "maintenance"] as CatalogItem["category"][];
 
   function toggle(id: string) {
@@ -119,22 +104,10 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
     });
   }
 
-  function runRecommendation() {
-    const industry = inferIndustry(request);
-    setIndustryId(industry.id);
-    setSelected(packageSelection(industry.id, "recommended"));
-    setStep(2);
-  }
-
-  function applyPackage(level: "essential" | "recommended" | "full") {
-    setSelected(packageSelection(industryId, level));
-    setStep(3);
-  }
-
   function priceText(item: CatalogItem) {
-    if (item.billing === "included") return item.priceLabel || CONTROL.included;
+    if (item.billing === "included") return item.priceLabel || "Included";
     if (item.priceLabel) return item.priceLabel;
-    if (item.priceAud == null) return CONTROL.priceToConfirm;
+    if (item.priceAud == null) return "Price to confirm";
     if (item.billing === "monthly") return `${money(item.priceAud)}/month`;
     return `From ${money(item.priceAud)}`;
   }
@@ -146,10 +119,11 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <div className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--gold-soft)]">Royal Command · Universal Create Room v{CREATE_ROOM_FORM_VERSION}</div>
-              <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{t.title}</h1>
+              <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{isKorean ? "필요한 서비스를 선택해 Room을 구성하세요" : "Select the services you want in your Room"}</h1>
               {initialRoomName ? <div className="mt-2 text-sm text-emerald-200">Room name: <strong>{initialRoomName}</strong></div> : null}
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">{t.subtitle}</p>
-              <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "설명과 가입 Form은 선택 언어로 표시되며, 기본 버튼·메뉴·Royal Command·AI 이름은 English로 유지됩니다." : "Form content can use your preferred language while core buttons, menus, Royal Command and AI names stay in English."}</p>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
+                {isKorean ? "각 서비스의 SELECT 버튼을 누르면 구입 선택 목록에 바로 들어갑니다. 다시 누르면 즉시 제거됩니다. 실제 결제는 마지막 Agreement & Payment 단계에서만 진행됩니다." : "Press SELECT on any service to add it to your purchase selection. Press again to remove it. Actual charging happens only after Agreement & Payment."}
+              </p>
             </div>
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-right">
               <div className="text-xs text-emerald-200">{BASIC_TRIAL_DAYS} Day Trial</div>
@@ -157,63 +131,95 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
               <div className="text-xs text-[var(--muted)]">then {money(BASIC_ROOM_MONTHLY_AUD)}/month + selected services</div>
             </div>
           </div>
-          <div className="mt-6 grid grid-cols-5 gap-2">
-            {["Describe", "Recommend", "Customise", "Review", "Agreement"].map((label, index) => {
-              const number = index + 1;
-              const state = number === step ? "border-[var(--gold)] bg-[var(--gold)]/15 text-[var(--gold-soft)]" : number < step ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-200" : "border-white/10 text-[var(--muted)]";
-              return <div key={label} className={`rounded-xl border px-2 py-2 text-center text-xs ${state}`}><span className="font-bold">{number}</span><span className="hidden sm:inline"> · {label}</span></div>;
-            })}
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-2">
+            <label className="text-sm font-medium">{t.country}
+              <select className="rc-input mt-2" value={countryCode} onChange={(event) => setCountryCode(event.target.value)}>
+                {CREATE_ROOM_COUNTRIES.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
+              </select>
+            </label>
+            <label className="text-sm font-medium">{t.language}
+              <select className="rc-input mt-2" value={locale} onChange={(event) => setLocale(event.target.value as CreateRoomLocale)}>
+                {CREATE_ROOM_LANGUAGES.map((item) => <option key={item.locale} value={item.locale}>{item.label}</option>)}
+              </select>
+            </label>
           </div>
+          <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "국가와 언어는 별개입니다. 예: United States + 한국어. 기본 버튼과 메뉴는 English로 유지됩니다." : "Country and language are separate. Core buttons and menus remain English."}</p>
         </header>
 
-        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_360px]">
-          <section className="rounded-[28px] border border-white/10 bg-black/20 p-5 md:p-8">
-            {step === 1 ? <div>
-              <h2 className="text-2xl font-semibold">{t.step1Title}</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.step1Help}</p>
-              <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                <label className="text-sm font-medium">{t.teamSize}<select className="rc-input mt-2" value={teamSize} onChange={(event) => setTeamSize(event.target.value)}><option>1</option><option>2–5</option><option>6–20</option><option>21+</option></select></label>
-                <label className="text-sm font-medium">{t.country}<select className="rc-input mt-2" value={countryCode} onChange={(event) => setCountryCode(event.target.value)}>{CREATE_ROOM_COUNTRIES.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}</select></label>
-                <label className="text-sm font-medium">{t.language}<select className="rc-input mt-2" value={locale} onChange={(event) => setLocale(event.target.value as CreateRoomLocale)}>{CREATE_ROOM_LANGUAGES.map((item) => <option key={item.locale} value={item.locale}>{item.label}</option>)}</select></label>
-              </div>
-              <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "국가와 언어는 별개입니다. 예: United States + 한국어." : "Country and language are separate. Example: United States + 한국어."}</p>
-              <textarea className="rc-input mt-5 min-h-40 text-base" value={request} onChange={(event) => setRequest(event.target.value)} placeholder={t.placeholder} />
-              <div className="mt-6 flex flex-wrap gap-3"><button type="button" onClick={runRecommendation} className="rounded-xl bg-[var(--gold)] px-5 py-3 font-semibold text-black">{CONTROL.aiRecommend}</button><button type="button" onClick={() => setStep(3)} className="rounded-xl border border-white/15 px-5 py-3 font-semibold">{CONTROL.direct}</button></div>
-            </div> : null}
-
-            {step === 2 ? <div>
-              <div className="inline-flex rounded-full border border-[var(--gold)]/30 bg-[var(--gold)]/10 px-3 py-1 text-xs text-[var(--gold-soft)]">Recommended Room: {INDUSTRIES.find((item) => item.id === industryId)?.label}</div>
-              <h2 className="mt-4 text-2xl font-semibold">{t.step2Title}</h2>
-              <p className="mt-2 text-sm text-[var(--muted)]">{t.choosePackage}</p>
-              <div className="mt-6 grid gap-4 md:grid-cols-3">
-                {(["essential", "recommended", "full"] as const).map((level) => <button key={level} type="button" onClick={() => applyPackage(level)} className={`rounded-3xl border p-5 text-left ${level === "recommended" ? "border-[var(--gold)] bg-[var(--gold)]/10" : "border-white/10 bg-black/10"}`}><div className="font-semibold">{level === "essential" ? t.good : level === "recommended" ? t.better : t.best}</div><p className="mt-3 text-sm leading-6 text-[var(--muted)]">{level === "essential" ? t.goodDesc : level === "recommended" ? t.betterDesc : t.bestDesc}</p></button>)}
-              </div>
-            </div> : null}
-
-            {step === 3 ? <div>
-              <h2 className="text-2xl font-semibold">{t.step3Title}</h2>
-              <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.step3Help}</p>
-              <div className="mt-6 space-y-3">
-                {categories.map((category) => <details key={category} className="overflow-hidden rounded-2xl border border-white/10 bg-black/10" open={["ai", "secretary", "communication"].includes(category)}><summary className="cursor-pointer px-4 py-4 font-semibold text-[var(--gold-soft)]">{categoryLabel(category, locale)}</summary><div className="grid gap-3 border-t border-white/10 p-3 sm:grid-cols-2">{CATALOG.filter((item) => item.category === category).map((item) => { const active = selected.includes(item.id); return <button key={item.id} type="button" onClick={() => toggle(item.id)} className={`rounded-2xl border p-4 text-left ${active ? "border-emerald-400/70 bg-emerald-500/12" : "border-white/10 bg-black/10"}`}><div className="flex items-start justify-between gap-3"><span className="font-semibold"><span className={active ? "text-emerald-300" : "text-[var(--muted)]"}>{active ? "✓" : "○"}</span> {item.name}</span><span className="shrink-0 text-xs font-semibold text-[var(--gold-soft)]">{priceText(item)}</span></div><p className="mt-2 text-xs leading-5 text-[var(--muted)]">{item.description}</p></button>; })}</div></details>)}
-              </div>
-              <div className="mt-6 flex gap-3"><button type="button" onClick={() => setStep(2)} className="rounded-xl border border-white/15 px-4 py-2">{CONTROL.back}</button><button type="button" onClick={() => setStep(4)} className="rounded-xl bg-[var(--gold)] px-5 py-2 font-semibold text-black">{CONTROL.review}</button></div>
-            </div> : null}
-
-            {step === 4 ? <div>
-              <h2 className="text-2xl font-semibold">{t.step4Title}</h2>
-              {initialRoomName ? <div className="mt-3 rounded-xl border border-white/10 p-3 text-sm">Room name: <strong>{initialRoomName}</strong></div> : null}
-              <div className="mt-5 space-y-2">{selectedItems.length ? selectedItems.map((item) => <button key={item.id} type="button" onClick={() => toggle(item.id)} className="flex w-full items-center justify-between gap-3 rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-left"><span><span className="font-bold text-emerald-300">✓</span> {item.name}</span><span className="text-sm font-semibold text-[var(--gold-soft)]">{priceText(item)}</span></button>) : <div className="rounded-xl border border-white/10 p-4 text-sm text-[var(--muted)]">{t.noAddons}</div>}</div>
-              <div className="mt-6 rounded-2xl border border-white/10 bg-black/10 p-5 text-sm leading-7"><div>{t.roomType}: <strong>{INDUSTRIES.find((item) => item.id === industryId)?.label}</strong></div><div>{t.team}: {teamSize} · {selectedCountry.label} · {CREATE_ROOM_LANGUAGES.find((item) => item.locale === locale)?.label}</div><div className="mt-2">{BASIC_TRIAL_DAYS} {t.trialText} {money(BASIC_ROOM_MONTHLY_AUD)}/month.</div><div className="mt-2 text-[var(--muted)]">{t.basicBenefit}</div>{websiteBenefitEligible ? <div className="mt-2 font-medium text-emerald-300">{t.websiteBenefit}</div> : null}</div>
-              <div className="mt-6 flex gap-3"><button type="button" onClick={() => setStep(3)} className="rounded-xl border border-white/15 px-4 py-2">{CONTROL.edit}</button><button type="button" onClick={() => setStep(5)} className="rounded-xl bg-[var(--gold)] px-5 py-2 font-semibold text-black">{CONTROL.agreementPayment}</button></div>
-            </div> : null}
-
-            {step === 5 ? <div><h2 className="text-2xl font-semibold">{t.step5Title}</h2><p className="mt-2 text-sm leading-6 text-[var(--muted)]">{t.step5Help}</p><label className="mt-6 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/10 p-4"><input type="checkbox" checked={agreement} onChange={(event) => setAgreement(event.target.checked)} className="mt-1 h-5 w-5 accent-emerald-500" /><span className="text-sm leading-6">{t.agreement}</span></label><div className="mt-4 rounded-2xl border border-amber-400/30 bg-amber-400/5 p-4 text-sm leading-6 text-amber-100">{t.pendingIntegration}</div><button type="button" disabled={!agreement} className="mt-6 rounded-xl bg-[var(--gold)] px-5 py-3 font-semibold text-black disabled:opacity-40">{CONTROL.readyPreview}</button></div> : null}
+        <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
+          <section className="space-y-4">
+            {categories.map((category) => (
+              <section key={category} className="rounded-[24px] border border-white/10 bg-black/20 p-4 md:p-5">
+                <h2 className="text-lg font-semibold text-[var(--gold-soft)]">{categoryLabel(category, locale)}</h2>
+                <div className="mt-4 grid gap-3 md:grid-cols-2">
+                  {CATALOG.filter((item) => item.category === category).map((item) => {
+                    const active = selected.includes(item.id);
+                    return (
+                      <div key={item.id} className={`rounded-2xl border p-4 transition ${active ? "border-emerald-400/80 bg-emerald-500/12 shadow-[0_0_0_1px_rgba(52,211,153,.16)]" : "border-white/10 bg-black/10"}`}>
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="font-semibold">{item.name}</div>
+                            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{item.description}</p>
+                          </div>
+                          <div className="shrink-0 text-right text-xs font-semibold text-[var(--gold-soft)]">{priceText(item)}</div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggle(item.id)}
+                          aria-pressed={active}
+                          className={`mt-4 min-h-12 w-full rounded-xl border px-4 py-3 text-sm font-bold transition ${active ? "border-emerald-300 bg-emerald-500 text-black" : "border-[var(--gold)]/60 bg-[var(--gold)]/10 text-[var(--gold-soft)] hover:bg-[var(--gold)] hover:text-black"}`}
+                        >
+                          {active ? "SELECTED ✓ — REMOVE" : "SELECT — ADD TO PURCHASE"}
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
           </section>
 
-          <aside className="hidden h-fit rounded-[28px] border border-[var(--gold)]/30 bg-black/30 p-5 lg:sticky lg:top-6 lg:block"><div className="text-sm font-semibold text-[var(--gold-soft)]">Live Price Summary</div><div className="mt-5 space-y-3 text-sm"><div className="flex justify-between"><span>Today</span><strong>{money(0)}</strong></div><div className="flex justify-between"><span>After trial / month</span><strong>{money(monthlyKnown)}</strong></div><div className="flex justify-between"><span>Promotion {PROMOTION_PERCENT}%</span><strong className="text-emerald-300">−{money(discount)}</strong></div><div className="flex justify-between"><span>You save</span><strong>{money(discount)}</strong></div><div className="border-t border-white/10 pt-4"><div className="text-xs text-[var(--muted)]">Monthly total</div><div className="mt-1 text-3xl font-semibold text-[var(--gold-soft)]">{money(monthlyAfterDiscount)}</div></div>{oneTimeKnown > 0 ? <div className="flex justify-between border-t border-white/10 pt-3"><span>One-time website work</span><strong>{money(oneTimeKnown)}</strong></div> : null}{hasUnconfirmed ? <div className="rounded-xl border border-amber-400/25 bg-amber-400/5 p-3 text-xs leading-5 text-amber-100">Price to confirm: some usage-based services are not included in the known total yet.</div> : null}</div><label className="mt-5 flex items-center gap-2 text-xs text-[var(--muted)]"><input type="checkbox" checked={promotion} onChange={(event) => setPromotion(event.target.checked)} className="accent-emerald-500" /> Promotion {PROMOTION_PERCENT}%</label></aside>
-        </div>
+          <aside className="h-fit rounded-[28px] border border-[var(--gold)]/35 bg-black/35 p-5 shadow-[0_20px_70px_rgba(0,0,0,.3)] lg:sticky lg:top-6">
+            <div className="text-sm font-semibold text-[var(--gold-soft)]">My Purchase Selection</div>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{isKorean ? "SELECT한 서비스만 여기에 표시됩니다." : "Only services you SELECT appear here."}</p>
 
-        <div className="fixed inset-x-3 bottom-3 z-40 rounded-2xl border border-[var(--gold)]/35 bg-black/90 p-3 shadow-2xl backdrop-blur lg:hidden"><div className="flex items-center justify-between gap-4"><div><div className="text-[10px] uppercase tracking-[0.15em] text-[var(--muted)]">Monthly total</div><div className="text-xl font-semibold text-[var(--gold-soft)]">{money(monthlyAfterDiscount)}/mo</div></div><div className="text-right text-xs"><div>Today: {money(0)}</div><div className="text-emerald-300">You save: {money(discount)}</div></div></div></div><div className="h-20 lg:hidden" />
+            <div className="mt-4 space-y-2">
+              {selectedItems.length ? selectedItems.map((item) => (
+                <button key={item.id} type="button" onClick={() => toggle(item.id)} className="flex w-full items-center justify-between gap-3 rounded-xl border border-emerald-500/40 bg-emerald-500/10 px-3 py-3 text-left text-sm">
+                  <span><span className="font-bold text-emerald-300">✓</span> {item.name}</span>
+                  <span className="shrink-0 text-xs text-[var(--gold-soft)]">{priceText(item)}</span>
+                </button>
+              )) : (
+                <div className="rounded-xl border border-white/10 p-4 text-sm text-[var(--muted)]">{isKorean ? "아직 선택한 서비스가 없습니다." : "No services selected yet."}</div>
+              )}
+            </div>
+
+            <div className="mt-5 space-y-2 border-t border-white/10 pt-4 text-sm">
+              <div className="flex justify-between"><span>Basic RC Room</span><strong>{money(BASIC_ROOM_MONTHLY_AUD)}/mo</strong></div>
+              <div className="flex justify-between"><span>Known monthly subtotal</span><strong>{money(monthlyKnown)}</strong></div>
+              <div className="flex justify-between"><span>Promotion {PROMOTION_PERCENT}%</span><strong className="text-emerald-300">−{money(discount)}</strong></div>
+              <div className="flex justify-between border-t border-white/10 pt-3 text-base"><span>Monthly total</span><strong className="text-xl text-[var(--gold-soft)]">{money(monthlyTotal)}</strong></div>
+              {oneTimeKnown > 0 ? <div className="flex justify-between"><span>One-time website work</span><strong>{money(oneTimeKnown)}</strong></div> : null}
+              {unconfirmed ? <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-xs leading-5 text-amber-100">Some selected services are marked Price to confirm and are not yet included in the known total.</div> : null}
+            </div>
+
+            <label className="mt-4 flex items-center gap-2 text-xs text-[var(--muted)]"><input type="checkbox" checked={promotion} onChange={(event) => setPromotion(event.target.checked)} className="accent-emerald-500" /> Promotion {PROMOTION_PERCENT}%</label>
+
+            <button type="button" disabled={!selectedItems.length} onClick={() => setPurchaseReview(true)} className="mt-5 min-h-12 w-full rounded-xl bg-[var(--gold)] px-4 py-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-35">
+              CONTINUE TO PURCHASE REVIEW
+            </button>
+
+            {purchaseReview ? (
+              <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+                <div className="font-semibold">Purchase Review</div>
+                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{isKorean ? "선택한 서비스와 금액을 확인한 뒤 동의하면 결제 연결 단계로 이동합니다. 현재 실제 결제 연결은 아직 활성화하지 않았습니다." : "Review your selected services and pricing. Payment integration is not yet activated in this form."}</p>
+                <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={agreement} onChange={(event) => setAgreement(event.target.checked)} className="mt-1 h-4 w-4 accent-emerald-500" /><span>{isKorean ? "선택한 서비스와 예상 금액을 확인했습니다." : "I reviewed my selected services and estimated charges."}</span></label>
+                <button type="button" disabled={!agreement} className="mt-3 min-h-11 w-full rounded-xl border border-[var(--gold)]/50 px-3 py-2 font-semibold text-[var(--gold-soft)] disabled:opacity-35">Agreement & Payment</button>
+              </div>
+            ) : null}
+          </aside>
+        </div>
       </div>
     </main>
   );
