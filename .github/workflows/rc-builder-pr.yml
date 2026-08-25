@@ -1,0 +1,123 @@
+name: RC Builder PR
+
+on:
+  push:
+    branches:
+      - 'rc-work/**'
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  ensure-builder-pr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Create Work Queue ticket and PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const branch = context.ref.replace('refs/heads/', '');
+            if (!branch.startsWith('rc-work/')) {
+              core.setFailed(`Unexpected branch: ${branch}`);
+              return;
+            }
+
+            const workSegment = branch.split('/')[1] || 'rc-builder-work';
+            const workId = workSegment.toUpperCase();
+            const base = 'master';
+
+            const existingPRs = await github.rest.pulls.list({
+              owner,
+              repo,
+              head: `${owner}:${branch}`,
+              base,
+              state: 'open',
+              per_page: 10,
+            });
+            if (existingPRs.data.length) {
+              core.info(`PR already exists: #${existingPRs.data[0].number}`);
+              return;
+            }
+
+            const issues = await github.rest.issues.listForRepo({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100,
+            });
+            const ticketTitle = `[${workId}] RC Builder Work Queue`;
+            let ticket = issues.data.find((item) => !item.pull_request && item.title === ticketTitle);
+            if (!ticket) {
+              const created = await github.rest.issues.create({
+                owner,
+                repo,
+                title: ticketTitle,
+                body: [
+                  `Work ID: ${workId}`,
+                  `Builder branch: ${branch}`,
+                  '',
+                  'Created automatically by the Royal Command RC Builder PR workflow.',
+                  'Keep this issue open until the corresponding Builder PR is merged or rejected.',
+                ].join('\n'),
+              });
+              ticket = created.data;
+            }
+
+            const baseRef = await github.rest.git.getRef({ owner, repo, ref: `heads/${base}` });
+            const compare = await github.rest.repos.compareCommitsWithBasehead({
+              owner,
+              repo,
+              basehead: `${base}...${branch}`,
+            });
+            const changedFiles = (compare.data.files || []).map((file) => `- ${file.filename}`).join('\n') || '- Builder-generated files on this branch';
+
+            const body = [
+              '## Work Queue Ticket',
+              `#${ticket.number}`,
+              '',
+              '## Primary task',
+              `Execute Royal Command Builder work ${workId}.`,
+              '',
+              '## Batch exception',
+              'NO — one Builder work item only.',
+              '',
+              '## Goal',
+              `Apply the validated Codex-generated change for ${workId} on a safe branch without direct master writes.`,
+              '',
+              '## Files / components changed',
+              changedFiles,
+              '',
+              '## Locked surfaces touched',
+              'NONE unless explicitly listed in the changed files and authorized by the originating user order.',
+              '',
+              '## Explicit non-goals',
+              'Do not merge to production automatically, do not modify unrelated files, and do not bypass Royal Command approval gates.',
+              '',
+              '## Verification plan',
+              'Run repository automated checks and Vercel Preview before any production merge.',
+              '',
+              '## Automated checks',
+              'GitHub Actions quality, conflict, and change-control workflows must pass.',
+              '',
+              '## Vercel Preview',
+              'Required before production approval; Vercel Git integration will create the Preview deployment for this PR.',
+              '',
+              '## Rollback point',
+              `Baseline master commit: ${baseRef.data.object.sha}`,
+            ].join('\n');
+
+            const pr = await github.rest.pulls.create({
+              owner,
+              repo,
+              head: branch,
+              base,
+              title: `[${workId}][Codex] Royal Command Builder work`,
+              body,
+              draft: false,
+            });
+            core.info(`Created PR #${pr.data.number}`);
