@@ -1,7 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { useParams } from "next/navigation";
+
+type CouncilMode = "off" | "on";
 
 function requestUrl(input: RequestInfo | URL) {
   try {
@@ -13,40 +16,34 @@ function requestUrl(input: RequestInfo | URL) {
   }
 }
 
-function selectedAiCount() {
-  return Array.from(document.querySelectorAll<HTMLButtonElement>("button[title]"))
-    .filter((button) => !button.title.startsWith("AI Warehouse"))
-    .filter((button) => button.id !== "rc-council-mode-toggle")
-    .filter((button) => button.className.includes('bg-[#7A0C2E]'))
-    .length;
-}
-
-function latestUserQuestion() {
-  const items = Array.from(document.querySelectorAll<HTMLButtonElement>('button[title="클릭하면 전체 내용을 봅니다"]'));
-  return (items.at(-1)?.textContent || "").trim();
-}
-
-function setReactTextareaValue(textarea: HTMLTextAreaElement, value: string) {
-  const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")?.set;
-  setter?.call(textarea, value);
-  textarea.dispatchEvent(new Event("input", { bubbles: true }));
-  textarea.dispatchEvent(new Event("change", { bubbles: true }));
-}
-
 function findAiDock() {
   const warehouse = document.querySelector<HTMLButtonElement>('button[title^="AI Warehouse"]');
   return warehouse?.parentElement instanceof HTMLElement ? warehouse.parentElement : null;
 }
 
 export default function CouncilModeToggle() {
+  const params = useParams<{ id: string }>();
+  const roomId = params?.id || "room";
+  const storageKey = useMemo(() => `royalcommand:room:${roomId}:council-mode`, [roomId]);
   const [mounted, setMounted] = useState(false);
   const [dock, setDock] = useState<HTMLElement | null>(null);
-  const [status, setStatus] = useState<"hold" | "requested" | "need-ai" | "no-question">("hold");
-  const oneShotCouncilRef = useRef(false);
+  const [mode, setMode] = useState<CouncilMode>("off");
 
   useEffect(() => {
     setMounted(true);
-  }, []);
+    try {
+      setMode(window.localStorage.getItem(storageKey) === "on" ? "on" : "off");
+    } catch {
+      setMode("off");
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    try {
+      window.localStorage.setItem(storageKey, mode);
+    } catch {}
+  }, [mounted, mode, storageKey]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -69,12 +66,9 @@ export default function CouncilModeToggle() {
       if (url?.pathname === "/api/ai/chat/stream" && method === "POST" && typeof init?.body === "string") {
         try {
           const parsed = JSON.parse(init.body) as Record<string, unknown>;
-          const runCouncil = oneShotCouncilRef.current;
-          parsed.councilMode = runCouncil ? "on" : "off";
-          oneShotCouncilRef.current = false;
+          parsed.councilMode = mode;
           return originalFetch(input, { ...init, body: JSON.stringify(parsed) });
         } catch {
-          oneShotCouncilRef.current = false;
           return originalFetch(input, init);
         }
       }
@@ -86,58 +80,20 @@ export default function CouncilModeToggle() {
     return () => {
       if (window.fetch === patchedFetch) window.fetch = originalFetch;
     };
-  }, [mounted]);
-
-  function runCouncilOnce() {
-    if (status !== "hold") return;
-
-    if (selectedAiCount() < 2) {
-      setStatus("need-ai");
-      window.setTimeout(() => setStatus("hold"), 1800);
-      return;
-    }
-
-    const question = latestUserQuestion();
-    if (!question) {
-      setStatus("no-question");
-      window.setTimeout(() => setStatus("hold"), 1800);
-      return;
-    }
-
-    const textarea = document.querySelector<HTMLTextAreaElement>('textarea[placeholder^="Type or speak your order"]');
-    const sendButton = document.querySelector<HTMLButtonElement>('button[type="submit"]');
-    if (!textarea || !sendButton) return;
-
-    oneShotCouncilRef.current = true;
-    setStatus("requested");
-
-    setReactTextareaValue(
-      textarea,
-      `Council synthesis request. Review the original question below with the currently selected AIs and return one final Council answer only.\n\nOriginal question:\n${question}`,
-    );
-
-    window.setTimeout(() => sendButton.click(), 80);
-    window.setTimeout(() => setStatus("hold"), 2600);
-  }
+  }, [mounted, mode]);
 
   if (!mounted || !dock) return null;
 
-  const label = status === "requested"
-    ? "Council Run"
-    : status === "need-ai"
-      ? "Need 2 AIs"
-      : status === "no-question"
-        ? "No Question"
-        : "Council Hold";
+  const on = mode === "on";
 
   return createPortal(
     <button
       id="rc-council-mode-toggle"
       type="button"
-      onClick={runCouncilOnce}
-      disabled={status !== "hold"}
-      aria-label="Council Hold. Click to run Council once for the latest question."
-      title="Council is held by default. After individual AI answers arrive, click once to run Council on the latest question."
+      onClick={() => setMode((current) => current === "on" ? "off" : "on")}
+      aria-pressed={on}
+      aria-label={on ? "Council ON. Click to stop Council." : "Council Stop. Click to turn Council on."}
+      title={on ? "Council ON — click to stop Council" : "Council STOP — click only when Council is needed"}
       style={{
         position: "relative",
         zIndex: 1,
@@ -149,19 +105,18 @@ export default function CouncilModeToggle() {
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 6,
-        border: "2px solid #22c55e",
-        background: status === "requested" ? "#16a34a" : "#064e3b",
-        color: "#f0fdf4",
+        border: on ? "2px solid #22c55e" : "2px solid #ef4444",
+        background: on ? "#166534" : "#991b1b",
+        color: "#ffffff",
         fontSize: 10,
         fontWeight: 800,
         lineHeight: 1,
-        boxShadow: status === "requested" ? "0 0 10px rgba(34,197,94,.65)" : "0 0 4px rgba(34,197,94,.28)",
-        cursor: status === "hold" ? "pointer" : "default",
-        opacity: status === "hold" || status === "requested" ? 1 : 0.88,
+        boxShadow: on ? "0 0 8px rgba(34,197,94,.5)" : "0 0 7px rgba(239,68,68,.45)",
+        cursor: "pointer",
         whiteSpace: "nowrap",
       }}
     >
-      {label}
+      {on ? "Council ON" : "Council Stop"}
     </button>,
     dock,
   );
