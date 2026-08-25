@@ -187,9 +187,12 @@ async function resolveWorkMetadata(
     return candidate;
   }
 
-  const { data: created, error: insertError } = await supabase
+  // Idempotent insert: parallel provider calls for the same request may arrive together.
+  // Ignore the duplicate instead of emitting a PostgreSQL unique-violation, then read
+  // the single authoritative winner selected by (room_id, request_key).
+  const { error: upsertError } = await supabase
     .from("room_work_records")
-    .insert({
+    .upsert({
       room_id: roomId,
       request_key: requestKey,
       work_id: candidate.workId,
@@ -197,28 +200,70 @@ async function resolveWorkMetadata(
       parent_revision: candidate.parentRevision || null,
       title: candidate.title || null,
       status: "received",
-    })
-    .select(selectColumns)
-    .single();
+    }, {
+      onConflict: "room_id,request_key",
+      ignoreDuplicates: true,
+    });
 
-  if (created) return workFromRow(created as PersistedWorkRow);
-
-  // Concurrent providers may race to create the same exact request record.
-  // The unique (room_id, request_key) constraint makes one winner authoritative.
-  if (insertError?.code === "23505") {
-    const { data: winner, error: winnerError } = await supabase
-      .from("room_work_records")
-      .select(selectColumns)
-      .eq("room_id", roomId)
-      .eq("request_key", requestKey)
-      .single();
-    if (winner) return workFromRow(winner as PersistedWorkRow);
-    logger.warn("ai.room_work.race_lookup_failed", { roomId, error: winnerError?.message || insertError.message });
+  if (upsertError) {
+    logger.warn("ai.room_work.persist_failed", { roomId, error: upsertError.message });
     return candidate;
   }
 
-  logger.warn("ai.room_work.persist_failed", { roomId, error: insertError?.message || "unknown insert failure" });
+  const { data: authoritative, error: authoritativeError } = await supabase
+    .from("room_work_records")
+    .select(selectColumns)
+    .eq("room_id", roomId)
+    .eq("request_key", requestKey)
+    .single();
+
+  if (authoritative) return workFromRow(authoritative as PersistedWorkRow);
+
+  logger.warn("ai.room_work.authoritative_lookup_failed", {
+    roomId,
+    error: authoritativeError?.message || "authoritative work row missing after idempotent upsert",
+  });
   return candidate;
+}
+
+async function persistWorkOutcome(
+  roomId: string,
+  prompt: string,
+  history: OrchestrateInput["history"],
+  result: OrchestrateResult,
+) {
+  if (!isSupabaseConfigured()) return;
+
+  const successfulProviders = result.responses.filter((response) => !response.error && response.content.trim()).length;
+  const failedProviders = result.responses.filter((response) => Boolean(response.error)).length;
+  const status = result.blocked
+    ? "reportable"
+    : successfulProviders > 0
+      ? "done"
+      : "failed";
+
+  const supabase = await createClient();
+  const completedAt = new Date().toISOString();
+  const { error } = await supabase
+    .from("room_work_records")
+    .update({
+      status,
+      updated_at: completedAt,
+      evidence: {
+        providers: result.providers,
+        successfulProviders,
+        failedProviders,
+        blocked: result.blocked,
+        latencyMs: result.latencyMs,
+        completedAt,
+      },
+    })
+    .eq("room_id", roomId)
+    .eq("request_key", workRequestKey(roomId, prompt, history));
+
+  if (error) {
+    logger.warn("ai.room_work.outcome_persist_failed", { roomId, status, error: error.message });
+  }
 }
 
 function workSystemContext(work: RoomWorkRecord) {
@@ -349,6 +394,8 @@ export async function orchestrateRoom(roomId: string, input: OrchestrateInput): 
     history,
     systemExtra: systemExtra || undefined,
   });
+
+  await persistWorkOutcome(roomId, input.prompt, history, result);
 
   const workHeader = `**Work ID:** ${work.workId} | **Revision:** ${work.revision}`;
 
