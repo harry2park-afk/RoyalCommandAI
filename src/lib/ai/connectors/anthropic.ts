@@ -8,8 +8,11 @@ const RETIRED_CLAUDE_MODELS = new Set([
   "claude-3-haiku-20240307",
 ]);
 
-const CLAUDE_DIRECT_MAX_TOKENS = 4_096;
-const CLAUDE_OPENROUTER_MAX_TOKENS = 2_048;
+// Keep enough headroom for complete Room/Council answers. The previous 4K/2K
+// caps repeatedly cut Claude off and then sent an already-valid partial answer
+// into a weaker fallback path.
+const CLAUDE_DIRECT_MAX_TOKENS = 8_192;
+const CLAUDE_OPENROUTER_MAX_TOKENS = 8_192;
 
 const openRouterClaude = new OpenRouterCatalogConnector(
   "anthropic",
