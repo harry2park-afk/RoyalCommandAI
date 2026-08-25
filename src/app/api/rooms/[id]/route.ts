@@ -56,7 +56,8 @@ export async function GET(
       .from("messages")
       .select("*")
       .eq("room_id", id)
-      .order("created_at", { ascending: true });
+      .order("created_at", { ascending: false })
+      .limit(MAX_ROOM_MESSAGES);
     const { data: documents } = await supabase
       .from("documents")
       .select("*")
@@ -64,7 +65,7 @@ export async function GET(
       .order("created_at", { ascending: false });
     return NextResponse.json({
       room,
-      messages: normaliseMessages(messages || []),
+      messages: normaliseMessages((messages || []).reverse()),
       documents: documents || [],
       user: currentUser,
     });

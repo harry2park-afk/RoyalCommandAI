@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
+const MAX_CONVERSATION_MESSAGES = 250;
+
 function normaliseTitle(value: unknown) {
   if (typeof value !== "string") return undefined;
   const title = value.replace(/\s+/g, " ").trim().slice(0, 120);
@@ -40,11 +42,12 @@ export async function GET(
     .select("*")
     .eq("room_id", roomId)
     .eq("conversation_id", conversationId)
-    .order("created_at", { ascending: true });
+    .order("created_at", { ascending: false })
+    .limit(MAX_CONVERSATION_MESSAGES);
 
   if (messageError) return NextResponse.json({ error: messageError.message }, { status: 500 });
 
-  return NextResponse.json({ conversation, messages: messages || [] });
+  return NextResponse.json({ conversation, messages: (messages || []).reverse() });
 }
 
 export async function PATCH(
