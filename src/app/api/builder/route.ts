@@ -46,6 +46,44 @@ type BuilderAction = {
   content?: string;
 };
 
+type GitHubObject = {
+  message?: string;
+  sha?: string;
+  content?: string;
+  object?: { sha?: string };
+  commit?: { sha?: string };
+  number?: number;
+  html_url?: string;
+  tree?: Array<{ type?: string; path?: string; size?: number }>;
+  [key: string]: unknown;
+};
+
+type CodexResponseBody = {
+  output_text?: string;
+  output?: Array<{ content?: Array<{ text?: string }> }>;
+  status?: string;
+  incomplete_details?: { reason?: string };
+  error?: { message?: string };
+  model?: string;
+  id?: string;
+};
+
+type BuilderChatData = {
+  roomId: string;
+  prompt: string;
+  language?: string;
+  history?: unknown;
+};
+
+type BuilderPersistResult = {
+  finalAnswer: string;
+  workId: string;
+  revision: number;
+  evidence: Record<string, unknown>;
+  latencyMs: number;
+  [key: string]: unknown;
+};
+
 function developerEmails() {
   const configured = (process.env.ROYAL_COMMAND_DEV_EMAILS || "")
     .split(",")
@@ -118,7 +156,7 @@ function titleFromPrompt(prompt: string) {
   return prompt.replace(/\s+/g, " ").trim().slice(0, 120) || "Royal Command Builder work";
 }
 
-async function github(path: string, init?: RequestInit) {
+async function github<T extends GitHubObject | GitHubObject[] = GitHubObject>(path: string, init?: RequestInit): Promise<T> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN is not configured in the Royal Command server environment");
 
@@ -134,10 +172,11 @@ async function github(path: string, init?: RequestInit) {
   });
 
   const text = await response.text();
-  let data: any = {};
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
-  if (!response.ok) throw new Error(data?.message || `GitHub HTTP ${response.status}`);
-  return data;
+  let data: GitHubObject | GitHubObject[] = {};
+  try { data = text ? JSON.parse(text) as GitHubObject | GitHubObject[] : {}; } catch { data = { message: text }; }
+  const errorMessage = !Array.isArray(data) && typeof data.message === "string" ? data.message : `GitHub HTTP ${response.status}`;
+  if (!response.ok) throw new Error(errorMessage);
+  return data as T;
 }
 
 async function getFile(path: string, ref = BASE_BRANCH) {
@@ -155,12 +194,12 @@ async function getFile(path: string, ref = BASE_BRANCH) {
   }
 }
 
-function responseText(body: any) {
-  if (typeof body?.output_text === "string" && body.output_text.trim()) return body.output_text.trim();
+function responseText(body: CodexResponseBody) {
+  if (typeof body.output_text === "string" && body.output_text.trim()) return body.output_text.trim();
   const parts: string[] = [];
-  for (const item of Array.isArray(body?.output) ? body.output : []) {
-    for (const content of Array.isArray(item?.content) ? item.content : []) {
-      if (typeof content?.text === "string") parts.push(content.text);
+  for (const item of Array.isArray(body.output) ? body.output : []) {
+    for (const content of Array.isArray(item.content) ? item.content : []) {
+      if (typeof content.text === "string") parts.push(content.text);
     }
   }
   return parts.join("\n").trim();
@@ -191,8 +230,8 @@ async function codexJson(instruction: string, maxOutputTokens = 12_000) {
       });
 
       const text = await response.text();
-      let body: any = {};
-      try { body = text ? JSON.parse(text) : {}; }
+      let body: CodexResponseBody = {};
+      try { body = text ? JSON.parse(text) as CodexResponseBody : {}; }
       catch { throw new Error(`Codex returned non-JSON HTTP ${response.status}`); }
       if (!response.ok) {
         throw new Error(body?.error?.message || `Codex Responses API HTTP ${response.status}`);
@@ -407,7 +446,7 @@ async function executeAction(action: BuilderAction, instruction: string, branch:
 
 async function findOpenBuilderPullRequest(branch: string) {
   const owner = REPO.split("/")[0] || "";
-  const prs = await github(`/pulls?head=${encodeURIComponent(owner + ":" + branch)}&base=${encodeURIComponent(BASE_BRANCH)}&state=open`);
+  const prs = await github<GitHubObject[]>(`/pulls?head=${encodeURIComponent(owner + ":" + branch)}&base=${encodeURIComponent(BASE_BRANCH)}&state=open`);
   const first = Array.isArray(prs) ? prs[0] : null;
   return first ? { number: first.number || null, url: first.html_url || "" } : null;
 }
@@ -429,7 +468,7 @@ async function createPullRequest(work: WorkMeta, branch: string, commits: Array<
   throw new Error("GitHub-native RC Builder PR workflow did not create a PR within 45 seconds");
 }
 
-async function persistMessages(user: Awaited<ReturnType<typeof getCurrentUser>>, data: any, result: any) {
+async function persistMessages(user: Awaited<ReturnType<typeof getCurrentUser>>, data: BuilderChatData, result: BuilderPersistResult) {
   if (!user) return result;
   const language = data.language || user.defaultLanguage;
   if (isSupabaseConfigured()) {
@@ -584,18 +623,19 @@ export async function POST(request: Request) {
     ].join("\n"), 16_000);
 
     const rawActions = Array.isArray(generated.actions) ? generated.actions.slice(0, MAX_FILES) : [];
-    const actions: BuilderAction[] = rawActions.map((item: any) => {
-      const path = String(item?.path || "").trim();
-      const operation: BuilderAction["operation"] = item?.operation === "create" || item?.operation === "delete" ? item.operation : "update";
+    const actions: BuilderAction[] = rawActions.map((value: unknown) => {
+      const item = value && typeof value === "object" ? value as Record<string, unknown> : {};
+      const path = String(item.path || "").trim();
+      const operation: BuilderAction["operation"] = item.operation === "create" || item.operation === "delete" ? item.operation : "update";
       if (!safePath(path)) throw new Error(`Unsafe Codex path rejected: ${path}`);
       if (sensitivePath(path) && !explicitSensitiveInstruction(data.prompt)) throw new Error(`Sensitive file requires explicit security/auth instruction: ${path}`);
-      if (operation === "delete") return { path, operation, reason: typeof item?.reason === "string" ? item.reason : undefined };
-      const encoded = typeof item?.contentBase64 === "string" ? item.contentBase64.trim() : "";
+      if (operation === "delete") return { path, operation, reason: typeof item.reason === "string" ? item.reason : undefined };
+      const encoded = typeof item.contentBase64 === "string" ? item.contentBase64.trim() : "";
       if (!encoded) throw new Error(`Codex returned no complete file content for ${path}`);
       const content = Buffer.from(encoded, "base64").toString("utf8");
       if (!content.trim()) throw new Error(`Decoded Codex file is empty: ${path}`);
       if (Buffer.byteLength(content, "utf8") > MAX_FILE_BYTES) throw new Error(`Codex generated file too large: ${path}`);
-      return { path, operation, reason: typeof item?.reason === "string" ? item.reason : undefined, content };
+      return { path, operation, reason: typeof item.reason === "string" ? item.reason : undefined, content };
     });
     if (!actions.length) throw new Error("Codex did not produce any safe executable actions");
 
