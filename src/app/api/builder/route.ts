@@ -170,42 +170,63 @@ async function codexJson(instruction: string, maxOutputTokens = 12_000) {
   const key = (process.env.OPENAI_API_KEY || "").trim();
   if (!key) throw new Error("OPENAI_API_KEY is not configured for RC Builder");
 
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), CODEX_TIMEOUT_MS);
-  try {
-    const response = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${key}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: CODEX_MODEL,
-        input: instruction,
-        reasoning: { effort: "high" },
-        max_output_tokens: maxOutputTokens,
-      }),
-      signal: controller.signal,
-      cache: "no-store",
-    });
+  const requestOnce = async (effort: "high" | "medium", outputBudget: number) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CODEX_TIMEOUT_MS);
+    try {
+      const response = await fetch("https://api.openai.com/v1/responses", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: CODEX_MODEL,
+          input: instruction,
+          reasoning: { effort },
+          max_output_tokens: outputBudget,
+        }),
+        signal: controller.signal,
+        cache: "no-store",
+      });
 
-    const text = await response.text();
-    let body: any = {};
-    try { body = text ? JSON.parse(text) : {}; }
-    catch { throw new Error(`Codex returned non-JSON HTTP ${response.status}`); }
-    if (!response.ok) {
-      throw new Error(body?.error?.message || `Codex Responses API HTTP ${response.status}`);
+      const text = await response.text();
+      let body: any = {};
+      try { body = text ? JSON.parse(text) : {}; }
+      catch { throw new Error(`Codex returned non-JSON HTTP ${response.status}`); }
+      if (!response.ok) {
+        throw new Error(body?.error?.message || `Codex Responses API HTTP ${response.status}`);
+      }
+
+      return {
+        body,
+        output: responseText(body),
+        exhausted: body?.status === "incomplete" && body?.incomplete_details?.reason === "max_output_tokens",
+      };
+    } catch (error) {
+      if (controller.signal.aborted) throw new Error(`Codex Builder timed out after ${Math.round(CODEX_TIMEOUT_MS / 1000)}s`);
+      throw error;
+    } finally {
+      clearTimeout(timer);
     }
+  };
 
-    const output = responseText(body);
-    if (!output) throw new Error("Codex returned an empty Builder response");
-    return parseJsonObject(output);
-  } catch (error) {
-    if (controller.signal.aborted) throw new Error(`Codex Builder timed out after ${Math.round(CODEX_TIMEOUT_MS / 1000)}s`);
-    throw error;
-  } finally {
-    clearTimeout(timer);
+  const first = await requestOnce("high", maxOutputTokens);
+  if (first.output) return parseJsonObject(first.output);
+
+  if (first.exhausted) {
+    const retryBudget = Math.min(Math.max(maxOutputTokens * 2, 8_000), 24_000);
+    logger.warn("builder.codex_output_retry", {
+      model: CODEX_MODEL,
+      firstBudget: maxOutputTokens,
+      retryBudget,
+      reason: "reasoning consumed output budget before final JSON",
+    });
+    const retry = await requestOnce("medium", retryBudget);
+    if (retry.output) return parseJsonObject(retry.output);
   }
+
+  throw new Error("Codex returned an empty Builder response");
 }
 
 async function updateWork(work: WorkMeta, status: WorkState, patch: { evidence?: Record<string, unknown>; builderModel?: string } = {}) {
@@ -384,35 +405,28 @@ async function executeAction(action: BuilderAction, instruction: string, branch:
   return { path, operation: action.operation, commit: String(result.commit?.sha || "") };
 }
 
+async function findOpenBuilderPullRequest(branch: string) {
+  const owner = REPO.split("/")[0] || "";
+  const prs = await github(`/pulls?head=${encodeURIComponent(owner + ":" + branch)}&base=${encodeURIComponent(BASE_BRANCH)}&state=open`);
+  const first = Array.isArray(prs) ? prs[0] : null;
+  return first ? { number: first.number || null, url: first.html_url || "" } : null;
+}
+
 async function createPullRequest(work: WorkMeta, branch: string, commits: Array<{ path: string; operation: string; commit: string }>) {
-  const title = `[${work.workId}][REV-${String(work.revision).padStart(2, "0")}][Codex] Royal Command Builder work`;
-  const body = [
-    `Work ID: ${work.workId}`,
-    `Revision: ${work.revision}`,
-    `Builder: Codex (${CODEX_MODEL})`,
-    `Branch: ${branch}`,
-    "",
-    "Verified changes:",
-    ...commits.map((item) => `- ${item.operation}: ${item.path} — ${item.commit}`),
-    "",
-    "Production merge requires user approval.",
-  ].join("\n");
-  try {
-    const pr = await github("/pulls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, head: branch, base: BASE_BRANCH, body }),
-    });
-    return { number: pr.number || null, url: pr.html_url || "" };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (/pull request.*already exists|validation failed/i.test(message)) {
-      const prs = await github(`/pulls?head=${encodeURIComponent(REPO.split("/")[0] + ":" + branch)}&base=${encodeURIComponent(BASE_BRANCH)}&state=open`);
-      const first = Array.isArray(prs) ? prs[0] : null;
-      if (first) return { number: first.number || null, url: first.html_url || "" };
-    }
-    throw error;
+  void work;
+  void commits;
+
+  const existing = await findOpenBuilderPullRequest(branch);
+  if (existing) return existing;
+
+  const deadline = Date.now() + 45_000;
+  while (Date.now() < deadline) {
+    await new Promise((resolve) => setTimeout(resolve, 2_500));
+    const created = await findOpenBuilderPullRequest(branch);
+    if (created) return created;
   }
+
+  throw new Error("GitHub-native RC Builder PR workflow did not create a PR within 45 seconds");
 }
 
 async function persistMessages(user: Awaited<ReturnType<typeof getCurrentUser>>, data: any, result: any) {
