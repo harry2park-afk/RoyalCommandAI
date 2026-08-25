@@ -62,8 +62,8 @@ async function codexGenerateTestFile() {
         "The decoded Markdown file must contain exactly two short lines: first line '# RC Builder Live Self-Test'; second line 'Codex generated this safe test artifact for RC-20260825-LIVETEST01.'",
         "Do not add markdown fences or any other keys."
       ].join("\n"),
-      reasoning: { effort: "high" },
-      max_output_tokens: 1024,
+      reasoning: { effort: "medium" },
+      max_output_tokens: 4096,
     }),
     cache: "no-store",
   });
