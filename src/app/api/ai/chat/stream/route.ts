@@ -66,23 +66,23 @@ function validResponse(response?: AIProviderResponse) {
 function enforceAuthoritativeWorkMetadata(content: string, work?: RoomWorkRecord) {
   if (!work || !content.trim()) return content;
 
-  const currentWorkId = work.workId.toUpperCase();
-  const lines = content.split("\n");
-  const cleanedLines = lines.filter((line, index) => {
-    if (index > 24) return true;
+  const metadataLine = /(?:\bwork\s*id\b|\bparent\s+revision\b|\brevision\b|\broom\s*id\b|\bcreated\s+at\b|\bRC-\d{8}(?:-[A-Z0-9]+)+\b)/i;
+  const metadataHeading = /(?:host[- ]verified\s+work\s+metadata|host\s*지정\s*메타데이터|현재\s*host\s*지정\s*메타데이터|work\s+metadata)/i;
 
-    const plain = line.replace(/[*_`#]/g, "").trim();
+  const cleanedLines = content.split("\n").filter((line) => {
+    const plain = line.replace(/[*_`#>|]/g, "").trim();
     if (!plain) return true;
-
-    const containsCurrentWork = plain.toUpperCase().includes(currentWorkId);
-    if (containsCurrentWork && /(work\s*id|revision|리비전)/i.test(plain)) return false;
-    if (/^(?:현재\s*)?(?:work\s*id|revision|parent\s+revision|room\s*id|created\s+at)\s*(?::|-|is\b|은\b|는\b)/i.test(plain)) return false;
-    if (/^(?:host-verified\s+work\s+metadata|현재\s+host\s+지정\s+메타데이터\s+보고)$/i.test(plain)) return false;
-
+    if (metadataHeading.test(plain)) return false;
+    if (metadataLine.test(plain)) return false;
     return true;
   });
 
-  const body = cleanedLines.join("\n").replace(/^\s*(?:---\s*)?\n+/, "").trimStart();
+  const body = cleanedLines
+    .join("\n")
+    .replace(/^\s*(?:---\s*)?\n+/, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+
   const header = [
     "**Host-Verified Work Metadata**",
     `**Work ID:** ${work.workId}`,
