@@ -1,0 +1,43 @@
+name: Fix Builder Lint Types
+
+on:
+  push:
+    branches:
+      - fix/builder-live-e2e-hardening-20260825
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message != 'Fix Builder lint types'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: fix/builder-live-e2e-hardening-20260825
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Apply Builder lint type fixes
+        run: node scripts/fix-builder-lint-types.mjs
+
+      - name: Lint Builder
+        run: npx eslint src/app/api/builder/route.ts
+
+      - name: Remove one-time lint fixer
+        run: |
+          rm scripts/fix-builder-lint-types.mjs
+          rm .github/workflows/fix-builder-lint-types.yml
+
+      - name: Commit lint-safe Builder
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Fix Builder lint types"
+          git push origin HEAD:fix/builder-live-e2e-hardening-20260825
