@@ -8,6 +8,7 @@ import { logger } from "@/lib/logger";
 const MAX_CONTEXT_CHARS = 36_000;
 const MAX_DOCUMENTS = 3;
 const WORK_CACHE_TTL_MS = 120_000;
+const ROOM_CONTEXT_CACHE_TTL_MS = 2_000;
 
 export interface RoomWorkRecord {
   workId: string;
@@ -32,7 +33,18 @@ type CachedWork = {
   expiresAt: number;
 };
 
+type RoomContext = {
+  documentContext: string;
+  history: NonNullable<OrchestrateInput["history"]>;
+};
+
+type CachedRoomContext = {
+  context: Promise<RoomContext>;
+  expiresAt: number;
+};
+
 const workCache = new Map<string, CachedWork>();
+const roomContextCache = new Map<string, CachedRoomContext>();
 
 function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
@@ -40,6 +52,10 @@ function cleanText(value: unknown) {
 
 function workCacheKey(roomId: string, prompt: string) {
   return `${roomId}\n${prompt}`;
+}
+
+function roomContextCacheKey(roomId: string, input: OrchestrateInput) {
+  return `${roomId}\n${input.prompt}\n${JSON.stringify(boundClientHistory(input.history))}`;
 }
 
 function titleFromPrompt(prompt: string) {
@@ -195,11 +211,39 @@ async function loadRoomConversationHistory(roomId: string, fallbackHistory: Orch
   return history.length ? history : boundClientHistory(fallbackHistory);
 }
 
-export async function orchestrateRoom(roomId: string, input: OrchestrateInput): Promise<OrchestrateRoomResult> {
-  const [documentContext, history] = await Promise.all([
+async function loadRoomContext(roomId: string, input: OrchestrateInput): Promise<RoomContext> {
+  const key = roomContextCacheKey(roomId, input);
+  const now = Date.now();
+  const cached = roomContextCache.get(key);
+  if (cached && cached.expiresAt > now) return cached.context;
+  if (cached) roomContextCache.delete(key);
+
+  if (roomContextCache.size > 100) {
+    for (const [entryKey, entry] of roomContextCache) {
+      if (entry.expiresAt <= now) roomContextCache.delete(entryKey);
+    }
+  }
+
+  const context = Promise.all([
     loadRoomDocumentContext(roomId),
     loadRoomConversationHistory(roomId, input.history),
-  ]);
+  ])
+    .then(([documentContext, history]) => ({ documentContext, history }))
+    .catch((error) => {
+      roomContextCache.delete(key);
+      throw error;
+    });
+
+  roomContextCache.set(key, {
+    context,
+    expiresAt: now + ROOM_CONTEXT_CACHE_TTL_MS,
+  });
+
+  return context;
+}
+
+export async function orchestrateRoom(roomId: string, input: OrchestrateInput): Promise<OrchestrateRoomResult> {
+  const { documentContext, history } = await loadRoomContext(roomId, input);
   const work = createWorkMetadata(roomId, input.prompt, history);
   const systemExtra = [workSystemContext(work), input.systemExtra, documentContext]
     .filter(Boolean)
