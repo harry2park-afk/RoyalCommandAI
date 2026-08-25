@@ -22,7 +22,7 @@ function extractJson(text: string) {
   const trimmed = text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "");
   const start = trimmed.indexOf("{");
   const end = trimmed.lastIndexOf("}");
-  if (start < 0 || end <= start) throw new Error("E2E: Codex did not return JSON");
+  if (start < 0 || end <= start) throw new Error(`E2E: Codex did not return JSON; output=${trimmed.slice(0, 400) || "<empty>"}`);
   return JSON.parse(trimmed.slice(start, end + 1));
 }
 
@@ -71,7 +71,9 @@ async function codexGenerateTestFile() {
   let body: any = {};
   try { body = raw ? JSON.parse(raw) : {}; } catch {}
   if (!response.ok) throw new Error(`E2E Codex: ${body?.error?.message || `HTTP ${response.status}`}`);
-  const parsed = extractJson(responseText(body));
+  const output = responseText(body);
+  if (!output) throw new Error(`E2E: Codex empty output; status=${body?.status || "unknown"}; incomplete=${JSON.stringify(body?.incomplete_details || null)}; outputTypes=${JSON.stringify((body?.output || []).map((x: any) => x?.type))}`);
+  const parsed = extractJson(output);
   const encoded = typeof parsed?.contentBase64 === "string" ? parsed.contentBase64.trim() : "";
   if (!encoded) throw new Error("E2E: Codex returned no contentBase64");
   const content = Buffer.from(encoded, "base64").toString("utf8").trim();
