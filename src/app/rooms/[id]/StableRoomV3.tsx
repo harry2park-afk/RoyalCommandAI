@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import RoomV3 from "./RoomV3";
 import CustomerProfileHub from "./CustomerProfileHub";
@@ -30,6 +30,9 @@ export default function StableRoomV3() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
   const [version, setVersion] = useState(0);
+  const visibleConversationIdsRef = useRef<string[]>([]);
+  const conversationCacheRef = useRef(new Map<string, unknown[]>());
+  const pendingConversationRef = useRef(new Map<string, Promise<unknown[]>>());
 
   useEffect(() => {
     if (!roomId) return;
@@ -48,12 +51,34 @@ export default function StableRoomV3() {
     };
 
     const cacheConversation = (conversationId: string, messages: unknown[]) => {
+      conversationCacheRef.current.set(conversationId, messages);
       try {
         window.sessionStorage.setItem(
           preloadKey(roomId),
           JSON.stringify({ conversationId, messages }),
         );
       } catch {}
+    };
+
+    const loadConversationMessages = (conversationId: string) => {
+      const cached = conversationCacheRef.current.get(conversationId);
+      if (cached) return Promise.resolve(cached);
+
+      const pending = pendingConversationRef.current.get(conversationId);
+      if (pending) return pending;
+
+      const request = fetch(`/api/rooms/${roomId}/conversations/${conversationId}`, { cache: "no-store" })
+        .then(async (response) => {
+          if (!response.ok) throw new Error("Conversation load failed");
+          const payload = await response.json().catch(() => ({}));
+          const messages = Array.isArray(payload?.messages) ? payload.messages : [];
+          conversationCacheRef.current.set(conversationId, messages);
+          return messages as unknown[];
+        })
+        .finally(() => pendingConversationRef.current.delete(conversationId));
+
+      pendingConversationRef.current.set(conversationId, request);
+      return request;
     };
 
     const syncActiveRow = () => {
@@ -64,6 +89,7 @@ export default function StableRoomV3() {
           const visible = Array.isArray(payload?.conversations)
             ? (payload.conversations as Conversation[]).filter((item) => item.status !== "archived")
             : [];
+          visibleConversationIdsRef.current = visible.map((item) => item.id);
           const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button[title="Click: open full conversation · Double-click: edit title"]'));
           buttons.forEach((button, index) => {
             const row = button.parentElement;
@@ -74,6 +100,38 @@ export default function StableRoomV3() {
           });
         })
         .catch(() => {});
+    };
+
+    const conversationIdForButton = async (historyButton: HTMLButtonElement) => {
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button[title="Click: open full conversation · Double-click: edit title"]'));
+      const index = buttons.indexOf(historyButton);
+      if (index < 0) throw new Error("Conversation row not found");
+
+      const cachedId = visibleConversationIdsRef.current[index];
+      if (cachedId) return cachedId;
+
+      const listResponse = await fetch(`/api/rooms/${roomId}/conversations`, { cache: "no-store" });
+      const listPayload = await listResponse.json().catch(() => ({}));
+      const visible = Array.isArray(listPayload?.conversations)
+        ? (listPayload.conversations as Conversation[]).filter((item) => item.status !== "archived")
+        : [];
+      visibleConversationIdsRef.current = visible.map((item) => item.id);
+      const conversationId = visible[index]?.id;
+      if (!conversationId) throw new Error("Conversation not found");
+      return conversationId;
+    };
+
+    const onPointerOverCapture = (event: PointerEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element) || changing) return;
+      const historyButton = target.closest<HTMLButtonElement>('button[title="Click: open full conversation · Double-click: edit title"]');
+      if (!historyButton) return;
+
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button[title="Click: open full conversation · Double-click: edit title"]'));
+      const index = buttons.indexOf(historyButton);
+      const conversationId = index >= 0 ? visibleConversationIdsRef.current[index] : "";
+      if (!conversationId || conversationCacheRef.current.has(conversationId) || pendingConversationRef.current.has(conversationId)) return;
+      void loadConversationMessages(conversationId).catch(() => {});
     };
 
     const onClickCapture = async (event: MouseEvent) => {
@@ -105,32 +163,11 @@ export default function StableRoomV3() {
           return;
         }
 
-        const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button[title="Click: open full conversation · Double-click: edit title"]'));
-        const index = buttons.indexOf(historyButton!);
-        if (index < 0) throw new Error("Conversation row not found");
+        const conversationId = await conversationIdForButton(historyButton!);
+        const messages = await loadConversationMessages(conversationId);
 
-        const listResponse = await fetch(`/api/rooms/${roomId}/conversations`, { cache: "no-store" });
-        const listPayload = await listResponse.json().catch(() => ({}));
-        const visible = Array.isArray(listPayload?.conversations)
-          ? (listPayload.conversations as Conversation[]).filter((item) => item.status !== "archived")
-          : [];
-        const conversation = visible[index];
-        if (!conversation?.id) throw new Error("Conversation not found");
-
-        const [patchResponse, conversationResponse] = await Promise.all([
-          fetch(`/api/rooms/${roomId}/conversations/${conversation.id}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ status: "active" }),
-          }),
-          fetch(`/api/rooms/${roomId}/conversations/${conversation.id}`, { cache: "no-store" }),
-        ]);
-        if (!patchResponse.ok || !conversationResponse.ok) throw new Error("Conversation load failed");
-        const conversationPayload = await conversationResponse.json().catch(() => ({}));
-        const messages = Array.isArray(conversationPayload?.messages) ? conversationPayload.messages : [];
-
-        window.sessionStorage.setItem(activeKey(roomId), conversation.id);
-        cacheConversation(conversation.id, messages);
+        window.sessionStorage.setItem(activeKey(roomId), conversationId);
+        cacheConversation(conversationId, messages);
         remountCenterOnly();
         window.setTimeout(syncActiveRow, 80);
       } catch {
@@ -140,9 +177,13 @@ export default function StableRoomV3() {
       }
     };
 
+    document.addEventListener("pointerover", onPointerOverCapture, true);
     document.addEventListener("click", onClickCapture, true);
     window.setTimeout(syncActiveRow, 120);
-    return () => document.removeEventListener("click", onClickCapture, true);
+    return () => {
+      document.removeEventListener("pointerover", onPointerOverCapture, true);
+      document.removeEventListener("click", onClickCapture, true);
+    };
   }, [roomId]);
 
   return (
