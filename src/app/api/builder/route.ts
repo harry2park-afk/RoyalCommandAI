@@ -393,11 +393,13 @@ async function ensureWorkBranch(branch: string) {
     if (!/not found/i.test(message)) throw error;
   }
   const baseRef = await github(`/git/ref/heads/${encodeURIComponent(BASE_BRANCH)}`);
+  const baseSha = baseRef.object?.sha;
+  if (!baseSha) throw new Error("Base branch SHA is missing");
   try {
     await github("/git/refs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha }),
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseSha }),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -569,7 +571,8 @@ export async function POST(request: Request) {
     const tree = await github(`/git/trees/${encodeURIComponent(BASE_BRANCH)}?recursive=1`);
     const paths = (tree.tree || [])
       .filter((entry: { type?: string; path?: string; size?: number }) => entry.type === "blob" && entry.path && safePath(entry.path) && (entry.size || 0) <= MAX_FILE_BYTES)
-      .map((entry: { path: string }) => entry.path)
+      .map((entry) => entry.path)
+      .filter((path): path is string => typeof path === "string")
       .slice(0, 1800);
 
     const selection = await codexJson([
