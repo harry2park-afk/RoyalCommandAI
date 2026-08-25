@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
+import { orchestrateRoom, type RoomWorkRecord } from "@/lib/ai/orchestrateRoom";
 import { getAvailableProviderIds } from "@/lib/ai/connectors";
 import type { AIModelId } from "@/lib/ai/modelRegistry";
 import { synthesizeBestAnswer } from "@/lib/ai/synthesize";
@@ -61,6 +61,25 @@ function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
 
 function validResponse(response?: AIProviderResponse) {
   return Boolean(response && !response.error && response.content.trim().length > 1);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function enforceAuthoritativeWorkMetadata(content: string, work?: RoomWorkRecord) {
+  if (!work || !content.trim()) return content;
+
+  const workId = escapeRegExp(work.workId);
+  const head = content.slice(0, 1400);
+  const tail = content.slice(1400);
+  const normalizedHead = head.replace(
+    new RegExp(`(${workId}[\\s\\S]{0,120}?(?:Revision|리비전)(?:\\s*(?:is|은|는|:|-))?\\s*)(\\d+)`, "gi"),
+    `$1${work.revision}`,
+  );
+  const header = `**Work ID:** ${work.workId} | **Revision:** ${work.revision}`;
+
+  return `${header}\n\n${normalizedHead}${tail}`;
 }
 
 async function runProviderWithOneRetry(
@@ -155,19 +174,23 @@ export async function POST(request: Request) {
               modelSelections,
             });
 
+            const authoritativeResponse = response
+              ? { ...response, content: enforceAuthoritativeWorkMetadata(response.content, result.workRecord) }
+              : undefined;
+
             resultsByProvider.set(provider, result);
             if (result.blocked && !blockedResult) blockedResult = result;
-            if (response) responsesByProvider.set(provider, response);
+            if (authoritativeResponse) responsesByProvider.set(provider, authoritativeResponse);
 
             sendLine(controller, {
               type: "provider",
               provider,
               name: PROVIDER_LABELS[provider],
               modelId: modelSelections?.[provider],
-              model: response?.model,
-              content: result.blocked ? result.finalAnswer : (response?.content || ""),
-              latencyMs: response?.latencyMs ?? result.latencyMs,
-              error: response?.error || (!result.blocked && !response?.content?.trim() ? "No complete answer returned after retry." : undefined),
+              model: authoritativeResponse?.model,
+              content: result.blocked ? result.finalAnswer : (authoritativeResponse?.content || ""),
+              latencyMs: authoritativeResponse?.latencyMs ?? result.latencyMs,
+              error: authoritativeResponse?.error || (!result.blocked && !authoritativeResponse?.content?.trim() ? "No complete answer returned after retry." : undefined),
               retried,
             });
           }));
@@ -185,6 +208,50 @@ export async function POST(request: Request) {
           const workHeader = workId && revision ? `**Work ID:** ${workId} | **Revision:** ${revision}` : "";
           const withWorkHeader = (answer: string) => workHeader ? `${workHeader}\n\n${answer}` : answer;
           const workNote = workId && revision ? `Royal Command work record: ${workId}, Revision ${revision}.` : "";
+
+          if (isSupabaseConfigured() && workId && revision) {
+            const supabase = await createClient();
+            const completedAt = new Date().toISOString();
+            const successfulProviders = responses.filter((item) => !item.error && item.content.trim()).length;
+            const failedProviders = responses.filter((item) => Boolean(item.error)).length;
+            const aggregateStatus = blockedResult
+              ? "reportable"
+              : successfulProviders > 0
+                ? "done"
+                : "failed";
+            const { error: workEvidenceError } = await supabase
+              .from("room_work_records")
+              .update({
+                status: aggregateStatus,
+                updated_at: completedAt,
+                evidence: {
+                  providers,
+                  successfulProviders,
+                  failedProviders,
+                  blocked: Boolean(blockedResult),
+                  latencyMs: Date.now() - started,
+                  completedAt,
+                  providerResults: responses.map((item) => ({
+                    provider: item.provider,
+                    model: item.model,
+                    success: !item.error && Boolean(item.content.trim()),
+                    error: item.error || null,
+                  })),
+                },
+              })
+              .eq("room_id", data.roomId)
+              .eq("work_id", workId)
+              .eq("revision", revision);
+
+            if (workEvidenceError) {
+              logger.warn("chat.stream.work_evidence_aggregate_failed", {
+                roomId: data.roomId,
+                workId,
+                revision,
+                error: workEvidenceError.message,
+              });
+            }
+          }
 
           let result: any;
 
