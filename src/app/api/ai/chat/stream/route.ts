@@ -103,11 +103,11 @@ export async function POST(request: Request) {
     const modelSelections = data.modelSelections as Partial<Record<AIProviderId, AIModelId>> | undefined;
     const routed = resolvePromptProviders(data.prompt, data.providers as AIProviderId[] | undefined);
 
-    // Development work uses the existing host-side execution route until the dedicated
-    // RC Builder/Codex executor replaces it. Council is completely removed from routing.
+    // Development work bypasses generic chat orchestration and goes straight to
+    // the dedicated RC Builder/Codex executor. Normal AI chat remains unchanged.
     if (shouldRunDeveloperAgent(data.prompt)) {
       const cookie = request.headers.get("cookie") || "";
-      const builder = await fetch(new URL("/api/ai/chat", request.url), {
+      const builder = await fetch(new URL("/api/builder", request.url), {
         method: "POST",
         headers: { "Content-Type": "application/json", cookie },
         body: JSON.stringify(data),
