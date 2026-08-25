@@ -1,4 +1,4 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { orchestrate, type OrchestrateInput, type OrchestrateResult } from "./orchestrator";
 import { boundClientHistory, normalizeRoomHistory, MAX_ROOM_HISTORY_MESSAGES } from "./roomConversationMemory";
 import { createClient } from "@/lib/supabase/server";
@@ -43,6 +43,15 @@ type CachedRoomContext = {
   expiresAt: number;
 };
 
+type PersistedWorkRow = {
+  work_id: string;
+  revision: number;
+  room_id: string;
+  created_at: string;
+  title: string | null;
+  parent_revision: number | null;
+};
+
 const workCache = new Map<string, CachedWork>();
 const roomContextCache = new Map<string, CachedRoomContext>();
 
@@ -50,8 +59,14 @@ function cleanText(value: unknown) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function workCacheKey(roomId: string, prompt: string) {
-  return `${roomId}\n${prompt}`;
+function workRequestKey(roomId: string, prompt: string, history: OrchestrateInput["history"]) {
+  const canonicalHistory = (history || []).map((message) => ({
+    role: message.role,
+    content: message.content,
+  }));
+  return createHash("sha256")
+    .update(JSON.stringify({ roomId, prompt, history: canonicalHistory }))
+    .digest("hex");
 }
 
 function roomContextCacheKey(roomId: string, input: OrchestrateInput) {
@@ -89,7 +104,7 @@ function isContinuationPrompt(prompt: string) {
 }
 
 function createWorkMetadata(roomId: string, prompt: string, history: OrchestrateInput["history"]): RoomWorkRecord {
-  const cacheKey = workCacheKey(roomId, prompt);
+  const cacheKey = workRequestKey(roomId, prompt, history);
   const now = Date.now();
   const cached = workCache.get(cacheKey);
   if (cached && cached.expiresAt > now) return cached.work;
@@ -134,6 +149,76 @@ function createWorkMetadata(roomId: string, prompt: string, history: Orchestrate
 
   workCache.set(cacheKey, { work, expiresAt: now + WORK_CACHE_TTL_MS });
   return work;
+}
+
+function workFromRow(row: PersistedWorkRow): RoomWorkRecord {
+  return {
+    workId: row.work_id,
+    revision: row.revision,
+    roomId: row.room_id,
+    createdAt: row.created_at,
+    ...(row.title ? { title: row.title } : {}),
+    ...(row.parent_revision ? { parentRevision: row.parent_revision } : {}),
+  };
+}
+
+async function resolveWorkMetadata(
+  roomId: string,
+  prompt: string,
+  history: OrchestrateInput["history"],
+): Promise<RoomWorkRecord> {
+  const candidate = createWorkMetadata(roomId, prompt, history);
+  if (!isSupabaseConfigured()) return candidate;
+
+  const requestKey = workRequestKey(roomId, prompt, history);
+  const supabase = await createClient();
+  const selectColumns = "work_id, revision, room_id, created_at, title, parent_revision";
+
+  const { data: existing, error: selectError } = await supabase
+    .from("room_work_records")
+    .select(selectColumns)
+    .eq("room_id", roomId)
+    .eq("request_key", requestKey)
+    .maybeSingle();
+
+  if (existing) return workFromRow(existing as PersistedWorkRow);
+  if (selectError) {
+    logger.warn("ai.room_work.lookup_failed", { roomId, error: selectError.message });
+    return candidate;
+  }
+
+  const { data: created, error: insertError } = await supabase
+    .from("room_work_records")
+    .insert({
+      room_id: roomId,
+      request_key: requestKey,
+      work_id: candidate.workId,
+      revision: candidate.revision,
+      parent_revision: candidate.parentRevision || null,
+      title: candidate.title || null,
+      status: "received",
+    })
+    .select(selectColumns)
+    .single();
+
+  if (created) return workFromRow(created as PersistedWorkRow);
+
+  // Concurrent providers may race to create the same exact request record.
+  // The unique (room_id, request_key) constraint makes one winner authoritative.
+  if (insertError?.code === "23505") {
+    const { data: winner, error: winnerError } = await supabase
+      .from("room_work_records")
+      .select(selectColumns)
+      .eq("room_id", roomId)
+      .eq("request_key", requestKey)
+      .single();
+    if (winner) return workFromRow(winner as PersistedWorkRow);
+    logger.warn("ai.room_work.race_lookup_failed", { roomId, error: winnerError?.message || insertError.message });
+    return candidate;
+  }
+
+  logger.warn("ai.room_work.persist_failed", { roomId, error: insertError?.message || "unknown insert failure" });
+  return candidate;
 }
 
 function workSystemContext(work: RoomWorkRecord) {
@@ -244,7 +329,7 @@ async function loadRoomContext(roomId: string, input: OrchestrateInput): Promise
 
 export async function orchestrateRoom(roomId: string, input: OrchestrateInput): Promise<OrchestrateRoomResult> {
   const { documentContext, history } = await loadRoomContext(roomId, input);
-  const work = createWorkMetadata(roomId, input.prompt, history);
+  const work = await resolveWorkMetadata(roomId, input.prompt, history);
   const systemExtra = [workSystemContext(work), input.systemExtra, documentContext]
     .filter(Boolean)
     .join("\n\n");
