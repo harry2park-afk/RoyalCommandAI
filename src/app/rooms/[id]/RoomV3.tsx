@@ -179,7 +179,7 @@ export default function RoomV3() {
     if (!selectionReady.current) {
       const available = AI_CATALOG.map((ai) => ai.id).filter((id) => next.some((p) => p.id === id && p.available));
       const storageKey = `royalcommand:room:${roomId}:selected-ai`;
-      let initial = DEFAULT_SLOTS.filter((id) => available.includes(id));
+      let initial = available.includes("openai") ? ["openai"] : available.slice(0, 1);
       try {
         const saved = JSON.parse(localStorage.getItem(storageKey) || "[]") as string[];
         const valid = saved.filter((id) => available.includes(id));
