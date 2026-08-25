@@ -61,7 +61,7 @@ export default function CreateRoomExperience({ customer }: { customer: CustomerI
         </section>
       </div>
 
-      <CreateRoomPremiumWizard />
+      <CreateRoomPremiumWizard initialLocale={locale} initialRoomName={roomName} />
     </div>
   );
 }
