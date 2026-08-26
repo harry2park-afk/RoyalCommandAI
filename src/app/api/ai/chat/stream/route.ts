@@ -21,6 +21,13 @@ const DEV_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   xai: "Grok",
 };
 
+const EXECUTION_PROVIDER_NAMES: Record<AIProviderId, string> = {
+  openai: "OpenAI",
+  anthropic: "Anthropic",
+  google: "Google",
+  xai: "xAI",
+};
+
 const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
   { id: "openai", pattern: /(chatgpt|openai|챗지피티|챗GPT)/i },
   { id: "anthropic", pattern: /(claude|클로드)/i },
@@ -63,17 +70,26 @@ function validResponse(response?: AIProviderResponse) {
   return Boolean(response && !response.error && response.content.trim().length > 1);
 }
 
-function enforceAuthoritativeWorkMetadata(content: string, work?: RoomWorkRecord) {
+function enforceAuthoritativeWorkMetadata(
+  content: string,
+  work: RoomWorkRecord | undefined,
+  provider: AIProviderId,
+  model?: string,
+  error?: string,
+) {
   if (!work || !content.trim()) return content;
 
   const metadataLine = /(?:\bwork\s*id\b|\bparent\s+revision\b|\brevision\b|\broom\s*id\b|\bcreated\s+at\b|\bRC-\d{8}(?:-[A-Z0-9]+)+\b)/i;
   const metadataHeading = /(?:host[- ]verified\s+work\s+metadata|host\s*지정\s*메타데이터|현재\s*host\s*지정\s*메타데이터|work\s+metadata)/i;
+  const executionLine = /^(?:provider|model|status|상태)\s*(?::|-)/i;
+  const executionHeading = /(?:host[- ]verified\s+execution\s+identity|execution\s+identity)/i;
+  const executionTuple = /^(?:openai|anthropic|google|xai|chatgpt|claude|gemini|grok)\s*\|\s*.+\|\s*(?:ok|error)$/i;
 
   const cleanedLines = content.split("\n").filter((line) => {
     const plain = line.replace(/[*_`#>|]/g, "").trim();
     if (!plain) return true;
-    if (metadataHeading.test(plain)) return false;
-    if (metadataLine.test(plain)) return false;
+    if (metadataHeading.test(plain) || executionHeading.test(plain)) return false;
+    if (metadataLine.test(plain) || executionLine.test(plain) || executionTuple.test(plain)) return false;
     return true;
   });
 
@@ -91,7 +107,14 @@ function enforceAuthoritativeWorkMetadata(content: string, work?: RoomWorkRecord
     `**Room ID:** ${work.roomId}`,
   ].join("\n");
 
-  return body ? `${header}\n\n${body}` : header;
+  const executionIdentity = [
+    "**Host-Verified Execution Identity**",
+    `**Provider:** ${EXECUTION_PROVIDER_NAMES[provider]}`,
+    `**Model:** ${model || "unknown"}`,
+    `**Status:** ${!error && content.trim().length > 1 ? "OK" : "ERROR"}`,
+  ].join("\n");
+
+  return body ? `${header}\n\n${body}\n\n${executionIdentity}` : `${header}\n\n${executionIdentity}`;
 }
 
 async function runProviderWithOneRetry(
@@ -187,7 +210,16 @@ export async function POST(request: Request) {
             });
 
             const authoritativeResponse = response
-              ? { ...response, content: enforceAuthoritativeWorkMetadata(response.content, result.workRecord) }
+              ? {
+                  ...response,
+                  content: enforceAuthoritativeWorkMetadata(
+                    response.content,
+                    result.workRecord,
+                    provider,
+                    response.model,
+                    response.error,
+                  ),
+                }
               : undefined;
 
             resultsByProvider.set(provider, result);
