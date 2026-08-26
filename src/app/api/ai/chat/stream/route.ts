@@ -9,6 +9,7 @@ import { PROVIDER_LABELS } from "@/lib/ai/types";
 import {
   DEV_PROVIDER_IDS,
   DEV_PROVIDER_NAMES,
+  resolveDeveloperExecutionPrompt,
   resolvePromptProviders as resolveExecutionProviders,
   shouldRunDeveloperAgent as shouldRunDeveloperAgentV2,
 } from "@/lib/ai/executionRouting";
@@ -138,7 +139,8 @@ async function runSelectedDeveloperAgents(
   },
   language: string,
 ) {
-  const requested = resolveExecutionProviders(data.prompt, data.providers)
+  const executionPrompt = resolveDeveloperExecutionPrompt(data.prompt, data.history) || data.prompt;
+  const requested = resolveExecutionProviders(executionPrompt, data.providers)
     ?.filter((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number])) || [];
   const executionProviders: AIProviderId[] = requested.length
     ? requested
@@ -147,7 +149,7 @@ async function runSelectedDeveloperAgents(
 
   // One host work record is shared by all explicitly assigned developer AIs.
   const workSeed = await orchestrateRoom(data.roomId, {
-    prompt: data.prompt,
+    prompt: executionPrompt,
     history: data.history,
     providers: executionProviders,
     language,
@@ -164,7 +166,7 @@ async function runSelectedDeveloperAgents(
     "Do not write directly to master. Use the Work-ID provider branch and return verified evidence.",
     "Production merge/deploy requires separate user approval; that safety gate does not cancel development execution.",
     "",
-    data.prompt,
+    executionPrompt,
   ].join("\n");
 
   const cookie = request.headers.get("cookie") || "";
@@ -324,8 +326,9 @@ export async function POST(request: Request) {
     const language = data.language || user.defaultLanguage;
     const modelSelections = data.modelSelections as Partial<Record<AIProviderId, AIModelId>> | undefined;
     const routed = resolvePromptProviders(data.prompt, data.providers as AIProviderId[] | undefined);
+    const developerExecutionPrompt = resolveDeveloperExecutionPrompt(data.prompt, data.history);
 
-    if (shouldRunDeveloperAgentV2(data.prompt)) {
+    if (developerExecutionPrompt || shouldRunDeveloperAgentV2(data.prompt)) {
       const payload = await runSelectedDeveloperAgents(request, {
         roomId: data.roomId,
         prompt: data.prompt,
@@ -494,6 +497,7 @@ export async function POST(request: Request) {
             }
           }
 
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           let result: any;
 
           if (blockedResult) {
