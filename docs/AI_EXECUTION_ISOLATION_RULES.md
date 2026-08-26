@@ -51,26 +51,15 @@ When the user assigns distinct scopes, each provider must remain inside its assi
 
 ## Mandatory Work metadata
 
-Every executable GitHub write must carry host-verified:
-
-- Work ID
-- Revision
-- Provider identity
-- Room ID when the work originated in a Room
+Every executable GitHub write must carry host-verified Work ID, Revision, Provider identity, and Room ID when the work originated in a Room.
 
 Commit and PR evidence must be derived from the host/GitHub response, never invented by a model.
 
-## Mandatory preflight risk check
+## Mandatory preflight and post-fix validation
 
-Before making any change, the assigned provider must inspect the current state and decide whether the requested work can create an error, regression, conflict, deployment failure, data-loss risk, security problem, broken dependency, or later maintenance problem.
+Before changing anything, the assigned provider must inspect affected files/resources, dependencies, interfaces, active work, build/type/test impact, deployment impact, and rollback path.
 
-The provider must check affected files/resources, dependencies, interfaces, existing work, likely build/type/test impact, deployment impact, and rollback path before writing.
-
-If a material error or conflict is likely, stop before changing anything and report the issue and safest corrective action.
-
-## Mandatory post-fix validation
-
-After a change, the provider must re-check the changed work for immediate errors and foreseeable future problems. Where applicable, verify lint, typecheck, unit tests, build, affected interfaces, deployment preview, backward compatibility, data integrity, security implications, and conflicts.
+After a change, the provider must re-check lint, typecheck, unit tests, build, affected interfaces, deployment preview, backward compatibility, data integrity, security implications, and conflicts where applicable.
 
 A task must not be reported as safely complete while a known material validation failure remains.
 
@@ -93,11 +82,13 @@ If a new provider-specific endpoint is added later, it must be an adapter to the
 
 The Shared Tool Gateway must follow the same Work ID + Revision + Provider branch contract. It must reject GitHub file writes without valid host Work metadata and must not create anonymous timestamp-only branches or write directly to `master`.
 
-`rc-work/**` pushes are handled by the shared RC Work PR automation so ChatGPT, Claude, Gemini, Grok, Codex-specialist, and approved gateway writes receive consistent Queue/PR controls.
+`rc-work/**` pushes are handled by the shared RC Work PR automation so ChatGPT, Claude, Gemini, Grok, and approved gateway writes receive consistent Queue/PR controls.
 
-## Codex Builder role
+## Codex specialist role
 
-The Codex Builder may remain available as an explicit OpenAI/Codex specialist compatibility path, but it is not the universal RC Room executor and must not override the selected provider. Normal RC Room provider execution is owned by the shared four-provider developer-agent path.
+`/api/builder` is an explicit Codex specialist **analysis-only** compatibility path. It requires explicit specialist opt-in and contains no GitHub writer. It must never silently substitute Codex for ChatGPT, Claude, Gemini, or Grok.
+
+Normal RC Room executable development is owned exclusively by `/api/ai/chat/stream -> /api/dev/agent` for the four provider executors.
 
 ## Completion record
 
