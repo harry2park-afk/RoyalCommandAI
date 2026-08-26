@@ -64,7 +64,7 @@ function stripReviewerOnlyControlText(prompt: string) {
 }
 
 export function hasGlobalNoWriteIntent(prompt: string) {
-  const scoped = removeProductionOnlySafetyGates(prompt);
+  const scoped = stripReviewerOnlyControlText(removeProductionOnlySafetyGates(prompt));
   const codeMutationForbidden = /(?:코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능).{0,35}(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,20}(?:금지|하지\s*마|하지\s*말|하지\s*않|하지\s*마세요|하지\s*마십시오)/i.test(scoped)
     || /(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,20}(?:금지|하지\s*마|하지\s*말|하지\s*않|하지\s*마세요|하지\s*마십시오).{0,35}(?:코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능)/i.test(scoped)
     || /(코드\s*수정\s*금지|코드\s*수정\s*없이|수정\s*없이|변경\s*없이|읽기\s*전용|read[- ]?only)/i.test(scoped);
