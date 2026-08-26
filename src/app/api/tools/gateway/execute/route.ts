@@ -77,6 +77,13 @@ async function ensureBranch(branch: string) {
   });
 }
 
+async function findOpenPullRequest(branch: string) {
+  const ownerName = REPO.split("/")[0];
+  const data = await github(`/pulls?head=${encodeURIComponent(`${ownerName}:${branch}`)}&base=${encodeURIComponent(BASE_BRANCH)}&state=open`);
+  const items = Array.isArray(data.items) ? data.items : [];
+  return items.length ? asObject(items[0]) : null;
+}
+
 async function vercel(path: string, init?: RequestInit): Promise<JsonObject> {
   const token = process.env.VERCEL_TOKEN;
   if (!token) throw new Error("Vercel host credential is not configured");
@@ -148,6 +155,7 @@ export async function POST(request: Request) {
       if (current?.sha) payload.sha = current.sha;
       const saved = await github(`/contents/${path.split("/").map(encodeURIComponent).join("/")}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const commit = asObject(saved.commit);
+      const existingPr = await findOpenPullRequest(branch).catch(() => null);
       result = {
         workId: meta.workId,
         revision: meta.revision,
@@ -156,7 +164,8 @@ export async function POST(request: Request) {
         branch,
         path,
         commit: String(commit.sha || ""),
-        prAutomation: "rc-work branch push triggers RC Work PR workflow; direct master write is forbidden",
+        pr: existingPr ? { number: existingPr.number || null, url: existingPr.html_url || "" } : null,
+        prAutomation: "RC Work PR workflow creates/reuses the provider PR after rc-work push; no direct master write",
       };
     } else if (capability === "vercel.runtime.read" && action === "latest") {
       result = await latestProductionDeployment();
