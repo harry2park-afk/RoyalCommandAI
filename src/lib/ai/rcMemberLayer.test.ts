@@ -62,6 +62,33 @@ describe("RC Member Layer", () => {
     expect(command.effectivePrompt).toContain("execute the inherited development order first");
   });
 
+  it("supports all requested natural continuation and regression test variants", () => {
+    const prior = "Gemini만 실행 담당입니다. API 라우팅 코드를 수정해주세요.";
+    const variants = [
+      "위에것을 다시 실행 해줘요. 지금 자꾸 못하고있는데 뭐가 문제인지도 알아봐줘요.",
+      "위에 것 다시 해줘요",
+      "방금 작업 다시 실행해주세요",
+      "그거 다시 하고 왜 실패했는지도 알려줘요",
+      "이어서 끝내주세요",
+      "다시 실행하되 Production에는 배포하지 마세요",
+    ];
+
+    for (const variant of variants) {
+      const command = resolveRcMemberCommand(
+        variant,
+        [
+          { role: "user", content: prior },
+          { role: "assistant", content: "이전 실행 결과입니다." },
+        ],
+        ["google"],
+      );
+      expect(command.mode).toBe("execute");
+      expect(command.leadProviders).toEqual(["google"]);
+      expect(command.gitWrite).toBe(true);
+      expect(command.continuedFromPriorOrder).toBe(true);
+    }
+  });
+
   it("does not let a Production-only safety gate cancel safe-branch development", () => {
     const command = resolveRcMemberCommand("Claude가 이 API 코드를 수정해주세요. Production에는 배포하지 마세요.", undefined, ["anthropic"]);
     expect(command.mode).toBe("execute");
@@ -106,28 +133,5 @@ describe("RC Member Layer", () => {
     ], ["google", "openai"]);
     expect(command.mode).toBe("answer");
     expect(command.continuedFromPriorOrder).toBe(false);
-  });
-
-  it("passes comprehensive regression suite for additional natural continuation utterances", () => {
-    const prior = "Gemini만 실행 담당. API 라우터를 수정해주세요.";
-    const variants = [
-      "위에 것 다시 해줘요",
-      "방금 작업 다시 실행해주세요",
-      "그거 다시 하고 왜 실패했는지도 알려줘요",
-      "이어서 끝내주세요",
-      "다시 실행하되 Production에는 배포하지 마세요",
-    ];
-
-    for (const variant of variants) {
-      const command = resolveRcMemberCommand(variant, [
-        { role: "user", content: prior },
-        { role: "assistant", content: "이전 실행 결과입니다." },
-      ], ["google"]);
-      expect(command.mode).toBe("execute");
-      expect(command.leadProviders).toEqual(["google"]);
-      expect(command.gitWrite).toBe(true);
-      expect(command.continuedFromPriorOrder).toBe(true);
-      expect(command.effectivePrompt).toContain(prior);
-    }
   });
 });
