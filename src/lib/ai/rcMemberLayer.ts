@@ -91,7 +91,7 @@ function assignedProviders(prompt: string, selected?: AIProviderId[]) {
   const selectedIds = selectedMembers(selected);
   if (asksAllMembers(prompt)) return selectedIds.length ? selectedIds : [...RC_MEMBER_PROVIDER_IDS];
 
-  const assignmentAction = "(?:만\\s*)?(?:실행\\s*담당|개발\\s*담당|작업\\s*담당|수정\\s*담당|구현\\s*담당|조사\\s*담당|분석\\s*담당|검토\\s*담당|답변\\s*담당)";
+  const assignmentAction = "(?:만\s*)?(?:실행\s*담당|개발\s*담당|작업\s*담당|수정\s*담당|구현\s*담당|조사\s*담당|분석\s*담당|검토\s*담당|답변\s*담당)";
   const assigned = PROVIDER_MENTIONS
     .filter(({ pattern }) => new RegExp(`${pattern.source}.{0,20}${assignmentAction}`, "i").test(prompt))
     .map(({ id }) => id);
@@ -116,7 +116,7 @@ function classifyDirect(prompt: string): RcMemberMode {
   const noWrite = hasGlobalNoWriteIntent(prompt);
   const development = hasDevelopmentSubject(prompt);
   const inspect = hasInspectIntent(prompt);
-  const execute = hasDirectExecuteIntent(prompt) && development;
+  const execute = hasDirectExecuteIntent(prompt) && (development || referencesPriorOrder(prompt));
 
   if (noWrite) return development || inspect ? "inspect" : "answer";
   if (execute) return "execute";
@@ -157,7 +157,10 @@ export function resolveRcMemberCommand(
       const currentNoWrite = hasGlobalNoWriteIntent(current);
       const currentInspect = hasInspectIntent(current);
       const currentExecute = hasDirectExecuteIntent(current) || hasContinuationExecuteIntent(current);
-      mode = currentNoWrite ? "inspect" : currentExecute ? "execute" : currentInspect ? "inspect" : priorMode;
+      
+      // [ 근본 수정 오더 반영 ]: 한 문장에 "다시 실행해줘 + 왜 안 되는지도 알아봐줘" 처럼
+      // EXECUTE와 진단 요청이 함께 있으면 EXECUTE를 우선할 것.
+      mode = currentNoWrite ? "inspect" : (currentExecute || currentInspect) ? "execute" : priorMode;
       inheritedProviders = assignedProviders(prior, selected);
       continuedFromPriorOrder = true;
       effectivePrompt = [
