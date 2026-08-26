@@ -72,9 +72,9 @@ function assignedProviders(prompt: string, selected?: AIProviderId[]) {
   const selectedIds = selectedMembers(selected);
   if (asksAllMembers(prompt)) return selectedIds.length ? selectedIds : [...RC_MEMBER_PROVIDER_IDS];
 
-  const assignmentAction = "(?:만\\s*)?(?:실행\\s*담당|개발\\s*담당|작업\\s*담당|수정\\s*담당|구현\\s*담당|조사\\s*담당|분석\\s*담당|검토\\s*담당|답변\\s*담당|실행|조사|분석|검토|답변)";
+  const assignmentAction = "(?:만\\s*)?(?:실행\\s*담당|개발\\s*담당|작업\\s*담당|수정\\s*담당|구현\\s*담당|조사\\s*담당|분석\\s*담당|검토\\s*담당|답변\\s*담당)";
   const assigned = PROVIDER_MENTIONS
-    .filter(({ pattern }) => new RegExp(`${pattern.source}.{0,28}${assignmentAction}`, "i").test(prompt))
+    .filter(({ pattern }) => new RegExp(`${pattern.source}.{0,20}${assignmentAction}`, "i").test(prompt))
     .map(({ id }) => id);
   if (assigned.length) return Array.from(new Set(assigned));
 
