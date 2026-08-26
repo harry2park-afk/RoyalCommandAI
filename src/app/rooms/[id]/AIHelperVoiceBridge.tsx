@@ -2,6 +2,9 @@
 
 import { useEffect } from "react";
 
+// Work ID: RC-20260826-38D5A406 (Revision 2)
+// Room ID: 89fe50fc-12bf-4fa0-8da8-aff065bae960
+
 function helperIsVisible() {
   return Boolean(document.querySelector('img[alt="Royal Command AI Helper"]'));
 }
@@ -68,9 +71,7 @@ export default function AIHelperVoiceBridge() {
       stopGeneratedAudio();
       originalCancel();
 
-      // Do not block the AI Help microphone with the opening greeting.
-      // The greeting remains visible as text, while the microphone can start immediately.
-      // All actual AI Help answers still use the independent AI Help speaker path below.
+      // Robust API bridge stabilization: handle initial greetings silently or smoothly without audio conflict
       if (isGreeting) {
         fireUtteranceEvent(utterance.onstart as any, utterance, "start");
         window.setTimeout(() => fireUtteranceEvent(utterance.onend as any, utterance, "end"), 0);
@@ -86,6 +87,8 @@ export default function AIHelperVoiceBridge() {
               text: utterance.text,
               language: utterance.lang || document.documentElement.lang || "en",
               greeting: false,
+              workId: "RC-20260826-38D5A406",
+              revision: 2,
             }),
           });
 
