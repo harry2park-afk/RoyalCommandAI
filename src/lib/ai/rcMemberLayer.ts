@@ -50,13 +50,20 @@ function hasInspectIntent(prompt: string) {
   return /(조사\s*담당|조사해|조사하세요|원인\s*(?:조사|분석|진단|확인)|근본\s*원인|분석해|분석하세요|진단해|진단하세요|검토해|검토하세요|확인해|확인하세요|읽어|읽고|찾아|찾고|inspect|investigate|root\s*cause|diagnos|analy[sz]e|review|read[- ]?only)/i.test(prompt);
 }
 
+function removeProductionOnlySafetyGates(prompt: string) {
+  return prompt
+    .replace(/production.{0,18}(?:배포|deploy|merge).{0,18}(?:하지\s*마|하지\s*말|하지\s*않|금지)/gi, "")
+    .replace(/(?:배포|deploy|merge).{0,18}(?:하지\s*마|하지\s*말|하지\s*않|금지).{0,18}production/gi, "");
+}
+
 export function hasGlobalNoWriteIntent(prompt: string) {
-  const codeMutationForbidden = /(?:코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능).{0,35}(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,20}(?:금지|하지\s*마|하지\s*말|하지\s*않|하지\s*마세요|하지\s*마십시오)/i.test(prompt)
-    || /(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,20}(?:금지|하지\s*마|하지\s*말|하지\s*않|하지\s*마세요|하지\s*마십시오).{0,35}(?:코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능)/i.test(prompt)
-    || /(코드\s*수정\s*금지|코드\s*수정\s*없이|수정\s*없이|변경\s*없이|읽기\s*전용|read[- ]?only)/i.test(prompt);
-  const gitMutationForbidden = /(?:commit|커밋|pull\s*request|pr\b|push|branch|브랜치).{0,25}(?:생성|작성|수정|실행)?.{0,15}(?:금지|하지\s*마|하지\s*말|하지\s*않)/i.test(prompt)
-    || /(?:commit|커밋|pr|pull\s*request)\s*(?:생성\s*)?금지/i.test(prompt);
-  const executionForbidden = /(?:개발\s*(?:실행|agent|에이전트)|실제\s*실행|코드\s*실행).{0,25}(?:금지|하지\s*마|하지\s*말|하지\s*않)/i.test(prompt);
+  const scoped = removeProductionOnlySafetyGates(prompt);
+  const codeMutationForbidden = /(?:코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능).{0,35}(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,20}(?:금지|하지\s*마|하지\s*말|하지\s*않|하지\s*마세요|하지\s*마십시오)/i.test(scoped)
+    || /(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,20}(?:금지|하지\s*마|하지\s*말|하지\s*않|하지\s*마세요|하지\s*마십시오).{0,35}(?:코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능)/i.test(scoped)
+    || /(코드\s*수정\s*금지|코드\s*수정\s*없이|수정\s*없이|변경\s*없이|읽기\s*전용|read[- ]?only)/i.test(scoped);
+  const gitMutationForbidden = /(?:commit|커밋|pull\s*request|pr\b|push|branch|브랜치).{0,25}(?:생성|작성|수정|실행)?.{0,15}(?:금지|하지\s*마|하지\s*말|하지\s*않)/i.test(scoped)
+    || /(?:commit|커밋|pr|pull\s*request)\s*(?:생성\s*)?금지/i.test(scoped);
+  const executionForbidden = /(?:개발\s*(?:실행|agent|에이전트)|실제\s*실행|코드\s*실행|실행).{0,14}(?:금지|하지\s*마|하지\s*말|하지\s*않)/i.test(scoped);
   return codeMutationForbidden || gitMutationForbidden || executionForbidden;
 }
 
@@ -151,14 +158,14 @@ export function resolveRcMemberCommand(
     }
   }
 
-  const explicitProviders = assignedProviders(current, selected);
+  const explicitProviders = assignedProviders(current, continuedFromPriorOrder ? undefined : selected);
   const selectedIds = selectedMembers(selected);
   const leadProviders = explicitProviders.length
     ? explicitProviders
     : inheritedProviders.length
       ? inheritedProviders
       : selectedIds;
-  const normalizedLeads = leadProviders.length ? leadProviders : ["openai" as AIProviderId];
+  const normalizedLeads = leadProviders.length ? leadProviders : (mode === "execute" ? ["openai" as AIProviderId] : []);
   const reviewers = reviewOnlyProviders(current, normalizedLeads, selected);
 
   return {
