@@ -37,10 +37,15 @@ const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
 ];
 
 function hasExplicitNoExecutionIntent(prompt: string) {
-  const explicitNegation = /(실행|수정|변경|구현|배포|개발\s*(?:agent|에이전트)|코드|파일|github|commit|push|merge).{0,30}(?:하지\s*마|하지\s*말|하지\s*않|금지|요청(?:하는\s*것)?이\s*아니|요청하지\s*않)/i.test(prompt);
+  // Read-only means the user negated the actual code/file/UI change itself.
+  // Safety gates such as "do not deploy / merge / push to production" must NOT
+  // cancel an otherwise explicit request to edit code.
+  const codeChangeNegation = /(코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능).{0,28}(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,18}(?:하지\s*마|하지\s*말|하지\s*않|금지|요청(?:하는\s*것)?이\s*아니|요청하지\s*않)/i.test(prompt)
+    || /(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,18}(?:하지\s*마|하지\s*말|하지\s*않|금지).{0,28}(코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능)/i.test(prompt);
+  const executionNegation = /(?:실행|개발\s*(?:agent|에이전트)).{0,22}(?:하지\s*마|하지\s*말|하지\s*않|금지)/i.test(prompt);
   const explanationOnly = /(설명|분석|진단|검토|테스트|의견|원인|답변).{0,8}(?:만\s*(?:해|하세요|해주세요|줘|주세요)|목적|용도)/i.test(prompt);
-  const noActionStatement = /(실제|실제로).{0,12}(?:코드|파일|github|vercel|배포|개발\s*(?:agent|에이전트)).{0,18}(?:변경|실행|수정|배포).{0,10}(?:하지\s*않|안\s*했|하지\s*마)/i.test(prompt);
-  return explicitNegation || explanationOnly || noActionStatement;
+  const explicitReadOnly = /(읽기\s*전용|read[- ]?only|코드\s*수정\s*없이|수정\s*없이|변경\s*없이|실측\s*확인(?:만)?)/i.test(prompt);
+  return codeChangeNegation || executionNegation || explanationOnly || explicitReadOnly;
 }
 
 function shouldRunDeveloperAgent(prompt: string) {
