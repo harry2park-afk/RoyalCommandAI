@@ -1,66 +1,42 @@
 ## Work Queue Ticket
-
-#
+<!-- Reference exactly one open issue, for example: #123 -->
 
 ## Primary task
-
-One outcome only, on one line.
+<!-- Exactly one non-empty line describing the primary task. -->
 
 ## Batch exception
-
-NO
+NO — one controlled task only.
 
 ## Goal
 
-Describe the requested result for this one task.
-
 ## Files / components changed
 
-- 
-
 ## Locked surfaces touched
-
-Write `NONE` or list only the locked surfaces this task must change.
+NONE
 
 ## Explicit non-goals
-
-State what this PR deliberately does not change.
+Do not change unrelated behavior, bypass approval gates, or write directly to production/master.
 
 ## Verification plan
-
-State the exact checks that prove this task is complete without regressing locked/core flows.
+- Lint changed code
+- Typecheck
+- Unit tests
+- Production build
+- Vercel Preview
+- Applicable Room smoke tests
 
 ## Automated checks
-
-- [ ] Changed-code lint PASS
-- [ ] `npm run typecheck` PASS
-- [ ] `npm test` PASS
-- [ ] `npm run build` PASS
-- [ ] Royal Command Change Control PASS
-
-## Command Room smoke test
-
-Check only applicable items, but explain any skipped core item when the PR touches Command Room runtime behavior.
-
-- [ ] Login -> Dashboard -> Command Room
-- [ ] No unsolicited external tab
-- [ ] AI selection / AI Warehouse
-- [ ] Composer multiline + send
-- [ ] Manual message scrolling
-- [ ] New Chat / Voice
-- [ ] Conversation default title from first chat text
-- [ ] Pencil title editing + save
-- [ ] Checkbox selection
-- [ ] SAVE
-- [ ] DELETE
-- [ ] Left sidebar
-- [ ] Right sidebar
+Royal Command Change Control, Conflict Guard, and Quality Gate must pass.
 
 ## Vercel Preview
-
-- Preview URL/state: PENDING
-- Manual verification result: PENDING
+Required before production approval.
 
 ## Rollback point
+Identify the stable baseline commit or PR.
 
-Last known stable commit / PR / release:
+## AI execution metadata (when applicable)
+- Work ID:
+- Revision:
+- Provider: openai | anthropic | google | xai | codex | gateway
+- Provider branch: `rc-work/<work-id>/<provider>-...`
+- Host-verified commit/PR evidence:

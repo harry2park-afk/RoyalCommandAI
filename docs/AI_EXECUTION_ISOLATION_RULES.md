@@ -1,72 +1,97 @@
 # Royal Command AI Execution Isolation Rules
 
-Status: Harry Park approved operating rule.
+Status: current Royal Command operating rule.
 
 ## Equal execution authority
 
 ChatGPT, Claude, Gemini, and Grok have equal execution authority. No provider is the permanent primary, backup, or subordinate executor.
 
-## One order, one assigned AI
+## One host routing authority
 
-Every executable development order must name exactly one AI owner. The named AI may execute only the work assigned to it in that order.
+Executable development intent is classified by one shared Royal Command routing policy. The Room streaming endpoint is the runtime authority; compatibility endpoints must delegate to it instead of maintaining their own intent rules.
 
-If an executable order names zero AIs or more than one AI, do not modify code, files, database state, deployment state, or GitHub. Return a conflict warning and require the work to be split into separate orders.
+All four providers use the same `/api/dev/agent` GitHub execution contract. Provider-specific compatibility endpoints must not contain an independent GitHub writer.
 
-## No shared execution
+## Single-AI and explicit multi-AI orders
 
-AIs must not collaborate on the same executable order, hand work to another AI, automatically fail over to another AI, or continue another AI's unfinished execution unless Harry explicitly issues a new order assigning that work.
+A user may assign one AI or explicitly assign several of the four AIs.
 
-Each AI must stay inside its own assigned scope. It must not edit files, modules, routes, database objects, infrastructure, or deployment resources assigned to another AI's active order.
+- A single-AI order is executed only by that named provider.
+- An explicit multi-AI order such as “4 AI 모두 작업하세요” may execute all named providers.
+- Each provider must use its own isolated provider branch under the same host Work ID and Revision.
+- No provider may write directly to `master`.
+- Production merge/deploy remains separately approval-gated.
 
-## Mandatory preflight risk check
+A phrase scoped to other providers, such as “Gemini만 실행 담당, 다른 AI는 검토만”, must not cancel the named provider's execution.
 
-Before making any change, the assigned AI must first inspect the current state and decide whether the requested work can create an error, regression, conflict, deployment failure, data-loss risk, security problem, broken dependency, or later maintenance problem.
+## Provider branch isolation
 
-The AI must check the affected files/resources, dependencies, interfaces, existing active work, likely build/type/test impact, deployment impact, and rollback path before writing.
+Executable GitHub work uses branches shaped like:
 
-If a material error or conflict is likely, STOP before changing anything and send an ERROR SIGNAL. The signal must state the suspected problem, what would be affected, why execution was stopped, and the safest next corrective action.
+`rc-work/<work-id>/<provider>-rev-<revision>`
 
-Do not continue merely because the requested change is possible. Safe execution requires both immediate correctness and reasonable protection against foreseeable downstream problems.
+or an equivalent provider-scoped `rc-work` branch for an approved Tool Gateway write.
 
-## Collision prevention
+Provider IDs are:
 
-Before execution, the assigned AI must identify the files/resources it intends to change. If the order overlaps with another active AI assignment, stop before writing and report the conflict.
+- `openai` — ChatGPT
+- `anthropic` — Claude
+- `google` — Gemini
+- `xai` — Grok
 
-Do not make simultaneous edits to the same file or resource from different AI orders. Do not overwrite, revert, merge, or reformat another AI's in-progress work.
+A provider may never silently substitute another provider as the executor. A failure is reported as that provider's failure unless the user explicitly authorises reassignment.
 
-## Mandatory post-fix validation
+## Collision prevention for multi-AI work
 
-After a change is made, the assigned AI must not simply report completion and leave.
+Multiple AIs may investigate or implement the same user goal only on isolated provider branches. They must never make simultaneous writes to the same shared branch or directly to production.
 
-It must re-check the changed work for immediate errors and foreseeable future problems. Where applicable, verify type/build/test results, affected interfaces, dependent routes/modules, deployment status, backward compatibility, data integrity, security implications, and whether the fix creates a new conflict elsewhere.
+Each provider PR is independently reviewable. Conflicting implementations must be resolved before merge; one provider's branch must not overwrite another provider's in-progress branch.
 
-If the fix creates or is likely to create another problem, the assigned AI must correct that problem within its authorised scope before declaring completion.
+When the user assigns distinct scopes, each provider must remain inside its assigned scope.
 
-If the AI cannot safely correct the remaining risk within its scope, it must NOT mark the work complete. It must send an ERROR SIGNAL / ESCALATION REPORT describing the unresolved risk and stop further execution.
+## Mandatory Work metadata
 
-## Cooperative diagnosis without shared execution
+Every executable GitHub write must carry host-verified Work ID, Revision, Provider identity, and Room ID when the work originated in a Room.
 
-When an unresolved problem requires wider expertise, the assigned AI may request diagnostic opinions from the other AIs, but the other AIs must not modify the same active work item.
+Commit and PR evidence must be derived from the host/GitHub response, never invented by a model.
 
-The other AIs may analyse, review, propose solutions, identify risks, or recommend a repair plan. Actual execution remains with the single assigned AI unless Harry issues a new separate order transferring or splitting responsibility.
+## Mandatory preflight and post-fix validation
 
-If a safe solution cannot be established, all execution stays stopped until Harry approves a new plan.
+Before changing anything, the assigned provider must inspect affected files/resources, dependencies, interfaces, active work, build/type/test impact, deployment impact, and rollback path.
 
-## Separate orders
+After a change, the provider must re-check lint, typecheck, unit tests, build, affected interfaces, deployment preview, backward compatibility, data integrity, security implications, and conflicts where applicable.
 
-When Harry wants several AIs working in parallel, he must give separate orders, for example:
+A task must not be reported as safely complete while a known material validation failure remains.
 
-- ChatGPT: Task A only.
-- Claude: Task B only.
-- Gemini: Task C only.
-- Grok: Task D only.
+## Read-only requests
 
-Each order has its own Work ID and Revision record. A provider must report only the Work ID belonging to its current assigned order.
+Read-only inspection, explanation, diagnosis, review, or requests explicitly saying code/file changes must not occur remain outside the developer execution path.
+
+Safety gates such as “do not merge to production” or “do not deploy” do not cancel safe-branch development when the user clearly requested code changes.
+
+## Compatibility endpoints
+
+Compatibility paths must never carry a second execution policy:
+
+- `/api/ai/chat` delegates to `/api/ai/chat/stream`.
+- `/api/dev/gemini` delegates to `/api/dev/agent` with provider `google`.
+
+If a new provider-specific endpoint is added later, it must be an adapter to the shared execution authority unless a separate specialist mode is explicitly approved.
+
+## Tool Gateway GitHub writes
+
+The Shared Tool Gateway must follow the same Work ID + Revision + Provider branch contract. It must reject GitHub file writes without valid host Work metadata and must not create anonymous timestamp-only branches or write directly to `master`.
+
+`rc-work/**` pushes are handled by the shared RC Work PR automation so ChatGPT, Claude, Gemini, Grok, and approved gateway writes receive consistent Queue/PR controls.
+
+## Codex specialist role
+
+`/api/builder` is an explicit Codex specialist **analysis-only** compatibility path. It requires explicit specialist opt-in and contains no GitHub writer. It must never silently substitute Codex for ChatGPT, Claude, Gemini, or Grok.
+
+Normal RC Room executable development is owned exclusively by `/api/ai/chat/stream -> /api/dev/agent` for the four provider executors.
 
 ## Completion record
 
-Each AI records its own execution result, changed files/resources, commit IDs if any, deployment status if any, validation performed, remaining risks if any, and completion/failure state under its own Work ID.
+Each provider records its execution result, provider branch, changed files/resources, commit IDs, PR evidence, validation performed, deployment status if any, remaining risks, and completion/failure state under the host Work ID and Revision.
 
-A task may be marked complete only when the assigned AI has completed the required post-fix validation and no known material unresolved risk remains.
-
-These isolation and safety rules override older instructions that allowed automatic developer-agent failover, shared execution of one task, multiple AIs changing the same work item, or completion without post-change validation.
+The newest approved user order supersedes older execution rules where they conflict with this document.

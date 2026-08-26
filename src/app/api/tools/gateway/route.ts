@@ -23,6 +23,8 @@ export async function GET() {
     gateway: "Royal Command Shared Tool Gateway",
     universalMasterKey: false,
     credentialPolicy: "server-side scoped credentials only; secret values are never returned",
+    githubWritePolicy: "host Work ID + Revision + Provider required; provider-scoped rc-work branch only; no direct master write",
+    supportedDeveloperProviders: ["openai", "anthropic", "google", "xai"],
     owner: isOwner(user.email),
     capabilities,
   });
