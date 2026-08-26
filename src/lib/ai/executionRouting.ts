@@ -56,6 +56,16 @@ export function shouldRunDeveloperAgent(prompt: string) {
   return !hasExplicitNoExecutionIntent(prompt);
 }
 
+function resolvePriorUserChain(userMessages: string[], index: number, depth = 0): string | null {
+  if (index < 0 || depth > 6) return null;
+  const candidate = userMessages[index]?.trim();
+  if (!candidate) return null;
+  if (hasExplicitNoExecutionIntent(candidate)) return null;
+  if (shouldRunDeveloperAgent(candidate)) return candidate;
+  if (referencesPriorOrder(candidate)) return resolvePriorUserChain(userMessages, index - 1, depth + 1);
+  return null;
+}
+
 export function resolveDeveloperExecutionPrompt(
   prompt: string,
   history?: ExecutionHistoryMessage[],
@@ -63,15 +73,19 @@ export function resolveDeveloperExecutionPrompt(
   if (shouldRunDeveloperAgent(prompt)) return prompt;
   if (!referencesPriorOrder(prompt) || hasExplicitNoExecutionIntent(prompt)) return null;
 
-  const prior = [...(history || [])]
-    .reverse()
-    .find((message) => message.role === "user" && message.content.trim() !== prompt.trim() && shouldRunDeveloperAgent(message.content));
+  const userMessages = (history || [])
+    .filter((message) => message.role === "user")
+    .map((message) => message.content.trim())
+    .filter(Boolean)
+    .filter((content) => content !== prompt.trim());
+  const prior = resolvePriorUserChain(userMessages, userMessages.length - 1);
   if (!prior) return null;
 
   return [
-    prior.content.trim(),
+    prior,
     "",
-    "ROYAL COMMAND CONTINUATION — the user is explicitly continuing/re-running the developer order above.",
+    "ROYAL COMMAND CONTINUATION — the user is explicitly continuing/re-running only the immediately preceding user-order chain above.",
+    "Do not jump across an unrelated user request to inherit an older developer task.",
     `Follow-up instruction: ${prompt.trim()}`,
   ].join("\n");
 }
