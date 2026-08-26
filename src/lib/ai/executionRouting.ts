@@ -17,16 +17,16 @@ const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
 ];
 
 function hasDevelopmentSubject(prompt: string) {
-  return /(코드|개발|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능|파일|github|commit|push|merge|배포|vercel|component|tsx|typescript|css|시스템|라우팅|api|웹사이트|홈페이지|페이지|앱|agent|에이전트)/i.test(prompt);
+  return /(코드|개발|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능|파일|github|commit|push|merge|배포|vercel|component|tsx|typescript|css|시스템|라우팅|api|웹사이트|홈페이지|페이지|앱|agent|에이전트|작업)/i.test(prompt);
 }
 
 function hasExplicitExecutionIntent(prompt: string) {
-  return /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|바꿔(?:\s*줘|\s*주세요)?|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|붙여\s*넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|배포해(?:\s*줘|\s*주세요)?|배포하세요|실행해(?:\s*줘|\s*주세요)?|실행하세요|작업해(?:\s*줘|\s*주세요)?|작업하세요|일해(?:\s*줘|\s*주세요)?|일하세요|실행\s*담당|실제\s*github\s*개발\s*실행|commit\b|push\b|merge\b|코드를\s*(?:써|작성|변경|수정)|파일을\s*(?:생성|수정|변경|삭제)|실제로\s*(?:수정|변경|구현|배포|실행))/i.test(prompt);
+  return /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|바꿔(?:\s*줘|\s*주세요)?|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|붙여\s*넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|배포해(?:\s*줘|\s*주세요)?|배포하세요|실행해(?:\s*줘|\s*주세요)?|실행하세요|실행\s*담당|작업해(?:\s*줘|\s*주세요)?|작업하세요|작업해라|끝내(?:\s*줘|\s*주세요|세요)|진행해(?:\s*줘|\s*주세요)?|진행하세요|실제\s*github\s*개발\s*실행|commit\b|push\b|merge\b|코드를\s*(?:써|작성|변경|수정)|파일을\s*(?:생성|수정|변경|삭제)|실제로\s*(?:수정|변경|구현|배포|실행|작업))/i.test(prompt);
 }
 
 function hasWorkContinuation(prompt: string) {
   return /\bRC-\d{8}(?:-[A-Z0-9]+)+\b/i.test(prompt)
-    && /(다시\s*실행|재실행|계속|이어(?:서|가기)?|진행|실행(?:해|하세요|해줘|해주세요)?|고쳐|수정(?:해|하세요|해줘|해주세요)?)/i.test(prompt);
+    && /(다시\s*실행|재실행|계속|이어(?:서|가기)?|진행|실행(?:해|하세요|해줘|해주세요)?|작업(?:해|하세요|해줘|해주세요)?|고쳐|수정(?:해|하세요|해줘|해주세요)?)/i.test(prompt);
 }
 
 export function hasExplicitNoExecutionIntent(prompt: string) {
@@ -41,8 +41,6 @@ export function shouldRunDeveloperAgent(prompt: string) {
   const positive = (hasDevelopmentSubject(prompt) && hasExplicitExecutionIntent(prompt)) || hasWorkContinuation(prompt);
   if (!positive) return false;
 
-  // A scoped review-only instruction for *other* AIs must not cancel an explicit
-  // execution assignment such as "Gemini만 실행 담당, 다른 AI는 검토만".
   const scopedOtherAiReview = /(다른|나머지|타)\s*(?:ai|에이아이|모델).{0,18}(?:검토|리뷰|review)\s*만/i.test(prompt);
   if (scopedOtherAiReview) return true;
 
@@ -57,7 +55,7 @@ export function resolvePromptProviders(prompt: string, selected?: AIProviderId[]
 
   const executionAssignment = PROVIDER_MENTIONS
     .filter(({ pattern }) => pattern.test(prompt))
-    .filter(({ pattern }) => new RegExp(`${pattern.source}.{0,40}(?:실행\s*담당|실행|개발\s*담당|작업\s*담당|수정\s*담당|구현\s*담당)`, "i").test(prompt))
+    .filter(({ pattern }) => new RegExp(`${pattern.source}.{0,40}(?:실행\\s*담당|실행|개발\\s*담당|작업\\s*담당|수정\\s*담당|구현\\s*담당|작업(?:하세요|해|해줘|해주세요)?)`, "i").test(prompt))
     .map(({ id }) => id);
   if (executionAssignment.length) return Array.from(new Set(executionAssignment));
 
