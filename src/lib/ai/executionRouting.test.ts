@@ -37,6 +37,17 @@ describe("RC execution routing", () => {
     expect(resolvePromptProviders(prompt)).toEqual(["openai", "anthropic", "google", "xai"]);
   });
 
+  it("recognizes natural Korean work commands as execution", () => {
+    expect(shouldRunDeveloperAgent("4 AI 모두 이 GitHub 라우팅 작업을 끝내세요.")).toBe(true);
+    expect(shouldRunDeveloperAgent("Gemini가 이 UI 작업을 실제로 작업하세요.")).toBe(true);
+  });
+
+  it("production safety gates do not cancel safe branch development", () => {
+    const prompt = "Claude가 이 API 코드를 수정하세요. master에는 직접 쓰지 말고 Production에는 배포하지 마세요.";
+    expect(shouldRunDeveloperAgent(prompt)).toBe(true);
+    expect(resolvePromptProviders(prompt, ["anthropic"])).toEqual(["anthropic"]);
+  });
+
   it("keeps truly read-only inspection out of execution", () => {
     const prompt = "Gemini만 실제 GitHub 저장소를 읽어서 원인만 검토하세요. 코드 수정 없이 보고만 해주세요.";
     expect(shouldRunDeveloperAgent(prompt)).toBe(false);
