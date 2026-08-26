@@ -6,6 +6,7 @@ import type { AIModelId } from "@/lib/ai/modelRegistry";
 import { synthesizeBestAnswer } from "@/lib/ai/synthesize";
 import type { AIProviderId, AIProviderResponse } from "@/lib/ai/types";
 import { PROVIDER_LABELS } from "@/lib/ai/types";
+import { buildRepositoryInspectionContext, isRepositoryInspectionIntent, type RepositoryInspectionEvidence } from "@/lib/ai/repositoryInspectionContext";
 import { chatSchema } from "@/lib/validations";
 import { localDb } from "@/lib/local-store";
 import { isSupabaseConfigured } from "@/lib/utils";
@@ -125,6 +126,7 @@ async function runProviderWithOneRetry(
     history?: Array<{ role: "user" | "assistant" | "system"; content: string }>;
     language?: string;
     modelSelections?: Partial<Record<AIProviderId, AIModelId>>;
+    systemExtra?: string;
   },
 ) {
   let result = await orchestrateRoom(roomId, { ...input, providers: [provider] });
@@ -157,8 +159,9 @@ export async function POST(request: Request) {
     const modelSelections = data.modelSelections as Partial<Record<AIProviderId, AIModelId>> | undefined;
     const routed = resolvePromptProviders(data.prompt, data.providers as AIProviderId[] | undefined);
 
-    // Development work bypasses generic chat orchestration and goes straight to
-    // the dedicated RC Builder/Codex executor. Normal AI chat remains unchanged.
+    // Executable development work still goes to the isolated Builder path.
+    // Read-only repository inspection stays in the requested provider path and receives
+    // host-verified GitHub evidence through systemExtra below.
     if (shouldRunDeveloperAgent(data.prompt)) {
       const cookie = request.headers.get("cookie") || "";
       const builder = await fetch(new URL("/api/builder", request.url), {
@@ -187,6 +190,7 @@ export async function POST(request: Request) {
         : getAvailableProviderIds();
     const providers = requestedProviders.filter((id) => available.has(id));
     const started = Date.now();
+    const repositoryInspection = isRepositoryInspectionIntent(data.prompt);
 
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -199,14 +203,39 @@ export async function POST(request: Request) {
 
           const responsesByProvider = new Map<AIProviderId, AIProviderResponse>();
           const resultsByProvider = new Map<AIProviderId, Awaited<ReturnType<typeof orchestrateRoom>>>();
+          const repositoryEvidenceByProvider = new Map<AIProviderId, RepositoryInspectionEvidence>();
           let blockedResult: Awaited<ReturnType<typeof orchestrateRoom>> | null = null;
 
           await Promise.all(providers.map(async (provider) => {
+            let systemExtra: string | undefined;
+            if (repositoryInspection) {
+              try {
+                const inspection = await buildRepositoryInspectionContext(provider, data.prompt);
+                systemExtra = inspection.systemExtra;
+                repositoryEvidenceByProvider.set(provider, inspection.evidence);
+                logger.info("chat.stream.repository_evidence_loaded", {
+                  roomId: data.roomId,
+                  provider,
+                  readPaths: inspection.evidence.readPaths,
+                  selector: inspection.evidence.selector,
+                });
+              } catch (error) {
+                const message = error instanceof Error ? error.message : String(error);
+                logger.warn("chat.stream.repository_evidence_failed", { roomId: data.roomId, provider, error: message });
+                systemExtra = [
+                  "ROYAL COMMAND HOST TOOL ERROR — GITHUB REPOSITORY READ",
+                  `The host attempted a real GitHub repository inspection for this request but failed: ${message}`,
+                  "Do not invent repository paths or source facts. Report FOUND NOT CONFIRMED and the host error plainly.",
+                ].join("\n");
+              }
+            }
+
             const { result, response, retried } = await runProviderWithOneRetry(data.roomId, provider, {
               prompt: data.prompt,
               history: data.history,
               language,
               modelSelections,
+              systemExtra,
             });
 
             const authoritativeResponse = response
@@ -236,6 +265,7 @@ export async function POST(request: Request) {
               latencyMs: authoritativeResponse?.latencyMs ?? result.latencyMs,
               error: authoritativeResponse?.error || (!result.blocked && !authoritativeResponse?.content?.trim() ? "No complete answer returned after retry." : undefined),
               retried,
+              ...(repositoryEvidenceByProvider.has(provider) ? { toolEvidence: repositoryEvidenceByProvider.get(provider) } : {}),
             });
           }));
 
@@ -281,6 +311,11 @@ export async function POST(request: Request) {
                     success: !item.error && Boolean(item.content.trim()),
                     error: item.error || null,
                   })),
+                  ...(repositoryInspection ? {
+                    toolEvidence: providers
+                      .map((provider) => repositoryEvidenceByProvider.get(provider))
+                      .filter((item): item is RepositoryInspectionEvidence => Boolean(item)),
+                  } : {}),
                 },
               })
               .eq("room_id", data.roomId)
@@ -315,6 +350,11 @@ export async function POST(request: Request) {
               revision,
               workRecord,
               finalAnswer: withWorkHeader(finalAnswer),
+              ...(repositoryInspection ? {
+                toolEvidence: providers
+                  .map((provider) => repositoryEvidenceByProvider.get(provider))
+                  .filter((item): item is RepositoryInspectionEvidence => Boolean(item)),
+              } : {}),
               comparison: {
                 ...scoring.comparison,
                 ...(workRecord ? { work: workRecord } : {}),
@@ -322,6 +362,7 @@ export async function POST(request: Request) {
                   "Each selected AI runs independently; no Council peer-review or synthesis pass is executed.",
                   "Explicit model selections are resolved through the Royal Command Model Registry and are never silently substituted with a different model.",
                   "Empty or failed provider output receives one automatic retry before being reported as incomplete.",
+                  ...(repositoryInspection ? ["Read-only GitHub inspection uses host-verified repository evidence injected into the selected provider context; it performs no repository mutation."] : []),
                   ...(workNote ? [workNote] : []),
                   ...scoring.comparison.notes,
                 ],
@@ -354,6 +395,7 @@ export async function POST(request: Request) {
                   workId: result.workId,
                   revision: result.revision,
                   workRecord: result.workRecord,
+                  ...(result.toolEvidence ? { toolEvidence: result.toolEvidence } : {}),
                 },
               })
               .select("*")
@@ -387,6 +429,7 @@ export async function POST(request: Request) {
                 workId: result.workId,
                 revision: result.revision,
                 workRecord: result.workRecord,
+                ...(result.toolEvidence ? { toolEvidence: result.toolEvidence } : {}),
               },
             });
           }
@@ -398,6 +441,7 @@ export async function POST(request: Request) {
             workId: result.workId,
             revision: result.revision,
             latencyMs: result.latencyMs,
+            repositoryInspection,
           });
           sendLine(controller, { type: "final", result: { ...result, userMessage, aiMessage } });
           controller.close();
