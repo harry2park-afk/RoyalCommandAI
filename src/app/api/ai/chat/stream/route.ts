@@ -21,7 +21,7 @@ const DEV_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   xai: "Grok",
 };
 
-const EXECUTION_PROVIDER_NAMES: Record<AIProviderId, string> = {
+const EXECUTION_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   openai: "OpenAI",
   anthropic: "Anthropic",
   google: "Google",
@@ -109,7 +109,7 @@ function enforceAuthoritativeWorkMetadata(
 
   const executionIdentity = [
     "**Host-Verified Execution Identity**",
-    `**Provider:** ${EXECUTION_PROVIDER_NAMES[provider]}`,
+    `**Provider:** ${EXECUTION_PROVIDER_NAMES[provider] || provider}`,
     `**Model:** ${model || "unknown"}`,
     `**Status:** ${!error && content.trim().length > 1 ? "OK" : "ERROR"}`,
   ].join("\n");
