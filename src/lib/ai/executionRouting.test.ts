@@ -68,6 +68,29 @@ describe("RC execution routing", () => {
     expect(resolvePromptProviders(resolved || "", ["google"])).toEqual(["google"]);
   });
 
+  it("follows only a contiguous continuation chain", () => {
+    const prior = "Gemini가 AI Help UI 코드를 수정하세요.";
+    const continuation = "위 오더 다시 실행해주세요.";
+    const resolved = resolveDeveloperExecutionPrompt("방금 작업 계속해주세요.", [
+      { role: "user", content: prior },
+      { role: "assistant", content: "실행 실패" },
+      { role: "user", content: continuation },
+      { role: "assistant", content: "다시 실패" },
+    ]);
+    expect(resolved).toContain(prior);
+  });
+
+  it("does not jump across an unrelated user request to an older developer order", () => {
+    const oldDeveloperOrder = "Gemini가 AI Help UI 코드를 수정하세요.";
+    const resolved = resolveDeveloperExecutionPrompt("위 오더 다시 실행해주세요.", [
+      { role: "user", content: oldDeveloperOrder },
+      { role: "assistant", content: "실행 실패" },
+      { role: "user", content: "오늘 날씨 알려주세요." },
+      { role: "assistant", content: "맑습니다." },
+    ]);
+    expect(resolved).toBeNull();
+  });
+
   it("does not invent a developer continuation when no prior executable user order exists", () => {
     expect(resolveDeveloperExecutionPrompt("위 오더 다시 실행해주세요.", [
       { role: "user", content: "오늘 날씨 알려주세요." },
