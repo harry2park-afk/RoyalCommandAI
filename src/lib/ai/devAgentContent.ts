@@ -23,14 +23,15 @@ function assertSafeUtf8(content: string, path: string, maxBytes: number) {
 
 function decodeStrictBase64(value: string) {
   const compact = value.replace(/\s+/g, "");
-  if (!compact || compact.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(compact)) {
+  if (!compact || !/^[A-Za-z0-9+/]*={0,2}$/.test(compact) || compact.length % 4 === 1) {
     throw new Error("Invalid Base64 encoding");
   }
 
-  const decoded = Buffer.from(compact, "base64");
-  const canonicalInput = compact.replace(/=+$/, "");
+  const unpadded = compact.replace(/=+$/, "");
+  const padded = unpadded + "=".repeat((4 - (unpadded.length % 4)) % 4);
+  const decoded = Buffer.from(padded, "base64");
   const canonicalRoundTrip = decoded.toString("base64").replace(/=+$/, "");
-  if (canonicalInput !== canonicalRoundTrip) throw new Error("Invalid Base64 round-trip");
+  if (unpadded !== canonicalRoundTrip) throw new Error("Invalid Base64 round-trip");
   return decoded.toString("utf8");
 }
 
@@ -50,8 +51,8 @@ export function decodeDeveloperFilePayload(
   }
 
   for (const key of ["content", "source"] as const) {
-    const value = typeof payload?.[key] === "string" ? payload[key].trimEnd() : "";
-    if (!value) continue;
+    const value = typeof payload?.[key] === "string" ? payload[key] : "";
+    if (!value.trim()) continue;
     try {
       return { content: assertSafeUtf8(value, path, maxBytes), source: key };
     } catch (error) {
