@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   developerProviderOrder,
+  resolveDeveloperExecutionPrompt,
   resolvePromptProviders,
   shouldRunDeveloperAgent,
 } from "./executionRouting";
@@ -51,5 +52,33 @@ describe("RC execution routing", () => {
   it("keeps truly read-only inspection out of execution", () => {
     const prompt = "Gemini만 실제 GitHub 저장소를 읽어서 원인만 검토하세요. 코드 수정 없이 보고만 해주세요.";
     expect(shouldRunDeveloperAgent(prompt)).toBe(false);
+  });
+
+  it("inherits the prior user developer order for a short continuation command", () => {
+    const prior = "Gemini만 실행 담당, 다른 AI는 검토만 하세요. AI Help UI를 실제 GitHub 개발 실행 경로로 수정하세요. Production에는 배포하지 마세요.";
+    const followUp = "네 위에 오더를 다시 실행 해주세요.";
+    const resolved = resolveDeveloperExecutionPrompt(followUp, [
+      { role: "user", content: prior },
+      { role: "assistant", content: "이전 실행은 실패했습니다." },
+    ]);
+
+    expect(shouldRunDeveloperAgent(followUp)).toBe(false);
+    expect(resolved).toContain(prior);
+    expect(resolved).toContain(followUp);
+    expect(resolvePromptProviders(resolved || "", ["google"])).toEqual(["google"]);
+  });
+
+  it("does not invent a developer continuation when no prior executable user order exists", () => {
+    expect(resolveDeveloperExecutionPrompt("위 오더 다시 실행해주세요.", [
+      { role: "user", content: "오늘 날씨 알려주세요." },
+      { role: "assistant", content: "맑습니다." },
+    ])).toBeNull();
+  });
+
+  it("does not inherit a prior order when the follow-up explicitly says not to execute", () => {
+    const prior = "Gemini가 이 UI 코드를 수정하세요.";
+    expect(resolveDeveloperExecutionPrompt("위 작업은 실행하지 말고 설명만 해주세요.", [
+      { role: "user", content: prior },
+    ])).toBeNull();
   });
 });
