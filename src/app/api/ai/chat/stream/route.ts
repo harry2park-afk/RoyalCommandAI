@@ -9,11 +9,9 @@ import { PROVIDER_LABELS } from "@/lib/ai/types";
 import {
   DEV_PROVIDER_IDS,
   DEV_PROVIDER_NAMES,
-  resolveDeveloperExecutionPrompt,
-  resolvePromptProviders as resolveExecutionProviders,
-  shouldRunDeveloperAgent as shouldRunDeveloperAgentV2,
 } from "@/lib/ai/executionRouting";
-import { buildRepositoryInspectionContext, isRepositoryInspectionIntent, type RepositoryInspectionEvidence } from "@/lib/ai/repositoryInspectionContext";
+import { buildRepositoryInspectionContext, type RepositoryInspectionEvidence } from "@/lib/ai/repositoryInspectionContext";
+import type { RcMemberCommand } from "@/lib/ai/rcMemberLayer";
 import { chatSchema } from "@/lib/validations";
 import { localDb } from "@/lib/local-store";
 import { isSupabaseConfigured } from "@/lib/utils";
@@ -136,16 +134,14 @@ async function runSelectedDeveloperAgents(
     providers?: AIProviderId[];
     language?: string;
     modelSelections?: Partial<Record<AIProviderId, AIModelId>>;
+    memberCommand: RcMemberCommand;
   },
   language: string,
 ) {
-  const executionPrompt = resolveDeveloperExecutionPrompt(data.prompt, data.history) || data.prompt;
-  const requested = resolveExecutionProviders(executionPrompt, data.providers)
-    ?.filter((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number])) || [];
-  const executionProviders: AIProviderId[] = requested.length
-    ? requested
-    : (data.providers || []).filter((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number])).slice(0, 1);
-  if (!executionProviders.length) executionProviders.push("openai");
+  const executionPrompt = data.memberCommand.effectivePrompt;
+  const executionProviders = data.memberCommand.leadProviders
+    .filter((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number]));
+  if (!executionProviders.length) throw new Error("RC Member Command did not assign an executable provider");
 
   // One host work record is shared by all explicitly assigned developer AIs.
   const workSeed = await orchestrateRoom(data.roomId, {
@@ -165,6 +161,7 @@ async function runSelectedDeveloperAgents(
     "Every code change, branch, commit, PR and report must use this Work ID and Revision.",
     "Do not write directly to master. Use the Work-ID provider branch and return verified evidence.",
     "Production merge/deploy requires separate user approval; that safety gate does not cancel development execution.",
+    "The RC Member Command is authoritative. Do not reinterpret this request as ANSWER or INSPECT.",
     "",
     executionPrompt,
   ].join("\n");
@@ -272,7 +269,7 @@ async function runSelectedDeveloperAgents(
         author_type: "ai",
         content: finalAnswer,
         language,
-        metadata: { workId: workSeed.workId, revision: workSeed.revision, developerExecutions: executions },
+        metadata: { workId: workSeed.workId, revision: workSeed.revision, developerExecutions: executions, memberCommand: data.memberCommand },
       })
       .select("*")
       .single();
@@ -280,7 +277,7 @@ async function runSelectedDeveloperAgents(
     aiMessage = aiMsg;
   } else {
     userMessage = localDb.addMessage({ roomId: data.roomId, authorType: "user", content: data.prompt, language });
-    aiMessage = localDb.addMessage({ roomId: data.roomId, authorType: "ai", content: finalAnswer, language, metadata: { developerExecutions: executions } });
+    aiMessage = localDb.addMessage({ roomId: data.roomId, authorType: "ai", content: finalAnswer, language, metadata: { developerExecutions: executions, memberCommand: data.memberCommand } });
   }
 
   return {
@@ -301,6 +298,7 @@ async function runSelectedDeveloperAgents(
       notes: [
         "Executable RC Room development is routed to the explicitly assigned provider's developer agent.",
         "ChatGPT, Claude, Gemini, and Grok use the same host GitHub execution contract and isolated provider branches.",
+        "RC Member Command is the single source of truth for execution mode.",
         "Production merge/deploy remains approval-gated.",
       ],
     },
@@ -325,10 +323,19 @@ export async function POST(request: Request) {
     const data = chatSchema.parse(body);
     const language = data.language || user.defaultLanguage;
     const modelSelections = data.modelSelections as Partial<Record<AIProviderId, AIModelId>> | undefined;
+    const memberCommand = data.memberCommand as RcMemberCommand;
     const routed = resolvePromptProviders(data.prompt, data.providers as AIProviderId[] | undefined);
-    const developerExecutionPrompt = resolveDeveloperExecutionPrompt(data.prompt, data.history);
 
-    if (developerExecutionPrompt || shouldRunDeveloperAgentV2(data.prompt)) {
+    logger.info("chat.stream.member_command", {
+      roomId: data.roomId,
+      mode: memberCommand.mode,
+      leadProviders: memberCommand.leadProviders,
+      reviewOnlyProviders: memberCommand.reviewOnlyProviders,
+      gitWrite: memberCommand.gitWrite,
+      continuedFromPriorOrder: memberCommand.continuedFromPriorOrder,
+    });
+
+    if (memberCommand.mode === "execute") {
       const payload = await runSelectedDeveloperAgents(request, {
         roomId: data.roomId,
         prompt: data.prompt,
@@ -336,10 +343,11 @@ export async function POST(request: Request) {
         providers: data.providers as AIProviderId[] | undefined,
         language,
         modelSelections,
+        memberCommand,
       }, language);
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
-          sendLine(controller, { type: "final", result: payload, developerExecution: true });
+          sendLine(controller, { type: "final", result: payload, developerExecution: true, memberCommand });
           controller.close();
         },
       });
@@ -355,7 +363,8 @@ export async function POST(request: Request) {
         : getAvailableProviderIds();
     const providers = requestedProviders.filter((id) => available.has(id));
     const started = Date.now();
-    const repositoryInspection = isRepositoryInspectionIntent(data.prompt);
+    const repositoryInspection = memberCommand.mode === "inspect";
+    const providerPrompt = repositoryInspection ? memberCommand.effectivePrompt : data.prompt;
 
     const stream = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -375,7 +384,7 @@ export async function POST(request: Request) {
             let systemExtra: string | undefined;
             if (repositoryInspection) {
               try {
-                const inspection = await buildRepositoryInspectionContext(provider, data.prompt);
+                const inspection = await buildRepositoryInspectionContext(provider, providerPrompt);
                 systemExtra = inspection.systemExtra;
                 repositoryEvidenceByProvider.set(provider, inspection.evidence);
                 logger.info("chat.stream.repository_evidence_loaded", {
@@ -396,7 +405,7 @@ export async function POST(request: Request) {
             }
 
             const { result, response, retried } = await runProviderWithOneRetry(data.roomId, provider, {
-              prompt: data.prompt,
+              prompt: providerPrompt,
               history: data.history,
               language,
               modelSelections,
@@ -470,6 +479,7 @@ export async function POST(request: Request) {
                   blocked: Boolean(blockedResult),
                   latencyMs: Date.now() - started,
                   completedAt,
+                  memberCommand,
                   providerResults: responses.map((item) => ({
                     provider: item.provider,
                     model: item.model,
@@ -516,6 +526,7 @@ export async function POST(request: Request) {
               revision,
               workRecord,
               finalAnswer: withWorkHeader(finalAnswer),
+              memberCommand,
               ...(repositoryInspection ? {
                 toolEvidence: providers
                   .map((provider) => repositoryEvidenceByProvider.get(provider))
@@ -526,9 +537,10 @@ export async function POST(request: Request) {
                 ...(workRecord ? { work: workRecord } : {}),
                 notes: [
                   "Each selected AI runs independently; no Council peer-review or synthesis pass is executed.",
+                  "RC Member Command is the single source of truth for ANSWER / INSPECT / EXECUTE mode.",
                   "Explicit model selections are resolved through the Royal Command Model Registry and are never silently substituted with a different model.",
                   "Empty or failed provider output receives one automatic retry before being reported as incomplete.",
-                  ...(repositoryInspection ? ["Read-only GitHub inspection uses host-verified repository evidence injected into the selected provider context; it performs no repository mutation."] : []),
+                  ...(repositoryInspection ? ["Read-only GitHub inspection is authorized only by memberCommand.mode=inspect and performs no repository mutation."] : []),
                   ...(workNote ? [workNote] : []),
                   ...scoring.comparison.notes,
                 ],
@@ -561,6 +573,7 @@ export async function POST(request: Request) {
                   workId: result.workId,
                   revision: result.revision,
                   workRecord: result.workRecord,
+                  memberCommand,
                   ...(result.toolEvidence ? { toolEvidence: result.toolEvidence } : {}),
                 },
               })
@@ -595,6 +608,7 @@ export async function POST(request: Request) {
                 workId: result.workId,
                 revision: result.revision,
                 workRecord: result.workRecord,
+                memberCommand,
                 ...(result.toolEvidence ? { toolEvidence: result.toolEvidence } : {}),
               },
             });
@@ -608,6 +622,7 @@ export async function POST(request: Request) {
             revision: result.revision,
             latencyMs: result.latencyMs,
             repositoryInspection,
+            memberMode: memberCommand.mode,
           });
           sendLine(controller, { type: "final", result: { ...result, userMessage, aiMessage } });
           controller.close();
