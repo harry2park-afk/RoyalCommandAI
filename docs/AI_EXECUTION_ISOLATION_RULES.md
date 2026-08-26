@@ -80,9 +80,18 @@ Read-only inspection, explanation, diagnosis, review, or requests explicitly say
 
 Safety gates such as “do not merge to production” or “do not deploy” do not cancel safe-branch development when the user clearly requested code changes.
 
+## Compatibility endpoints
+
+Compatibility paths must never carry a second execution policy:
+
+- `/api/ai/chat` delegates to `/api/ai/chat/stream`.
+- `/api/dev/gemini` delegates to `/api/dev/agent` with provider `google`.
+
+If a new provider-specific endpoint is added later, it must be an adapter to the shared execution authority unless a separate specialist mode is explicitly approved.
+
 ## Tool Gateway GitHub writes
 
-The Shared Tool Gateway must follow the same Work ID + Revision + Provider branch contract. It must not create anonymous timestamp-only GitHub branches or write directly to `master`.
+The Shared Tool Gateway must follow the same Work ID + Revision + Provider branch contract. It must reject GitHub file writes without valid host Work metadata and must not create anonymous timestamp-only branches or write directly to `master`.
 
 `rc-work/**` pushes are handled by the shared RC Work PR automation so ChatGPT, Claude, Gemini, Grok, Codex-specialist, and approved gateway writes receive consistent Queue/PR controls.
 
