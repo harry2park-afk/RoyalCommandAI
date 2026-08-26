@@ -16,6 +16,11 @@ const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
   { id: "xai", pattern: /(grok|그록)/i },
 ];
 
+type ExecutionHistoryMessage = {
+  role: "user" | "assistant" | "system";
+  content: string;
+};
+
 function hasDevelopmentSubject(prompt: string) {
   return /(코드|개발|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능|파일|github|commit|push|merge|배포|vercel|component|tsx|typescript|css|시스템|라우팅|api|웹사이트|홈페이지|페이지|앱|agent|에이전트|작업)/i.test(prompt);
 }
@@ -27,6 +32,10 @@ function hasExplicitExecutionIntent(prompt: string) {
 function hasWorkContinuation(prompt: string) {
   return /\bRC-\d{8}(?:-[A-Z0-9]+)+\b/i.test(prompt)
     && /(다시\s*실행|재실행|계속|이어(?:서|가기)?|진행|실행(?:해|하세요|해줘|해주세요)?|작업(?:해|하세요|해줘|해주세요)?|고쳐|수정(?:해|하세요|해줘|해주세요)?)/i.test(prompt);
+}
+
+function referencesPriorOrder(prompt: string) {
+  return /(?:위(?:에|의)?|앞(?:에|의)?|이전|방금|아까|앞서|기존)\s*(?:오더|명령|지시|작업|요청)|(?:그|이)\s*(?:오더|명령|지시|작업|요청).{0,20}(?:다시|계속|이어)|(?:다시\s*실행|재실행|계속\s*(?:해|진행)|이어서\s*(?:해|진행)).{0,20}(?:주세요|줘|하세요|해)/i.test(prompt);
 }
 
 export function hasExplicitNoExecutionIntent(prompt: string) {
@@ -45,6 +54,26 @@ export function shouldRunDeveloperAgent(prompt: string) {
   if (scopedOtherAiReview) return true;
 
   return !hasExplicitNoExecutionIntent(prompt);
+}
+
+export function resolveDeveloperExecutionPrompt(
+  prompt: string,
+  history?: ExecutionHistoryMessage[],
+) {
+  if (shouldRunDeveloperAgent(prompt)) return prompt;
+  if (!referencesPriorOrder(prompt) || hasExplicitNoExecutionIntent(prompt)) return null;
+
+  const prior = [...(history || [])]
+    .reverse()
+    .find((message) => message.role === "user" && message.content.trim() !== prompt.trim() && shouldRunDeveloperAgent(message.content));
+  if (!prior) return null;
+
+  return [
+    prior.content.trim(),
+    "",
+    "ROYAL COMMAND CONTINUATION — the user is explicitly continuing/re-running the developer order above.",
+    `Follow-up instruction: ${prompt.trim()}`,
+  ].join("\n");
 }
 
 export function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
