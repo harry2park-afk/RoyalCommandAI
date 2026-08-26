@@ -41,7 +41,7 @@ export const chatSchema = chatInputSchema.transform((data) => {
   const memberCommand = resolveRcMemberCommand(data.prompt, data.history, data.providers);
   return {
     ...data,
-    providers: memberCommand.leadProviders,
+    providers: memberCommand.leadProviders.length ? memberCommand.leadProviders : data.providers,
     memberCommand,
   };
 });
