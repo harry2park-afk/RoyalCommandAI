@@ -14,7 +14,7 @@ The owner may give several instructions together. Royal Command must organise th
 
 At most one primary code-change ticket is ACTIVE at a time, plus one BLOCKED/parked ticket.
 
-An explicit owner order assigning several AIs to the same primary goal may use multiple provider-isolated `rc-work` branches and PRs under that one ACTIVE ticket. This is still one controlled task, not permission to start unrelated parallel changes.
+An explicit owner order assigning several AIs to the same primary goal may use multiple provider-isolated `rc-work` branches and PRs under that one ACTIVE ticket and host Work ID/Revision. This is still one controlled task, not permission to start unrelated parallel changes.
 
 ## Provider execution
 
@@ -30,6 +30,7 @@ Every GitHub write must carry host Work ID, Revision, and Provider identity. Pro
 4. Put unrelated discovered work into backlog rather than silently expanding scope.
 5. If multiple AIs are explicitly assigned, keep their implementation branches separate and review each PR independently.
 6. Do not merge conflicting provider implementations until the conflict is resolved.
+7. Compatibility endpoints must not create parallel execution queues or independent GitHub writers.
 
 ## Completion
 
