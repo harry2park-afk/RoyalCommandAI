@@ -25,21 +25,33 @@ The owner may provide many requests in one message. Those requests are split int
 
 Do not combine unrelated visual, functional, architectural, dependency, and refactor work in the same PR. Discovered unrelated issues go to backlog.
 
-## 4. Source-First Rule
+## 4. One Execution Authority Rule
+Royal Command must not maintain competing copies of AI execution intent rules.
+
+- `/api/ai/chat/stream` is the Room runtime routing authority.
+- `/api/ai/chat` is a JSON compatibility adapter and delegates to the stream authority.
+- `/api/dev/agent` is the shared GitHub developer executor for ChatGPT, Claude, Gemini, and Grok.
+- `/api/dev/gemini` is a compatibility adapter only and delegates to `/api/dev/agent` with provider `google`.
+- `/api/tools/gateway/execute` must use the same host Work ID + Revision + Provider branch contract for GitHub writes.
+- `/api/builder` is an explicit Codex specialist path, not the default Room execution engine.
+
+No compatibility endpoint may reintroduce a separate master-write or provider-selection implementation.
+
+## 5. Source-First Rule
 Approved product behavior must live in React/source code whenever practical.
 
 DOM mutation helpers and page-wide injected JavaScript are transitional only. They must not rewrite React-controlled inputs, move React-owned controls, repeatedly force scroll position, or silently change approved text/state.
 
 New helper scripts require a written reason in the PR and must be scoped to the Room route or smaller.
 
-## 5. Preview Before Production
+## 6. Preview Before Production
 Required path:
 
 Change Ticket -> provider/feature/fix branch -> PR -> Change Control -> Quality Gate -> Vercel Preview -> smoke test -> merge to master -> Production
 
 Direct production experimentation is prohibited except emergency rollback/recovery. AI developer execution must never write directly to `master`.
 
-## 6. Definition of Done
+## 7. Definition of Done
 A Command Room PR is Done only when all applicable items pass:
 
 - Requested change works.
@@ -53,7 +65,7 @@ A Command Room PR is Done only when all applicable items pass:
 - Existing locked surfaces remain unchanged.
 - PR records exactly what changed and what was intentionally not changed.
 
-## 7. Command Room Smoke Test
+## 8. Command Room Smoke Test
 Before Production merge, verify:
 
 1. Login -> Dashboard -> Command Room opens normally.
@@ -75,11 +87,14 @@ Before Production merge, verify:
 17. Mobile/responsive layout has no obvious clipping or unreachable core controls.
 18. ChatGPT, Claude, Gemini, and Grok execution routing uses the shared host policy and never silently substitutes a different provider.
 19. Executable GitHub work returns a provider-scoped safe branch and host-verified commit/PR evidence.
+20. JSON chat compatibility and stream chat produce the same execution routing decision.
+21. Legacy Gemini development calls cannot bypass the shared developer agent.
+22. Tool Gateway GitHub writes reject requests without Work ID and Provider identity.
 
-## 8. Stable Baseline
+## 9. Stable Baseline
 After the Command Room smoke test passes, mark the commit in release notes as a Stable Baseline. Future regressions should first compare against that commit before adding new workaround code.
 
-## 9. Rollback Rule
+## 10. Rollback Rule
 If a Production change breaks a previously locked/core flow:
 
 1. Stop unrelated development.
@@ -88,33 +103,20 @@ If a Production change breaks a previously locked/core flow:
 4. Reproduce and repair in Preview.
 5. Re-run the full smoke test before Production.
 
-## 10. UI System Rule
+## 11. UI System Rule
 Shared UI values must be centralized rather than repeatedly hard-coded in helper scripts. Common controls should use agreed tokens/components for height, border, background, typography, spacing, and state.
 
-## 11. Work-In-Progress Limit
+## 12. Work-In-Progress Limit
 Maximum active development: **1 ACTIVE code-change ticket** plus 1 BLOCKED/parked item.
 
 An explicitly authorised multi-AI implementation of that one ACTIVE ticket may use multiple provider-isolated branches/PRs. This does not authorise a second unrelated active ticket.
 
 Research, review, and documentation may run in parallel only when they cannot alter the same shared branch or production runtime state.
 
-## 12. Change Log Requirement
-Every PR must contain:
+## 13. Change Log Requirement
+Every PR must contain Work Queue Ticket, Primary task, Batch exception, Goal, Files/components changed, Locked surfaces touched, Explicit non-goals, Verification plan, Automated test results, Preview status, manual smoke-test result where applicable, and Rollback point.
 
-- Work Queue Ticket
-- Primary task
-- Batch exception
-- Goal
-- Files/components changed
-- Locked surfaces touched
-- Explicit non-goals
-- Verification plan
-- Automated test results
-- Preview status
-- Manual smoke-test result where applicable
-- Rollback point
-
-## 13. Automated Enforcement
+## 14. Automated Enforcement
 Pull requests to `master` are subject to three controls:
 
 1. **Royal Command Change Control** — validates the single-task PR contract and confirms the linked queue ticket is open.
@@ -125,7 +127,7 @@ A failed gate means STOP: repair the active ticket before production merge.
 
 `rc-work/**` branches are handled by the shared RC Work PR automation regardless of whether the executor is ChatGPT, Claude, Gemini, Grok, Codex specialist, or an approved Tool Gateway write.
 
-## 14. Current Locked Command Room Surfaces
+## 15. Current Locked Command Room Surfaces
 Unless the owner explicitly changes them:
 
 - Native multiline composer layout and wrapping.
