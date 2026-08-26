@@ -1,10 +1,34 @@
-# Royal Command Room UI Source of Truth
+# Royal Command Room Source of Truth
 
-The Room UI must be controlled by React/route CSS source only.
+Status: current runtime authority.
 
-Rules:
-- Do not use MutationObserver or DOM-rewriting scripts to restyle Room controls.
-- Do not load legacy `rc-room-*.js` UI override scripts into the Room runtime.
-- Any approved visual state must live in `RoomV3.tsx`, `rooms/[id]/layout.tsx`, or the relevant React component.
-- Preview-test changes before Production.
-- Production must never depend on browser-side patch scripts for the approved Room appearance.
+## UI source
+
+The active Command Room UI is the source-rendered Room implementation under `src/app/rooms/[id]`. Approved locked UI surfaces must not be silently overridden by helper scripts or unrelated execution changes.
+
+## AI routing source
+
+`/api/ai/chat/stream` is the single Room runtime authority for AI routing and executable-development intent.
+
+`/api/ai/chat` is compatibility JSON only and delegates to the stream endpoint.
+
+## Developer execution source
+
+`/api/dev/agent` is the single shared GitHub developer executor for:
+
+- ChatGPT / `openai`
+- Claude / `anthropic`
+- Gemini / `google`
+- Grok / `xai`
+
+Provider-specific compatibility routes must delegate to this executor and must not contain independent GitHub write logic.
+
+## GitHub execution contract
+
+All executable writes require host Work ID, Revision, Provider identity, safe provider-scoped `rc-work` branch, host commit evidence, and PR/Queue controls. Direct `master` writes are prohibited.
+
+Tool Gateway GitHub writes use the same contract.
+
+## Codex
+
+`/api/builder` is an explicit Codex specialist analysis route only. It is not the Room execution authority and has no GitHub writer.
