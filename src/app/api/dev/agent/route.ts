@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { parseJsonObject } from "@/lib/ai/devAgentCodec";
+import { decodeDeveloperFilePayload } from "@/lib/ai/devAgentContent";
 import { getConnector } from "@/lib/ai/connectors";
 import type { AIProviderId } from "@/lib/ai/types";
 
@@ -144,7 +145,7 @@ async function developerModel(provider: DevProvider, prompt: string) {
     messages: [
       {
         role: "system",
-        content: `You are ${PROVIDER_NAMES[provider]} operating as a Royal Command senior autonomous developer. Return strict JSON only. For complete source files, Base64-encode UTF-8 file content into contentBase64. Never expose secrets or credentials.`,
+        content: `You are ${PROVIDER_NAMES[provider]} operating as a Royal Command senior autonomous developer. Return strict JSON only. When returning a complete source file, use exactly one of: contentBase64 containing valid Base64-encoded UTF-8 source, or content containing the complete UTF-8 source text. Never return placeholders, empty file content, markdown fences, secrets, or credentials.`,
       },
       { role: "user", content: prompt },
     ],
@@ -256,15 +257,23 @@ async function generateOneAction(plan: PlannedAction, instruction: string, provi
   const currentBlock = current.exists
     ? `CURRENT FILE (${plan.path}):\n${current.content}`
     : `CURRENT FILE (${plan.path}): DOES NOT EXIST`;
+  let lastError = "unknown generation failure";
 
-  const result = await developerModel(provider, `Create exactly ONE complete file for the approved Royal Command change. Return JSON only: {"contentBase64":"BASE64_UTF8_COMPLETE_FILE"}. No markdown. No raw source in JSON.\n\nUSER INSTRUCTION:\n${instruction}\n\nTARGET:\npath=${plan.path}\noperation=${plan.operation}\nreason=${plan.reason || ""}\n\n${currentBlock}`);
+  for (let attempt = 1; attempt <= 2; attempt += 1) {
+    const retryInstruction = attempt === 1
+      ? ""
+      : `\n\nRETRY REQUIREMENT:\nThe previous generated payload was invalid (${lastError}). Return the COMPLETE file again. Do not return an empty string, placeholder, explanation, markdown fence, or truncated pseudo-content.`;
+    const result = await developerModel(provider, `Create exactly ONE complete file for the approved Royal Command change. Return strict JSON using exactly one valid source field: {"contentBase64":"VALID_BASE64_OF_COMPLETE_UTF8_FILE"} OR {"content":"COMPLETE_UTF8_SOURCE_TEXT"}. Do not return both fields. No markdown. Never return a placeholder or empty content.${retryInstruction}\n\nUSER INSTRUCTION:\n${instruction}\n\nTARGET:\npath=${plan.path}\noperation=${plan.operation}\nreason=${plan.reason || ""}\n\n${currentBlock}`);
 
-  const encoded = typeof result?.contentBase64 === "string" ? result.contentBase64.trim() : "";
-  if (!encoded) throw new Error(`${PROVIDER_NAMES[provider]} returned no contentBase64 for ${plan.path}`);
-  const content = Buffer.from(encoded, "base64").toString("utf8");
-  if (!content.trim()) throw new Error(`Decoded developer file is empty: ${plan.path}`);
-  if (Buffer.byteLength(content, "utf8") > MAX_FILE_BYTES) throw new Error(`Generated file too large: ${plan.path}`);
-  return { ...plan, content };
+    try {
+      const decoded = decodeDeveloperFilePayload(result, plan.path, MAX_FILE_BYTES);
+      return { ...plan, content: decoded.content };
+    } catch (error) {
+      lastError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
+  throw new Error(`${PROVIDER_NAMES[provider]} could not generate a valid complete source file for ${plan.path} after 2 attempts: ${lastError}`);
 }
 
 export async function GET() {
