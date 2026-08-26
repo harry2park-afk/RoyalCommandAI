@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
-import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
-import { getAvailableProviderIds } from "@/lib/ai/connectors";
-import type { AIProviderId } from "@/lib/ai/types";
+import { getCurrentUser } from "@lib/auth";
+import { orchestrateRoom } from "@lib/ai/orchestrateRoom";
+import { getAvailableProviderIds } from "@lib/ai/connectors";
+import type { AIProviderId } from "@lib/ai/types";
 
 export const maxDuration = 120;
 
@@ -21,7 +21,8 @@ export async function POST(request: Request) {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const data = schema.parse(await request.json());
+    const body = await request.json().catch(() => ({}));
+    const data = schema.parse(body);
     const available = getAvailableProviderIds();
     const preferred = (["openai", "anthropic", "google", "xai"] as AIProviderId[])
       .find((id) => available.includes(id)) || available[0];
@@ -49,9 +50,12 @@ export async function POST(request: Request) {
       providers: [preferred],
     });
 
-    const response = result.responses.find((item) => item.provider === preferred);
+    const response = result.responses?.find((item) => item.provider === preferred);
     const answer = response?.content?.trim() || result.finalAnswer?.trim();
-    if (!answer) return Response.json({ error: response?.error || "AI Helper returned no answer." }, { status: 502 });
+    if (!answer) {
+      const errorMsg = response?.error || result.errors?.[0] || "AI Helper returned no answer.";
+      return Response.json({ error: errorMsg }, { status: 502 });
+    }
 
     return Response.json({ answer, provider: preferred });
   } catch (error) {
