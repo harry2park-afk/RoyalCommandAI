@@ -38,6 +38,17 @@ type WorkMeta = {
   revision: number;
 };
 
+type GithubJson = {
+  message?: unknown;
+  object?: { sha?: unknown };
+  commit?: { sha?: unknown };
+  sha?: unknown;
+  html_url?: unknown;
+  number?: unknown;
+  tree?: unknown;
+  content?: unknown;
+};
+
 function developerEmails() {
   const configured = (process.env.ROYAL_COMMAND_DEV_EMAILS || "")
     .split(",")
@@ -76,6 +87,10 @@ function pathForApi(path: string) {
   return encodeURIComponent(path).replace(/%2F/g, "/");
 }
 
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? value as Record<string, unknown> : {};
+}
+
 function parseWorkMeta(instruction: string): WorkMeta {
   const workIdMatch = instruction.match(/Work ID:\s*(RC-[A-Z0-9-]+)/i);
   const revisionMatch = instruction.match(/Revision:\s*(\d+)/i);
@@ -91,7 +106,7 @@ function workBranch(meta: WorkMeta, provider: DevProvider) {
   return `rc-work/${safeWork}/${provider}-rev-${String(meta.revision).padStart(2, "0")}`;
 }
 
-async function github(path: string, init?: RequestInit) {
+async function github(path: string, init?: RequestInit): Promise<GithubJson> {
   const token = process.env.GITHUB_TOKEN;
   if (!token) throw new Error("GITHUB_TOKEN is not configured in the Royal Command server environment");
 
@@ -107,9 +122,14 @@ async function github(path: string, init?: RequestInit) {
   });
 
   const text = await response.text();
-  let data: any = {};
-  try { data = text ? JSON.parse(text) : {}; } catch { data = { message: text }; }
-  if (!response.ok) throw new Error(data?.message || `GitHub HTTP ${response.status}`);
+  let data: GithubJson = {};
+  try {
+    const parsed: unknown = text ? JSON.parse(text) : {};
+    data = asRecord(parsed) as GithubJson;
+  } catch {
+    data = { message: text };
+  }
+  if (!response.ok) throw new Error(typeof data.message === "string" ? data.message : `GitHub HTTP ${response.status}`);
   return data;
 }
 
@@ -123,11 +143,13 @@ async function ensureWorkBranch(branch: string) {
   }
 
   const baseRef = await github(`/git/ref/heads/${encodeURIComponent(BASE_BRANCH)}`);
+  const baseSha = typeof baseRef.object?.sha === "string" ? baseRef.object.sha : "";
+  if (!baseSha) throw new Error("Base branch SHA could not be resolved");
   try {
     await github("/git/refs", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseRef.object.sha }),
+      body: JSON.stringify({ ref: `refs/heads/${branch}`, sha: baseSha }),
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -164,7 +186,7 @@ async function getFile(path: string, ref = BASE_BRANCH) {
     return {
       exists: true,
       sha: String(file.sha || ""),
-      content: Buffer.from(file.content || "", "base64").toString("utf8"),
+      content: Buffer.from(typeof file.content === "string" ? file.content : "", "base64").toString("utf8"),
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
@@ -196,7 +218,7 @@ async function executeAction(
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ message: commitMessage, sha: current.sha, branch }),
     });
-    return { path, operation: action.operation, commit: result.commit?.sha || "" };
+    return { path, operation: action.operation, commit: String(result.commit?.sha || "") };
   }
 
   const content = String(action.content || "");
@@ -217,7 +239,7 @@ async function executeAction(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  return { path, operation: action.operation, commit: result.commit?.sha || "" };
+  return { path, operation: action.operation, commit: String(result.commit?.sha || "") };
 }
 
 async function createPullRequest(meta: WorkMeta, provider: DevProvider, branch: string, commits: Array<{ path: string; operation: string; commit: string }>) {
@@ -240,7 +262,10 @@ async function createPullRequest(meta: WorkMeta, provider: DevProvider, branch: 
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title, head: branch, base: BASE_BRANCH, body }),
     });
-    return { number: pr.number || null, url: pr.html_url || "" };
+    return {
+      number: typeof pr.number === "number" ? pr.number : null,
+      url: typeof pr.html_url === "string" ? pr.html_url : "",
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (/pull request.*already exists|validation failed/i.test(message)) {
@@ -317,12 +342,15 @@ export async function POST(request: Request) {
       const branch = workBranch(meta, provider);
       await ensureWorkBranch(branch);
 
-      const actions: DevAction[] = proposed.slice(0, MAX_FILES).map((item: any) => ({
-        path: String(item.path || ""),
-        operation: item.operation === "create" || item.operation === "delete" ? item.operation : "update",
-        content: typeof item.content === "string" ? item.content : undefined,
-        reason: typeof item.reason === "string" ? item.reason : undefined,
-      }));
+      const actions: DevAction[] = proposed.slice(0, MAX_FILES).map((item: unknown) => {
+        const value = asRecord(item);
+        return {
+          path: String(value.path || ""),
+          operation: value.operation === "create" || value.operation === "delete" ? value.operation : "update",
+          content: typeof value.content === "string" ? value.content : undefined,
+          reason: typeof value.reason === "string" ? value.reason : undefined,
+        };
+      });
       const commits: Array<{ path: string; operation: "create" | "update" | "delete"; commit: string }> = [];
       for (const action of actions) commits.push(await executeAction(action, instruction, provider, branch, meta));
       const pr = await createPullRequest(meta, provider, branch, commits);
@@ -341,9 +369,13 @@ export async function POST(request: Request) {
     }
 
     const tree = await github(`/git/trees/${encodeURIComponent(BASE_BRANCH)}?recursive=1`);
-    const paths = (tree.tree || [])
-      .filter((entry: { type?: string; path?: string; size?: number }) => entry.type === "blob" && entry.path && safePath(entry.path) && (entry.size || 0) <= MAX_FILE_BYTES)
-      .map((entry: { path: string }) => entry.path)
+    const treeEntries = Array.isArray(tree.tree) ? tree.tree : [];
+    const paths = treeEntries
+      .filter((entry: unknown) => {
+        const value = asRecord(entry);
+        return value.type === "blob" && typeof value.path === "string" && safePath(value.path) && Number(value.size || 0) <= MAX_FILE_BYTES;
+      })
+      .map((entry: unknown) => String(asRecord(entry).path || ""))
       .slice(0, 1800);
 
     const selection = await developerModel(provider, `Select only the repository files needed for this Royal Command change. Return JSON only: {"readPaths":["src/..."],"newPaths":["src/..."],"reason":"short Korean explanation"}. Maximum ${MAX_FILES}. Never select secrets, .env, credentials, certificates, private keys, or lockfiles.\n\nUSER INSTRUCTION:\n${instruction}\n\nREPOSITORY FILES:\n${paths.join("\n")}`);
@@ -361,11 +393,14 @@ export async function POST(request: Request) {
 
     const planned: PlannedAction[] = Array.isArray(planResult.actions)
       ? planResult.actions
-          .map((item: any) => ({
-            path: String(item.path || ""),
-            operation: item.operation === "create" || item.operation === "delete" ? item.operation : "update",
-            reason: typeof item.reason === "string" ? item.reason : undefined,
-          }))
+          .map((item: unknown) => {
+            const value = asRecord(item);
+            return {
+              path: String(value.path || ""),
+              operation: value.operation === "create" || value.operation === "delete" ? value.operation : "update",
+              reason: typeof value.reason === "string" ? value.reason : undefined,
+            } as PlannedAction;
+          })
           .filter((item: PlannedAction) => safePath(item.path))
           .filter((item: PlannedAction) => !sensitivePath(item.path) || explicitSensitiveInstruction(instruction))
           .slice(0, MAX_FILES)
