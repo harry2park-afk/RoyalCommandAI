@@ -43,11 +43,11 @@ function hasDevelopmentSubject(prompt: string) {
 }
 
 function hasDirectExecuteIntent(prompt: string) {
-  return /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|변경하세요|바꿔(?:\s*줘|\s*주세요)?|바꾸세요|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|적용하세요|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|제거하세요|실행\s*해(?:\s*줘|\s*주세요|요)?|실행하세요|실행\s*담당|수행\s*해(?:\s*줘|\s*주세요|요)?|수행하세요|처리\s*해(?:\s*줘|\s*주세요|요)?|처리하세요|완료\s*해(?:\s*줘|\s*주세요|요)?|완료하세요|작업\s*해(?:\s*줘|\s*주세요|요)?|작업하세요|끝내(?:\s*줘|\s*주세요|세요)|진행\s*해(?:\s*줘|\s*주세요|요)?|진행하세요|실제\s*github\s*개발\s*실행|코드를\s*(?:써|작성해|작성하세요|변경해|수정해)|파일을\s*(?:생성해|생성하세요|수정해|변경해|삭제해)|실제로\s*(?:수정해|변경해|구현해|실행해|수행해|처리해|작업해)|못하고\s*있는데)/i.test(prompt);
+  return /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|변경하세요|바꿔(?:\s*줘|\s*주세요)?|바꾸세요|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|적용하세요|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|제거하세요|실행\s*해(?:\s*줘|\s*주세요|요)?|실행하세요|실행\s*담당|수행\s*해(?:\s*줘|\s*주세요|요)?|수행하세요|처리\s*해(?:\s*줘|\s*주세요|요)?|처리하세요|완료\s*해(?:\s*줘|\s*주세요|요)?|완료하세요|작업\s*해(?:\s*줘|\s*주세요|요)?|작업하세요|끝내(?:\s*줘|\s*주세요|세요)|진행\s*해(?:\s*줘|\s*주세요|요)?|진행하세요|실제\s*github\s*개발\s*실행|코드를\s*(?:써|작성해|작성하세요|변경해|수정해)|파일을\s*(?:생성해|생성하세요|수정해|변경해|삭제해)|실제로\s*(?:수정해|변경해|구현해|실행해|수행해|처리해|작업해))/i.test(prompt);
 }
 
 function hasInspectIntent(prompt: string) {
-  return /(조사\s*담당|조사해|조사하세요|원인\s*(?:조사|분석|진단|확인)|근본\s*원인|분석해|분석하세요|진단해|진단하세요|검토해|검토하세요|확인해|확인하세요|읽어|읽고|찾아|찾고|알아봐|알아보|뭐가\s*문제인지|문제인지도|inspect|investigate|root\s*cause|diagnos|analy[sz]e|review|read[- ]?only)/i.test(prompt);
+  return /(조사\s*담당|조사해|조사하세요|원인\s*(?:조사|분석|진단|확인)|근본\s*원인|분석해|분석하세요|진단해|진단하세요|검토해|검토하세요|확인해|확인하세요|읽어|읽고|찾아|찾고|알아봐|알아보|inspect|investigate|root\s*cause|diagnos|analy[sz]e|review|read[- ]?only)/i.test(prompt);
 }
 
 function removeProductionOnlySafetyGates(prompt: string) {
@@ -75,12 +75,12 @@ export function hasGlobalNoWriteIntent(prompt: string) {
 }
 
 function referencesPriorOrder(prompt: string) {
-  return /(?:위(?:에|의)?\s*(?:것|거|내용|오더|명령|지시|작업|요청)|앞(?:에|의)?\s*(?:것|거|내용|오더|명령|지시|작업|요청)|이전\s*(?:것|거|내용|오더|명령|지시|작업|요청)|방금\s*(?:것|거|내용|오더|명령|지시|작업|요청)|아까\s*(?:것|거|내용|오더|명령|지시|작업|요청)|앞서\s*(?:것|거|내용|오더|명령|지시|작업|요청)|기존\s*(?:것|거|내용|오더|명령|지시|작업|요청)|(?:그|이)\s*(?:것|거|오더|명령|지시|작업|요청).{0,20}(?:다시|계속|이어)|(?:다시\s*실행|재실행|다시\s*해|계속\s*(?:해|진행)|이어서\s*(?:해|진행)).{0,20}(?:주세요|줘|하세요|해|요)?|못하고\s*있는데)/i.test(prompt);
+  return /(?:위(?:에|의)?\s*(?:것|거|내용|오더|명령|지시|작업|요청)|앞(?:에|의)?\s*(?:것|거|내용|오더|명령|지시|작업|요청)|이전\s*(?:것|거|내용|오더|명령|지시|작업|요청)|방금\s*(?:것|거|내용|오더|명령|지시|작업|요청)|아까\s*(?:것|거|내용|오더|명령|지시|작업|요청)|앞서\s*(?:것|거|내용|오더|명령|지시|작업|요청)|기존\s*(?:것|거|내용|오더|명령|지시|작업|요청)|(?:그|이)\s*(?:것|거|오더|명령|지시|작업|요청).{0,20}(?:다시|계속|이어)|(?:다시\s*실행|재실행|다시\s*해|계속\s*(?:해|진행)|이어서\s*(?:해|진행)).{0,20}(?:주세요|줘|하세요|해|요)?)/i.test(prompt);
 }
 
 function hasContinuationExecuteIntent(prompt: string) {
   return referencesPriorOrder(prompt)
-    && /(?:다시\s*실행|재실행|다시\s*해|다시\s*해주세요|다시\s*해줘|계속\s*(?:해|진행)|이어서\s*(?:해|진행)|이어\s*해|끝내|완료|못하고\s*있는데|알아봐)/i.test(prompt);
+    && /(?:다시\s*실행|재실행|다시\s*해|다시\s*해주세요|다시\s*해줘|계속\s*(?:해|진행)|이어서\s*(?:해|진행)|이어\s*해|끝내|완료)/i.test(prompt);
 }
 
 function asksAllMembers(prompt: string) {
@@ -114,9 +114,9 @@ function reviewOnlyProviders(prompt: string, leads: AIProviderId[], selected?: A
 
 function classifyDirect(prompt: string): RcMemberMode {
   const noWrite = hasGlobalNoWriteIntent(prompt);
-  const development = hasDevelopmentSubject(prompt) || referencesPriorOrder(prompt);
+  const development = hasDevelopmentSubject(prompt);
   const inspect = hasInspectIntent(prompt);
-  const execute = (hasDirectExecuteIntent(prompt) || hasContinuationExecuteIntent(prompt)) && development;
+  const execute = hasDirectExecuteIntent(prompt) && (development || referencesPriorOrder(prompt));
 
   if (noWrite) return development || inspect ? "inspect" : "answer";
   if (execute) return "execute";
@@ -157,6 +157,9 @@ export function resolveRcMemberCommand(
       const currentNoWrite = hasGlobalNoWriteIntent(current);
       const currentInspect = hasInspectIntent(current);
       const currentExecute = hasDirectExecuteIntent(current) || hasContinuationExecuteIntent(current);
+      
+      // [ 근본 수정 오더 반영 ]: 한 문장에 "다시 실행해줘 + 왜 안 되는지도 알아봐줘" 처럼
+      // EXECUTE와 진단 요청이 함께 있으면 EXECUTE를 우선할 것.
       mode = currentNoWrite ? "inspect" : (currentExecute || currentInspect) ? "execute" : priorMode;
       inheritedProviders = assignedProviders(prior, selected);
       continuedFromPriorOrder = true;
