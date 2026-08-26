@@ -37,30 +37,19 @@ jobs:
               google: 'Gemini',
               xai: 'Grok',
               codex: 'Codex',
+              gateway: 'Tool Gateway',
             };
             const providerName = providerNames[providerId] || providerId;
             const workId = workSegment.toUpperCase();
             const base = 'master';
 
-            const existingPRs = await github.rest.pulls.list({
-              owner,
-              repo,
-              head: `${owner}:${branch}`,
-              base,
-              state: 'open',
-              per_page: 10,
-            });
+            const existingPRs = await github.rest.pulls.list({ owner, repo, head: `${owner}:${branch}`, base, state: 'open', per_page: 10 });
             if (existingPRs.data.length) {
               core.info(`PR already exists: #${existingPRs.data[0].number}`);
               return;
             }
 
-            const issues = await github.rest.issues.listForRepo({
-              owner,
-              repo,
-              state: 'open',
-              per_page: 100,
-            });
+            const issues = await github.rest.issues.listForRepo({ owner, repo, state: 'open', per_page: 100 });
             const ticketTitle = `[${workId}] RC Work Queue`;
             let ticket = issues.data.find((item) => !item.pull_request && item.title === ticketTitle);
             if (!ticket) {
