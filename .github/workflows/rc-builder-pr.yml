@@ -1,4 +1,4 @@
-name: RC Builder PR
+name: RC Work PR
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   pull-requests: write
 
 jobs:
-  ensure-builder-pr:
+  ensure-work-pr:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -27,7 +27,18 @@ jobs:
               return;
             }
 
-            const workSegment = branch.split('/')[1] || 'rc-builder-work';
+            const parts = branch.split('/');
+            const workSegment = parts[1] || 'rc-work';
+            const providerSegment = parts[2] || 'unknown-provider';
+            const providerId = providerSegment.split('-')[0].toLowerCase();
+            const providerNames = {
+              openai: 'ChatGPT',
+              anthropic: 'Claude',
+              google: 'Gemini',
+              xai: 'Grok',
+              codex: 'Codex',
+            };
+            const providerName = providerNames[providerId] || providerId;
             const workId = workSegment.toUpperCase();
             const base = 'master';
 
@@ -50,7 +61,7 @@ jobs:
               state: 'open',
               per_page: 100,
             });
-            const ticketTitle = `[${workId}] RC Builder Work Queue`;
+            const ticketTitle = `[${workId}] RC Work Queue`;
             let ticket = issues.data.find((item) => !item.pull_request && item.title === ticketTitle);
             if (!ticket) {
               const created = await github.rest.issues.create({
@@ -59,35 +70,32 @@ jobs:
                 title: ticketTitle,
                 body: [
                   `Work ID: ${workId}`,
-                  `Builder branch: ${branch}`,
+                  `Provider: ${providerName} (${providerId})`,
+                  `Work branch: ${branch}`,
                   '',
-                  'Created automatically by the Royal Command RC Builder PR workflow.',
-                  'Keep this issue open until the corresponding Builder PR is merged or rejected.',
+                  'Created automatically by the Royal Command RC Work PR workflow.',
+                  'Keep this issue open until all corresponding provider work is merged or rejected.',
                 ].join('\n'),
               });
               ticket = created.data;
             }
 
             const baseRef = await github.rest.git.getRef({ owner, repo, ref: `heads/${base}` });
-            const compare = await github.rest.repos.compareCommitsWithBasehead({
-              owner,
-              repo,
-              basehead: `${base}...${branch}`,
-            });
-            const changedFiles = (compare.data.files || []).map((file) => `- ${file.filename}`).join('\n') || '- Builder-generated files on this branch';
+            const compare = await github.rest.repos.compareCommitsWithBasehead({ owner, repo, basehead: `${base}...${branch}` });
+            const changedFiles = (compare.data.files || []).map((file) => `- ${file.filename}`).join('\n') || '- Provider-generated files on this branch';
 
             const body = [
               '## Work Queue Ticket',
               `#${ticket.number}`,
               '',
               '## Primary task',
-              `Execute Royal Command Builder work ${workId}.`,
+              `Execute Royal Command work ${workId} with ${providerName}.`,
               '',
               '## Batch exception',
-              'NO — one Builder work item only.',
+              'NO — one provider work item only.',
               '',
               '## Goal',
-              `Apply the validated Codex-generated change for ${workId} on a safe branch without direct master writes.`,
+              `Apply the host-verified ${providerName} change for ${workId} on a safe provider branch without direct master writes.`,
               '',
               '## Files / components changed',
               changedFiles,
@@ -116,7 +124,7 @@ jobs:
               repo,
               head: branch,
               base,
-              title: `[${workId}][Codex] Royal Command Builder work`,
+              title: `[${workId}][${providerName}] Royal Command work`,
               body,
               draft: false,
             });
