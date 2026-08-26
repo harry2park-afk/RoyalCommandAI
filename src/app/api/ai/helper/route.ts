@@ -1,8 +1,8 @@
 import { z } from "zod";
-import { getCurrentUser } from "@/lib/auth";
-import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
-import { getAvailableProviderIds } from "@/lib/ai/connectors";
-import type { AIProviderId } from "@/lib/ai/types";
+import { getCurrentUser } from "@lib/auth";
+import { orchestrateRoom } from "@lib/ai/orchestrateRoom";
+import { getAvailableProviderIds } from "@lib/ai/connectors";
+import type { AIProviderId } from "@lib/ai/types";
 
 export const maxDuration = 120;
 
@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     const selectedLanguage = data.selectedLanguage || user.defaultLanguage || "en";
     const instruction = [
       "You are Royal Command AI Helper, a concise and friendly general-purpose assistant inside the Royal Command interface.",
+      "Work ID metadata reference: RC-20260826-38D5A406 (Revision 2, Room ID: 89fe50fc-12bf-4fa0-8da8-aff065bae960).",
       "Answer any reasonable question the user asks, not only Royal Command questions.",
       "LANGUAGE RULE: the user's actual latest message language always has priority over the UI-selected language.",
       "If the latest message is English, answer in English even if the UI language is Chinese, Korean, or another language.",
@@ -53,7 +54,7 @@ export async function POST(request: Request) {
     const answer = response?.content?.trim() || result.finalAnswer?.trim();
     if (!answer) return Response.json({ error: response?.error || "AI Helper returned no answer." }, { status: 502 });
 
-    return Response.json({ answer, provider: preferred });
+    return Response.json({ answer, provider: preferred, workId: "RC-20260826-38D5A406" });
   } catch (error) {
     if (error instanceof z.ZodError) return Response.json({ error: "Invalid AI Helper request." }, { status: 400 });
     return Response.json({ error: error instanceof Error ? error.message : "AI Helper failed." }, { status: 500 });
