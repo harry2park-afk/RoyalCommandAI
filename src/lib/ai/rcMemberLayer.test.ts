@@ -44,6 +44,24 @@ describe("RC Member Layer", () => {
     expect(command.effectivePrompt).not.toMatch(/다른\s*AI.*검토\s*만/i);
   });
 
+  it("executes natural re-run first and keeps diagnosis as a follow-up report", () => {
+    const prior = "Gemini만 실행 담당입니다. AI Help UI 위치를 실제 GitHub 개발 실행 경로로 수정해주세요.";
+    const command = resolveRcMemberCommand(
+      "위에것을 다시 실행 해줘요. 지금 자꾸 못하고있는데 뭐가 문제인지도 알아봐줘요.",
+      [
+        { role: "user", content: prior },
+        { role: "assistant", content: "이전 실행 결과입니다." },
+      ],
+      ["google"],
+    );
+    expect(command.mode).toBe("execute");
+    expect(command.leadProviders).toEqual(["google"]);
+    expect(command.gitWrite).toBe(true);
+    expect(command.continuedFromPriorOrder).toBe(true);
+    expect(command.effectivePrompt).toContain(prior);
+    expect(command.effectivePrompt).toContain("execute the inherited development order first");
+  });
+
   it("does not let a Production-only safety gate cancel safe-branch development", () => {
     const command = resolveRcMemberCommand("Claude가 이 API 코드를 수정해주세요. Production에는 배포하지 마세요.", undefined, ["anthropic"]);
     expect(command.mode).toBe("execute");
