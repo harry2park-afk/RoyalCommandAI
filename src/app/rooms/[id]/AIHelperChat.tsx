@@ -26,6 +26,7 @@ const LOCALE: Record<Lang, string> = {
 };
 
 function detectSelectedLanguage(): Lang {
+  if (typeof document === "undefined") return "en";
   const selects = Array.from(document.querySelectorAll("select"));
   for (const select of selects) {
     const raw = `${select.value} ${select.options[select.selectedIndex]?.text || ""}`.toLowerCase();
@@ -44,6 +45,7 @@ function detectSelectedLanguage(): Lang {
 }
 
 function findMainSendButton() {
+  if (typeof document === "undefined") return null;
   return Array.from(document.querySelectorAll<HTMLButtonElement>('main button[type="submit"]'))
     .find((button) => button.textContent?.trim() === "Send") || null;
 }
@@ -84,7 +86,7 @@ function micText(lang: Lang, key: "checking" | "ready" | "listening" | "hearing"
 
 export default function AIHelperChat() {
   const params = useParams<{ id: string }>();
-  const roomId = params.id;
+  const roomId = params?.id;
   const [open, setOpen] = useState(false);
   const [lang, setLang] = useState<Lang>("en");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -175,7 +177,7 @@ export default function AIHelperChat() {
   useEffect(() => () => {
     micEnabledRef.current = false;
     stopRecognition();
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
   }, []);
 
   function stopRecognition() {
@@ -192,7 +194,7 @@ export default function AIHelperChat() {
   async function prepareMicrophone() {
     setMicIssue("");
     setMicStatus(micText(langRef.current, "checking"));
-    if (!navigator.mediaDevices?.getUserMedia) {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
       const message = micText(langRef.current, "missing");
       setMicIssue(message);
       setMicStatus("");
@@ -230,6 +232,7 @@ export default function AIHelperChat() {
   }
 
   function startRecognition() {
+    if (typeof window === "undefined") return;
     if (!openRef.current || !micEnabledRef.current || speakingRef.current || loadingRef.current || recognitionRef.current) return;
     const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
     const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
@@ -313,6 +316,7 @@ export default function AIHelperChat() {
   }
 
   function speak(text: string, resumeListening = true) {
+    if (typeof window === "undefined") return;
     if (!speakerEnabledRef.current) {
       speakingRef.current = false;
       setSpeaking(false);
@@ -374,7 +378,7 @@ export default function AIHelperChat() {
     stopRecognition();
     speakingRef.current = false;
     setSpeaking(false);
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    if (typeof window !== "undefined" && "speechSynthesis" in window) window.speechSynthesis.cancel();
   }
 
   function toggleMicrophone() {
@@ -399,7 +403,7 @@ export default function AIHelperChat() {
     const next = !speakerEnabledRef.current;
     speakerEnabledRef.current = next;
     setSpeakerEnabled(next);
-    if (!next && "speechSynthesis" in window) {
+    if (!next && typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
       speakingRef.current = false;
       setSpeaking(false);
