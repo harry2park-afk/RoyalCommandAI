@@ -6,6 +6,12 @@ import type { AIModelId } from "@/lib/ai/modelRegistry";
 import { synthesizeBestAnswer } from "@/lib/ai/synthesize";
 import type { AIProviderId, AIProviderResponse } from "@/lib/ai/types";
 import { PROVIDER_LABELS } from "@/lib/ai/types";
+import {
+  DEV_PROVIDER_IDS,
+  DEV_PROVIDER_NAMES,
+  resolvePromptProviders as resolveExecutionProviders,
+  shouldRunDeveloperAgent as shouldRunDeveloperAgentV2,
+} from "@/lib/ai/executionRouting";
 import { buildRepositoryInspectionContext, isRepositoryInspectionIntent, type RepositoryInspectionEvidence } from "@/lib/ai/repositoryInspectionContext";
 import { chatSchema } from "@/lib/validations";
 import { localDb } from "@/lib/local-store";
@@ -14,13 +20,6 @@ import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
 export const maxDuration = 240;
-
-const DEV_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
-  openai: "ChatGPT",
-  anthropic: "Claude",
-  google: "Gemini",
-  xai: "Grok",
-};
 
 const EXECUTION_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   openai: "OpenAI",
@@ -35,27 +34,6 @@ const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
   { id: "google", pattern: /(gemini|제미나이)/i },
   { id: "xai", pattern: /(grok|그록)/i },
 ];
-
-function hasExplicitNoExecutionIntent(prompt: string) {
-  // Read-only means the user negated the actual code/file/UI change itself.
-  // Safety gates such as "do not deploy / merge / push to production" must NOT
-  // cancel an otherwise explicit request to edit code.
-  const codeChangeNegation = /(코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능).{0,28}(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,18}(?:하지\s*마|하지\s*말|하지\s*않|금지|요청(?:하는\s*것)?이\s*아니|요청하지\s*않)/i.test(prompt)
-    || /(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,18}(?:하지\s*마|하지\s*말|하지\s*않|금지).{0,28}(코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능)/i.test(prompt);
-  const executionNegation = /(?:실행|개발\s*(?:agent|에이전트)).{0,22}(?:하지\s*마|하지\s*말|하지\s*않|금지)/i.test(prompt);
-  const explanationOnly = /(설명|분석|진단|검토|테스트|의견|원인|답변).{0,8}(?:만\s*(?:해|하세요|해주세요|줘|주세요)|목적|용도)/i.test(prompt);
-  const explicitReadOnly = /(읽기\s*전용|read[- ]?only|코드\s*수정\s*없이|수정\s*없이|변경\s*없이|실측\s*확인(?:만)?)/i.test(prompt);
-  return codeChangeNegation || executionNegation || explanationOnly || explicitReadOnly;
-}
-
-function shouldRunDeveloperAgent(prompt: string) {
-  if (hasExplicitNoExecutionIntent(prompt)) return false;
-  const subject = /(코드|개발|버그|오류|ui|화면|레이아웃|사이드바|버튼|기능|파일|github|commit|push|merge|배포|vercel|component|tsx|typescript|css|시스템|라우팅|api|웹사이트|홈페이지|페이지|앱|agent|에이전트)/i.test(prompt);
-  const action = /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|바꿔(?:\s*줘|\s*주세요)?|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|붙여\s*넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|배포해(?:\s*줘|\s*주세요)?|배포하세요|실행해(?:\s*줘|\s*주세요)?|실행하세요|commit\b|push\b|merge\b|코드를\s*(?:써|작성|변경|수정)|파일을\s*(?:생성|수정|변경|삭제)|실제로\s*(?:수정|변경|구현|배포|실행))/i.test(prompt);
-  const workContinuation = /\bRC-\d{8}(?:-[A-Z0-9]+)+\b/i.test(prompt)
-    && /(다시\s*실행|재실행|계속|이어(?:서|가기)?|진행|실행(?:해|하세요|해줘|해주세요)?|고쳐|수정(?:해|하세요|해줘|해주세요)?)/i.test(prompt);
-  return (subject && action) || workContinuation;
-}
 
 function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
   const selectedProviders = (selected || []).filter((id) => Boolean(DEV_PROVIDER_NAMES[id]));
@@ -148,6 +126,189 @@ async function runProviderWithOneRetry(
   return { result, response, retried };
 }
 
+async function runSelectedDeveloperAgents(
+  request: Request,
+  data: {
+    roomId: string;
+    prompt: string;
+    history?: Array<{ role: "user" | "assistant" | "system"; content: string }>;
+    providers?: AIProviderId[];
+    language?: string;
+    modelSelections?: Partial<Record<AIProviderId, AIModelId>>;
+  },
+  language: string,
+) {
+  const requested = resolveExecutionProviders(data.prompt, data.providers)
+    ?.filter((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number])) || [];
+  const executionProviders: AIProviderId[] = requested.length
+    ? requested
+    : (data.providers || []).filter((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number])).slice(0, 1);
+  if (!executionProviders.length) executionProviders.push("openai");
+
+  // One host work record is shared by all explicitly assigned developer AIs.
+  const workSeed = await orchestrateRoom(data.roomId, {
+    prompt: data.prompt,
+    history: data.history,
+    providers: executionProviders,
+    language,
+    modelSelections: data.modelSelections,
+  });
+  if (!workSeed.workId || !workSeed.revision) throw new Error("Host work metadata was not created for developer execution");
+
+  const verifiedInstruction = [
+    "ROYAL COMMAND HOST VERIFIED WORK METADATA — REQUIRED FOR EXECUTION",
+    `Work ID: ${workSeed.workId}`,
+    `Revision: ${workSeed.revision}`,
+    `Room ID: ${data.roomId}`,
+    "Every code change, branch, commit, PR and report must use this Work ID and Revision.",
+    "Do not write directly to master. Use the Work-ID provider branch and return verified evidence.",
+    "Production merge/deploy requires separate user approval; that safety gate does not cancel development execution.",
+    "",
+    data.prompt,
+  ].join("\n");
+
+  const cookie = request.headers.get("cookie") || "";
+  const executions: Array<{
+    provider: AIProviderId;
+    name: string;
+    branch: string;
+    commits: Array<{ path?: string; operation?: string; commit?: string }>;
+    pr: { number?: number | null; url?: string; warning?: string } | null;
+    summary: string;
+    error?: string;
+  }> = [];
+
+  for (const provider of executionProviders) {
+    const name = DEV_PROVIDER_NAMES[provider] || provider;
+    try {
+      const reviewResponse = await fetch(new URL("/api/dev/agent", request.url), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie },
+        body: JSON.stringify({ provider, instruction: verifiedInstruction }),
+        cache: "no-store",
+      });
+      const review = await reviewResponse.json();
+      if (!reviewResponse.ok) throw new Error(review.error || `${name} developer review failed`);
+      const actions = Array.isArray(review.actions) ? review.actions : [];
+      if (!actions.length) throw new Error(`${name} returned no executable file actions`);
+
+      const executeResponse = await fetch(new URL("/api/dev/agent", request.url), {
+        method: "POST",
+        headers: { "Content-Type": "application/json", cookie },
+        body: JSON.stringify({ provider, instruction: verifiedInstruction, execute: true, actions }),
+        cache: "no-store",
+      });
+      const executed = await executeResponse.json();
+      if (!executeResponse.ok) throw new Error(executed.error || `${name} developer execution failed`);
+      if (executed.evidenceVerified !== true) throw new Error(`${name} execution returned without verified commit evidence`);
+
+      executions.push({
+        provider,
+        name,
+        branch: String(executed.branch || ""),
+        commits: Array.isArray(executed.commits) ? executed.commits : [],
+        pr: executed.pr || null,
+        summary: String(review.summary || `${name} development execution completed.`),
+      });
+    } catch (error) {
+      executions.push({
+        provider,
+        name,
+        branch: "",
+        commits: [],
+        pr: null,
+        summary: "",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+
+  const successful = executions.filter((item) => !item.error && item.commits.length > 0);
+  const sections = executions.map((item) => {
+    if (item.error) return `### ${item.name}\nStatus: EXECUTION FAILED\nError: ${item.error}`;
+    const changed = item.commits.map((commit) => `- ${commit.operation || "update"}: ${commit.path || ""} — ${commit.commit || ""}`).join("\n");
+    return [
+      `### ${item.name}`,
+      "Status: CODE_CHANGED_ON_SAFE_BRANCH",
+      `Branch: ${item.branch}`,
+      `PR: ${item.pr?.number || "not-created"}${item.pr?.url ? ` — ${item.pr.url}` : ""}`,
+      item.summary,
+      changed ? `Changed files:\n${changed}` : "",
+    ].filter(Boolean).join("\n");
+  });
+
+  const finalAnswer = [
+    "**Host-Verified Work Metadata**",
+    `**Work ID:** ${workSeed.workId}`,
+    `**Revision:** ${workSeed.revision}`,
+    `**Parent Revision:** ${workSeed.workRecord?.parentRevision ?? "none"}`,
+    `**Room ID:** ${data.roomId}`,
+    "",
+    ...sections,
+    "",
+    successful.length === executions.length
+      ? "**Final Status:** ALL ASSIGNED AI EXECUTIONS VERIFIED"
+      : successful.length
+        ? "**Final Status:** PARTIAL EXECUTION — see failed provider details above"
+        : "**Final Status:** EXECUTION FAILED",
+    "Production merge/deploy was not performed.",
+  ].join("\n\n");
+
+  let userMessage: unknown = null;
+  let aiMessage: unknown = null;
+  if (isSupabaseConfigured()) {
+    const supabase = await createClient();
+    const { data: userMsg } = await supabase
+      .from("messages")
+      .insert({ room_id: data.roomId, author_type: "user", content: data.prompt, language })
+      .select("*")
+      .single();
+    const { data: aiMsg } = await supabase
+      .from("messages")
+      .insert({
+        room_id: data.roomId,
+        author_type: "ai",
+        content: finalAnswer,
+        language,
+        metadata: { workId: workSeed.workId, revision: workSeed.revision, developerExecutions: executions },
+      })
+      .select("*")
+      .single();
+    userMessage = userMsg;
+    aiMessage = aiMsg;
+  } else {
+    userMessage = localDb.addMessage({ roomId: data.roomId, authorType: "user", content: data.prompt, language });
+    aiMessage = localDb.addMessage({ roomId: data.roomId, authorType: "ai", content: finalAnswer, language, metadata: { developerExecutions: executions } });
+  }
+
+  return {
+    blocked: false,
+    providers: executionProviders,
+    responses: executions.map((item) => ({
+      provider: item.provider,
+      content: item.error ? `EXECUTION FAILED: ${item.error}` : item.summary,
+      latencyMs: 0,
+      ...(item.error ? { error: item.error } : {}),
+    })),
+    workId: workSeed.workId,
+    revision: workSeed.revision,
+    workRecord: workSeed.workRecord,
+    finalAnswer,
+    comparison: {
+      winners: successful.map((item) => item.provider),
+      notes: [
+        "Executable RC Room development is routed to the explicitly assigned provider's developer agent.",
+        "ChatGPT, Claude, Gemini, and Grok use the same host GitHub execution contract and isolated provider branches.",
+        "Production merge/deploy remains approval-gated.",
+      ],
+    },
+    latencyMs: workSeed.latencyMs,
+    userMessage,
+    aiMessage,
+    developerExecutions: executions,
+  };
+}
+
 export async function POST(request: Request) {
   const encoder = new TextEncoder();
   const sendLine = (controller: ReadableStreamDefaultController<Uint8Array>, value: unknown) => {
@@ -164,22 +325,18 @@ export async function POST(request: Request) {
     const modelSelections = data.modelSelections as Partial<Record<AIProviderId, AIModelId>> | undefined;
     const routed = resolvePromptProviders(data.prompt, data.providers as AIProviderId[] | undefined);
 
-    // Executable development work still goes to the isolated Builder path.
-    // Read-only repository inspection stays in the requested provider path and receives
-    // host-verified GitHub evidence through systemExtra below.
-    if (shouldRunDeveloperAgent(data.prompt)) {
-      const cookie = request.headers.get("cookie") || "";
-      const builder = await fetch(new URL("/api/builder", request.url), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", cookie },
-        body: JSON.stringify(data),
-        cache: "no-store",
-      });
-      const payload = await builder.json();
-      if (!builder.ok) return new Response(JSON.stringify(payload), { status: builder.status, headers: { "Content-Type": "application/json" } });
+    if (shouldRunDeveloperAgentV2(data.prompt)) {
+      const payload = await runSelectedDeveloperAgents(request, {
+        roomId: data.roomId,
+        prompt: data.prompt,
+        history: data.history,
+        providers: data.providers as AIProviderId[] | undefined,
+        language,
+        modelSelections,
+      }, language);
       const stream = new ReadableStream<Uint8Array>({
         start(controller) {
-          sendLine(controller, { type: "final", result: payload, builderExecution: true });
+          sendLine(controller, { type: "final", result: payload, developerExecution: true });
           controller.close();
         },
       });
