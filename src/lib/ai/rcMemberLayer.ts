@@ -43,7 +43,7 @@ function hasDevelopmentSubject(prompt: string) {
 }
 
 function hasDirectExecuteIntent(prompt: string) {
-  return /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|변경하세요|바꿔(?:\s*줘|\s*주세요)?|바꾸세요|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|적용하세요|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|제거하세요|실행해(?:\s*줘|\s*주세요)?|실행하세요|실행\s*담당|작업해(?:\s*줘|\s*주세요)?|작업하세요|끝내(?:\s*줘|\s*주세요|세요)|진행해(?:\s*줘|\s*주세요)?|진행하세요|실제\s*github\s*개발\s*실행|코드를\s*(?:써|작성해|작성하세요|변경해|수정해)|파일을\s*(?:생성해|생성하세요|수정해|변경해|삭제해)|실제로\s*(?:수정해|변경해|구현해|실행해|작업해))/i.test(prompt);
+  return /(수정해(?:\s*줘|\s*주세요)?|수정하세요|고쳐(?:\s*줘|\s*주세요)?|고치세요|변경해(?:\s*줘|\s*주세요)?|변경하세요|바꿔(?:\s*줘|\s*주세요)?|바꾸세요|교체해(?:\s*줘|\s*주세요)?|반영해(?:\s*줘|\s*주세요)?|반영하세요|적용해(?:\s*줘|\s*주세요)?|적용하세요|구현해(?:\s*줘|\s*주세요)?|구현하세요|만들어(?:\s*줘|\s*주세요)?|만드세요|추가해(?:\s*줘|\s*주세요)?|추가하세요|넣어(?:\s*줘|\s*주세요)?|삭제해(?:\s*줘|\s*주세요)?|삭제하세요|제거해(?:\s*줘|\s*주세요)?|제거하세요|실행해(?:\s*줘|\s*주세요)?|실행하세요|실행\s*담당|수행해(?:\s*줘|\s*주세요)?|수행하세요|처리해(?:\s*줘|\s*주세요)?|처리하세요|완료해(?:\s*줘|\s*주세요)?|완료하세요|작업해(?:\s*줘|\s*주세요)?|작업하세요|끝내(?:\s*줘|\s*주세요|세요)|진행해(?:\s*줘|\s*주세요)?|진행하세요|실제\s*github\s*개발\s*실행|코드를\s*(?:써|작성해|작성하세요|변경해|수정해)|파일을\s*(?:생성해|생성하세요|수정해|변경해|삭제해)|실제로\s*(?:수정해|변경해|구현해|실행해|수행해|처리해|작업해))/i.test(prompt);
 }
 
 function hasInspectIntent(prompt: string) {
@@ -56,8 +56,15 @@ function removeProductionOnlySafetyGates(prompt: string) {
     .replace(/(?:배포|deploy|merge).{0,18}(?:하지\s*마|하지\s*말|하지\s*않|금지).{0,18}production/gi, "");
 }
 
+function stripReviewerOnlyControlText(prompt: string) {
+  return prompt
+    .replace(/(?:다른|나머지|그\s*외|타)\s*(?:ai|에이아이|모델).{0,30}(?:검토|리뷰|review)\s*만\s*(?:하세요|해(?:\s*줘|\s*주세요)?|합니다|할\s*것)?[.!]?/gi, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function hasGlobalNoWriteIntent(prompt: string) {
-  const scoped = removeProductionOnlySafetyGates(prompt);
+  const scoped = stripReviewerOnlyControlText(removeProductionOnlySafetyGates(prompt));
   const codeMutationForbidden = /(?:코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능).{0,35}(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,20}(?:금지|하지\s*마|하지\s*말|하지\s*않|하지\s*마세요|하지\s*마십시오)/i.test(scoped)
     || /(?:수정|변경|구현|작성|생성|삭제|제거|적용|반영).{0,20}(?:금지|하지\s*마|하지\s*말|하지\s*않|하지\s*마세요|하지\s*마십시오).{0,35}(?:코드|파일|ui|화면|레이아웃|component|tsx|typescript|css|기능)/i.test(scoped)
     || /(코드\s*수정\s*금지|코드\s*수정\s*없이|수정\s*없이|변경\s*없이|읽기\s*전용|read[- ]?only)/i.test(scoped);
@@ -167,6 +174,10 @@ export function resolveRcMemberCommand(
       : selectedIds;
   const normalizedLeads = leadProviders.length ? leadProviders : (mode === "execute" ? ["openai" as AIProviderId] : []);
   const reviewers = reviewOnlyProviders(current, normalizedLeads, selected);
+
+  if (!continuedFromPriorOrder && mode === "execute") {
+    effectivePrompt = stripReviewerOnlyControlText(current);
+  }
 
   return {
     mode,

@@ -30,6 +30,20 @@ describe("RC Member Layer", () => {
     expect(command.productionAllowed).toBe(false);
   });
 
+  it("routes the exact 수행하세요 Gemini order to EXECUTE and removes reviewer-only control text", () => {
+    const prompt = [
+      "Gemini만 실행 담당입니다.",
+      "AI Help UI의 실제 현재 코드를 GitHub에서 읽고, 사용자가 이전에 요청한 AI Help UI 위치 수정 작업을 실제 개발 실행 경로로 수행하세요.",
+      "다른 AI는 실행하지 말고 검토만.",
+      "master 직접 수정 금지. 안전 Branch 사용. Commit 생성. PR 생성. Production 배포 금지.",
+    ].join("\n");
+    const command = resolveRcMemberCommand(prompt, undefined, ["google", "openai"]);
+    expect(command.mode).toBe("execute");
+    expect(command.leadProviders).toEqual(["google"]);
+    expect(command.gitWrite).toBe(true);
+    expect(command.effectivePrompt).not.toMatch(/다른\s*AI.*검토\s*만/i);
+  });
+
   it("does not let a Production-only safety gate cancel safe-branch development", () => {
     const command = resolveRcMemberCommand("Claude가 이 API 코드를 수정해주세요. Production에는 배포하지 마세요.", undefined, ["anthropic"]);
     expect(command.mode).toBe("execute");
