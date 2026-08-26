@@ -242,37 +242,12 @@ async function executeAction(
   return { path, operation: action.operation, commit: String(result.commit?.sha || "") };
 }
 
-async function createPullRequest(meta: WorkMeta, provider: DevProvider, branch: string, commits: Array<{ path: string; operation: string; commit: string }>) {
-  const title = `[${meta.workId}][REV-${String(meta.revision).padStart(2, "0")}][${PROVIDER_NAMES[provider]}] Royal Command work`;
-  const body = [
-    `Work ID: ${meta.workId}`,
-    `Revision: ${meta.revision}`,
-    `AI: ${PROVIDER_NAMES[provider]}`,
-    `Branch: ${branch}`,
-    "",
-    "Verified changes:",
-    ...commits.map((item) => `- ${item.operation}: ${item.path} — ${item.commit}`),
-    "",
-    "Production merge requires user approval.",
-  ].join("\n");
-
-  try {
-    const pr = await github("/pulls", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ title, head: branch, base: BASE_BRANCH, body }),
-    });
-    return {
-      number: typeof pr.number === "number" ? pr.number : null,
-      url: typeof pr.html_url === "string" ? pr.html_url : "",
-    };
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    if (/pull request.*already exists|validation failed/i.test(message)) {
-      return { number: null, url: "", warning: message };
-    }
-    throw error;
-  }
+function createPullRequest(meta: WorkMeta, provider: DevProvider, branch: string, commits: Array<{ path: string; operation: string; commit: string }>) {
+  return {
+    number: null,
+    url: "",
+    warning: `PR creation delegated to rc-work GitHub Actions for ${meta.workId} revision ${meta.revision}, provider ${PROVIDER_NAMES[provider]}, branch ${branch}, after ${commits.length} verified commit(s).`,
+  };
 }
 
 async function generateOneAction(plan: PlannedAction, instruction: string, provider: DevProvider): Promise<DevAction> {
@@ -317,7 +292,7 @@ export async function GET() {
     developerAccessConfigured: developerEmails().length > 0,
     repo: REPO,
     branch: BASE_BRANCH,
-    executionPolicy: "work-id branch only; PR required; no direct master write",
+    executionPolicy: "work-id branch and verified commit required; PR creation delegated to rc-work GitHub Actions; no direct master write",
   });
 }
 
@@ -353,7 +328,7 @@ export async function POST(request: Request) {
       });
       const commits: Array<{ path: string; operation: "create" | "update" | "delete"; commit: string }> = [];
       for (const action of actions) commits.push(await executeAction(action, instruction, provider, branch, meta));
-      const pr = await createPullRequest(meta, provider, branch, commits);
+      const pr = createPullRequest(meta, provider, branch, commits);
 
       return NextResponse.json({
         ok: true,
