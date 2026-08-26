@@ -11,8 +11,9 @@ const RETIRED_GEMINI_MODELS = new Set([
 
 const DEFAULT_GEMINI_MODEL = "gemini-3.6-flash";
 const GEMINI_DIRECT_FALLBACK_MODEL = "gemini-3.5-flash-lite";
-const GEMINI_MAX_OUTPUT_TOKENS = 2048;
-const GEMINI_OPENROUTER_MAX_TOKENS = 384;
+const GEMINI_DEFAULT_OUTPUT_TOKENS = 2048;
+const GEMINI_MAX_OUTPUT_TOKENS = 16384;
+const GEMINI_OPENROUTER_MAX_TOKENS = 16384;
 
 const openRouterGemini = new OpenRouterCatalogConnector(
   "google",
@@ -48,7 +49,7 @@ export class GoogleConnector implements AIConnector {
       : Array.from(new Set([primaryModel, GEMINI_DIRECT_FALLBACK_MODEL]));
     const boundedRequest: AIRequest = {
       ...request,
-      maxTokens: Math.min(request.maxTokens || GEMINI_MAX_OUTPUT_TOKENS, GEMINI_MAX_OUTPUT_TOKENS),
+      maxTokens: Math.min(request.maxTokens || GEMINI_DEFAULT_OUTPUT_TOKENS, GEMINI_MAX_OUTPUT_TOKENS),
     };
 
     const direct = async (apiKey: string, targetModel: string): Promise<AIProviderResponse> => {
@@ -158,7 +159,7 @@ export class GoogleConnector implements AIConnector {
       const routedRequest: AIRequest = {
         ...boundedRequest,
         model: undefined,
-        maxTokens: Math.min(boundedRequest.maxTokens || GEMINI_OPENROUTER_MAX_TOKENS, GEMINI_OPENROUTER_MAX_TOKENS),
+        maxTokens: Math.min(boundedRequest.maxTokens || GEMINI_DEFAULT_OUTPUT_TOKENS, GEMINI_OPENROUTER_MAX_TOKENS),
       };
       logger.warn("ai.provider.fallback", {
         provider: this.displayName,
