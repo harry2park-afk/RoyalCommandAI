@@ -220,7 +220,9 @@
 
     const warehouse = warehouseButton(dock);
     if (warehouse instanceof HTMLButtonElement) {
-      if (dock.firstElementChild !== warehouse) dock.insertBefore(warehouse, dock.firstElementChild);
+      // Keep the React-owned Warehouse button in its original DOM position.
+      // CSS order preserves its visual position without detaching/reparenting it.
+      warehouse.style.order = "-1";
       warehouse.style.marginLeft = "0";
       warehouse.style.marginRight = "0";
       warehouse.style.height = "30px";
@@ -230,9 +232,7 @@
       warehouse.style.flex = "0 0 auto";
 
       const council = document.getElementById(COUNCIL_ID);
-      if (council instanceof HTMLButtonElement && warehouse.nextElementSibling !== council) {
-        dock.insertBefore(council, warehouse.nextSibling);
-      }
+      if (council instanceof HTMLButtonElement) council.style.order = "0";
     }
 
     buttons.forEach((button) => styleButton(button, visibleNames));
