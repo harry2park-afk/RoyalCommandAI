@@ -8,6 +8,7 @@ import { verifyRcaBuildTenantContext } from "@/lib/rcaV2/tenantContext";
 import { evaluateRcaRuleGate, type RuleGateInput } from "@/lib/rcaV2/ruleGate";
 import { validateRcaTaskPlan, type RcaTaskPlan, type RcaWorkLane } from "@/lib/rcaV2/masterTaskController";
 import { buildRcaResourceLockPlan } from "@/lib/rcaV2/resourceLockPlan";
+import { buildRcaReviewEvidencePlan } from "@/lib/rcaV2/reviewEvidenceGate";
 
 const MAX_TASK = 30000;
 const PROVIDERS = new Set<AIProviderId>(["openai", "anthropic", "google", "xai"]);
@@ -93,9 +94,10 @@ export async function POST(request: Request) {
     "This is planning-only. Never claim files, branches, commits, tests or deployments were executed.",
     "Break the task into isolated Work Lanes. A resource may belong to only one lane.",
     "Use only writers/reviewers from openai, anthropic, google, xai.",
+    "Every lane must have at least one reviewer different from its writer and host-verifiable evidence requirements.",
     "Independent lanes may share a parallelGroup. Shared/core resources must be serialized through dependencies.",
     "Schema:",
-    '{"summary":"...","lanes":[{"id":"L1","title":"...","writer":"openai","reviewers":["xai"],"resources":["exact/path/or/resource"],"dependsOn":[],"parallelGroup":"P1","evidence":["..."]}],"integrationOrder":["L1"],"rollbackPlan":"..."}',
+    '{"summary":"...","lanes":[{"id":"L1","title":"...","writer":"openai","reviewers":["xai"],"resources":["exact/path/or/resource"],"dependsOn":[],"parallelGroup":"P1","evidence":["diff","tests","build"]}],"integrationOrder":["L1"],"rollbackPlan":"..."}',
     `TASK:\n${task}`,
   ].join("\n");
 
@@ -113,16 +115,19 @@ export async function POST(request: Request) {
     ? validateRcaTaskPlan(plan)
     : { valid: false, conflicts: ["Planner output was not valid RCA Task Plan JSON."], warnings: [] as string[] };
   const lockPlan = plan && validation.valid ? buildRcaResourceLockPlan(plan) : null;
+  const reviewEvidence = plan && validation.valid && lockPlan?.valid ? buildRcaReviewEvidencePlan(plan) : null;
 
   const executionEligible =
     validation.valid &&
     Boolean(lockPlan?.valid) &&
+    Boolean(reviewEvidence?.valid) &&
     (gate.disposition === "ALLOW" || gate.disposition === "ALLOW_WITH_CONDITIONS");
 
   return NextResponse.json({
-    ok: Boolean(plan) && validation.valid && Boolean(lockPlan?.valid),
+    ok: Boolean(plan) && validation.valid && Boolean(lockPlan?.valid) && Boolean(reviewEvidence?.valid),
     mode: "BUILD_PLANNING_ONLY",
     writeAuthority: false,
+    successAllowed: false,
     executionEligible,
     gate,
     readiness: {
@@ -134,6 +139,7 @@ export async function POST(request: Request) {
     plan,
     validation,
     resourceLocks: lockPlan,
+    reviewEvidence,
     planner: {
       provider: "openai",
       latencyMs: planner.latencyMs || 0,
