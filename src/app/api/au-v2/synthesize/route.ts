@@ -10,6 +10,12 @@ function isProviderId(value: unknown): value is AIProviderId {
 
 type SourceAnswer = { provider: AIProviderId; content: string; error?: string };
 
+function isSourceAnswer(value: unknown): value is SourceAnswer {
+  if (!value || typeof value !== "object") return false;
+  const item = value as Record<string, unknown>;
+  return isProviderId(item.provider) && typeof item.content === "string" && item.content.trim().length > 0;
+}
+
 export async function POST(request: Request) {
   if (!isAustraliaV2Host(request)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   const cookieStore = await cookies();
@@ -17,12 +23,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Australia V2 test session required." }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const originalPrompt = typeof body?.originalPrompt === "string" ? body.originalPrompt.trim() : "";
-  const synthesizer = isProviderId(body?.synthesizer) ? body.synthesizer : null;
-  const raw = Array.isArray(body?.responses) ? body.responses : [];
-  const responses: SourceAnswer[] = raw
-    .filter((item) => isProviderId(item?.provider) && typeof item?.content === "string" && item.content.trim())
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const originalPrompt = typeof body.originalPrompt === "string" ? body.originalPrompt.trim() : "";
+  const synthesizer = isProviderId(body.synthesizer) ? body.synthesizer : null;
+  const rawResponses: unknown[] = Array.isArray(body.responses) ? body.responses : [];
+  const responses: SourceAnswer[] = rawResponses
+    .filter(isSourceAnswer)
     .map((item) => ({ provider: item.provider, content: item.content.trim(), error: item.error }))
     .filter((item) => !item.error)
     .slice(0, 4);
