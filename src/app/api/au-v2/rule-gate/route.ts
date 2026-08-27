@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getAvailableProviderIds } from "@/lib/ai/connectors";
 import { AI_PROVIDER_IDS, type AIProviderId } from "@/lib/ai/types";
 import { AU_V2_COOKIE, isAustraliaV2Host, verifyAuV2SessionToken } from "@/lib/auV2TestSession";
+import { verifyRcaBuildAuthenticatedUser } from "@/lib/rcaV2/buildAuth";
 import { evaluateRcaRuleGate, type RuleGateInput } from "@/lib/rcaV2/ruleGate";
 
 function isProviderId(value: unknown): value is AIProviderId {
@@ -38,13 +39,19 @@ export async function POST(request: Request) {
     regulated: body.regulated === true,
   };
 
-  // These two readiness flags deliberately remain false until RCA has real
-  // server-side authenticated-user authorization and tenant isolation.
-  // Rule Gate must BLOCK BUILD rather than silently treating test-room storage
-  // as production-ready security.
+  const auth = mode === "BUILD"
+    ? await verifyRcaBuildAuthenticatedUser()
+    : {
+        supabaseConfigured: false,
+        authenticatedUserVerified: false,
+        userId: null,
+      };
+
+  // Tenant isolation remains deliberately false until RCA has a verified
+  // server-side User -> Tenant -> Room boundary. This makes BUILD fail closed.
   const result = evaluateRcaRuleGate(input, {
     dedicatedSessionSecretConfigured: Boolean(process.env.AU_V2_SESSION_SECRET),
-    authenticatedUserVerified: false,
+    authenticatedUserVerified: auth.authenticatedUserVerified,
     tenantIsolationVerified: false,
     availableProviders: getAvailableProviderIds(),
   });
@@ -53,6 +60,12 @@ export async function POST(request: Request) {
     ok: result.disposition !== "BLOCK",
     gate: "RCA_V2_RULE_GATE",
     mode,
+    readiness: {
+      dedicatedSessionSecretConfigured: Boolean(process.env.AU_V2_SESSION_SECRET),
+      supabaseConfigured: auth.supabaseConfigured,
+      authenticatedUserVerified: auth.authenticatedUserVerified,
+      tenantIsolationVerified: false,
+    },
     input: {
       task: input.task,
       countryCodes: input.countryCodes || [],
