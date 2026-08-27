@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 
@@ -136,7 +136,7 @@ export default function SynthesisBridge() {
   }, [integrators, lastIntegratorId]);
   const validSources = useMemo(() => validResponses(captured), [captured]);
 
-  function acceptCaptured(run: CapturedRun | null) {
+  const acceptCaptured = useCallback((run: CapturedRun | null) => {
     if (!run) return false;
     setCaptured(run);
     setError("");
@@ -146,7 +146,7 @@ export default function SynthesisBridge() {
       try { sessionStorage.setItem(RCA_LAST_RUN_KEY, JSON.stringify(run)); } catch {}
     }
     return true;
-  }
+  }, [isRca]);
 
   async function recoverRcaRun() {
     let restored: CapturedRun | null = null;
@@ -169,7 +169,7 @@ export default function SynthesisBridge() {
   async function ensureRcaSession() {
     try {
       let response = await fetch("/api/au-v2/session", { cache: "no-store" });
-      let data = await response.json().catch(() => ({}));
+      const data = await response.json().catch(() => ({}));
       if (response.ok && data?.active) return true;
       response = await fetch("/api/au-v2/enter", { method: "POST" });
       return response.ok;
@@ -209,11 +209,6 @@ export default function SynthesisBridge() {
         .then((data) => { if (!disposed && Array.isArray(data?.integrators)) setIntegrators(data.integrators); })
         .catch(() => {});
 
-      let restored: CapturedRun | null = null;
-      try { restored = parseCapturedRun(JSON.parse(sessionStorage.getItem(RCA_LAST_RUN_KEY) || "null")); } catch {}
-      if (!restored) restored = restoreCapturedFromLocalStorage();
-      if (restored) acceptCaptured(restored);
-
       const handleLastRun = (event: Event) => {
         const detail = event instanceof CustomEvent ? event.detail : null;
         acceptCaptured(parseCapturedRun(detail));
@@ -246,7 +241,7 @@ export default function SynthesisBridge() {
         disposed = true;
         observer.disconnect();
         window.removeEventListener(RCA_LAST_RUN_EVENT, handleLastRun);
-        if (window.fetch !== nativeFetch) window.fetch = nativeFetch;
+        window.fetch = nativeFetch;
         host?.remove();
       };
     }
@@ -278,10 +273,10 @@ export default function SynthesisBridge() {
     return () => {
       disposed = true;
       observer.disconnect();
-      if (window.fetch !== nativeFetch) window.fetch = nativeFetch;
+      window.fetch = nativeFetch;
       host?.remove();
     };
-  }, [roomId, isRca]);
+  }, [roomId, isRca, acceptCaptured]);
 
   async function toggleSynthesis() {
     if (isRca && validSources.length < 2) {
