@@ -4,6 +4,12 @@
 This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` before writing any code. Heed deprecation notices.
 <!-- END:nextjs-agent-rules -->
 
+## Royal Command Law — highest authority
+
+Before any Royal Command planning, architecture change, executable development work, country rollout, provider integration, or production-affecting decision, read and follow `ROYAL_COMMAND_LAW.md`.
+
+`ROYAL_COMMAND_LAW.md` is the highest Royal Command repository governance rule. If this file, any document, workflow, prompt, AI instruction, or implementation rule conflicts with it, stop work and resolve the conflict before continuing.
+
 ## Royal Command AI execution isolation
 
 Before any executable development work, read and follow `docs/AI_EXECUTION_ISOLATION_RULES.md`.
