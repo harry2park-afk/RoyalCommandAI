@@ -1,9 +1,10 @@
+import Script from "next/script";
 import RoomPage from "../[id]/page";
 
 export default function RCARoomPage() {
   return (
     <>
-      <script src="/rca-fetch-bridge.js" />
+      <Script src="/rca-fetch-bridge.js" strategy="beforeInteractive" />
       <RoomPage />
     </>
   );
