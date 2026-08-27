@@ -211,8 +211,12 @@
     }
 
     dock.style.gap = "10px";
-    dock.style.overflowX = "auto";
-    dock.style.overflowY = "hidden";
+    if (window.location.pathname === "/rooms/rca") {
+      dock.style.setProperty("overflow", "visible", "important");
+    } else {
+      dock.style.overflowX = "auto";
+      dock.style.overflowY = "hidden";
+    }
     dock.style.whiteSpace = "nowrap";
     dock.style.justifyContent = "flex-start";
     dock.style.paddingLeft = "10px";
