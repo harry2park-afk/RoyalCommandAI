@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
 import RoomPreferenceAuthority from "@/components/RoomPreferenceAuthority";
 import "./globals.css";
@@ -18,6 +19,8 @@ export default function RootLayout({
   return (
     <html lang="en" className="h-full">
       <body className="min-h-full antialiased">
+        <Script src="/rca-fetch-bridge.js" strategy="beforeInteractive" />
+        <Script src="/rca-ui-seed.js" strategy="beforeInteractive" />
         {children}
         <RetellRoomVoiceBridge />
         <RoomPreferenceAuthority />
