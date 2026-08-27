@@ -7,6 +7,7 @@ import { verifyRcaBuildAuthenticatedUser } from "@/lib/rcaV2/buildAuth";
 import { verifyRcaBuildTenantContext } from "@/lib/rcaV2/tenantContext";
 import { evaluateRcaRuleGate, type RuleGateInput } from "@/lib/rcaV2/ruleGate";
 import { validateRcaTaskPlan, type RcaTaskPlan, type RcaWorkLane } from "@/lib/rcaV2/masterTaskController";
+import { buildRcaResourceLockPlan } from "@/lib/rcaV2/resourceLockPlan";
 
 const MAX_TASK = 30000;
 const PROVIDERS = new Set<AIProviderId>(["openai", "anthropic", "google", "xai"]);
@@ -111,13 +112,15 @@ export async function POST(request: Request) {
   const validation = plan
     ? validateRcaTaskPlan(plan)
     : { valid: false, conflicts: ["Planner output was not valid RCA Task Plan JSON."], warnings: [] as string[] };
+  const lockPlan = plan && validation.valid ? buildRcaResourceLockPlan(plan) : null;
 
   const executionEligible =
     validation.valid &&
+    Boolean(lockPlan?.valid) &&
     (gate.disposition === "ALLOW" || gate.disposition === "ALLOW_WITH_CONDITIONS");
 
   return NextResponse.json({
-    ok: Boolean(plan) && validation.valid,
+    ok: Boolean(plan) && validation.valid && Boolean(lockPlan?.valid),
     mode: "BUILD_PLANNING_ONLY",
     writeAuthority: false,
     executionEligible,
@@ -130,6 +133,7 @@ export async function POST(request: Request) {
     },
     plan,
     validation,
+    resourceLocks: lockPlan,
     planner: {
       provider: "openai",
       latencyMs: planner.latencyMs || 0,
