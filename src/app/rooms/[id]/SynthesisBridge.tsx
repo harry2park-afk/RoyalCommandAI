@@ -7,6 +7,7 @@ import { useParams } from "next/navigation";
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
 type SourceResponse = { provider: string; content: string; latencyMs?: number; error?: string };
 type CapturedRun = { originalPrompt: string; language: string; responses: SourceResponse[] };
+type RoomMessage = { content?: unknown; author_type?: unknown; authorType?: unknown };
 
 type StreamEvent = {
   type?: string;
@@ -15,6 +16,12 @@ type StreamEvent = {
 
 const RCA_LAST_RUN_KEY = "royalcommand:rca:last-run:v1";
 const RCA_LAST_RUN_EVENT = "rca:last-run";
+const RCA_PROVIDER_BY_HEADING: Record<string, string> = {
+  ChatGPT: "openai",
+  Claude: "anthropic",
+  Gemini: "google",
+  Grok: "xai",
+};
 
 function parseFinalResult(text: string) {
   let final: StreamEvent["result"] | null = null;
@@ -51,6 +58,39 @@ function parseCapturedRun(value: unknown): CapturedRun | null {
   return { originalPrompt, language, responses };
 }
 
+function restoreCapturedFromVisibleMessages(value: unknown): CapturedRun | null {
+  const rawMessages = Array.isArray(value) ? value : [];
+  const messages: RoomMessage[] = rawMessages.filter((item): item is RoomMessage => Boolean(item && typeof item === "object"));
+  let lastUserIndex = -1;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const author = messages[index].author_type ?? messages[index].authorType;
+    if (author === "user") {
+      lastUserIndex = index;
+      break;
+    }
+  }
+  if (lastUserIndex < 0) return null;
+  const originalPrompt = typeof messages[lastUserIndex].content === "string" ? messages[lastUserIndex].content.trim() : "";
+  if (!originalPrompt) return null;
+
+  const seen = new Set<string>();
+  const responses: SourceResponse[] = [];
+  for (const message of messages.slice(lastUserIndex + 1)) {
+    const author = message.author_type ?? message.authorType;
+    if (author !== "ai" || typeof message.content !== "string") continue;
+    const content = message.content.trim();
+    const match = content.match(/^###\s+(ChatGPT|Claude|Gemini|Grok)\s*\n([\s\S]*)$/);
+    if (!match) continue;
+    const provider = RCA_PROVIDER_BY_HEADING[match[1]];
+    const answer = match[2].trim();
+    if (!provider || !answer || seen.has(provider)) continue;
+    seen.add(provider);
+    responses.push({ provider, content: answer });
+  }
+  if (responses.length < 2) return null;
+  return { originalPrompt, language: "ko", responses };
+}
+
 export default function SynthesisBridge() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -85,6 +125,9 @@ export default function SynthesisBridge() {
       setCaptured(run);
       setError("");
       setResult("");
+      if (isRca) {
+        try { sessionStorage.setItem(RCA_LAST_RUN_KEY, JSON.stringify(run)); } catch {}
+      }
     };
 
     const findTarget = () => {
@@ -123,9 +166,21 @@ export default function SynthesisBridge() {
     };
 
     if (isRca) {
+      let restored: CapturedRun | null = null;
       try {
-        acceptCaptured(parseCapturedRun(JSON.parse(sessionStorage.getItem(RCA_LAST_RUN_KEY) || "null")));
+        restored = parseCapturedRun(JSON.parse(sessionStorage.getItem(RCA_LAST_RUN_KEY) || "null"));
       } catch {}
+      if (restored) {
+        acceptCaptured(restored);
+      } else {
+        void nativeFetch("/api/rooms/rca", { cache: "no-store" })
+          .then((response) => response.ok ? response.json() : null)
+          .then((data) => {
+            if (disposed) return;
+            acceptCaptured(restoreCapturedFromVisibleMessages(data?.messages));
+          })
+          .catch(() => {});
+      }
       window.addEventListener(RCA_LAST_RUN_EVENT, handleRcaLastRun);
     } else {
       fetchWrapped = true;
