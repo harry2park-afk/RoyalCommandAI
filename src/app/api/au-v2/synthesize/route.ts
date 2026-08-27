@@ -1,8 +1,10 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getAvailableProviderIds, getConnector } from "@/lib/ai/connectors";
+import { executeModelBinding, resolveModelExecutionBinding } from "@/lib/ai/modelExecutionBinding";
+import { getModelRegistryEntry, type AIModelId } from "@/lib/ai/modelRegistry";
 import { AI_PROVIDER_IDS, PROVIDER_LABELS, type AIProviderId } from "@/lib/ai/types";
 import { AU_V2_COOKIE, isAustraliaV2Host, verifyAuV2SessionToken } from "@/lib/auV2TestSession";
+import { isRcaIntegratorModelId } from "@/lib/rcaV2/integratorRegistry";
 
 function isProviderId(value: unknown): value is AIProviderId {
   return typeof value === "string" && (AI_PROVIDER_IDS as readonly string[]).includes(value);
@@ -25,7 +27,7 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
   const originalPrompt = typeof body.originalPrompt === "string" ? body.originalPrompt.trim() : "";
-  const synthesizer = isProviderId(body.synthesizer) ? body.synthesizer : null;
+  const modelId = isRcaIntegratorModelId(body.modelId) ? body.modelId : null;
   const rawResponses: unknown[] = Array.isArray(body.responses) ? body.responses : [];
   const responses: SourceAnswer[] = rawResponses
     .filter(isSourceAnswer)
@@ -33,11 +35,16 @@ export async function POST(request: Request) {
     .filter((item) => !item.error)
     .slice(0, 4);
 
-  if (!originalPrompt || !synthesizer || responses.length < 2) {
-    return NextResponse.json({ error: "Two or more valid AI answers and a synthesizer are required." }, { status: 400 });
+  if (!originalPrompt || !modelId || responses.length < 2) {
+    return NextResponse.json({ error: "Two or more valid AI answers and an integrator model are required." }, { status: 400 });
   }
-  if (!getAvailableProviderIds().includes(synthesizer)) {
-    return NextResponse.json({ error: "Selected synthesizer is not connected." }, { status: 400 });
+
+  const model = getModelRegistryEntry(modelId as AIModelId);
+  let binding;
+  try {
+    binding = resolveModelExecutionBinding(model.providerId, model.id);
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Selected integrator cannot be executed." }, { status: 400 });
   }
 
   const sourceText = responses
@@ -45,11 +52,11 @@ export async function POST(request: Request) {
     .join("\n\n");
 
   const prompt = [
-    "You are the synthesis AI in the isolated Australia V2 test room.",
-    "Compare independent AI answers instead of simply choosing one or following majority opinion.",
-    "For each answer identify strengths, weaknesses, uncertainty, and anything that is hard to evaluate.",
-    "Identify conflicts, missing evidence, and checks that would improve confidence.",
-    "Then combine the strongest supported parts into one final answer and explain briefly why that conclusion was chosen.",
+    `You are ${model.displayName}, acting only as the synthesis model in Royal Command.`,
+    "Compare the independent AI answers instead of simply choosing one or following majority opinion.",
+    "Identify strengths, weaknesses, conflicts, uncertainty, missing evidence, and checks that would improve confidence.",
+    "Then combine the strongest supported parts into one clear final answer.",
+    "Do not hide or replace the source answers; your output is an additional synthesis answer.",
     "Do not execute tools or external actions.",
     "Respond in Korean unless the user's question clearly requires another language.",
     "",
@@ -59,15 +66,22 @@ export async function POST(request: Request) {
   ].join("\n");
 
   try {
-    const result = await getConnector(synthesizer).complete({
+    const isGpt56 = model.id.startsWith("openai:gpt-5.6-");
+    const result = await executeModelBinding(binding, {
       messages: [{ role: "user", content: prompt }],
-      temperature: 0.2,
+      ...(isGpt56 ? {} : { temperature: 0.2 }),
       maxTokens: 2200,
     });
     if (result.error || !result.content.trim()) {
       return NextResponse.json({ error: result.error || "Synthesis returned no answer." }, { status: 502 });
     }
-    return NextResponse.json({ finalAnswer: result.content, synthesizer });
+    return NextResponse.json({
+      finalAnswer: result.content,
+      modelId: model.id,
+      modelName: model.displayName,
+      providerId: model.providerId,
+      latencyMs: result.latencyMs,
+    });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Synthesis failed." }, { status: 502 });
   }
