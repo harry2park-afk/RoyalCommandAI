@@ -3,9 +3,28 @@
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
+type IntegratorOption = {
+  id: string;
+  name: string;
+  connected: boolean;
+};
+
+const INTEGRATOR_OPTIONS: readonly IntegratorOption[] = [
+  { id: "openai:gpt-5.6-sol", name: "GPT-5.6 Sol", connected: true },
+  { id: "google:gemini-3.7-flash", name: "Gemini 3.7 Flash", connected: true },
+  { id: "xai:grok-4.5", name: "Grok 4.5", connected: true },
+  { id: "anthropic:claude-opus-5", name: "Claude Opus 5", connected: false },
+  { id: "anthropic:claude-sonnet-5", name: "Claude Sonnet 5", connected: false },
+  { id: "google:gemini-3.1-pro-preview", name: "Gemini 3.1 Pro Preview", connected: false },
+  { id: "openai:gpt-5.6-terra", name: "GPT-5.6 Terra", connected: false },
+  { id: "deepseek:deepseek-v4-pro", name: "DeepSeek V4 Pro", connected: false },
+  { id: "cohere:command-a-plus-05-2026", name: "Cohere Command A+", connected: false },
+  { id: "perplexity:sonar-pro", name: "Perplexity Sonar Pro", connected: false },
+] as const;
+
 export default function NativeSynthesisButton() {
   const [host, setHost] = useState<HTMLElement | null>(null);
-  const [testOpen, setTestOpen] = useState(false);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     let disposed = false;
@@ -48,7 +67,7 @@ export default function NativeSynthesisButton() {
     <>
       <button
         type="button"
-        onClick={() => setTestOpen(true)}
+        onClick={() => setOpen(true)}
         className="flex h-8 min-w-[116px] shrink-0 items-center justify-center gap-1 rounded-md border-[2px] border-[#FFD700]/80 bg-[#0b1524] px-3 text-[10px] font-semibold text-[#f4d66c]"
         title="Integrated Answer"
         data-rc-native-synthesis-button="true"
@@ -56,12 +75,28 @@ export default function NativeSynthesisButton() {
         <span>Integrated Answer</span>
       </button>
 
-      {testOpen && createPortal(
-        <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4" role="presentation" onClick={() => setTestOpen(false)}>
-          <div className="w-full max-w-sm rounded-2xl border border-[#d7b64d]/60 bg-[#081321] p-5 text-center text-[#f4f0e7] shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="text-base font-semibold text-[#f4d66c]">Integrated Answer button connected</div>
-            <div className="mt-2 text-sm text-[#d6d9df]">The button click is working correctly.</div>
-            <button type="button" onClick={() => setTestOpen(false)} className="mt-4 rounded-lg border border-white/15 px-4 py-2 text-sm">Close</button>
+      {open && createPortal(
+        <div className="fixed inset-0 z-[400] flex items-start justify-center bg-black/70 px-4 pb-4 pt-[105px]" role="presentation" onClick={() => setOpen(false)}>
+          <div className="w-full max-w-md overflow-hidden rounded-2xl border border-[#d7b64d]/60 bg-[#081321] text-[#f4f0e7] shadow-2xl" onClick={(event) => event.stopPropagation()}>
+            <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
+              <div>
+                <div className="text-base font-semibold text-[#f4d66c]">Integrated Answer</div>
+                <div className="mt-1 text-xs text-[#9aa4b3]">3 Connected · 7 Not Connected</div>
+              </div>
+              <button type="button" onClick={() => setOpen(false)} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs">Close</button>
+            </div>
+
+            <div className="max-h-[62vh] overflow-y-auto p-2">
+              {INTEGRATOR_OPTIONS.map((model, index) => (
+                <div key={model.id} className="flex items-center gap-3 rounded-lg px-3 py-2.5 hover:bg-white/[0.04]">
+                  <span className="w-5 shrink-0 text-right text-xs text-[#7f8998]">{index + 1}</span>
+                  <span className="min-w-0 flex-1 truncate text-sm">{model.name}</span>
+                  <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-semibold ${model.connected ? "border-emerald-400/40 bg-emerald-500/10 text-emerald-300" : "border-white/10 bg-white/[0.03] text-[#7f8998]"}`}>
+                    {model.connected ? "Connected" : "Not Connected"}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>,
         document.body,
