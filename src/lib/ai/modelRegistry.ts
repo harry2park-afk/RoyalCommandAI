@@ -18,15 +18,8 @@ export type AIModelCapabilities = {
 };
 
 export type AIModelTransport =
-  | {
-      type: "native";
-      apiModelId: string;
-    }
-  | {
-      type: "openrouter";
-      apiModelId?: string;
-      modelQuery?: string;
-    };
+  | { type: "native"; apiModelId: string }
+  | { type: "openrouter"; apiModelId?: string; modelQuery?: string };
 
 export type AIModelRegistryEntry = {
   id: AIModelId;
@@ -44,14 +37,31 @@ const CHAT_ONLY_CAPABILITIES: AIModelCapabilities = Object.freeze({
   supportsTools: null,
 });
 
-/**
- * Phase 3 intentionally registers only models already represented by the
- * current production connector defaults/fallbacks. It does not change which
- * model any connector executes.
- *
- * OpenRouter is represented only as a transport. It is never an AIProviderId.
- */
 const MODEL_DEFINITIONS: readonly AIModelRegistryEntry[] = [
+  {
+    id: "openai:gpt-5.6-sol",
+    providerId: "openai",
+    displayName: "GPT-5.6 Sol",
+    enabled: true,
+    capabilities: CHAT_ONLY_CAPABILITIES,
+    transports: [{ type: "native", apiModelId: "gpt-5.6-sol" }],
+  },
+  {
+    id: "openai:gpt-5.6-terra",
+    providerId: "openai",
+    displayName: "GPT-5.6 Terra",
+    enabled: true,
+    capabilities: CHAT_ONLY_CAPABILITIES,
+    transports: [{ type: "native", apiModelId: "gpt-5.6-terra" }],
+  },
+  {
+    id: "openai:gpt-5.6-luna",
+    providerId: "openai",
+    displayName: "GPT-5.6 Luna",
+    enabled: true,
+    capabilities: CHAT_ONLY_CAPABILITIES,
+    transports: [{ type: "native", apiModelId: "gpt-5.6-luna" }],
+  },
   {
     id: "openai:gpt-4.1-mini",
     providerId: "openai",
@@ -81,6 +91,14 @@ const MODEL_DEFINITIONS: readonly AIModelRegistryEntry[] = [
       { type: "native", apiModelId: "claude-haiku-4-5" },
       { type: "openrouter", modelQuery: "anthropic claude" },
     ],
+  },
+  {
+    id: "google:gemini-3.7-flash",
+    providerId: "google",
+    displayName: "Gemini 3.7 Flash",
+    enabled: true,
+    capabilities: CHAT_ONLY_CAPABILITIES,
+    transports: [{ type: "native", apiModelId: "gemini-3.7-flash" }],
   },
   {
     id: "google:gemini-3.6-flash",
@@ -129,37 +147,21 @@ const MODEL_DEFINITIONS: readonly AIModelRegistryEntry[] = [
 
 function buildModelRegistry() {
   const byId = new Map<AIModelId, AIModelRegistryEntry>();
-
   for (const definition of MODEL_DEFINITIONS) {
-    // Reuse the Phase 2 Provider Registry as the provider integrity boundary.
     getProviderRegistryEntry(definition.providerId);
-
-    if (byId.has(definition.id)) {
-      throw new Error(`Duplicate AI model id in registry: ${definition.id}`);
-    }
-
-    if (!definition.transports.length) {
-      throw new Error(`AI model ${definition.id} has no transport.`);
-    }
-
-    byId.set(
-      definition.id,
-      Object.freeze({
-        ...definition,
-        capabilities: Object.freeze({ ...definition.capabilities }),
-        transports: Object.freeze(definition.transports.map((transport) => Object.freeze({ ...transport }))),
-      }),
-    );
+    if (byId.has(definition.id)) throw new Error(`Duplicate AI model id in registry: ${definition.id}`);
+    if (!definition.transports.length) throw new Error(`AI model ${definition.id} has no transport.`);
+    byId.set(definition.id, Object.freeze({
+      ...definition,
+      capabilities: Object.freeze({ ...definition.capabilities }),
+      transports: Object.freeze(definition.transports.map((transport) => Object.freeze({ ...transport }))),
+    }));
   }
-
   return byId;
 }
 
 const MODEL_REGISTRY_BY_ID = buildModelRegistry();
-
-export const AI_MODEL_REGISTRY = Object.freeze(
-  Array.from(MODEL_REGISTRY_BY_ID.values()),
-);
+export const AI_MODEL_REGISTRY = Object.freeze(Array.from(MODEL_REGISTRY_BY_ID.values()));
 
 export function getModelRegistryEntry(id: AIModelId): AIModelRegistryEntry {
   const entry = MODEL_REGISTRY_BY_ID.get(id);

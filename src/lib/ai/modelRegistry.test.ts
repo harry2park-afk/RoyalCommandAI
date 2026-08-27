@@ -23,10 +23,14 @@ describe("modelRegistry", () => {
     const googleModels = listModelsByProvider("google");
 
     expect(openAIModels.map((model) => model.id)).toEqual([
+      "openai:gpt-5.6-sol",
+      "openai:gpt-5.6-terra",
+      "openai:gpt-5.6-luna",
       "openai:gpt-4.1-mini",
       "openai:gpt-4o-mini",
     ]);
     expect(googleModels.map((model) => model.id)).toEqual([
+      "google:gemini-3.7-flash",
       "google:gemini-3.6-flash",
       "google:gemini-3.5-flash-lite",
     ]);
