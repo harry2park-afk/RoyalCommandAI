@@ -173,7 +173,7 @@ export default function AustraliaV2Client() {
   }
 
   return (
-    <main className="min-h-screen bg-[#07101d] text-[#f4f0e7]">
+    <main className="h-screen overflow-y-auto overscroll-contain bg-[#07101d] text-[#f4f0e7]">
       <header className="border-b border-[#d7b64d]/35 bg-[#20392f] px-5 py-4">
         <div className="text-2xl font-semibold" style={{ fontFamily: "Times New Roman, serif" }}>
           Royal Command AI — Australia V2 Test Room
@@ -216,7 +216,7 @@ export default function AustraliaV2Client() {
         })}
       </section>
 
-      <section className="mx-auto max-w-6xl px-5 py-6">
+      <section className="mx-auto max-w-6xl px-5 py-6 pb-16">
         {!testAccess && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#35d07f]/40 bg-[#0e2118] p-4 text-sm">
             <span>기존 Royal Command 로그인 없이 이 시험 화면만 사용할 수 있습니다.</span>
