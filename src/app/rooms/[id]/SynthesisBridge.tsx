@@ -50,11 +50,27 @@ export default function SynthesisBridge() {
     if (!roomId) return;
     const nativeFetch = window.fetch.bind(window);
     let disposed = false;
+    let host: HTMLElement | null = null;
 
     const findTarget = () => {
-      const node = document.querySelector(".royal-room-main main > div.fixed:first-of-type > div:first-child");
-      if (!disposed && node instanceof HTMLElement) setTarget(node);
+      const dock = document.querySelector(".royal-room-main main > div.fixed:first-of-type > div:nth-child(2)");
+      if (!(dock instanceof HTMLElement) || disposed) return;
+
+      let node = document.getElementById("rc-synthesis-host");
+      if (!(node instanceof HTMLElement)) {
+        node = document.createElement("div");
+        node.id = "rc-synthesis-host";
+        node.setAttribute("data-rc-synthesis-host", "true");
+        node.style.cssText = "position:relative;flex:0 0 auto;display:flex;align-items:center;height:30px;min-width:94px;z-index:20;";
+        dock.insertBefore(node, dock.firstChild);
+      } else if (node.parentElement !== dock || dock.firstElementChild !== node) {
+        dock.insertBefore(node, dock.firstChild);
+      }
+
+      host = node;
+      setTarget(node);
     };
+
     findTarget();
     const observer = new MutationObserver(findTarget);
     observer.observe(document.documentElement, { childList: true, subtree: true });
@@ -99,6 +115,7 @@ export default function SynthesisBridge() {
       disposed = true;
       observer.disconnect();
       window.fetch = nativeFetch;
+      host?.remove();
     };
   }, [roomId]);
 
@@ -134,19 +151,19 @@ export default function SynthesisBridge() {
 
   return createPortal(
     <>
-      <div className="relative shrink-0" data-rc-synthesis-control="true">
+      <div className="relative flex h-[30px] min-w-[94px] shrink-0 items-center" data-rc-synthesis-control="true">
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
           disabled={busy || validSources.length < 2}
-          className="h-7 rounded-md border border-[#d7b64d]/60 bg-[#0b1524] px-2 text-[11px] font-semibold text-[#f4d66c] disabled:cursor-not-allowed disabled:opacity-35"
+          className="h-[30px] min-w-[94px] rounded-md border border-[#FFD700]/80 bg-[#7A0C2E] px-2 font-[Times_New_Roman] text-[11px] font-semibold text-[#FFF3D6] disabled:bg-[#2b3440] disabled:text-[#a7adb6] disabled:opacity-100"
           title={validSources.length < 2 ? "2개 이상의 AI 답변이 있어야 통합할 수 있습니다." : "통합 답변 AI 선택"}
         >
           {busy ? "통합 중…" : "통합 답변 ▾"}
         </button>
 
         {open && (
-          <div className="absolute right-0 top-8 z-[240] min-w-[190px] rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
+          <div className="absolute left-0 top-[34px] z-[240] min-w-[190px] rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
             <div className="px-2 pb-1 text-[10px] text-[#9aa4b3]">통합할 AI를 선택하세요</div>
             {available.map((provider) => (
               <button
