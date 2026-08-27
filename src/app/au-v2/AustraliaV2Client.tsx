@@ -1,26 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
 type ProviderResponse = { provider: string; content: string; latencyMs?: number; error?: string };
-type RoomSummary = { id?: unknown; name?: unknown };
-type StreamEvent =
-  | { type: "provider"; provider: string; name: string; content: string; error?: string }
-  | { type: "final"; result: { responses?: ProviderResponse[]; finalAnswer?: string } }
-  | { type: "error"; error: string };
 
 const PRIMARY_IDS = ["openai", "anthropic", "google", "xai"];
-const ROOM_NAME = "Australia V2 Test Room";
 
 export default function AustraliaV2Client() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [warehouseOpen, setWarehouseOpen] = useState(false);
   const [synthOpen, setSynthOpen] = useState(false);
-  const [roomId, setRoomId] = useState("");
-  const [needsLogin, setNeedsLogin] = useState(false);
+  const [testAccess, setTestAccess] = useState(false);
+  const [accessBusy, setAccessBusy] = useState(false);
   const [prompt, setPrompt] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -31,7 +24,10 @@ export default function AustraliaV2Client() {
   const synthRef = useRef<HTMLDivElement | null>(null);
 
   const available = useMemo(() => providers.filter((p) => p.available), [providers]);
-  const primary = useMemo(() => PRIMARY_IDS.map((id) => providers.find((p) => p.id === id)).filter(Boolean) as ProviderInfo[], [providers]);
+  const primary = useMemo(
+    () => PRIMARY_IDS.map((id) => providers.find((p) => p.id === id)).filter(Boolean) as ProviderInfo[],
+    [providers],
+  );
   const goodAnswers = useMemo(() => answers.filter((a) => !a.error && a.content?.trim()), [answers]);
 
   useEffect(() => {
@@ -47,58 +43,55 @@ export default function AustraliaV2Client() {
   useEffect(() => {
     void (async () => {
       try {
-        const providerRes = await fetch("/api/ai/providers", { cache: "no-store" });
+        const [providerRes, sessionRes] = await Promise.all([
+          fetch("/api/ai/providers", { cache: "no-store" }),
+          fetch("/api/au-v2/session", { cache: "no-store" }),
+        ]);
         const providerData = await providerRes.json();
+        const sessionData = await sessionRes.json().catch(() => ({}));
         const list: ProviderInfo[] = Array.isArray(providerData?.connectors) ? providerData.connectors : [];
         setProviders(list);
         const initial = PRIMARY_IDS.filter((id) => list.some((p) => p.id === id && p.available));
         setSelected(initial.length ? initial : list.filter((p) => p.available).slice(0, 1).map((p) => p.id));
-
-        const roomsRes = await fetch("/api/rooms", { cache: "no-store" });
-        if (roomsRes.status === 401) {
-          setNeedsLogin(true);
-          return;
-        }
-        const roomsData = await roomsRes.json();
-        if (!roomsRes.ok) throw new Error(roomsData?.error || "Room list could not be loaded.");
-        const existing = Array.isArray(roomsData?.rooms)
-          ? (roomsData.rooms as RoomSummary[]).find((room) => String(room?.name || "") === ROOM_NAME)
-          : null;
-        if (existing?.id) {
-          setRoomId(String(existing.id));
-          return;
-        }
-
-        const createRes = await fetch("/api/rooms", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name: ROOM_NAME, description: "Isolated Australia V2 functional test room" }),
-        });
-        const createData = await createRes.json();
-        if (!createRes.ok) throw new Error(createData?.error || "Australia V2 room could not be created.");
-        if (createData?.room?.id) setRoomId(String(createData.room.id));
+        setTestAccess(Boolean(sessionData?.active));
       } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "Setup failed.");
+        setError(cause instanceof Error ? cause.message : "Australia V2 준비에 실패했습니다.");
       }
     })();
   }, []);
 
+  async function enterTestRoom() {
+    if (accessBusy) return;
+    setAccessBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/au-v2/enter", { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data?.error || "시험용 입장에 실패했습니다.");
+      setTestAccess(true);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "시험용 입장에 실패했습니다.");
+    } finally {
+      setAccessBusy(false);
+    }
+  }
+
   function toggleProvider(id: string, closeWarehouse = false) {
     const provider = providers.find((p) => p.id === id);
     if (!provider?.available) return;
-    setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
     setError("");
     if (closeWarehouse) setWarehouseOpen(false);
   }
 
   function handleSynthesisButton() {
     setWarehouseOpen(false);
-    if (busy) {
-      setError("현재 AI 작업이 끝난 뒤 통합할 수 있습니다.");
+    if (!testAccess) {
+      setError("먼저 ‘Australia V2 시험 입장’을 눌러 주세요.");
       return;
     }
-    if (needsLogin) {
-      setError("실제 통합 답변을 사용하려면 먼저 로그인해 주세요.");
+    if (busy) {
+      setError("현재 AI 작업이 끝난 뒤 통합할 수 있습니다.");
       return;
     }
     if (goodAnswers.length < 2) {
@@ -114,11 +107,11 @@ export default function AustraliaV2Client() {
     if (!text || busy) return;
     setWarehouseOpen(false);
     setSynthOpen(false);
-    if (!roomId) {
-      setError(needsLogin ? "먼저 로그인해 주세요." : "Australia V2 Room을 준비하는 중입니다.");
+    if (!testAccess) {
+      setError("먼저 ‘Australia V2 시험 입장’을 눌러 주세요.");
       return;
     }
-    const active = selected.filter((id) => available.some((p) => p.id === id));
+    const active = selected.filter((id) => available.some((p) => p.id === id)).slice(0, 4);
     if (!active.length) {
       setError("AI를 한 개 이상 선택해 주세요.");
       return;
@@ -130,47 +123,18 @@ export default function AustraliaV2Client() {
     setSynthesis("");
     setLastPrompt(text);
     try {
-      const response = await fetch("/api/ai/chat/stream", {
+      const response = await fetch("/api/au-v2/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ roomId, prompt: text, language: "ko", providers: active }),
+        body: JSON.stringify({ prompt: text, providers: active }),
       });
+      const data = await response.json().catch(() => ({}));
       if (response.status === 401) {
-        setNeedsLogin(true);
-        throw new Error("먼저 로그인해 주세요.");
+        setTestAccess(false);
+        throw new Error("시험 세션이 끝났습니다. 다시 시험 입장해 주세요.");
       }
-      if (!response.ok || !response.body) {
-        const failed = await response.json().catch(() => ({}));
-        throw new Error(failed?.error || "AI 실행에 실패했습니다.");
-      }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      const latest = new Map<string, ProviderResponse>();
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split("\n");
-        buffer = lines.pop() || "";
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          const event = JSON.parse(line) as StreamEvent;
-          if (event.type === "provider") {
-            latest.set(event.provider, { provider: event.provider, content: event.content || "", error: event.error });
-            setAnswers(Array.from(latest.values()));
-          } else if (event.type === "error") {
-            setError(event.error);
-          } else if (event.type === "final" && Array.isArray(event.result?.responses)) {
-            setAnswers(event.result.responses);
-          }
-        }
-      }
-      if (buffer.trim()) {
-        const event = JSON.parse(buffer) as StreamEvent;
-        if (event.type === "final" && Array.isArray(event.result?.responses)) setAnswers(event.result.responses);
-      }
+      if (!response.ok) throw new Error(data?.error || "AI 실행에 실패했습니다.");
+      setAnswers(Array.isArray(data?.responses) ? data.responses : []);
       setPrompt("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "AI 실행에 실패했습니다.");
@@ -180,27 +144,25 @@ export default function AustraliaV2Client() {
   }
 
   async function synthesize(providerId: string) {
-    if (!roomId || goodAnswers.length < 2 || !lastPrompt) return;
+    if (!testAccess || goodAnswers.length < 2 || !lastPrompt || busy) return;
     setSynthOpen(false);
     setBusy(true);
     setError("");
     try {
-      const response = await fetch("/api/ai/synthesize", {
+      const response = await fetch("/api/au-v2/synthesize", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          roomId,
           originalPrompt: lastPrompt,
-          language: "ko",
           synthesizer: providerId,
           responses: goodAnswers,
         }),
       });
-      if (response.status === 401) {
-        setNeedsLogin(true);
-        throw new Error("먼저 로그인해 주세요.");
-      }
       const data = await response.json().catch(() => ({}));
+      if (response.status === 401) {
+        setTestAccess(false);
+        throw new Error("시험 세션이 끝났습니다. 다시 시험 입장해 주세요.");
+      }
       if (!response.ok) throw new Error(data?.error || "통합 답변 생성에 실패했습니다.");
       setSynthesis(String(data.finalAnswer || ""));
     } catch (cause) {
@@ -236,10 +198,10 @@ export default function AustraliaV2Client() {
         </div>
 
         <div ref={synthRef} className="relative">
-          <button onClick={handleSynthesisButton} className={`rounded-md border px-4 py-2 text-sm font-semibold ${goodAnswers.length >= 2 && !needsLogin && !busy ? "border-[#FFD700] bg-[#7A0C2E] text-[#FFF3D6]" : "border-white/15 bg-[#2d3642] text-white/45"}`}>통합 답변 ▾</button>
+          <button onClick={handleSynthesisButton} className={`rounded-md border px-4 py-2 text-sm font-semibold ${goodAnswers.length >= 2 && testAccess && !busy ? "border-[#FFD700] bg-[#7A0C2E] text-[#FFF3D6]" : "border-white/15 bg-[#2d3642] text-white/45"}`}>통합 답변 ▾</button>
           {synthOpen && (
             <div className="absolute left-0 top-12 z-30 w-52 rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
-              {available.map((p) => <button key={p.id} onClick={() => void synthesize(p.id)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10">{p.name}</button>)}
+              {available.slice(0, 25).map((p) => <button key={p.id} onClick={() => void synthesize(p.id)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10">{p.name}</button>)}
             </div>
           )}
         </div>
@@ -255,18 +217,22 @@ export default function AustraliaV2Client() {
       </section>
 
       <section className="mx-auto max-w-6xl px-5 py-6">
-        {needsLogin && (
-          <div className="mb-4 rounded-xl border border-[#d7b64d]/40 bg-[#111827] p-4 text-sm">
-            실제 AI를 사용하려면 이 호주 도메인에서 한 번 로그인해야 합니다. <Link href="/login?next=/au-v2" className="ml-2 font-semibold text-[#FFD700] underline">로그인</Link>
+        {!testAccess && (
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#35d07f]/40 bg-[#0e2118] p-4 text-sm">
+            <span>기존 Royal Command 로그인 없이 이 시험 화면만 사용할 수 있습니다.</span>
+            <button onClick={() => void enterTestRoom()} disabled={accessBusy} className="rounded-lg border border-[#35d07f] bg-[#126b3a] px-4 py-2 font-semibold text-white disabled:opacity-50">
+              {accessBusy ? "입장 중…" : "Australia V2 시험 입장"}
+            </button>
           </div>
         )}
+        {testAccess && <div className="mb-4 rounded-xl border border-[#35d07f]/30 bg-[#0e2118] p-3 text-sm text-[#a8f0c8]">Australia V2 시험 세션 활성화 ✓ — 기존 RC Room 권한과 분리되어 있습니다.</div>}
         {error && <div className="mb-4 rounded-xl border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{error}</div>}
 
         <div className="rounded-2xl border border-[#d7b64d]/30 bg-[#0b1524] p-4">
-          <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} placeholder="질문을 입력하세요…" className="min-h-28 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-4 text-base outline-none" />
-          <div className="mt-3 flex items-center justify-between gap-3">
+          <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} maxLength={2000} placeholder="질문을 입력하세요…" className="min-h-28 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-4 text-base outline-none" />
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-white/55">선택 AI: {selected.map((id) => providers.find((p) => p.id === id)?.name || id).join(" + ") || "없음"}</div>
-            <button onClick={() => void send()} disabled={!prompt.trim() || busy || needsLogin} className="rounded-xl bg-[#d7b64d] px-6 py-3 font-semibold text-[#111827] disabled:opacity-40">{busy ? "실행 중…" : "Send"}</button>
+            <button onClick={() => void send()} disabled={!prompt.trim() || busy || !testAccess} className="rounded-xl bg-[#d7b64d] px-6 py-3 font-semibold text-[#111827] disabled:opacity-40">{busy ? "실행 중…" : "Send"}</button>
           </div>
         </div>
 
