@@ -40,6 +40,13 @@ describe("validateSynthesisRequest", () => {
       responses: [base.responses[0], { provider: "anthropic", content: "", error: "timeout" }],
     })).toThrow(/At least two/);
   });
+
+  it("caps a synthesis request at the registered 25-provider catalog size", () => {
+    expect(() => validateSynthesisRequest({
+      ...base,
+      responses: Array.from({ length: 26 }, (_, index) => ({ provider: "openai", content: `Answer ${index}` })),
+    })).toThrow(/Too many source responses/);
+  });
 });
 
 describe("buildSynthesisPrompt", () => {
