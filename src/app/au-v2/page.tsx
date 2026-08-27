@@ -1,10 +1,10 @@
-import AustraliaV2Client from "./AustraliaV2Client";
+import { redirect } from "next/navigation";
 
 export const metadata = {
-  title: "Royal Command V2 Australia Test Room",
-  description: "Royal Command V2 isolated Australia staging room",
+  title: "RCA Room",
+  description: "Royal Command Australia Room",
 };
 
 export default function AustraliaV2TestRoom() {
-  return <AustraliaV2Client />;
+  redirect("/rca-room");
 }
