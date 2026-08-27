@@ -95,7 +95,10 @@ export default function SynthesisBridge() {
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [integrators, setIntegrators] = useState<IntegratorInfo[]>([]);
-  const [lastIntegratorId, setLastIntegratorId] = useState("");
+  const [lastIntegratorId, setLastIntegratorId] = useState(() => {
+    if (typeof window === "undefined") return "";
+    try { return localStorage.getItem(RCA_LAST_INTEGRATOR_KEY) || ""; } catch { return ""; }
+  });
   const [captured, setCaptured] = useState<CapturedRun | null>(null);
   const [open, setOpen] = useState(false);
   const [busyIds, setBusyIds] = useState<string[]>([]);
@@ -157,7 +160,6 @@ export default function SynthesisBridge() {
     observer.observe(document.documentElement, { childList: true, subtree: true });
 
     if (isRca) {
-      try { setLastIntegratorId(localStorage.getItem(RCA_LAST_INTEGRATOR_KEY) || ""); } catch {}
       void nativeFetch("/api/ai/integrators", { cache: "no-store" })
         .then((response) => response.ok ? response.json() : null)
         .then((data) => { if (!disposed && Array.isArray(data?.integrators)) setIntegrators(data.integrators); })
