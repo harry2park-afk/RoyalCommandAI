@@ -4,6 +4,7 @@ import RoomExternalAppClickGuard from "./RoomExternalAppClickGuard";
 import ServerConversationBridge from "./ServerConversationBridge";
 import RightMenuPasteFix from "./RightMenuPasteFix";
 import SpeakerTtsBridge from "./SpeakerTtsBridge";
+import SynthesisBridge from "./SynthesisBridge";
 
 const ROOM_UI_VERSION = "20260821-room-management";
 
@@ -111,6 +112,7 @@ export default function RoomPage() {
       <ServerConversationBridge />
       <RightMenuPasteFix />
       <SpeakerTtsBridge />
+      <SynthesisBridge />
       <StableRoomV3 />
       <Script src={`/rc-room-switcher.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-room-manager.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
