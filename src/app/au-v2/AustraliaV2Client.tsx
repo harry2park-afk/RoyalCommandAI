@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
 type ProviderResponse = { provider: string; content: string; latencyMs?: number; error?: string };
@@ -27,10 +27,22 @@ export default function AustraliaV2Client() {
   const [answers, setAnswers] = useState<ProviderResponse[]>([]);
   const [lastPrompt, setLastPrompt] = useState("");
   const [synthesis, setSynthesis] = useState("");
+  const warehouseRef = useRef<HTMLDivElement | null>(null);
+  const synthRef = useRef<HTMLDivElement | null>(null);
 
   const available = useMemo(() => providers.filter((p) => p.available), [providers]);
   const primary = useMemo(() => PRIMARY_IDS.map((id) => providers.find((p) => p.id === id)).filter(Boolean) as ProviderInfo[], [providers]);
   const goodAnswers = useMemo(() => answers.filter((a) => !a.error && a.content?.trim()), [answers]);
+
+  useEffect(() => {
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (warehouseOpen && target && !warehouseRef.current?.contains(target)) setWarehouseOpen(false);
+      if (synthOpen && target && !synthRef.current?.contains(target)) setSynthOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [warehouseOpen, synthOpen]);
 
   useEffect(() => {
     void (async () => {
@@ -71,15 +83,37 @@ export default function AustraliaV2Client() {
     })();
   }, []);
 
-  function toggleProvider(id: string) {
+  function toggleProvider(id: string, closeWarehouse = false) {
     const provider = providers.find((p) => p.id === id);
     if (!provider?.available) return;
     setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+    setError("");
+    if (closeWarehouse) setWarehouseOpen(false);
+  }
+
+  function handleSynthesisButton() {
+    setWarehouseOpen(false);
+    if (busy) {
+      setError("현재 AI 작업이 끝난 뒤 통합할 수 있습니다.");
+      return;
+    }
+    if (needsLogin) {
+      setError("실제 통합 답변을 사용하려면 먼저 로그인해 주세요.");
+      return;
+    }
+    if (goodAnswers.length < 2) {
+      setError("통합 답변은 AI 답변이 2개 이상 나온 뒤 사용할 수 있습니다.");
+      return;
+    }
+    setError("");
+    setSynthOpen((value) => !value);
   }
 
   async function send() {
     const text = prompt.trim();
     if (!text || busy) return;
+    setWarehouseOpen(false);
+    setSynthOpen(false);
     if (!roomId) {
       setError(needsLogin ? "먼저 로그인해 주세요." : "Australia V2 Room을 준비하는 중입니다.");
       return;
@@ -185,21 +219,24 @@ export default function AustraliaV2Client() {
       </header>
 
       <section className="flex flex-wrap items-center gap-3 border-b border-[#d7b64d]/25 bg-[#20392f] px-5 py-3">
-        <div className="relative">
-          <button onClick={() => setWarehouseOpen((v) => !v)} className="rounded-md border border-[#FFD700] bg-[#0b1524] px-4 py-2 text-sm text-[#FFD700]">AI Warehouse</button>
+        <div ref={warehouseRef} className="relative">
+          <button onClick={() => { setSynthOpen(false); setWarehouseOpen((v) => !v); }} className="rounded-md border border-[#FFD700] bg-[#0b1524] px-4 py-2 text-sm text-[#FFD700]">AI Warehouse</button>
           {warehouseOpen && (
-            <div className="absolute left-0 top-12 z-30 w-64 rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
-              {providers.map((p) => (
-                <button key={p.id} onClick={() => toggleProvider(p.id)} disabled={!p.available} className="flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10 disabled:opacity-35">
-                  <span>{p.name}</span><span>{selected.includes(p.id) ? "✓" : p.available ? "+" : "미연결"}</span>
-                </button>
-              ))}
+            <div className="absolute left-0 top-12 z-30 max-h-[70vh] w-64 overflow-y-auto rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
+              {providers.map((p) => {
+                const active = selected.includes(p.id) && p.available;
+                return (
+                  <button key={p.id} onClick={() => toggleProvider(p.id, true)} disabled={!p.available} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${active ? "bg-[#126b3a] text-white" : "text-white/45 hover:bg-white/10 hover:text-white/80"} disabled:cursor-not-allowed disabled:opacity-25`}>
+                    <span>{p.name}</span><span>{active ? "✓" : p.available ? "+" : "미연결"}</span>
+                  </button>
+                );
+              })}
             </div>
           )}
         </div>
 
-        <div className="relative">
-          <button onClick={() => setSynthOpen((v) => !v)} disabled={goodAnswers.length < 2 || busy} className="rounded-md border border-[#FFD700] bg-[#7A0C2E] px-4 py-2 text-sm font-semibold text-[#FFF3D6] disabled:bg-[#374151] disabled:text-[#9ca3af]">통합 답변 ▾</button>
+        <div ref={synthRef} className="relative">
+          <button onClick={handleSynthesisButton} className={`rounded-md border px-4 py-2 text-sm font-semibold ${goodAnswers.length >= 2 && !needsLogin && !busy ? "border-[#FFD700] bg-[#7A0C2E] text-[#FFF3D6]" : "border-white/15 bg-[#2d3642] text-white/45"}`}>통합 답변 ▾</button>
           {synthOpen && (
             <div className="absolute left-0 top-12 z-30 w-52 rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
               {available.map((p) => <button key={p.id} onClick={() => void synthesize(p.id)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10">{p.name}</button>)}
@@ -207,11 +244,14 @@ export default function AustraliaV2Client() {
           )}
         </div>
 
-        {primary.map((p) => (
-          <button key={p.id} onClick={() => toggleProvider(p.id)} disabled={!p.available} className={`rounded-md border px-3 py-2 text-sm ${selected.includes(p.id) && p.available ? "border-[#d7b64d] bg-[#7A0C2E] text-white" : "border-[#d7b64d]/45 bg-transparent"} disabled:opacity-35`}>
-            {p.name} {selected.includes(p.id) && p.available ? "✓" : ""}
-          </button>
-        ))}
+        {primary.map((p) => {
+          const active = selected.includes(p.id) && p.available;
+          return (
+            <button key={p.id} onClick={() => toggleProvider(p.id)} disabled={!p.available} className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${active ? "border-[#35d07f] bg-[#126b3a] text-white shadow-[0_0_10px_rgba(53,208,127,.18)]" : "border-white/15 bg-[#2d3642]/60 text-white/35"} disabled:cursor-not-allowed disabled:opacity-20`}>
+              {p.name} {active ? "✓" : ""}
+            </button>
+          );
+        })}
       </section>
 
       <section className="mx-auto max-w-6xl px-5 py-6">
