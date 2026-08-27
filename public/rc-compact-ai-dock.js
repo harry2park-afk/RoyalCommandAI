@@ -224,8 +224,6 @@
 
     const warehouse = warehouseButton(dock);
     if (warehouse instanceof HTMLButtonElement) {
-      // Keep the React-owned Warehouse button in its original DOM position.
-      // CSS order preserves its visual position without detaching/reparenting it.
       warehouse.style.order = "-1";
       warehouse.style.marginLeft = "0";
       warehouse.style.marginRight = "0";
@@ -250,6 +248,22 @@
   }
 
   document.addEventListener("click", (event) => {
+    if (window.location.pathname === "/rooms/rca" && event.isTrusted) {
+      const host = document.getElementById("rc-synthesis-host");
+      const synthesisButton = host?.querySelector("button");
+      if (host instanceof HTMLElement && synthesisButton instanceof HTMLButtonElement) {
+        const rect = host.getBoundingClientRect();
+        const inside = event.clientX >= rect.left && event.clientX <= rect.right && event.clientY >= rect.top && event.clientY <= rect.bottom;
+        if (inside) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          synthesisButton.click();
+          return;
+        }
+      }
+    }
+
     const button = event.target instanceof Element ? event.target.closest("button") : null;
     if (!(button instanceof HTMLButtonElement)) return;
 
