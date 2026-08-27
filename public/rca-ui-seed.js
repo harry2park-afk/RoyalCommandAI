@@ -34,6 +34,9 @@
     status:s,
     headers:{'Content-Type':'application/json','Cache-Control':'no-store'}
   });
+  const ndjson=(events)=>new Response(events.map(x=>JSON.stringify(x)).join('\n')+'\n',{
+    headers:{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'}
+  });
 
   window.fetch=async(i,o)=>{
     const raw=typeof i==='string'?i:i instanceof URL?i.toString():i.url;
@@ -43,6 +46,46 @@
     if(location.pathname==='/rooms/rca'&&u.pathname==='/api/ai/chat/stream'&&method==='POST'){
       const b=await readBody(i,o);
       const prompt=typeof b.prompt==='string'?b.prompt.trim():'';
+
+      if(/^\/rule-gate(?:\s|$)/i.test(prompt)){
+        if(!await ensureSession())return J({error:'RCA session failed'},401);
+        const task=prompt.replace(/^\/rule-gate\s*/i,'').trim()||'RCA V2 BUILD readiness precheck';
+        const r=await F('/api/au-v2/rule-gate',{
+          method:'POST',
+          headers:{'Content-Type':'application/json'},
+          body:JSON.stringify({
+            task,
+            mode:'BUILD',
+            countryCodes:['AU'],
+            providers:['openai','google','anthropic','xai'],
+            resources:[],
+            evidencePlan:'Diff + lint + typecheck + tests + build + Preview + smoke test',
+            productionRequested:false,
+            destructive:false,
+            regulated:false
+          })
+        });
+        const d=await r.json().catch(()=>({}));
+        if(!r.ok)return J({error:d.error||'Rule Gate failed'},r.status);
+        const checks=Array.isArray(d.checks)?d.checks:[];
+        const report=[
+          `RCA V2 RULE GATE: ${d.disposition||'UNKNOWN'}`,
+          `Write Authority: ${d.writeAuthority?'YES':'NO'}`,
+          '',
+          ...checks.map(x=>`${x.status==='PASS'?'✅':x.status==='BLOCK'?'⛔':x.status==='OWNER'?'👤':x.status==='UNKNOWN'?'❓':'⚠️'} [${x.category}] ${x.reason}`)
+        ].join('\n');
+        return ndjson([
+          {type:'provider',provider:'openai',name:'Rule Gate',content:report,latencyMs:0},
+          {type:'final',result:{
+            finalAnswer:report,
+            responses:[{provider:'openai',content:report}],
+            userMessage:{id:`rule-${Date.now()}`,content:prompt,authorType:'user'},
+            aiMessage:null,
+            comparison:{winners:[],notes:['Rule Gate precheck only — no write authority granted.'],providerScores:{}}
+          }}
+        ]);
+      }
+
       if(/^\/role-test(?:\s|$)/i.test(prompt)){
         if(!await ensureSession())return J({error:'RCA session failed'},401);
         const task=prompt.replace(/^\/role-test\s*/i,'').trim();
@@ -55,7 +98,7 @@
         if(!r.ok)return J({error:d.error||'Role test failed'},r.status);
 
         const results=Array.isArray(d.results)?d.results:[];
-        const events=results.map(x=>JSON.stringify({
+        const events=results.map(x=>({
           type:'provider',
           provider:x.provider,
           name:x.role||x.provider,
@@ -63,7 +106,7 @@
           latencyMs:x.latencyMs||0,
           ...(x.error?{error:x.error}:{})
         }));
-        events.push(JSON.stringify({
+        events.push({
           type:'final',
           result:{
             finalAnswer:results.map(x=>`### ${x.role}\n${x.content||x.error||''}`).join('\n\n'),
@@ -72,10 +115,8 @@
             aiMessage:null,
             comparison:{winners:[],notes:['RCA role verification only — no write authority granted.'],providerScores:{}}
           }
-        }));
-        return new Response(events.join('\n')+'\n',{
-          headers:{'Content-Type':'application/x-ndjson','Cache-Control':'no-store'}
         });
+        return ndjson(events);
       }
     }
 
