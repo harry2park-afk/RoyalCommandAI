@@ -20,6 +20,12 @@ Classify work as `FAST`, `STANDARD`, or `HIGH-RISK` before choosing process dept
 
 Adding gates or reviewers without a concrete risk reason is prohibited because unnecessary process is a performance defect.
 
+## Visible controls must work before completion
+
+A visible button, menu item, switch, shortcut, link-like control, or other interactive control is not complete merely because it renders. Before the related task is declared complete, verify its real action path through the handler, API or state change, expected success result, and relevant failure state. Do not knowingly ship decorative or non-functional controls for later repair unless the Owner explicitly asks for a placeholder.
+
+For a changed interactive control, test the narrowest real end-to-end path that proves the control performs its intended action. Keep this verification risk-proportionate so it does not slow unrelated work.
+
 ## Parallel Work Lanes / Single Write Authority
 
 Single Write Authority is per Task and conflicting resource boundary, not global to the project. Independent non-overlapping Work Lanes may run in parallel. Shared/core resources must be serialized or explicitly handed off.

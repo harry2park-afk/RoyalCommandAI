@@ -13,6 +13,9 @@ type StreamEvent = {
   result?: { responses?: SourceResponse[] };
 };
 
+const RCA_LAST_RUN_KEY = "royalcommand:rca:last-run:v1";
+const RCA_LAST_RUN_EVENT = "rca:last-run";
+
 function parseFinalResult(text: string) {
   let final: StreamEvent["result"] | null = null;
   for (const line of text.split("\n")) {
@@ -23,6 +26,29 @@ function parseFinalResult(text: string) {
     } catch {}
   }
   return final;
+}
+
+function parseCapturedRun(value: unknown): CapturedRun | null {
+  if (!value || typeof value !== "object") return null;
+  const item = value as Record<string, unknown>;
+  const originalPrompt = typeof item.originalPrompt === "string" ? item.originalPrompt.trim() : "";
+  const language = typeof item.language === "string" && item.language.trim() ? item.language.trim() : "ko";
+  const rawResponses = Array.isArray(item.responses) ? item.responses : [];
+  const responses: SourceResponse[] = rawResponses.flatMap((raw) => {
+    if (!raw || typeof raw !== "object") return [];
+    const response = raw as Record<string, unknown>;
+    const provider = typeof response.provider === "string" ? response.provider.trim() : "";
+    const content = typeof response.content === "string" ? response.content : "";
+    if (!provider) return [];
+    return [{
+      provider,
+      content,
+      ...(typeof response.latencyMs === "number" ? { latencyMs: response.latencyMs } : {}),
+      ...(typeof response.error === "string" && response.error ? { error: response.error } : {}),
+    }];
+  });
+  if (!originalPrompt || !responses.length) return null;
+  return { originalPrompt, language, responses };
 }
 
 export default function SynthesisBridge() {
@@ -49,8 +75,17 @@ export default function SynthesisBridge() {
   useEffect(() => {
     if (!roomId) return;
     const nativeFetch = window.fetch.bind(window);
+    const isRca = roomId === "rca";
     let disposed = false;
     let host: HTMLElement | null = null;
+    let fetchWrapped = false;
+
+    const acceptCaptured = (run: CapturedRun | null) => {
+      if (!run || disposed) return;
+      setCaptured(run);
+      setError("");
+      setResult("");
+    };
 
     const findTarget = () => {
       const dock = document.querySelector(".royal-room-main main > div.fixed:first-of-type > div:nth-child(2)");
@@ -82,39 +117,51 @@ export default function SynthesisBridge() {
       })
       .catch(() => {});
 
-    window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-      const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
-      const method = (init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
-      const response = await nativeFetch(input, init);
+    const handleRcaLastRun = (event: Event) => {
+      const detail = event instanceof CustomEvent ? event.detail : null;
+      acceptCaptured(parseCapturedRun(detail));
+    };
 
-      if (method === "POST" && rawUrl.endsWith("/api/ai/chat/stream") && response.ok) {
-        let requestBody: Record<string, unknown> = {};
-        try {
-          const bodyText = typeof init?.body === "string" ? init.body : "";
-          requestBody = bodyText ? JSON.parse(bodyText) : {};
-        } catch {}
+    if (isRca) {
+      try {
+        acceptCaptured(parseCapturedRun(JSON.parse(sessionStorage.getItem(RCA_LAST_RUN_KEY) || "null")));
+      } catch {}
+      window.addEventListener(RCA_LAST_RUN_EVENT, handleRcaLastRun);
+    } else {
+      fetchWrapped = true;
+      window.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+        const method = (init?.method || (input instanceof Request ? input.method : "GET")).toUpperCase();
+        const response = await nativeFetch(input, init);
 
-        void response.clone().text().then((text) => {
-          if (disposed) return;
-          const final = parseFinalResult(text);
-          const responses = Array.isArray(final?.responses) ? final.responses : [];
-          const originalPrompt = typeof requestBody.prompt === "string" ? requestBody.prompt.trim() : "";
-          const language = typeof requestBody.language === "string" ? requestBody.language : "ko";
-          if (originalPrompt && responses.length) {
-            setCaptured({ originalPrompt, language, responses });
-            setError("");
-            setResult("");
-          }
-        }).catch(() => {});
-      }
+        if (method === "POST" && rawUrl.endsWith("/api/ai/chat/stream") && response.ok) {
+          let requestBody: Record<string, unknown> = {};
+          try {
+            const bodyText = typeof init?.body === "string" ? init.body : "";
+            requestBody = bodyText ? JSON.parse(bodyText) : {};
+          } catch {}
 
-      return response;
-    }) as typeof window.fetch;
+          void response.clone().text().then((text) => {
+            if (disposed) return;
+            const final = parseFinalResult(text);
+            const responses = Array.isArray(final?.responses) ? final.responses : [];
+            const originalPrompt = typeof requestBody.prompt === "string" ? requestBody.prompt.trim() : "";
+            const language = typeof requestBody.language === "string" ? requestBody.language : "ko";
+            if (originalPrompt && responses.length) {
+              acceptCaptured({ originalPrompt, language, responses });
+            }
+          }).catch(() => {});
+        }
+
+        return response;
+      }) as typeof window.fetch;
+    }
 
     return () => {
       disposed = true;
       observer.disconnect();
-      window.fetch = nativeFetch;
+      if (isRca) window.removeEventListener(RCA_LAST_RUN_EVENT, handleRcaLastRun);
+      if (fetchWrapped) window.fetch = nativeFetch;
       host?.remove();
     };
   }, [roomId]);
@@ -139,7 +186,9 @@ export default function SynthesisBridge() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "통합 답변을 만들지 못했습니다.");
-      setResult(String(data.finalAnswer || ""));
+      const finalAnswer = String(data.finalAnswer || "").trim();
+      if (!finalAnswer) throw new Error("통합 답변이 비어 있습니다.");
+      setResult(finalAnswer);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "통합 답변을 만들지 못했습니다.");
     } finally {
