@@ -4,7 +4,7 @@ import { getAvailableProviderIds, getConnector } from "@/lib/ai/connectors";
 import { AI_PROVIDER_IDS, type AIProviderId, type AIMessage } from "@/lib/ai/types";
 import { AU_V2_COOKIE, isAustraliaV2Host, verifyAuV2SessionToken } from "@/lib/auV2TestSession";
 
-const MAX_PROMPT = 2000;
+const MAX_PROMPT = 30000;
 const MAX_PROVIDERS = 4;
 const MAX_HISTORY_ITEMS = 16;
 const MAX_HISTORY_CHARS = 12000;
