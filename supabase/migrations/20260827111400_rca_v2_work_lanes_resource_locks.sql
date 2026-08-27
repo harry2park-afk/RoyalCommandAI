@@ -2,10 +2,14 @@
 -- IMPORTANT: repository migration draft only in this task. Do not apply to live DB until separately reviewed/approved.
 -- Reuses public.room_work_records as the authoritative parent Work record.
 
+-- Composite uniqueness lets child tables prove that a Work record belongs to the same Room.
+create unique index if not exists room_work_records_id_room_idx
+  on public.room_work_records (id, room_id);
+
 create table if not exists public.room_work_lanes (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.rooms(id) on delete cascade,
-  work_record_id uuid not null references public.room_work_records(id) on delete cascade,
+  work_record_id uuid not null,
   lane_id text not null,
   title text not null,
   writer_provider text not null,
@@ -30,7 +34,10 @@ create table if not exists public.room_work_lanes (
     )),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (work_record_id, lane_id)
+  unique (work_record_id, lane_id),
+  unique (id, work_record_id, room_id),
+  foreign key (work_record_id, room_id)
+    references public.room_work_records(id, room_id) on delete cascade
 );
 
 create index if not exists room_work_lanes_room_work_idx
@@ -52,8 +59,8 @@ create policy "room_work_lanes_select" on public.room_work_lanes
 create table if not exists public.room_resource_locks (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.rooms(id) on delete cascade,
-  work_record_id uuid not null references public.room_work_records(id) on delete cascade,
-  work_lane_id uuid not null references public.room_work_lanes(id) on delete cascade,
+  work_record_id uuid not null,
+  work_lane_id uuid not null,
   resource_key text not null,
   owner_provider text not null,
   lock_token uuid not null default gen_random_uuid(),
@@ -64,6 +71,8 @@ create table if not exists public.room_resource_locks (
   released_at timestamptz,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
+  foreign key (work_lane_id, work_record_id, room_id)
+    references public.room_work_lanes(id, work_record_id, room_id) on delete cascade,
   check (length(btrim(resource_key)) > 0),
   check (
     (state <> 'acquired')
