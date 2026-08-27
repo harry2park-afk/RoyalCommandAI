@@ -380,7 +380,7 @@ export default function SynthesisBridge() {
         </button>
 
         {open && (
-          <div className="absolute left-0 top-[34px] z-[240] max-h-[420px] min-w-[230px] overflow-y-auto rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
+          <div className="fixed left-3 top-[96px] z-[260] max-h-[420px] min-w-[230px] overflow-y-auto rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
             <div className="px-2 pb-1 text-[10px] text-[#9aa4b3]">통합할 AI 모델을 선택하세요</div>
             {isRca ? orderedIntegrators.map((model, index) => (
               <button
