@@ -18,15 +18,18 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Australia V2 test session required." }, { status: 401 });
   }
 
-  const body = await request.json().catch(() => ({}));
-  const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
-  const requested = Array.isArray(body?.providers) ? body.providers.filter(isProviderId) : [];
+  const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+  const prompt = typeof body.prompt === "string" ? body.prompt.trim() : "";
+  const rawProviders: unknown[] = Array.isArray(body.providers) ? body.providers : [];
+  const requested: AIProviderId[] = rawProviders.filter(isProviderId);
   if (!prompt || prompt.length > MAX_PROMPT) {
     return NextResponse.json({ error: `Prompt must be between 1 and ${MAX_PROMPT} characters.` }, { status: 400 });
   }
 
-  const available = new Set(getAvailableProviderIds());
-  const providers = Array.from(new Set(requested)).filter((id) => available.has(id)).slice(0, MAX_PROVIDERS);
+  const available = new Set<AIProviderId>(getAvailableProviderIds());
+  const providers: AIProviderId[] = Array.from(new Set<AIProviderId>(requested))
+    .filter((id) => available.has(id))
+    .slice(0, MAX_PROVIDERS);
   if (!providers.length) return NextResponse.json({ error: "Select at least one connected AI." }, { status: 400 });
 
   const system = [
