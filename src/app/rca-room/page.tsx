@@ -1,5 +1,5 @@
-import RCARoom from "./RCARoom";
+import { redirect } from "next/navigation";
 
 export default function RCARoomPage() {
-  return <RCARoom />;
+  redirect("/rca-room/rca");
 }
