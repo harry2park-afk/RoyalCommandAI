@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
 type ProviderResponse = { provider: string; content: string; latencyMs?: number; error?: string };
+type RoomSummary = { id?: unknown; name?: unknown };
 type StreamEvent =
   | { type: "provider"; provider: string; name: string; content: string; error?: string }
   | { type: "final"; result: { responses?: ProviderResponse[]; finalAnswer?: string } }
@@ -49,7 +50,7 @@ export default function AustraliaV2Client() {
         const roomsData = await roomsRes.json();
         if (!roomsRes.ok) throw new Error(roomsData?.error || "Room list could not be loaded.");
         const existing = Array.isArray(roomsData?.rooms)
-          ? roomsData.rooms.find((room: any) => String(room?.name || "") === ROOM_NAME)
+          ? (roomsData.rooms as RoomSummary[]).find((room) => String(room?.name || "") === ROOM_NAME)
           : null;
         if (existing?.id) {
           setRoomId(String(existing.id));
