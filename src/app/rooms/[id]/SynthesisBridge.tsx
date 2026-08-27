@@ -56,14 +56,25 @@ export default function SynthesisBridge() {
       const dock = document.querySelector(".royal-room-main main > div.fixed:first-of-type > div:nth-child(2)");
       if (!(dock instanceof HTMLElement) || disposed) return;
 
+      const warehouse = Array.from(dock.querySelectorAll(":scope > button")).find((button) => {
+        const title = button.getAttribute("title") || "";
+        const text = button.textContent || "";
+        return title.includes("AI Warehouse") || text.includes("AI Warehouse");
+      });
+
       let node = document.getElementById("rc-synthesis-host");
       if (!(node instanceof HTMLElement)) {
         node = document.createElement("div");
         node.id = "rc-synthesis-host";
         node.setAttribute("data-rc-synthesis-host", "true");
         node.style.cssText = "position:relative;flex:0 0 auto;display:flex;align-items:center;height:30px;min-width:94px;z-index:20;";
-        dock.insertBefore(node, dock.firstChild);
-      } else if (node.parentElement !== dock || dock.firstElementChild !== node) {
+      }
+
+      if (warehouse instanceof HTMLButtonElement) {
+        if (node.parentElement !== dock || node.previousElementSibling !== warehouse) {
+          dock.insertBefore(node, warehouse.nextSibling);
+        }
+      } else if (node.parentElement !== dock) {
         dock.insertBefore(node, dock.firstChild);
       }
 
