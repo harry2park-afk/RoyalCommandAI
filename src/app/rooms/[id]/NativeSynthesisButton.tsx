@@ -50,18 +50,18 @@ export default function NativeSynthesisButton() {
         type="button"
         onClick={() => setTestOpen(true)}
         className="flex h-8 min-w-[116px] shrink-0 items-center justify-center gap-1 rounded-md border-[2px] border-[#FFD700]/80 bg-[#0b1524] px-3 text-[10px] font-semibold text-[#f4d66c]"
-        title="통합 답변"
+        title="Integrated Answer"
         data-rc-native-synthesis-button="true"
       >
-        <span>통합 답변</span>
+        <span>Integrated Answer</span>
       </button>
 
       {testOpen && createPortal(
         <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/70 p-4" role="presentation" onClick={() => setTestOpen(false)}>
           <div className="w-full max-w-sm rounded-2xl border border-[#d7b64d]/60 bg-[#081321] p-5 text-center text-[#f4f0e7] shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="text-base font-semibold text-[#f4d66c]">통합 답변 버튼 연결 정상</div>
-            <div className="mt-2 text-sm text-[#d6d9df]">버튼 클릭이 정상적으로 작동합니다.</div>
-            <button type="button" onClick={() => setTestOpen(false)} className="mt-4 rounded-lg border border-white/15 px-4 py-2 text-sm">닫기</button>
+            <div className="text-base font-semibold text-[#f4d66c]">Integrated Answer button connected</div>
+            <div className="mt-2 text-sm text-[#d6d9df]">The button click is working correctly.</div>
+            <button type="button" onClick={() => setTestOpen(false)} className="mt-4 rounded-lg border border-white/15 px-4 py-2 text-sm">Close</button>
           </div>
         </div>,
         document.body,
