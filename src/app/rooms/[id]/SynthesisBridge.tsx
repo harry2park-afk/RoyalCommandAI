@@ -70,7 +70,8 @@ function restoreCapturedFromVisibleMessages(value: unknown): CapturedRun | null 
     }
   }
   if (lastUserIndex < 0) return null;
-  const originalPrompt = typeof messages[lastUserIndex].content === "string" ? messages[lastUserIndex].content.trim() : "";
+  const lastUserContent = messages[lastUserIndex]?.content;
+  const originalPrompt = typeof lastUserContent === "string" ? lastUserContent.trim() : "";
   if (!originalPrompt) return null;
 
   const seen = new Set<string>();
@@ -82,7 +83,7 @@ function restoreCapturedFromVisibleMessages(value: unknown): CapturedRun | null 
     const match = content.match(/^###\s+(ChatGPT|Claude|Gemini|Grok)\s*\n([\s\S]*)$/);
     if (!match) continue;
     const provider = RCA_PROVIDER_BY_HEADING[match[1]];
-    const answer = match[2].trim();
+    const answer = match[2]?.trim() || "";
     if (!provider || !answer || seen.has(provider)) continue;
     seen.add(provider);
     responses.push({ provider, content: answer });
