@@ -8,13 +8,21 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 Before any Royal Command planning, architecture change, executable development work, country rollout, provider integration, or production-affecting decision, read and follow `ROYAL_COMMAND_LAW.md`.
 
-`ROYAL_COMMAND_LAW.md` is the highest Royal Command repository governance rule. If this file, any document, workflow, prompt, AI instruction, or implementation rule conflicts with it, stop work and resolve the conflict before continuing.
+`ROYAL_COMMAND_LAW.md` is the highest Royal Command repository governance rule. If this file, any document, workflow, prompt, AI instruction, or implementation rule conflicts with it, the Rule Gate must block or escalate the conflict before executable work continues.
+
+## Unified Rule Gate — mandatory before execution
+
+Before executable work, evaluate all applicable rule sources through the Royal Command Rule Gate: Royal Command Law/internal policy, repository/platform rules, applicable country law/regulation, AI provider/API rules, customer/tenant restrictions, and Task resource/dependency boundaries.
+
+The Rule Gate disposition must be one of: `ALLOW`, `ALLOW_WITH_CONDITIONS`, `OWNER_APPROVAL_REQUIRED`, `BLOCK`, or `UNKNOWN_REQUIRES_REVIEW`. `BLOCK` and unresolved `UNKNOWN_REQUIRES_REVIEW` prohibit execution on the affected scope.
 
 ## Royal Command AI execution isolation
 
-Before any executable development work, read and follow `docs/AI_EXECUTION_ISOLATION_RULES.md`.
+Before any executable development work, read and follow `docs/AI_EXECUTION_ISOLATION_RULES.md`, except where an older rule conflicts with `ROYAL_COMMAND_LAW.md`; the Law controls and the conflicting lower rule must be updated.
 
-ChatGPT, Claude, Gemini, and Grok have equal execution authority, but they must not execute the same order together. Every executable order must name exactly one AI owner. No automatic failover, no shared editing, and no overlapping file/resource changes between active AI orders. If an order names zero or multiple AI owners for execution, stop and require separate orders before making changes.
+Single Write Authority is per Task and per conflicting resource boundary, not global to the entire project. Multiple AIs may execute in parallel on explicitly isolated, non-overlapping Work Lanes, branches, files, country profiles or other resources. Each writable Task/resource boundary must have exactly one Writer/Executor at a time.
+
+No concurrent modification of the same shared or locked resource is allowed. Shared/core changes must be serialized or explicitly handed off. An AI may take over a completed stage only after the prior Writer releases the resource and the handoff is recorded.
 
 ## Royal Command daily recovery
 
