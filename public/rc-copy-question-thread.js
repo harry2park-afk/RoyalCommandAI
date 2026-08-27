@@ -9,6 +9,7 @@
     claude: { background: "#3B2418", border: "#8A5A3B", label: "Claude" },
     gemini: { background: "#2B2F36", border: "#6B7280", label: "Gemini" },
     grok: { background: "#0D3324", border: "#2F7A57", label: "Grok" },
+    council: { background: "#111827", border: "#D7B64D", label: "AI Council Final Answer" },
   };
 
   function isRoomPage() {
@@ -16,7 +17,10 @@
   }
 
   function getProviderKey(text) {
-    const firstLine = (text || "").trim().split("\n", 1)[0].replace(/^#+\s*/, "").trim().toLowerCase();
+    const normalized = (text || "").trim();
+    const firstLine = normalized.split("\n", 1)[0].replace(/^#+\s*/, "").trim().toLowerCase();
+    if (firstLine.startsWith("royal command ai council final answer")) return "council";
+    if (/royal command ai council final answer/i.test(normalized.slice(0, 220))) return "council";
     if (firstLine.startsWith("chatgpt")) return "chatgpt";
     if (firstLine.startsWith("claude")) return "claude";
     if (firstLine.startsWith("gemini")) return "gemini";
