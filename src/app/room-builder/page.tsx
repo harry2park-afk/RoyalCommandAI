@@ -61,6 +61,8 @@ export default function RoomBuilderPage() {
     const params = new URLSearchParams(window.location.search);
     const requestedTemplate = params.get("template") || "custom";
     const validTemplate = ROOM_TEMPLATES.some((item) => item.id === requestedTemplate) ? requestedTemplate : "custom";
+    // Existing URL-to-state hydration is intentionally synchronous on first client mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTemplateId(validTemplate);
     setRoomName((params.get("name") || "New Room").trim().slice(0, 120) || "New Room");
     setReturnRoom(params.get("returnRoom") || "");
