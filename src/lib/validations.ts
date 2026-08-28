@@ -35,7 +35,13 @@ const chatInputSchema = z.object({
       }),
     )
     .optional(),
-});
+}).refine(
+  (data) => Boolean(data.providers?.length || Object.keys(data.modelSelections || {}).length),
+  {
+    message: "Select at least one connected AI before sending the request.",
+    path: ["providers"],
+  },
+);
 
 export const chatSchema = chatInputSchema.transform((data) => {
   const memberCommand = resolveRcMemberCommand(data.prompt, data.history, data.providers);
