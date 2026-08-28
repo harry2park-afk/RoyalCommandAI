@@ -79,7 +79,7 @@ const AI_CATALOG: CatalogAI[] = [
 ];
 
 const TOP_SLOT_COUNT = 10;
-const DEFAULT_SLOTS = AI_CATALOG.slice(0, TOP_SLOT_COUNT).map((ai) => ai.id);
+const DEFAULT_SLOTS = ["openai", "anthropic", "google", "xai", "codex", "deepseek", "perplexity", "mistral", "meta", "qwen"];
 const CATALOG_BY_ID = Object.fromEntries(AI_CATALOG.map((ai) => [ai.id, ai])) as Record<string, CatalogAI>;
 
 const AI_LOGOS: Record<string, string> = {
@@ -171,7 +171,7 @@ export default function RoomV3() {
 
     if (!slotsReady.current) {
       try {
-        const saved = JSON.parse(localStorage.getItem(`royalcommand:room:${roomId}:ai-slots-v2`) || "[]") as string[];
+        const saved = JSON.parse(localStorage.getItem(`royalcommand:room:${roomId}:ai-slots-v3`) || "[]") as string[];
         const valid = saved.filter((id) => CATALOG_BY_ID[id]);
         if (valid.length === TOP_SLOT_COUNT && new Set(valid).size === TOP_SLOT_COUNT) setSlots(valid);
       } catch {}
@@ -203,7 +203,7 @@ export default function RoomV3() {
 
   useEffect(() => {
     if (!slotsReady.current) return;
-    localStorage.setItem(`royalcommand:room:${roomId}:ai-slots-v2`, JSON.stringify(slots));
+    localStorage.setItem(`royalcommand:room:${roomId}:ai-slots-v3`, JSON.stringify(slots));
   }, [roomId, slots]);
 
   useEffect(() => {
