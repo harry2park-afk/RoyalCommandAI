@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { extractProviderText } from "./openrouter";
 
 const OPENAI_PRIMARY_TIMEOUT_MS = 20_000;
+const OPENAI_GPT56_TIMEOUT_MS = 32_000;
 const OPENAI_RETRY_TIMEOUT_MS = 10_000;
 const OPENROUTER_FALLBACK_TIMEOUT_MS = 14_000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 3_072;
@@ -119,8 +120,11 @@ export class OpenAIConnector implements AIConnector {
     const errors: string[] = [];
 
     if (process.env.OPENAI_API_KEY) {
+      const explicitTimeoutMs = primaryModel.startsWith("gpt-5.6-")
+        ? OPENAI_GPT56_TIMEOUT_MS
+        : OPENAI_PRIMARY_TIMEOUT_MS;
       const attempts = explicitModel
-        ? [{ model: primaryModel, timeoutMs: OPENAI_PRIMARY_TIMEOUT_MS }]
+        ? [{ model: primaryModel, timeoutMs: explicitTimeoutMs }]
         : [
             { model: primaryModel, timeoutMs: OPENAI_PRIMARY_TIMEOUT_MS },
             { model: retryModel, timeoutMs: OPENAI_RETRY_TIMEOUT_MS },
