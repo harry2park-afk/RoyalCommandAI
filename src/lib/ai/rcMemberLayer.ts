@@ -32,9 +32,9 @@ function selectedMembers(selected?: AIProviderId[]) {
   return Array.from(new Set((selected || []).filter((id) => RC_MEMBER_PROVIDER_IDS.includes(id as (typeof RC_MEMBER_PROVIDER_IDS)[number]))));
 }
 
-/** Only an explicit global no-write instruction blocks repository mutation. */
+/** Only an explicit global no-write or no-execute instruction blocks repository mutation. */
 export function hasGlobalNoWriteIntent(prompt: string) {
-  return /(?:코드|파일|소스|repository|repo|저장소).{0,24}(?:수정|변경|구현|작성|생성|삭제|제거|커밋|commit|push).{0,16}(?:하지\s*마|하지\s*말|하지\s*않|금지|없이)|읽기\s*전용|read[- ]?only|do\s+not\s+(?:modify|edit|change|write|commit|push)|no\s+(?:code\s+)?changes?/i.test(prompt);
+  return /(?:코드|파일|소스|repository|repo|저장소).{0,24}(?:수정|변경|구현|작성|생성|삭제|제거|커밋|commit|push).{0,16}(?:하지\s*마|하지\s*말|하지\s*않|금지|없이)|(?:실행|진행|작업|수행).{0,8}(?:하지\s*마|하지\s*말|하지\s*않)|읽기\s*전용|read[- ]?only|do\s+not\s+(?:modify|edit|change|write|commit|push|execute)|no\s+(?:code\s+)?changes?/i.test(prompt);
 }
 
 function hasMutationRequest(prompt: string) {
@@ -53,7 +53,7 @@ function hasInspectIntent(prompt: string) {
 }
 
 function hasContinuationIntent(prompt: string) {
-  return /(이전|앞의|위의|방금|아까|앞서).{0,20}(작업|요청|지시|내용|오더|명령).{0,20}(계속|이어서|완료|끝내|다시|실행)|(?:위|앞|방금)\s*(?:오더|작업|명령|지시).{0,20}(?:다시|계속|이어서)?\s*(?:실행|진행|완료)|(?:계속|이어서)\s*(?:진행|작업|실행)/i.test(prompt);
+  return /(이전|앞의|위의|위에|방금|아까|앞서).{0,20}(작업|요청|지시|내용|오더|명령).{0,20}(계속|이어서|완료|끝내|다시|실행)|(?:위|위에|앞|방금)\s*(?:오더|작업|명령|지시).{0,20}(?:다시|계속|이어서)?\s*(?:실행|진행|완료)|(?:계속|이어서)\s*(?:진행|작업|실행)/i.test(prompt);
 }
 
 function classifyDirect(prompt: string): RcMemberMode {
