@@ -15,7 +15,7 @@ const GEMINI_DEFAULT_OUTPUT_TOKENS = 2048;
 const GEMINI_MAX_OUTPUT_TOKENS = 16384;
 const GEMINI_OPENROUTER_MAX_TOKENS = 16384;
 const GEMINI_DIRECT_TIMEOUT_MS = 22_000;
-const GEMINI_HIGH_DEMAND_RETRY_DELAY_MS = 1_200;
+const GEMINI_HIGH_DEMAND_RETRY_DELAYS_MS = [900, 1_800] as const;
 
 const openRouterGemini = new OpenRouterCatalogConnector(
   "google",
@@ -47,7 +47,7 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
 }
 
 function isHighDemandError(message: string) {
-  return /(high demand|resource exhausted|too many requests|\b429\b)/i.test(message);
+  return /(high demand|resource exhausted|too many requests|temporar|overload|\b429\b|\b503\b)/i.test(message);
 }
 
 async function wait(ms: number) {
@@ -182,16 +182,21 @@ export class GoogleConnector implements AIConnector {
           explicitModel: Boolean(explicitModel),
           keySlot: index + 1,
         });
-        let result = await direct(apiKeys[index]!, targetModel);
 
+        let result = await direct(apiKeys[index]!, targetModel);
         if (explicitModel && isHighDemandError(result.error || "")) {
-          logger.warn("ai.provider.high_demand_retry", {
-            provider: this.displayName,
-            model: targetModel,
-            delayMs: GEMINI_HIGH_DEMAND_RETRY_DELAY_MS,
-          });
-          await wait(GEMINI_HIGH_DEMAND_RETRY_DELAY_MS);
-          result = await direct(apiKeys[index]!, targetModel);
+          for (let retryIndex = 0; retryIndex < GEMINI_HIGH_DEMAND_RETRY_DELAYS_MS.length; retryIndex += 1) {
+            const delayMs = GEMINI_HIGH_DEMAND_RETRY_DELAYS_MS[retryIndex]!;
+            logger.warn("ai.provider.high_demand_retry", {
+              provider: this.displayName,
+              model: targetModel,
+              retry: retryIndex + 1,
+              delayMs,
+            });
+            await wait(delayMs);
+            result = await direct(apiKeys[index]!, targetModel);
+            if (!isHighDemandError(result.error || "")) break;
+          }
         }
 
         if (!result.error && result.content?.trim()) return result;
@@ -200,7 +205,7 @@ export class GoogleConnector implements AIConnector {
       }
     }
 
-    // Explicit Phase 4 model selection must not fall back to a different model.
+    // Explicit model selections are never silently substituted with another model.
     if (!explicitModel && process.env.OPENROUTER_API_KEY) {
       const routedRequest: AIRequest = {
         ...boundedRequest,
