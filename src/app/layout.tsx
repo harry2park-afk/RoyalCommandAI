@@ -1,30 +1,20 @@
-import type { Metadata } from "next";
-import Script from "next/script";
-import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
-import RoomPreferenceAuthority from "@/components/RoomPreferenceAuthority";
-import "./globals.css";
-import "./room-viewport-tight.css";
+import LoginCard from '@/components/LoginCard';
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "RoyalCommand.ai — Royal Household OS",
+  title: 'RoyalCommand.ai — Royal Household OS',
   description:
-    "A secure AI operating system for individuals, families and businesses. Neutral Rooms. Multi-AI orchestration.",
+    'A secure AI operating system for individuals, families and businesses. Neutral Rooms. Multi-AI orchestration.',
 };
 
-export default function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+export default function Home() {
   return (
-    <html lang="en" className="h-full">
-      <body className="min-h-full antialiased">
-        <Script src="/rca-fetch-bridge.js" strategy="beforeInteractive" />
-        <Script src="/rca-ui-seed.js" strategy="beforeInteractive" />
-        {children}
-        <RetellRoomVoiceBridge />
-        <RoomPreferenceAuthority />
-      </body>
-    </html>
+    <main className="flex min-h-screen flex-col items-center justify-center p-4">
+      <LoginCard />
+
+      <footer className="mt-4 pb-2 text-xs text-white/35">
+        RCA Developer Relay Test
+      </footer>
+    </main>
   );
 }
