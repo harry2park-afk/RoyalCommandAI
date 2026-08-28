@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { AI_PROVIDER_IDS } from "./types";
 import { buildSynthesisPrompt, validateSynthesisRequest } from "./synthesisRequest";
 
 const base = {
@@ -41,10 +42,13 @@ describe("validateSynthesisRequest", () => {
     })).toThrow(/At least two/);
   });
 
-  it("caps a synthesis request at the registered 25-provider catalog size", () => {
+  it("caps a synthesis request at the registered provider catalog size", () => {
     expect(() => validateSynthesisRequest({
       ...base,
-      responses: Array.from({ length: 26 }, (_, index) => ({ provider: "openai", content: `Answer ${index}` })),
+      responses: Array.from({ length: AI_PROVIDER_IDS.length + 1 }, (_, index) => ({
+        provider: "openai",
+        content: `Answer ${index}`,
+      })),
     })).toThrow(/Too many source responses/);
   });
 });
