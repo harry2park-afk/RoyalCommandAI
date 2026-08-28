@@ -75,6 +75,7 @@ const AI_CATALOG: CatalogAI[] = [
   { id: "arcee", name: "Arcee AI", shortName: "Arcee" },
   { id: "zeroone", name: "01.AI / Yi", shortName: "Yi" },
   { id: "tencent", name: "Tencent Hunyuan", shortName: "Hunyuan" },
+  { id: "codex", name: "OpenAI Codex", shortName: "Codex" },
 ];
 
 const TOP_SLOT_COUNT = 10;
@@ -97,6 +98,7 @@ const AI_LOGOS: Record<string, string> = {
   microsoft: "https://cdn.simpleicons.org/microsoft/FFFFFF",
   amazon: "https://cdn.simpleicons.org/amazonwebservices/FFFFFF",
   nvidia: "https://cdn.simpleicons.org/nvidia/FFFFFF",
+  codex: "https://cdn.simpleicons.org/openai/FFFFFF",
 };
 
 function messageText(value: unknown) {
