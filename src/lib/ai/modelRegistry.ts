@@ -143,6 +143,19 @@ const MODEL_DEFINITIONS: readonly AIModelRegistryEntry[] = [
       { type: "openrouter", modelQuery: "Perplexity Sonar Pro" },
     ],
   },
+  {
+    id: "codex:gpt-5.3-codex",
+    providerId: "codex",
+    displayName: "GPT-5.3-Codex",
+    enabled: true,
+    capabilities: Object.freeze({
+      supportsChat: true,
+      supportsStreaming: true,
+      supportsVision: true,
+      supportsTools: true,
+    }),
+    transports: [{ type: "native", apiModelId: "gpt-5.3-codex" }],
+  },
 ] as const;
 
 function buildModelRegistry() {
