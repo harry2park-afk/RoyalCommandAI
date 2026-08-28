@@ -14,6 +14,7 @@ const GEMINI_DIRECT_FALLBACK_MODEL = "gemini-3.5-flash-lite";
 const GEMINI_DEFAULT_OUTPUT_TOKENS = 2048;
 const GEMINI_MAX_OUTPUT_TOKENS = 16384;
 const GEMINI_OPENROUTER_MAX_TOKENS = 16384;
+const GEMINI_DIRECT_TIMEOUT_MS = 22_000;
 
 const openRouterGemini = new OpenRouterCatalogConnector(
   "google",
@@ -27,6 +28,21 @@ function getGeminiApiKeys() {
     process.env.GOOGLE_AI_API_KEY,
     process.env.GOOGLE_API_KEY,
   ].map((value) => (value || "").trim()).filter(Boolean)));
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`Gemini timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export class GoogleConnector implements AIConnector {
@@ -70,7 +86,7 @@ export class GoogleConnector implements AIConnector {
         };
 
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${targetModel}:generateContent`;
-        const res = await fetch(url, {
+        const res = await fetchWithTimeout(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -81,7 +97,7 @@ export class GoogleConnector implements AIConnector {
             contents,
             generationConfig,
           }),
-        });
+        }, GEMINI_DIRECT_TIMEOUT_MS);
 
         const data = await res.json();
         if (!res.ok) {
@@ -110,13 +126,22 @@ export class GoogleConnector implements AIConnector {
         const finishReason = candidate?.finishReason;
         const tokenLimited = finishReason === "MAX_TOKENS";
 
+        if (tokenLimited && content.length > 200) {
+          logger.warn("ai.provider.partial_accepted", {
+            provider: this.displayName,
+            model: targetModel,
+            reason: "output-token-limit",
+            contentChars: content.length,
+          });
+        }
+
         return {
           provider: this.id,
           model: targetModel,
           content,
           latencyMs: Date.now() - started,
-          raw: data,
-          error: tokenLimited ? "Gemini response ended at its output-token limit before completion" : undefined,
+          raw: tokenLimited ? { ...data, rcTruncated: true } : data,
+          error: tokenLimited && content.length <= 200 ? "Gemini response ended at its output-token limit before completion" : undefined,
         };
       } catch (error) {
         const message = error instanceof Error ? error.message : "Unknown Google error";
@@ -151,6 +176,7 @@ export class GoogleConnector implements AIConnector {
         const result = await direct(apiKeys[index]!, targetModel);
         if (!result.error && result.content?.trim()) return result;
         directErrors.push(`${targetModel}: ${result.error || "empty response"}`);
+        if (/timed out/i.test(result.error || "")) break;
       }
     }
 
