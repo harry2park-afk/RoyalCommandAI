@@ -9,6 +9,7 @@
     claude: { background: "#3B2418", border: "#8A5A3B", label: "Claude" },
     gemini: { background: "#2B2F36", border: "#6B7280", label: "Gemini" },
     grok: { background: "#0D3324", border: "#2F7A57", label: "Grok" },
+    integrated: { background: "#161B29", border: "#D7B64D", label: "Integrated Answer" },
   };
 
   function isRoomPage() {
@@ -17,6 +18,7 @@
 
   function getProviderKey(text) {
     const firstLine = (text || "").trim().split("\n", 1)[0].replace(/^#+\s*/, "").trim().toLowerCase();
+    if (firstLine.startsWith("integrated answer")) return "integrated";
     if (firstLine.startsWith("chatgpt")) return "chatgpt";
     if (firstLine.startsWith("claude")) return "claude";
     if (firstLine.startsWith("gemini")) return "gemini";
