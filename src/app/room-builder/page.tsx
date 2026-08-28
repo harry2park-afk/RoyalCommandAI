@@ -61,6 +61,8 @@ export default function RoomBuilderPage() {
     const params = new URLSearchParams(window.location.search);
     const requestedTemplate = params.get("template") || "custom";
     const validTemplate = ROOM_TEMPLATES.some((item) => item.id === requestedTemplate) ? requestedTemplate : "custom";
+    // Existing URL-to-state hydration is intentionally synchronous on first client mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTemplateId(validTemplate);
     setRoomName((params.get("name") || "New Room").trim().slice(0, 120) || "New Room");
     setReturnRoom(params.get("returnRoom") || "");
@@ -123,14 +125,24 @@ export default function RoomBuilderPage() {
     setSaving(true);
     setError("");
     try {
-      const response = await fetch("/api/rooms", {
+      const response = await fetch("/api/room-factory/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: cleanName, description: buildDescription() }),
+        body: JSON.stringify({
+          roomName: cleanName,
+          templateId,
+          countryCode: globalSettings.countryCode,
+          languageTag: globalSettings.languageTag,
+          timeZone: globalSettings.timeZone,
+          currencyCode: globalSettings.currencyCode,
+          approvalMode,
+          websiteKit,
+          selectedMaterials,
+        }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload?.room?.id) {
-        setError(typeof payload?.error === "string" ? payload.error : "Could not create the Room.");
+      if (!response.ok || !payload?.room?.id || !payload?.manifest?.id) {
+        setError(typeof payload?.error === "string" ? payload.error : "Could not create the Room with Factory Manifest evidence.");
         return;
       }
       router.push(`/rooms/${payload.room.id}`);
