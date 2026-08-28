@@ -24,6 +24,7 @@ export const AI_PROVIDER_IDS = [
   "arcee",
   "zeroone",
   "tencent",
+  "codex",
 ] as const;
 
 export type AIProviderId = (typeof AI_PROVIDER_IDS)[number];
@@ -83,4 +84,5 @@ export const PROVIDER_LABELS: Record<AIProviderId, string> = {
   arcee: "Arcee AI",
   zeroone: "01.AI",
   tencent: "Tencent Hunyuan",
+  codex: "Codex",
 };
