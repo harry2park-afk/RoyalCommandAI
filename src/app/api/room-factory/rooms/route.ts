@@ -18,6 +18,53 @@ const factoryCreateSchema = z.object({
   householdId: z.string().uuid().optional(),
 });
 
+export async function GET() {
+  try {
+    const user = await getCurrentUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!isSupabaseConfigured()) {
+      return NextResponse.json({ error: "Room Factory persistence requires the configured RCA database." }, { status: 503 });
+    }
+
+    const supabase = await createClient();
+    const { data: manifests, error: manifestError } = await supabase
+      .from("room_factory_manifests")
+      .select("id, room_id, factory_version, template_id, country_code, language_tag, country_profile_status, created_at")
+      .eq("owner_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(50);
+
+    if (manifestError) return NextResponse.json({ error: manifestError.message }, { status: 500 });
+
+    const roomIds = (manifests || []).map((manifest) => manifest.room_id);
+    if (!roomIds.length) return NextResponse.json({ rooms: [] });
+
+    const { data: rooms, error: roomError } = await supabase
+      .from("rooms")
+      .select("id, name, status, created_at")
+      .in("id", roomIds);
+    if (roomError) return NextResponse.json({ error: roomError.message }, { status: 500 });
+
+    const roomById = new Map((rooms || []).map((room) => [room.id, room]));
+    return NextResponse.json({
+      rooms: (manifests || []).map((manifest) => ({
+        roomId: manifest.room_id,
+        manifestId: manifest.id,
+        name: roomById.get(manifest.room_id)?.name || "Unnamed Factory Room",
+        status: roomById.get(manifest.room_id)?.status || "unknown",
+        factoryVersion: manifest.factory_version,
+        templateId: manifest.template_id,
+        countryCode: manifest.country_code,
+        languageTag: manifest.language_tag,
+        countryProfileStatus: manifest.country_profile_status,
+        createdAt: manifest.created_at,
+      })),
+    });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Room Factory room listing failed." }, { status: 500 });
+  }
+}
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
