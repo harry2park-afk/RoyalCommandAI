@@ -18,36 +18,13 @@ import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
-export const maxDuration = 240;
-
 const EXECUTION_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   openai: "OpenAI",
   anthropic: "Anthropic",
   google: "Google",
   xai: "xAI",
+  codex: "Codex",
 };
-
-const PROVIDER_MENTIONS: Array<{ id: AIProviderId; pattern: RegExp }> = [
-  { id: "openai", pattern: /(chatgpt|openai|챗지피티|챗GPT)/i },
-  { id: "anthropic", pattern: /(claude|클로드)/i },
-  { id: "google", pattern: /(gemini|제미나이)/i },
-  { id: "xai", pattern: /(grok|그록)/i },
-];
-
-function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
-  const selectedProviders = (selected || []).filter((id) => Boolean(DEV_PROVIDER_NAMES[id]));
-  const asksForAll = /(모두|전부|전체|다 같이|다같이|all\s+(ais?|models?|providers?)|everyone)/i.test(prompt)
-    && /(답|말|의견|응답|answer|respond|reply|opinion)/i.test(prompt);
-  if (asksForAll) return selectedProviders.length ? selectedProviders : undefined;
-
-  const exclusive = /(만\s*(답|말|응답|의견|해|하세요|해주세요)|만\s*$|only|just\s+(?:have\s+)?|다른\s*(ai|에이아이|모델).*?(말하지|답하지|응답하지)|나머지.*?(말하지|답하지|응답하지))/i.test(prompt);
-  if (!exclusive) return selectedProviders.length ? selectedProviders : undefined;
-
-  const named = PROVIDER_MENTIONS
-    .filter(({ pattern }) => pattern.test(prompt))
-    .map(({ id }) => id);
-  return named.length ? named : (selectedProviders.length ? selectedProviders : undefined);
-}
 
 function validResponse(response?: AIProviderResponse) {
   return Boolean(response && !response.error && response.content.trim().length > 1);
@@ -66,7 +43,7 @@ function enforceAuthoritativeWorkMetadata(
   const metadataHeading = /(?:host[- ]verified\s+work\s+metadata|host\s*지정\s*메타데이터|현재\s*host\s*지정\s*메타데이터|work\s+metadata)/i;
   const executionLine = /^(?:provider|model|status|상태)\s*(?::|-)/i;
   const executionHeading = /(?:host[- ]verified\s+execution\s+identity|execution\s+identity)/i;
-  const executionTuple = /^(?:openai|anthropic|google|xai|chatgpt|claude|gemini|grok)\s*\|\s*.+\|\s*(?:ok|error)$/i;
+  const executionTuple = /^(?:openai|anthropic|google|xai|codex|chatgpt|claude|gemini|grok)\s*\|\s*.+\|\s*(?:ok|error)$/i;
 
   const cleanedLines = content.split("\n").filter((line) => {
     const plain = line.replace(/[*_`#>|]/g, "").trim();
@@ -141,9 +118,8 @@ async function runSelectedDeveloperAgents(
   const executionPrompt = data.memberCommand.effectivePrompt;
   const executionProviders = data.memberCommand.leadProviders
     .filter((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number]));
-  if (!executionProviders.length) throw new Error("RC Member Command did not assign an executable provider");
+  if (!executionProviders.length) throw new Error("No selected connected developer AI was assigned");
 
-  // One host work record is shared by all explicitly assigned developer AIs.
   const workSeed = await orchestrateRoom(data.roomId, {
     prompt: executionPrompt,
     history: data.history,
@@ -161,23 +137,14 @@ async function runSelectedDeveloperAgents(
     "Every code change, branch, commit, PR and report must use this Work ID and Revision.",
     "Do not write directly to master. Use the Work-ID provider branch and return verified evidence.",
     "Production merge/deploy requires separate user approval; that safety gate does not cancel development execution.",
-    "The RC Member Command is authoritative. Do not reinterpret this request as ANSWER or INSPECT.",
+    "Use only the provider explicitly selected by the user for this lane.",
     "",
     executionPrompt,
   ].join("\n");
 
   const cookie = request.headers.get("cookie") || "";
-  const executions: Array<{
-    provider: AIProviderId;
-    name: string;
-    branch: string;
-    commits: Array<{ path?: string; operation?: string; commit?: string }>;
-    pr: { number?: number | null; url?: string; warning?: string } | null;
-    summary: string;
-    error?: string;
-  }> = [];
 
-  for (const provider of executionProviders) {
+  const executions = await Promise.all(executionProviders.map(async (provider) => {
     const name = DEV_PROVIDER_NAMES[provider] || provider;
     try {
       const reviewResponse = await fetch(new URL("/api/dev/agent", request.url), {
@@ -201,16 +168,16 @@ async function runSelectedDeveloperAgents(
       if (!executeResponse.ok) throw new Error(executed.error || `${name} developer execution failed`);
       if (executed.evidenceVerified !== true) throw new Error(`${name} execution returned without verified commit evidence`);
 
-      executions.push({
+      return {
         provider,
         name,
         branch: String(executed.branch || ""),
         commits: Array.isArray(executed.commits) ? executed.commits : [],
         pr: executed.pr || null,
         summary: String(review.summary || `${name} development execution completed.`),
-      });
+      };
     } catch (error) {
-      executions.push({
+      return {
         provider,
         name,
         branch: "",
@@ -218,14 +185,14 @@ async function runSelectedDeveloperAgents(
         pr: null,
         summary: "",
         error: error instanceof Error ? error.message : String(error),
-      });
+      };
     }
-  }
+  }));
 
   const successful = executions.filter((item) => !item.error && item.commits.length > 0);
   const sections = executions.map((item) => {
     if (item.error) return `### ${item.name}\nStatus: EXECUTION FAILED\nError: ${item.error}`;
-    const changed = item.commits.map((commit) => `- ${commit.operation || "update"}: ${commit.path || ""} — ${commit.commit || ""}`).join("\n");
+    const changed = item.commits.map((commit: { path?: string; operation?: string; commit?: string }) => `- ${commit.operation || "update"}: ${commit.path || ""} — ${commit.commit || ""}`).join("\n");
     return [
       `### ${item.name}`,
       "Status: CODE_CHANGED_ON_SAFE_BRANCH",
@@ -296,9 +263,9 @@ async function runSelectedDeveloperAgents(
     comparison: {
       winners: successful.map((item) => item.provider),
       notes: [
-        "Executable RC Room development is routed to the explicitly assigned provider's developer agent.",
-        "ChatGPT, Claude, Gemini, and Grok use the same host GitHub execution contract and isolated provider branches.",
-        "RC Member Command is the single source of truth for execution mode.",
+        "Executable RC Room development is routed only to user-selected connected developer AIs.",
+        "ChatGPT, Claude, Gemini, Grok, and Codex use the same host GitHub execution contract and isolated provider branches.",
+        "Selected developer AIs execute in parallel when their work is independently assigned.",
         "Production merge/deploy remains approval-gated.",
       ],
     },
@@ -324,7 +291,6 @@ export async function POST(request: Request) {
     const language = data.language || user.defaultLanguage;
     const modelSelections = data.modelSelections as Partial<Record<AIProviderId, AIModelId>> | undefined;
     const memberCommand = data.memberCommand as RcMemberCommand;
-    const routed = resolvePromptProviders(data.prompt, data.providers as AIProviderId[] | undefined);
 
     logger.info("chat.stream.member_command", {
       roomId: data.roomId,
@@ -356,11 +322,9 @@ export async function POST(request: Request) {
 
     const available = new Set(getAvailableProviderIds());
     const modelSelectedProviders = Object.keys(modelSelections || {}) as AIProviderId[];
-    const requestedProviders = routed?.length
-      ? routed
-      : modelSelectedProviders.length
-        ? modelSelectedProviders
-        : getAvailableProviderIds();
+    const requestedProviders = data.providers?.length
+      ? data.providers as AIProviderId[]
+      : modelSelectedProviders;
     const providers = requestedProviders.filter((id) => available.has(id));
     const started = Date.now();
     const repositoryInspection = memberCommand.mode === "inspect";
@@ -537,7 +501,7 @@ export async function POST(request: Request) {
                 ...(workRecord ? { work: workRecord } : {}),
                 notes: [
                   "Each selected AI runs independently; no Council peer-review or synthesis pass is executed.",
-                  "RC Member Command is the single source of truth for ANSWER / INSPECT / EXECUTE mode.",
+                  "The selected provider list is authoritative; prompt text is not used to reassign providers.",
                   "Explicit model selections are resolved through the Royal Command Model Registry and are never silently substituted with a different model.",
                   "Empty or failed provider output receives one automatic retry before being reported as incomplete.",
                   ...(repositoryInspection ? ["Read-only GitHub inspection is authorized only by memberCommand.mode=inspect and performs no repository mutation."] : []),
