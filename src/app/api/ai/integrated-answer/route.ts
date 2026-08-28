@@ -92,12 +92,50 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: result.error || "Integrated Answer returned no answer." }, { status: 502 });
     }
 
-    return NextResponse.json({
-      finalAnswer: result.content.trim(),
+    const finalAnswer = `### Integrated Answer — ${model.displayName}\n${result.content.trim()}`;
+    const metadata = {
+      integratedAnswer: true,
       modelId: model.id,
       modelName: model.displayName,
       providerId: model.providerId,
+      sourceProviders: responses.map((item) => item.provider),
+      sourceCount: responses.length,
       latencyMs: Date.now() - started,
+    };
+
+    let aiMessage: unknown = null;
+    if (isSupabaseConfigured()) {
+      const supabase = await createClient();
+      const { data, error } = await supabase
+        .from("messages")
+        .insert({
+          room_id: roomId,
+          author_type: "ai",
+          content: finalAnswer,
+          language,
+          metadata,
+        })
+        .select("*")
+        .single();
+      if (error) throw new Error(error.message);
+      aiMessage = data;
+    } else {
+      aiMessage = localDb.addMessage({
+        roomId,
+        authorType: "ai",
+        content: finalAnswer,
+        language,
+        metadata,
+      });
+    }
+
+    return NextResponse.json({
+      finalAnswer,
+      modelId: model.id,
+      modelName: model.displayName,
+      providerId: model.providerId,
+      latencyMs: metadata.latencyMs,
+      aiMessage,
     });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Integrated Answer failed." }, { status: 502 });
