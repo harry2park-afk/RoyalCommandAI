@@ -27,7 +27,7 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 }
 
 function outputTokenLimit(request: AIRequest) {
-  return Math.min(request.maxTokens || DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS);
+  return request.maxTokens && request.maxTokens > 0 ? request.maxTokens : DEFAULT_MAX_OUTPUT_TOKENS;
 }
 
 function usefulPartial(content: string) {
