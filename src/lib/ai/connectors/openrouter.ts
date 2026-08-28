@@ -2,6 +2,7 @@ import type { AIConnector, AIProviderId, AIProviderResponse, AIRequest } from ".
 import { logger } from "@/lib/logger";
 
 const OPENROUTER_API = "https://openrouter.ai/api/v1";
+const OPENROUTER_TIMEOUT_MS = 18_000;
 const modelCache = new Map<string, string>();
 
 export function extractProviderText(value: unknown): string {
@@ -18,6 +19,21 @@ export function extractProviderText(value: unknown): string {
     if (nested) return nested;
   }
   return "";
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: number) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new Error(`OpenRouter timed out after ${timeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export class OpenRouterCatalogConnector implements AIConnector {
@@ -42,10 +58,10 @@ export class OpenRouterCatalogConnector implements AIConnector {
     url.searchParams.set("q", this.modelQuery);
     url.searchParams.set("sort", "most-popular");
 
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url.toString(), {
       headers: { Authorization: `Bearer ${key}` },
       cache: "no-store",
-    });
+    }, 10_000);
     if (!res.ok) throw new Error(`OpenRouter model lookup failed (${res.status})`);
 
     const body = (await res.json()) as { data?: Array<{ id?: string }> };
@@ -69,7 +85,7 @@ export class OpenRouterCatalogConnector implements AIConnector {
     if (request.temperature !== undefined) requestBody.temperature = request.temperature;
     if (request.maxTokens) requestBody.max_completion_tokens = request.maxTokens;
 
-    const res = await fetch(`${OPENROUTER_API}/chat/completions`, {
+    const res = await fetchWithTimeout(`${OPENROUTER_API}/chat/completions`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${key}`,
@@ -78,7 +94,7 @@ export class OpenRouterCatalogConnector implements AIConnector {
         "X-Title": "RoyalCommand.ai",
       },
       body: JSON.stringify(requestBody),
-    });
+    }, OPENROUTER_TIMEOUT_MS);
 
     const body = await res.json();
     if (!res.ok) throw new Error(body?.error?.message || `OpenRouter request failed (${res.status})`);
@@ -109,13 +125,22 @@ export class OpenRouterCatalogConnector implements AIConnector {
       latencyMs: Date.now() - started,
     });
 
+    if (tokenLimited && content.length > 200) {
+      logger.warn("ai.provider.partial_accepted", {
+        provider: this.displayName,
+        model: body?.model || model,
+        reason: "output-token-limit",
+        contentChars: content.length,
+      });
+    }
+
     return {
       provider: this.id,
       model: body?.model || model,
       content,
       latencyMs: Date.now() - started,
-      raw: body,
-      error: tokenLimited ? "Provider response ended at its output-token limit before completion" : undefined,
+      raw: tokenLimited ? { ...body, rcTruncated: true } : body,
+      error: tokenLimited && content.length <= 200 ? "Provider response ended at its output-token limit before completion" : undefined,
     };
   }
 }
