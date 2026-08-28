@@ -30,6 +30,16 @@ const PROVIDER_BY_HEADING: Record<string, SourceAnswer["provider"]> = {
   Gemini: "google",
   Grok: "xai",
 };
+const PROVIDER_BY_IDENTITY: Record<string, SourceAnswer["provider"]> = {
+  OpenAI: "openai",
+  ChatGPT: "openai",
+  Anthropic: "anthropic",
+  Claude: "anthropic",
+  Google: "google",
+  Gemini: "google",
+  xAI: "xai",
+  Grok: "xai",
+};
 
 function readSavedSelection(roomId: string) {
   if (typeof window === "undefined") return DEFAULT_SELECTION;
@@ -49,6 +59,20 @@ function messageText(value: unknown) {
   return typeof value === "string" ? value : String(value ?? "");
 }
 
+function providerFromExecutionIdentity(text: string): SourceAnswer["provider"] | null {
+  const status = text.match(/^\s*\*{0,2}Status:\*{0,2}\s*(OK|ERROR|PARTIAL|INCOMPLETE)\s*$/im)?.[1]?.toUpperCase();
+  if (status === "ERROR") return null;
+
+  const providerName = text.match(/^\s*\*{0,2}Provider:\*{0,2}\s*(OpenAI|Anthropic|Google|xAI|ChatGPT|Claude|Gemini|Grok)\s*$/im)?.[1];
+  if (providerName && PROVIDER_BY_IDENTITY[providerName]) return PROVIDER_BY_IDENTITY[providerName];
+
+  const modelProvider = text.match(/^\s*\*{0,2}Model:\*{0,2}\s*(openai|anthropic|google|xai)[/:]/im)?.[1]?.toLowerCase();
+  if (modelProvider === "openai" || modelProvider === "anthropic" || modelProvider === "google" || modelProvider === "xai") {
+    return modelProvider;
+  }
+  return null;
+}
+
 function parseSourceSections(text: string): SourceAnswer[] {
   const heading = /^###\s+(ChatGPT|Claude|Gemini|Grok)\s*$/gm;
   const matches = Array.from(text.matchAll(heading));
@@ -61,7 +85,14 @@ function parseSourceSections(text: string): SourceAnswer[] {
     const content = text.slice(start, end).trim();
     if (provider && content.length > 1) answers.push({ provider, content });
   }
-  return answers;
+  if (answers.length) return answers;
+
+  // RC Room stores current provider answers as separate AI messages. In that
+  // shape the visual "### Claude/Gemini/..." label is UI-only, while the
+  // persisted message carries Host-Verified Execution Identity instead.
+  const provider = providerFromExecutionIdentity(text);
+  const content = text.trim();
+  return provider && content.length > 1 ? [{ provider, content }] : [];
 }
 
 function recoverLatestRun(messagesValue: unknown) {
