@@ -91,17 +91,20 @@ export function resolveRcMemberCommand(
     }
   }
 
+  const leadProviders = mode === "execute" ? selectedIds.slice(0, 1) : selectedIds;
+  const reviewOnlyProviders = mode === "execute" ? selectedIds.slice(1) : [];
+
   return {
     mode,
-    leadProviders: selectedIds,
-    reviewOnlyProviders: [],
-    gitWrite: mode === "execute" && selectedIds.length > 0,
+    leadProviders,
+    reviewOnlyProviders,
+    gitWrite: mode === "execute" && leadProviders.length > 0,
     productionAllowed: false,
     effectivePrompt,
     continuedFromPriorOrder,
     reason: mode === "execute"
-      ? selectedIds.length
-        ? "Explicit repository mutation request; only user-selected active AI may execute on a safe branch."
+      ? leadProviders.length
+        ? `Single Write Authority: ${RC_MEMBER_PROVIDER_NAMES[leadProviders[0]!] || leadProviders[0]} is the sole writer for this task; ${reviewOnlyProviders.length} selected AI(s) are reserved for review.`
         : "Repository mutation requested, but no active AI was selected; no implicit provider fallback is allowed."
       : mode === "inspect"
         ? "Review/inspection request; selected AI may investigate without repository mutation."
