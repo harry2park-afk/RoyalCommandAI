@@ -148,9 +148,7 @@ export async function orchestrate(input: OrchestrateInput): Promise<OrchestrateR
   const explicitlySelectedProviders = Object.keys(input.modelSelections || {}) as AIProviderId[];
   const requested = input.providers?.length
     ? input.providers
-    : explicitlySelectedProviders.length
-      ? explicitlySelectedProviders
-      : getAvailableProviderIds();
+    : explicitlySelectedProviders;
   const available = new Set(getAvailableProviderIds());
   const providers = requested.filter((id) => available.has(id));
 
