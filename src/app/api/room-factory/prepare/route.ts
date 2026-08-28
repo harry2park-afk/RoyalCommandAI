@@ -30,7 +30,7 @@ function makeWorkIdentity() {
   const stamp = now.toISOString().replace(/[-:TZ.]/g, "").slice(0, 14);
   const nonce = crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
   return {
-    workId: `RCF-${stamp}-${nonce}`,
+    workId: `RC-FACTORY-${stamp}-${nonce}`,
     requestKey: `room-factory:${stamp}:${nonce}`,
   };
 }

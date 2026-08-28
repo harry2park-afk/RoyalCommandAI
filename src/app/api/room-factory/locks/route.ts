@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const supabase = await createClient();
 
     if (input.action === "acquire") {
-      const { data, error } = await supabase.rpc("acquire_room_factory_lane_locks", {
+      const { data, error } = await supabase.rpc("start_room_factory_lane_execution", {
         p_room_id: input.roomId,
         p_work_record_id: input.workRecordId,
         p_lane_id: input.laneId,
@@ -42,8 +42,8 @@ export async function POST(request: Request) {
 
       if (error) return NextResponse.json({ error: error.message }, { status: 409 });
       const locks = Array.isArray(data) ? data : [];
-      if (!locks.length || locks.some((lock) => !lock?.lock_token || !lock?.resource_key)) {
-        return NextResponse.json({ error: "Active lock evidence is incomplete." }, { status: 500 });
+      if (!locks.length || locks.some((lock) => !lock?.lock_token || !lock?.resource_key || lock?.lane_status !== "running")) {
+        return NextResponse.json({ error: "Execution-start lock evidence is incomplete." }, { status: 500 });
       }
 
       return NextResponse.json({
@@ -53,7 +53,8 @@ export async function POST(request: Request) {
         laneId: input.laneId,
         locks,
         lockCount: locks.length,
-        executionStarted: false,
+        executionStarted: true,
+        laneStatus: "running",
       });
     }
 
