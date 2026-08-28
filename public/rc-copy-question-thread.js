@@ -3,6 +3,7 @@
   const WRAPPER_ID = "rc-copy-question-thread-wrap";
   const USER_TITLE = "클릭하면 전체 내용을 봅니다";
   const CARD_COPY_CLASS = "rc-ai-card-copy";
+  const STATUS_STYLE_ID = "rc-integrated-answer-status-style";
 
   const PROVIDER_STYLES = {
     chatgpt: { background: "#071A33", border: "#2F6DB2", label: "ChatGPT" },
@@ -12,17 +13,26 @@
     integrated: { background: "#161B29", border: "#D7B64D", label: "Integrated Answer" },
   };
 
+  const INTEGRATOR_NAMES = {
+    "openai:gpt-5.6-sol": "GPT-5.6 Sol",
+    "google:gemini-3.7-flash": "Gemini 3.7 Flash",
+    "xai:grok-4.5": "Grok 4.5",
+  };
+
   function isRoomPage() {
     return /^\/rooms\//.test(window.location.pathname);
   }
 
   function getProviderKey(text) {
-    const firstLine = (text || "").trim().split("\n", 1)[0].replace(/^#+\s*/, "").trim().toLowerCase();
-    if (firstLine.startsWith("integrated answer")) return "integrated";
-    if (firstLine.startsWith("chatgpt")) return "chatgpt";
-    if (firstLine.startsWith("claude")) return "claude";
-    if (firstLine.startsWith("gemini")) return "gemini";
-    if (firstLine.startsWith("grok")) return "grok";
+    const lines = (text || "")
+      .split("\n")
+      .map((line) => line.replace(/^#+\s*/, "").trim().toLowerCase())
+      .filter(Boolean);
+    if (lines.some((line) => line.startsWith("integrated answer"))) return "integrated";
+    if (lines.some((line) => line === "chatgpt")) return "chatgpt";
+    if (lines.some((line) => line === "claude")) return "claude";
+    if (lines.some((line) => line === "gemini")) return "gemini";
+    if (lines.some((line) => line === "grok")) return "grok";
     return "";
   }
 
@@ -188,6 +198,87 @@
     }
   }
 
+  function ensureStatusStyle() {
+    if (document.getElementById(STATUS_STYLE_ID)) return;
+    const style = document.createElement("style");
+    style.id = STATUS_STYLE_ID;
+    style.textContent = `
+      @keyframes rcThinkingSweep {
+        0% { background-position: 180% 50%; }
+        100% { background-position: -80% 50%; }
+      }
+      .rc-integrator-thinking {
+        background-image: linear-gradient(90deg, #f4d66c 0%, #ffffff 42%, #f4d66c 58%, #f4d66c 100%);
+        background-size: 220% 100%;
+        background-clip: text;
+        -webkit-background-clip: text;
+        color: transparent !important;
+        -webkit-text-fill-color: transparent;
+        animation: rcThinkingSweep 1.15s linear infinite;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  function findIntegratorRow(modelName) {
+    return Array.from(document.querySelectorAll("button")).find((button) => {
+      const text = (button.textContent || "").replace(/\s+/g, " ").trim();
+      return text.includes(modelName) && (text.includes("Connected") || text.includes("Working") || text.includes("Completed") || text.includes("Failed"));
+    });
+  }
+
+  function setIntegratorVisual(modelId, state) {
+    const modelName = INTEGRATOR_NAMES[modelId];
+    if (!modelName) return;
+    ensureStatusStyle();
+    window.requestAnimationFrame(() => {
+      const row = findIntegratorRow(modelName);
+      if (!(row instanceof HTMLButtonElement)) return;
+      const spans = Array.from(row.querySelectorAll("span"));
+      const nameSpan = spans.find((span) => (span.textContent || "").trim() === modelName);
+      const statusSpan = spans[spans.length - 1];
+      if (nameSpan instanceof HTMLElement) {
+        nameSpan.classList.toggle("rc-integrator-thinking", state === "running");
+      }
+      if (statusSpan instanceof HTMLElement) {
+        if (state === "running") statusSpan.textContent = "Working…";
+        if (state === "success") statusSpan.textContent = "✓ Completed";
+        if (state === "error") statusSpan.textContent = "Failed";
+      }
+    });
+  }
+
+  function installIntegratedAnswerFetchStatus() {
+    if (window.__rcIntegratedAnswerFetchWrapped) return;
+    window.__rcIntegratedAnswerFetchWrapped = true;
+    const originalFetch = window.fetch.bind(window);
+
+    window.fetch = async (input, init) => {
+      const url = typeof input === "string" ? input : input instanceof Request ? input.url : "";
+      const method = (init?.method || (input instanceof Request ? input.method : "GET") || "GET").toUpperCase();
+      let modelId = "";
+      const integratedRequest = method === "POST" && url.includes("/api/ai/integrated-answer");
+
+      if (integratedRequest && typeof init?.body === "string") {
+        try {
+          const body = JSON.parse(init.body);
+          if (typeof body?.modelId === "string") modelId = body.modelId;
+        } catch {}
+      }
+
+      if (modelId) setIntegratorVisual(modelId, "running");
+
+      try {
+        const response = await originalFetch(input, init);
+        if (modelId) setIntegratorVisual(modelId, response.ok ? "success" : "error");
+        return response;
+      } catch (error) {
+        if (modelId) setIntegratorVisual(modelId, "error");
+        throw error;
+      }
+    };
+  }
+
   let scheduled = false;
   function schedulePlaceButton() {
     if (scheduled) return;
@@ -198,6 +289,7 @@
     });
   }
 
+  installIntegratedAnswerFetchStatus();
   const observer = new MutationObserver(schedulePlaceButton);
   observer.observe(document.documentElement, { childList: true, subtree: true });
   placeButton();
