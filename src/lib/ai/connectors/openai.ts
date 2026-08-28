@@ -3,7 +3,8 @@ import { logger } from "@/lib/logger";
 import { extractProviderText } from "./openrouter";
 
 const OPENAI_PRIMARY_TIMEOUT_MS = 20_000;
-const OPENAI_GPT56_TIMEOUT_MS = 32_000;
+const OPENAI_GPT56_TIMEOUT_MS = 24_000;
+const OPENAI_GPT56_RETRY_TIMEOUT_MS = 14_000;
 const OPENAI_RETRY_TIMEOUT_MS = 10_000;
 const OPENROUTER_FALLBACK_TIMEOUT_MS = 14_000;
 const DEFAULT_MAX_OUTPUT_TOKENS = 3_072;
@@ -31,6 +32,10 @@ function outputTokenLimit(request: AIRequest) {
 
 function usefulPartial(content: string) {
   return content.trim().length > 200;
+}
+
+function transientOpenAIError(message: string) {
+  return /(empty response|timed out|timeout|rate limit|too many requests|temporar|overload|\b429\b|\b500\b|\b502\b|\b503\b|\b504\b)/i.test(message);
 }
 
 async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) {
@@ -120,22 +125,30 @@ export class OpenAIConnector implements AIConnector {
     const errors: string[] = [];
 
     if (process.env.OPENAI_API_KEY) {
-      const explicitTimeoutMs = primaryModel.startsWith("gpt-5.6-")
-        ? OPENAI_GPT56_TIMEOUT_MS
-        : OPENAI_PRIMARY_TIMEOUT_MS;
+      const explicitAttempts = primaryModel.startsWith("gpt-5.6-")
+        ? [
+            { model: primaryModel, timeoutMs: OPENAI_GPT56_TIMEOUT_MS },
+            { model: primaryModel, timeoutMs: OPENAI_GPT56_RETRY_TIMEOUT_MS },
+          ]
+        : [
+            { model: primaryModel, timeoutMs: OPENAI_PRIMARY_TIMEOUT_MS },
+            { model: primaryModel, timeoutMs: OPENAI_RETRY_TIMEOUT_MS },
+          ];
       const attempts = explicitModel
-        ? [{ model: primaryModel, timeoutMs: explicitTimeoutMs }]
+        ? explicitAttempts
         : [
             { model: primaryModel, timeoutMs: OPENAI_PRIMARY_TIMEOUT_MS },
             { model: retryModel, timeoutMs: OPENAI_RETRY_TIMEOUT_MS },
           ].filter((attempt, index, all) => index === 0 || attempt.model !== all[0]?.model);
 
-      for (const attempt of attempts) {
+      for (let index = 0; index < attempts.length; index += 1) {
+        const attempt = attempts[index]!;
         logger.info("ai.provider.primary_route", {
           provider: this.displayName,
           via: "OpenAI direct",
           model: attempt.model,
           explicitModel: Boolean(explicitModel),
+          attempt: index + 1,
           maxTokens: outputTokenLimit(request),
           timeoutMs: attempt.timeoutMs,
         });
@@ -168,16 +181,18 @@ export class OpenAIConnector implements AIConnector {
             via: "OpenAI direct",
             model: attempt.model,
             explicitModel: Boolean(explicitModel),
+            attempt: index + 1,
             error: message.slice(0, 500),
           });
-          if (/timed out/i.test(message)) break;
+          if (explicitModel && index === 0 && transientOpenAIError(message)) continue;
+          if (explicitModel) break;
         }
       }
     } else {
       errors.push("OPENAI_API_KEY is not configured");
     }
 
-    // An explicit Phase 4 model selection must never silently become another model.
+    // Explicit model selections are never silently substituted with another model.
     if (!explicitModel && process.env.OPENROUTER_API_KEY) {
       logger.warn("ai.provider.fallback", {
         provider: this.displayName,
@@ -191,14 +206,6 @@ export class OpenAIConnector implements AIConnector {
         if (!result.content) throw new Error("OpenRouter OpenAI fallback returned an empty response");
         if (result.tokenLimited && !usefulPartial(result.content)) {
           throw new Error("OpenRouter OpenAI fallback ended at its output-token limit before completion");
-        }
-        if (result.tokenLimited) {
-          logger.warn("ai.provider.partial_accepted", {
-            provider: this.displayName,
-            model: result.model,
-            reason: "output-token-limit",
-            contentChars: result.content.length,
-          });
         }
         return {
           provider: this.id,
