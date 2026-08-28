@@ -7,10 +7,10 @@ import type { AIProviderId } from "@/lib/ai/types";
 
 const REPO = process.env.ROYAL_COMMAND_GITHUB_REPO || "harry2park-afk/RoyalCommandAI";
 const BASE_BRANCH = process.env.ROYAL_COMMAND_GITHUB_BRANCH || "master";
-const MAX_FILES = 6;
-const MAX_FILE_BYTES = 180_000;
+const MAX_FILES = 20;
+const MAX_FILE_BYTES = 1_000_000;
 const OWNER_DEV_EMAILS = ["harry2park@gmail.com", "harry@royalcommand.ai"];
-const DEV_PROVIDERS = ["openai", "anthropic", "google", "xai"] as const;
+const DEV_PROVIDERS = ["openai", "anthropic", "google", "xai", "codex"] as const;
 type DevProvider = (typeof DEV_PROVIDERS)[number];
 
 const PROVIDER_NAMES: Record<DevProvider, string> = {
@@ -18,6 +18,7 @@ const PROVIDER_NAMES: Record<DevProvider, string> = {
   anthropic: "Claude",
   google: "Gemini",
   xai: "Grok",
+  codex: "Codex",
 };
 
 type DevAction = {
@@ -287,12 +288,13 @@ export async function GET() {
       anthropic: Boolean(process.env.ANTHROPIC_API_KEY),
       google: Boolean(process.env.GOOGLE_AI_API_KEY || process.env.OPENROUTER_API_KEY),
       xai: Boolean(process.env.XAI_API_KEY),
+      codex: Boolean(process.env.OPENAI_API_KEY),
     },
     githubConfigured: Boolean(process.env.GITHUB_TOKEN),
     developerAccessConfigured: developerEmails().length > 0,
     repo: REPO,
     branch: BASE_BRANCH,
-    executionPolicy: "work-id branch and verified commit required; PR creation delegated to rc-work GitHub Actions; no direct master write",
+    executionPolicy: "selected active provider only; work-id branch and verified commit required; no direct master write",
   });
 }
 
@@ -308,7 +310,7 @@ export async function POST(request: Request) {
     const execute = body?.execute === true;
     const proposed = Array.isArray(body?.actions) ? body.actions : Array.isArray(body?.files) ? body.files : null;
 
-    if (!provider) return NextResponse.json({ error: "Developer provider must be openai, anthropic, google, or xai" }, { status: 400 });
+    if (!provider) return NextResponse.json({ error: "Developer provider must be one of: openai, anthropic, google, xai, codex" }, { status: 400 });
     if (!instruction) return NextResponse.json({ error: "Instruction is required" }, { status: 400 });
 
     if (execute) {
