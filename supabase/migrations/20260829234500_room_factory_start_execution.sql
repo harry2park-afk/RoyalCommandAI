@@ -137,9 +137,94 @@ begin
 end;
 $$;
 
+create or replace function public.fail_room_factory_lane_execution(
+  p_room_id uuid,
+  p_work_record_id uuid,
+  p_lane_id text,
+  p_lock_tokens uuid[],
+  p_error text
+)
+returns text
+language plpgsql
+security definer
+set search_path = pg_catalog, public
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_work_lane_id uuid;
+  v_active_count integer := 0;
+  v_matching_count integer := 0;
+begin
+  if v_user_id is null then
+    raise exception 'Authentication required.';
+  end if;
+  if not private.is_room_member(p_room_id) then
+    raise exception 'Room access denied.';
+  end if;
+  if coalesce(array_length(p_lock_tokens, 1), 0) < 1 then
+    raise exception 'Lock token evidence is required for failed execution cleanup.';
+  end if;
+
+  select lane.id into v_work_lane_id
+  from public.room_work_lanes lane
+  where lane.room_id = p_room_id
+    and lane.work_record_id = p_work_record_id
+    and lane.lane_id = btrim(p_lane_id)
+  limit 1;
+
+  if v_work_lane_id is null then
+    raise exception 'Work Lane not found.';
+  end if;
+
+  select count(*) into v_active_count
+  from public.room_resource_locks active_lock
+  where active_lock.room_id = p_room_id
+    and active_lock.work_record_id = p_work_record_id
+    and active_lock.work_lane_id = v_work_lane_id
+    and active_lock.state = 'acquired';
+
+  select count(*) into v_matching_count
+  from public.room_resource_locks matching_lock
+  where matching_lock.room_id = p_room_id
+    and matching_lock.work_record_id = p_work_record_id
+    and matching_lock.work_lane_id = v_work_lane_id
+    and matching_lock.state = 'acquired'
+    and matching_lock.lock_token = any(p_lock_tokens);
+
+  if v_active_count <> v_matching_count then
+    raise exception 'Complete lock token evidence is required for failed execution cleanup.';
+  end if;
+
+  update public.room_resource_locks
+  set state = 'released', released_at = now(), updated_at = now()
+  where room_id = p_room_id
+    and work_record_id = p_work_record_id
+    and work_lane_id = v_work_lane_id
+    and state = 'acquired'
+    and lock_token = any(p_lock_tokens);
+
+  update public.room_work_lanes
+  set status = 'failed',
+      reviewer_verdict = jsonb_build_object(
+        'executionError', left(coalesce(p_error, 'Unknown execution failure'), 2000),
+        'failedAt', now()
+      ),
+      updated_at = now()
+  where id = v_work_lane_id;
+
+  return 'failed';
+end;
+$$;
+
 revoke all on function public.start_room_factory_lane_execution(uuid, uuid, text, integer) from public;
 revoke execute on function public.start_room_factory_lane_execution(uuid, uuid, text, integer) from anon;
 grant execute on function public.start_room_factory_lane_execution(uuid, uuid, text, integer) to authenticated;
 
+revoke all on function public.fail_room_factory_lane_execution(uuid, uuid, text, uuid[], text) from public;
+revoke execute on function public.fail_room_factory_lane_execution(uuid, uuid, text, uuid[], text) from anon;
+grant execute on function public.fail_room_factory_lane_execution(uuid, uuid, text, uuid[], text) to authenticated;
+
 comment on function public.start_room_factory_lane_execution(uuid, uuid, text, integer) is
   'Checks dependency PASS state, acquires one Work Lane persistent locks, and marks that lane running. No code execution occurs inside this RPC.';
+comment on function public.fail_room_factory_lane_execution(uuid, uuid, text, uuid[], text) is
+  'Token-verified failed execution cleanup: releases the lane leases and records failed state.';
