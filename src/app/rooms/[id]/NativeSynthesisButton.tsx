@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 
@@ -123,6 +123,7 @@ export default function NativeSynthesisButton() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [selected, setSelected] = useState<string[]>(() => readSavedSelection(roomId));
   const [draftSelected, setDraftSelected] = useState<string[]>(() => readSavedSelection(roomId));
+  const runAbortController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let disposed = false;
@@ -155,6 +156,7 @@ export default function NativeSynthesisButton() {
     return () => {
       disposed = true;
       observer.disconnect();
+      runAbortController.current?.abort();
       wrapper?.remove();
     };
   }, []);
@@ -199,6 +201,8 @@ export default function NativeSynthesisButton() {
       return;
     }
 
+    const controller = new AbortController();
+    runAbortController.current = controller;
     const names = clean.map((id) => INTEGRATOR_OPTIONS.find((item) => item.id === id)?.name || id);
     setElapsedSeconds(0);
     setRunning(true);
@@ -206,7 +210,7 @@ export default function NativeSynthesisButton() {
     setRunMessage(`${names.join(" + ")} is creating the Integrated Answer…`);
 
     try {
-      const roomResponse = await fetch(`/api/rooms/${roomId}`, { cache: "no-store" });
+      const roomResponse = await fetch(`/api/rooms/${roomId}`, { cache: "no-store", signal: controller.signal });
       const roomData = await roomResponse.json().catch(() => ({}));
       if (!roomResponse.ok) throw new Error(roomData?.error || "Current Room could not be read.");
 
@@ -218,6 +222,7 @@ export default function NativeSynthesisButton() {
         const response = await fetch("/api/ai/integrated-answer", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
+          signal: controller.signal,
           body: JSON.stringify({
             roomId,
             originalPrompt: run.originalPrompt,
@@ -233,6 +238,8 @@ export default function NativeSynthesisButton() {
           error: response.ok ? "" : messageText(data?.error || "Integrated Answer failed."),
         };
       }));
+
+      if (controller.signal.aborted) return;
 
       const failed = results.filter((item) => !item.ok);
       const succeeded = results.filter((item) => item.ok);
@@ -250,14 +257,19 @@ export default function NativeSynthesisButton() {
 
       throw new Error(failed.map((item) => `${item.name}: ${item.error}`).join("\n") || "Integrated Answer failed.");
     } catch (error) {
+      if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
       setRunning(false);
       setRunPhase("error");
       setRunMessage(error instanceof Error ? error.message : "Integrated Answer failed.");
+    } finally {
+      if (runAbortController.current === controller) runAbortController.current = null;
     }
   }
 
   function cancelAndClose() {
-    if (running) return;
+    runAbortController.current?.abort();
+    runAbortController.current = null;
+    setRunning(false);
     setDraftSelected(selected);
     setRunPhase("idle");
     setRunMessage("");
@@ -296,8 +308,7 @@ export default function NativeSynthesisButton() {
               <button
                 type="button"
                 onClick={cancelAndClose}
-                disabled={running}
-                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs"
               >
                 Cancel
               </button>
@@ -348,7 +359,7 @@ export default function NativeSynthesisButton() {
 
             <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
               <div className="text-xs text-[#9aa4b3]">
-                {running ? "Please wait. This window will stay open until the Integrated Answer finishes." : "Select connected models. Done will create one Integrated Answer per selected model."}
+                {running ? "Cancel stops the Integrated Answer and closes this window." : "Select connected models. Done will create one Integrated Answer per selected model."}
               </div>
               <button
                 type="button"
