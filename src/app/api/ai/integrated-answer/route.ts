@@ -25,12 +25,20 @@ function isSourceAnswer(value: unknown): value is SourceAnswer {
   return isProviderId(item.provider) && typeof item.content === "string" && item.content.trim().length > 1;
 }
 
+function cancelledResponse() {
+  return NextResponse.json({ error: "Integrated Answer cancelled." }, { status: 499 });
+}
+
 export async function POST(request: Request) {
   try {
+    if (request.signal.aborted) return cancelledResponse();
+
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    if (request.signal.aborted) return cancelledResponse();
+
     const roomId = typeof body.roomId === "string" ? body.roomId.trim() : "";
     const originalPrompt = typeof body.originalPrompt === "string" ? body.originalPrompt.trim() : "";
     const rawModelId = typeof body.modelId === "string" ? body.modelId.trim() : "";
@@ -59,6 +67,8 @@ export async function POST(request: Request) {
     } else if (!localDb.getRoom(roomId)) {
       return NextResponse.json({ error: "Room not found" }, { status: 404 });
     }
+
+    if (request.signal.aborted) return cancelledResponse();
 
     const model = getModelRegistryEntry(modelId);
     const binding = resolveModelExecutionBinding(model.providerId, model.id);
@@ -89,6 +99,8 @@ export async function POST(request: Request) {
       maxTokens,
     });
 
+    if (request.signal.aborted) return cancelledResponse();
+
     if (result.error || !result.content.trim()) {
       return NextResponse.json({ error: result.error || "Integrated Answer returned no answer." }, { status: 502 });
     }
@@ -103,6 +115,8 @@ export async function POST(request: Request) {
       sourceCount: responses.length,
       latencyMs: Date.now() - started,
     };
+
+    if (request.signal.aborted) return cancelledResponse();
 
     let aiMessage: unknown = null;
     if (isSupabaseConfigured()) {
@@ -139,6 +153,7 @@ export async function POST(request: Request) {
       aiMessage,
     });
   } catch (error) {
+    if (request.signal.aborted) return cancelledResponse();
     return NextResponse.json({ error: error instanceof Error ? error.message : "Integrated Answer failed." }, { status: 502 });
   }
 }
