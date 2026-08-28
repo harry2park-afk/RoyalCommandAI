@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 
@@ -23,36 +23,33 @@ const INTEGRATOR_OPTIONS: readonly IntegratorOption[] = [
   { id: "perplexity:sonar-pro", name: "Perplexity Sonar Pro", connected: false },
 ] as const;
 
+const CONNECTED_MODEL_IDS = new Set(
+  INTEGRATOR_OPTIONS.filter((model) => model.connected).map((model) => model.id),
+);
+const DEFAULT_SELECTION = ["openai:gpt-5.6-sol"];
+
+function readSavedSelection(roomId: string) {
+  if (typeof window === "undefined") return DEFAULT_SELECTION;
+  try {
+    const storageKey = `royalcommand:room:${roomId}:integrated-answer-models`;
+    const stored = JSON.parse(localStorage.getItem(storageKey) || "[]") as unknown;
+    const valid = Array.isArray(stored)
+      ? stored.filter((id): id is string => typeof id === "string" && CONNECTED_MODEL_IDS.has(id))
+      : [];
+    return valid.length ? Array.from(new Set(valid)) : DEFAULT_SELECTION;
+  } catch {
+    return DEFAULT_SELECTION;
+  }
+}
+
 export default function NativeSynthesisButton() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
   const storageKey = `royalcommand:room:${roomId}:integrated-answer-models`;
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
-  const [selected, setSelected] = useState<string[]>([]);
-  const [draftSelected, setDraftSelected] = useState<string[]>([]);
-
-  const options = useMemo(() => INTEGRATOR_OPTIONS, []);
-  const connectedIds = useMemo(
-    () => new Set(options.filter((model) => model.connected).map((model) => model.id)),
-    [options],
-  );
-
-  useEffect(() => {
-    try {
-      const stored = JSON.parse(localStorage.getItem(storageKey) || "[]") as unknown;
-      const valid = Array.isArray(stored)
-        ? stored.filter((id): id is string => typeof id === "string" && connectedIds.has(id))
-        : [];
-      const initial = valid.length ? Array.from(new Set(valid)) : ["openai:gpt-5.6-sol"];
-      setSelected(initial);
-      setDraftSelected(initial);
-    } catch {
-      const initial = ["openai:gpt-5.6-sol"];
-      setSelected(initial);
-      setDraftSelected(initial);
-    }
-  }, [connectedIds, storageKey]);
+  const [selected, setSelected] = useState<string[]>(() => readSavedSelection(roomId));
+  const [draftSelected, setDraftSelected] = useState<string[]>(() => readSavedSelection(roomId));
 
   useEffect(() => {
     let disposed = false;
@@ -104,7 +101,7 @@ export default function NativeSynthesisButton() {
   }
 
   function saveAndClose() {
-    const clean = Array.from(new Set(draftSelected.filter((id) => connectedIds.has(id))));
+    const clean = Array.from(new Set(draftSelected.filter((id) => CONNECTED_MODEL_IDS.has(id))));
     setSelected(clean);
     try {
       localStorage.setItem(storageKey, JSON.stringify(clean));
@@ -145,7 +142,7 @@ export default function NativeSynthesisButton() {
             </div>
 
             <div className="min-h-0 overflow-y-auto p-2">
-              {options.map((model, index) => {
+              {INTEGRATOR_OPTIONS.map((model, index) => {
                 const checked = draftSelected.includes(model.id);
                 return (
                   <button
