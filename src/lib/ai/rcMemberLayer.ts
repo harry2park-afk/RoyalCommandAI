@@ -34,7 +34,7 @@ function selectedMembers(selected?: AIProviderId[]) {
 
 /** Only an explicit global no-write instruction blocks repository mutation. */
 export function hasGlobalNoWriteIntent(prompt: string) {
-  return /(?:코드|파일|소스|repository|repo|저장소).{0,24}(?:수정|변경|구현|작성|생성|삭제|제거|커밋|commit|push).{0,16}(?:하지\s*마|하지\s*말|하지\s*않|금지)|읽기\s*전용|read[- ]?only|do\s+not\s+(?:modify|edit|change|write|commit|push)|no\s+(?:code\s+)?changes?/i.test(prompt);
+  return /(?:코드|파일|소스|repository|repo|저장소).{0,24}(?:수정|변경|구현|작성|생성|삭제|제거|커밋|commit|push).{0,16}(?:하지\s*마|하지\s*말|하지\s*않|금지|없이)|읽기\s*전용|read[- ]?only|do\s+not\s+(?:modify|edit|change|write|commit|push)|no\s+(?:code\s+)?changes?/i.test(prompt);
 }
 
 function hasMutationRequest(prompt: string) {
@@ -43,7 +43,7 @@ function hasMutationRequest(prompt: string) {
 }
 
 function hasExplicitExecutionRequest(prompt: string) {
-  const executionVerb = /(실행해|실행하세요|진행해|진행하세요|완료해|완료하세요|끝내|끝내세요|execute|implement|apply\s+(?:it|the\s+change)|make\s+the\s+change)/i.test(prompt);
+  const executionVerb = /(실행해|실행하세요|진행해|진행하세요|완료해|완료하세요|끝내|끝내세요|수행해|수행하세요|작업해|작업하세요|execute|implement|apply\s+(?:it|the\s+change)|make\s+the\s+change)/i.test(prompt);
   const mutationTarget = /(코드|파일|소스|github|repository|repo\b|저장소|브랜치|branch|commit|커밋|push|merge|배포|deploy|vercel|ui|화면|레이아웃|component|tsx|typescript|css|기능|api|database|db\b|데이터베이스|schema|스키마|migration|마이그레이션|웹사이트|홈페이지|페이지|앱|route|라우트)/i.test(prompt);
   return executionVerb && mutationTarget;
 }
@@ -53,7 +53,7 @@ function hasInspectIntent(prompt: string) {
 }
 
 function hasContinuationIntent(prompt: string) {
-  return /(이전|앞의|위의|방금|아까|앞서).{0,20}(작업|요청|지시|내용).{0,20}(계속|이어서|완료|끝내|다시)|(?:계속|이어서)\s*(?:진행|작업|실행)/i.test(prompt);
+  return /(이전|앞의|위의|방금|아까|앞서).{0,20}(작업|요청|지시|내용|오더|명령).{0,20}(계속|이어서|완료|끝내|다시|실행)|(?:위|앞|방금)\s*(?:오더|작업|명령|지시).{0,20}(?:다시|계속|이어서)?\s*(?:실행|진행|완료)|(?:계속|이어서)\s*(?:진행|작업|실행)/i.test(prompt);
 }
 
 function classifyDirect(prompt: string): RcMemberMode {
@@ -71,7 +71,9 @@ function previousActionableOrder(history?: RcMemberHistoryMessage[]) {
 
   for (let index = userMessages.length - 1, depth = 0; index >= 0 && depth < 3; index -= 1, depth += 1) {
     const candidate = userMessages[index];
-    if (classifyDirect(candidate) !== "answer") return candidate;
+    const mode = classifyDirect(candidate);
+    if (mode !== "answer") return candidate;
+    if (!hasContinuationIntent(candidate)) return null;
   }
   return null;
 }
