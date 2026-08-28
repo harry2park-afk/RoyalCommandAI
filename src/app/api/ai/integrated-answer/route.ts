@@ -13,6 +13,9 @@ const CONNECTED_MODEL_IDS = new Set<AIModelId>([
   "xai:grok-4.5",
 ]);
 
+const ORIGINAL_PROMPT_CHAR_LIMIT = 6_000;
+const SOURCE_ANSWER_CHAR_LIMIT = 7_000;
+
 function isProviderId(value: unknown): value is AIProviderId {
   return typeof value === "string" && (AI_PROVIDER_IDS as readonly string[]).includes(value);
 }
@@ -23,6 +26,14 @@ function isSourceAnswer(value: unknown): value is SourceAnswer {
   if (!value || typeof value !== "object") return false;
   const item = value as Record<string, unknown>;
   return isProviderId(item.provider) && typeof item.content === "string" && item.content.trim().length > 1;
+}
+
+function compactText(value: string, maxChars: number) {
+  const text = value.trim();
+  if (text.length <= maxChars) return text;
+  const headLength = Math.floor(maxChars * 0.8);
+  const tailLength = Math.max(0, maxChars - headLength - 80);
+  return `${text.slice(0, headLength)}\n\n[...middle omitted for faster Integrated Answer processing...]\n\n${text.slice(-tailLength)}`;
 }
 
 function cancelledResponse() {
@@ -40,14 +51,19 @@ export async function POST(request: Request) {
     if (request.signal.aborted) return cancelledResponse();
 
     const roomId = typeof body.roomId === "string" ? body.roomId.trim() : "";
-    const originalPrompt = typeof body.originalPrompt === "string" ? body.originalPrompt.trim() : "";
+    const rawOriginalPrompt = typeof body.originalPrompt === "string" ? body.originalPrompt.trim() : "";
+    const originalPrompt = compactText(rawOriginalPrompt, ORIGINAL_PROMPT_CHAR_LIMIT);
     const rawModelId = typeof body.modelId === "string" ? body.modelId.trim() : "";
     const modelId = rawModelId as AIModelId;
     const language = typeof body.language === "string" && body.language.trim() ? body.language.trim() : "ko";
     const rawResponses: unknown[] = Array.isArray(body.responses) ? body.responses : [];
     const responses = rawResponses
       .filter(isSourceAnswer)
-      .map((item) => ({ provider: item.provider, content: item.content.trim(), error: item.error }))
+      .map((item) => ({
+        provider: item.provider,
+        content: compactText(item.content, SOURCE_ANSWER_CHAR_LIMIT),
+        error: item.error,
+      }))
       .filter((item) => !item.error)
       .slice(0, 4);
 
@@ -83,6 +99,7 @@ export async function POST(request: Request) {
       "Resolve conflicts only where the supplied reasoning supports it; otherwise preserve the uncertainty.",
       "Then produce one improved direct answer to the original user question using the strongest supported material.",
       "Do not invent evidence, citations, tool results, or consensus.",
+      "Be concise enough to finish within the available output budget. Prefer complete conclusions over exhaustive repetition.",
       `Respond in ${language === "ko" ? "Korean" : language === "en" ? "English" : language}.`,
       "",
       `ORIGINAL QUESTION:\n${originalPrompt}`,
@@ -91,7 +108,7 @@ export async function POST(request: Request) {
     ].join("\n");
 
     const isGpt56 = model.id.startsWith("openai:gpt-5.6-");
-    const maxTokens = model.id === "xai:grok-4.5" ? 4200 : 2200;
+    const maxTokens = model.id === "xai:grok-4.5" ? 2_800 : 2_400;
     const started = Date.now();
     const result = await executeModelBinding(binding, {
       messages: [{ role: "user", content: prompt }],
@@ -113,6 +130,7 @@ export async function POST(request: Request) {
       providerId: model.providerId,
       sourceProviders: responses.map((item) => item.provider),
       sourceCount: responses.length,
+      promptCompacted: rawOriginalPrompt.length > ORIGINAL_PROMPT_CHAR_LIMIT || rawResponses.some((item) => isSourceAnswer(item) && item.content.length > SOURCE_ANSWER_CHAR_LIMIT),
       latencyMs: Date.now() - started,
     };
 
