@@ -32,16 +32,16 @@ describe("Room Factory Control Plane V1", () => {
 
   it("supports an unregistered country without duplicating or pretending compliance", () => {
     const blueprint = compileRoomFactoryBlueprint({
-      roomName: "Germany Accounting Room",
+      roomName: "Custom Country Accounting Room",
       templateId: "accounting",
-      countryCode: "DE",
-      languageTag: "de-DE",
-      timeZone: "Europe/Berlin",
-      currencyCode: "EUR",
+      countryCode: "ZZ",
+      languageTag: "en",
+      timeZone: "UTC",
+      currencyCode: "USD",
     });
 
     expect(blueprint.readiness.readyForSafeBuild).toBe(true);
-    expect(blueprint.locale.countryCode).toBe("DE");
+    expect(blueprint.locale.countryCode).toBe("ZZ");
     expect(blueprint.locale.countryProfileStatus).toBe("custom-profile-required");
     expect(blueprint.readiness.warnings.join(" ")).toMatch(/compliance.*unverified/i);
   });
@@ -78,7 +78,7 @@ describe("Room Factory Control Plane V1", () => {
 
   it("exposes a country-overlay model suitable for scaling beyond registered profiles", () => {
     const coverage = roomFactoryCountryCoverage();
-    expect(coverage.registeredProfiles).toBeGreaterThan(0);
+    expect(coverage.registeredProfiles).toBeGreaterThanOrEqual(100);
     expect(coverage.extensibleCountryModel).toBe(true);
     expect(coverage.strategy).toMatch(/global core.*country-profile overlays/i);
   });
