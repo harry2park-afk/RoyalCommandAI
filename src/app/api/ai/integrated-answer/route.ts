@@ -15,6 +15,7 @@ const CONNECTED_MODEL_IDS = new Set<AIModelId>([
 
 const ORIGINAL_PROMPT_CHAR_LIMIT = 6_000;
 const SOURCE_ANSWER_CHAR_LIMIT = 7_000;
+const INTEGRATED_ANSWER_MAX_TOKENS = 16_384;
 
 function isProviderId(value: unknown): value is AIProviderId {
   return typeof value === "string" && (AI_PROVIDER_IDS as readonly string[]).includes(value);
@@ -99,7 +100,7 @@ export async function POST(request: Request) {
       "Resolve conflicts only where the supplied reasoning supports it; otherwise preserve the uncertainty.",
       "Then produce one improved direct answer to the original user question using the strongest supported material.",
       "Do not invent evidence, citations, tool results, or consensus.",
-      "Be concise enough to finish within the available output budget. Prefer complete conclusions over exhaustive repetition.",
+      "Use as much detail as the question genuinely requires. Do not shorten the answer merely to fit a Royal Command artificial output budget; preserve important evidence, conditions, risks, dissent, and uncertainty.",
       `Respond in ${language === "ko" ? "Korean" : language === "en" ? "English" : language}.`,
       "",
       `ORIGINAL QUESTION:\n${originalPrompt}`,
@@ -108,12 +109,11 @@ export async function POST(request: Request) {
     ].join("\n");
 
     const isGpt56 = model.id.startsWith("openai:gpt-5.6-");
-    const maxTokens = model.id === "xai:grok-4.5" ? 2_800 : 2_400;
     const started = Date.now();
     const result = await executeModelBinding(binding, {
       messages: [{ role: "user", content: prompt }],
       ...(isGpt56 ? {} : { temperature: 0.2 }),
-      maxTokens,
+      maxTokens: INTEGRATED_ANSWER_MAX_TOKENS,
     });
 
     if (request.signal.aborted) return cancelledResponse();
