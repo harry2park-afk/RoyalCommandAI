@@ -2,95 +2,107 @@
 
 import { useEffect } from "react";
 
-const STYLE_ID = "rc-integrated-answer-inline-style";
-const CANCEL_ID = "rc-integrated-answer-inline-cancel";
+type ModelStatus = "working" | "done" | "failed" | "cancelled";
+
+const MODEL_NAMES: Record<string, string> = {
+  "openai:gpt-5.6-sol": "GPT-5.6 Sol",
+  "google:gemini-3.7-flash": "Gemini 3.7 Flash",
+  "xai:grok-4.5": "Grok 4.5",
+};
+
+const STYLE_ID = "rc-integrated-per-model-style";
 
 export default function IntegratedAnswerInlineStatus() {
   useEffect(() => {
-    let disposed = false;
+    const originalFetch = window.fetch.bind(window);
+    const states = new Map<string, ModelStatus>();
 
     const ensureStyle = () => {
       if (document.getElementById(STYLE_ID)) return;
       const style = document.createElement("style");
       style.id = STYLE_ID;
       style.textContent = `
-        @keyframes rcIntegratedSpin { to { transform: rotate(360deg); } }
-        button[data-rc-native-synthesis-button="true"][data-rc-inline-working="1"]::before {
+        @keyframes rcIntegratedRowSpin { to { transform: rotate(360deg); } }
+        [data-rc-integrated-row-status="working"]::before {
           content: "";
-          width: 12px;
-          height: 12px;
-          flex: 0 0 12px;
-          border: 2px solid rgba(244,214,108,.32);
-          border-top-color: #f4d66c;
+          width: 11px;
+          height: 11px;
+          flex: 0 0 11px;
+          border: 2px solid rgba(52,211,153,.28);
+          border-top-color: #6ee7b7;
           border-radius: 9999px;
-          animation: rcIntegratedSpin .75s linear infinite;
-        }
-        #${CANCEL_ID} {
-          height: 30px;
-          flex: 0 0 auto;
-          padding: 0 10px;
-          border: 1px solid rgba(255,255,255,.2);
-          border-radius: 6px;
-          background: #0b1524;
-          color: #f4f0e7;
-          font-size: 10px;
-          font-weight: 600;
-          line-height: 28px;
+          animation: rcIntegratedRowSpin .72s linear infinite;
         }
       `;
       document.head.appendChild(style);
     };
 
-    const sync = () => {
-      if (disposed) return;
+    const updateRows = () => {
       ensureStyle();
+      const modal = Array.from(document.querySelectorAll<HTMLElement>("div.fixed.inset-0")).find((node) =>
+        (node.textContent || "").includes("Integrated Answer") && (node.textContent || "").includes("Not Connected"),
+      );
+      if (!modal) return;
 
-      const synthesis = document.querySelector<HTMLButtonElement>('button[data-rc-native-synthesis-button="true"]');
-      if (!synthesis) return;
+      for (const [modelId, status] of states) {
+        const name = MODEL_NAMES[modelId];
+        if (!name) continue;
+        const row = Array.from(modal.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+          (button.textContent || "").includes(name),
+        );
+        if (!row) continue;
 
-      const working = (synthesis.textContent || "").includes("Working");
-      synthesis.dataset.rcInlineWorking = working ? "1" : "0";
+        const badge = Array.from(row.querySelectorAll<HTMLSpanElement>("span")).find((span) => {
+          const text = (span.textContent || "").trim();
+          return text === "Connected" || text === "Working..." || text === "Done" || text === "Failed" || text === "Cancelled";
+        });
+        if (!badge) continue;
 
-      const modalCancel = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
-        if ((button.textContent || "").trim() !== "Cancel") return false;
-        return Boolean(button.closest('.fixed.inset-0.z-\\[400\\]'));
-      });
-      const modalRoot = modalCancel?.closest<HTMLElement>('.fixed.inset-0.z-\\[400\\]') || null;
-
-      let inlineCancel = document.getElementById(CANCEL_ID) as HTMLButtonElement | null;
-
-      if (working) {
-        if (modalRoot) modalRoot.style.display = "none";
-
-        if (!inlineCancel) {
-          inlineCancel = document.createElement("button");
-          inlineCancel.id = CANCEL_ID;
-          inlineCancel.type = "button";
-          inlineCancel.textContent = "Cancel";
-          inlineCancel.title = "Cancel Integrated Answer";
-          inlineCancel.addEventListener("click", () => {
-            const hiddenCancel = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
-              if ((button.textContent || "").trim() !== "Cancel") return false;
-              return Boolean(button.closest('.fixed.inset-0.z-\\[400\\]'));
-            });
-            hiddenCancel?.click();
-          });
-          synthesis.insertAdjacentElement("afterend", inlineCancel);
-        }
-      } else {
-        if (modalRoot) modalRoot.style.display = "";
-        inlineCancel?.remove();
+        badge.dataset.rcIntegratedRowStatus = status;
+        badge.classList.add("inline-flex", "items-center", "gap-1");
+        badge.textContent = status === "working" ? "Working..." : status === "done" ? "Done" : status === "cancelled" ? "Cancelled" : "Failed";
       }
     };
 
-    sync();
-    const observer = new MutationObserver(sync);
+    const setStatus = (modelId: string, status: ModelStatus) => {
+      states.set(modelId, status);
+      queueMicrotask(updateRows);
+    };
+
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      if (!url.includes("/api/ai/integrated-answer")) return originalFetch(input, init);
+
+      let modelId = "";
+      try {
+        if (typeof init?.body === "string") {
+          const payload = JSON.parse(init.body) as { modelId?: unknown };
+          if (typeof payload.modelId === "string") modelId = payload.modelId;
+        }
+      } catch {}
+
+      if (modelId) setStatus(modelId, "working");
+
+      try {
+        const response = await originalFetch(input, init);
+        if (modelId) setStatus(modelId, response.ok ? "done" : "failed");
+        return response;
+      } catch (error) {
+        if (modelId) {
+          const aborted = init?.signal?.aborted || (error instanceof DOMException && error.name === "AbortError");
+          setStatus(modelId, aborted ? "cancelled" : "failed");
+        }
+        throw error;
+      }
+    };
+
+    const observer = new MutationObserver(updateRows);
     observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true });
+    updateRows();
 
     return () => {
-      disposed = true;
+      window.fetch = originalFetch;
       observer.disconnect();
-      document.getElementById(CANCEL_ID)?.remove();
       document.getElementById(STYLE_ID)?.remove();
     };
   }, []);
