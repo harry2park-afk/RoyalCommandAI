@@ -42,6 +42,12 @@ function hasMutationRequest(prompt: string) {
     || /(?:수정해|수정하세요|고쳐|고치세요|변경해|변경하세요|구현해|구현하세요|삭제해|삭제하세요|생성해|생성하세요|적용해|적용하세요|반영해|반영하세요).{0,48}(?:코드|파일|소스|ui|화면|기능|api|database|db\b|데이터베이스|웹사이트|페이지|앱|repository|repo|저장소)/i.test(prompt);
 }
 
+function hasExplicitExecutionRequest(prompt: string) {
+  const executionVerb = /(실행해|실행하세요|진행해|진행하세요|완료해|완료하세요|끝내|끝내세요|execute|implement|apply\s+(?:it|the\s+change)|make\s+the\s+change)/i.test(prompt);
+  const mutationTarget = /(코드|파일|소스|github|repository|repo\b|저장소|브랜치|branch|commit|커밋|push|merge|배포|deploy|vercel|ui|화면|레이아웃|component|tsx|typescript|css|기능|api|database|db\b|데이터베이스|schema|스키마|migration|마이그레이션|웹사이트|홈페이지|페이지|앱|route|라우트)/i.test(prompt);
+  return executionVerb && mutationTarget;
+}
+
 function hasInspectIntent(prompt: string) {
   return /(검토|검증|점검|조사|분석|진단|원인|inspect|investigate|review|verify|diagnos|analy[sz]e)/i.test(prompt);
 }
@@ -52,7 +58,7 @@ function hasContinuationIntent(prompt: string) {
 
 function classifyDirect(prompt: string): RcMemberMode {
   if (hasGlobalNoWriteIntent(prompt)) return hasInspectIntent(prompt) ? "inspect" : "answer";
-  if (hasMutationRequest(prompt)) return "execute";
+  if (hasMutationRequest(prompt) || hasExplicitExecutionRequest(prompt)) return "execute";
   if (hasInspectIntent(prompt)) return "inspect";
   return "answer";
 }
