@@ -1,3 +1,5 @@
+import { COUNTRY_ROOM_PRESETS } from "./countryPresets";
+
 export type RoomTextDirection = "auto" | "ltr" | "rtl";
 
 export type GlobalRoomSettings = {
@@ -31,17 +33,8 @@ export const DEFAULT_GLOBAL_ROOM_SETTINGS: GlobalRoomSettings = {
 };
 
 export const GLOBAL_ROOM_PRESETS = [
-  { id: "AU", label: "Australia", languageTag: "en-AU", timeZone: "Australia/Sydney", currencyCode: "AUD" },
   { id: "GLOBAL", label: "Global / International", languageTag: "en", timeZone: "UTC", currencyCode: "USD" },
-  { id: "KR", label: "Korea", languageTag: "ko-KR", timeZone: "Asia/Seoul", currencyCode: "KRW" },
-  { id: "US", label: "United States", languageTag: "en-US", timeZone: "America/New_York", currencyCode: "USD" },
-  { id: "GB", label: "United Kingdom", languageTag: "en-GB", timeZone: "Europe/London", currencyCode: "GBP" },
-  { id: "JP", label: "Japan", languageTag: "ja-JP", timeZone: "Asia/Tokyo", currencyCode: "JPY" },
-  { id: "SG", label: "Singapore", languageTag: "en-SG", timeZone: "Asia/Singapore", currencyCode: "SGD" },
-  { id: "NZ", label: "New Zealand", languageTag: "en-NZ", timeZone: "Pacific/Auckland", currencyCode: "NZD" },
-  { id: "CA", label: "Canada", languageTag: "en-CA", timeZone: "America/Toronto", currencyCode: "CAD" },
-  { id: "IN", label: "India", languageTag: "en-IN", timeZone: "Asia/Kolkata", currencyCode: "INR" },
-  { id: "AE", label: "United Arab Emirates", languageTag: "ar-AE", timeZone: "Asia/Dubai", currencyCode: "AED" },
+  ...COUNTRY_ROOM_PRESETS,
 ] as const;
 
 export function applyGlobalPreset(current: GlobalRoomSettings, presetId: string): GlobalRoomSettings {
