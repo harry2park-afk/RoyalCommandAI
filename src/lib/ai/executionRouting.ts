@@ -14,16 +14,18 @@ export function hasExplicitNoExecutionIntent(prompt: string) {
   return hasGlobalNoWriteIntent(prompt);
 }
 
-export function shouldRunDeveloperAgent(prompt: string) {
-  return resolveRcMemberCommand(prompt).mode === "execute";
+export function shouldRunDeveloperAgent(prompt: string, providers?: AIProviderId[]) {
+  const command = resolveRcMemberCommand(prompt, undefined, providers);
+  return command.mode === "execute" && command.leadProviders.length > 0;
 }
 
 export function resolveDeveloperExecutionPrompt(
   prompt: string,
   history?: RcMemberHistoryMessage[],
+  providers?: AIProviderId[],
 ) {
-  const command = resolveRcMemberCommand(prompt, history);
-  return command.mode === "execute" ? command.effectivePrompt : null;
+  const command = resolveRcMemberCommand(prompt, history, providers);
+  return command.mode === "execute" && command.leadProviders.length ? command.effectivePrompt : null;
 }
 
 export function resolvePromptProviders(prompt: string, selected?: AIProviderId[]) {
@@ -31,10 +33,9 @@ export function resolvePromptProviders(prompt: string, selected?: AIProviderId[]
 }
 
 export function chooseDeveloperProvider(prompt: string, providers?: AIProviderId[]) {
-  return resolveRcMemberCommand(prompt, undefined, providers).leadProviders[0] || "openai";
+  return resolveRcMemberCommand(prompt, undefined, providers).leadProviders[0] || null;
 }
 
 export function developerProviderOrder(prompt: string, providers?: AIProviderId[]) {
-  const command = resolveRcMemberCommand(prompt, undefined, providers);
-  return Array.from(new Set([...command.leadProviders, ...DEV_PROVIDER_IDS]));
+  return resolveRcMemberCommand(prompt, undefined, providers).leadProviders;
 }
