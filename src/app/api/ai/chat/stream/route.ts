@@ -102,6 +102,34 @@ async function runProviderWithOneRetry(
   return { result, response, retried };
 }
 
+type RelayReview = {
+  provider: AIProviderId;
+  name: string;
+  content: string;
+  error?: string;
+};
+
+function actionReviewPacket(actions: Array<Record<string, unknown>>) {
+  const MAX_REVIEW_CHARS = 36000;
+  let used = 0;
+  const sections: string[] = [];
+
+  for (const raw of actions) {
+    const path = String(raw.path || "");
+    const operation = String(raw.operation || "update");
+    const reason = String(raw.reason || "");
+    const content = typeof raw.content === "string" ? raw.content : "";
+    const header = `FILE: ${path}\nOPERATION: ${operation}\nREASON: ${reason}`;
+    const remaining = Math.max(0, MAX_REVIEW_CHARS - used - header.length - 40);
+    const body = remaining > 0 ? content.slice(0, remaining) : "";
+    sections.push(`${header}\nCONTENT:\n${body}${content.length > body.length ? "\n[HOST REVIEW PACKET TRUNCATED]" : ""}`);
+    used += header.length + body.length + 40;
+    if (used >= MAX_REVIEW_CHARS) break;
+  }
+
+  return sections.join("\n\n---\n\n");
+}
+
 async function runSelectedDeveloperAgents(
   request: Request,
   data: {
@@ -116,92 +144,134 @@ async function runSelectedDeveloperAgents(
   language: string,
 ) {
   const executionPrompt = data.memberCommand.effectivePrompt;
-  const executionProviders = data.memberCommand.leadProviders
+  const writer = data.memberCommand.leadProviders
+    .find((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number]));
+  const reviewProviders = data.memberCommand.reviewOnlyProviders
     .filter((id) => DEV_PROVIDER_IDS.includes(id as (typeof DEV_PROVIDER_IDS)[number]));
-  if (!executionProviders.length) throw new Error("No selected connected developer AI was assigned");
+  if (!writer) throw new Error("No selected connected developer AI was assigned as writer");
 
   const workSeed = await orchestrateRoom(data.roomId, {
     prompt: executionPrompt,
     history: data.history,
-    providers: executionProviders,
+    providers: [writer],
     language,
     modelSelections: data.modelSelections,
   });
   if (!workSeed.workId || !workSeed.revision) throw new Error("Host work metadata was not created for developer execution");
 
+  const writerName = DEV_PROVIDER_NAMES[writer] || writer;
   const verifiedInstruction = [
     "ROYAL COMMAND HOST VERIFIED WORK METADATA — REQUIRED FOR EXECUTION",
     `Work ID: ${workSeed.workId}`,
     `Revision: ${workSeed.revision}`,
     `Room ID: ${data.roomId}`,
+    `Single Write Authority: ${writerName} is the only provider allowed to write for this task.`,
+    "Other selected AIs are review-only and must not write, commit, push or merge.",
     "Every code change, branch, commit, PR and report must use this Work ID and Revision.",
     "Do not write directly to master. Use the Work-ID provider branch and return verified evidence.",
-    "Production merge/deploy requires separate user approval; that safety gate does not cancel development execution.",
-    "Use only the provider explicitly selected by the user for this lane.",
+    "Production merge/deploy remains outside this development execution; prepare a testable safe branch first.",
+    "Preserve existing working features and make the smallest coherent change that satisfies the user order.",
     "",
     executionPrompt,
   ].join("\n");
 
   const cookie = request.headers.get("cookie") || "";
 
-  const executions = await Promise.all(executionProviders.map(async (provider) => {
-    const name = DEV_PROVIDER_NAMES[provider] || provider;
-    try {
-      const reviewResponse = await fetch(new URL("/api/dev/agent", request.url), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", cookie },
-        body: JSON.stringify({ provider, instruction: verifiedInstruction }),
-        cache: "no-store",
-      });
-      const review = await reviewResponse.json();
-      if (!reviewResponse.ok) throw new Error(review.error || `${name} developer review failed`);
-      const actions = Array.isArray(review.actions) ? review.actions : [];
-      if (!actions.length) throw new Error(`${name} returned no executable file actions`);
+  const createPlan = async (instruction: string) => {
+    const response = await fetch(new URL("/api/dev/agent", request.url), {
+      method: "POST",
+      headers: { "Content-Type": "application/json", cookie },
+      body: JSON.stringify({ provider: writer, instruction }),
+      cache: "no-store",
+    });
+    const plan = await response.json();
+    if (!response.ok) throw new Error(plan.error || `${writerName} developer planning failed`);
+    const actions = Array.isArray(plan.actions) ? plan.actions : [];
+    if (!actions.length) throw new Error(`${writerName} returned no executable file actions`);
+    return { ...plan, actions };
+  };
 
-      const executeResponse = await fetch(new URL("/api/dev/agent", request.url), {
-        method: "POST",
-        headers: { "Content-Type": "application/json", cookie },
-        body: JSON.stringify({ provider, instruction: verifiedInstruction, execute: true, actions }),
-        cache: "no-store",
-      });
-      const executed = await executeResponse.json();
-      if (!executeResponse.ok) throw new Error(executed.error || `${name} developer execution failed`);
-      if (executed.evidenceVerified !== true) throw new Error(`${name} execution returned without verified commit evidence`);
+  let draftPlan = await createPlan(verifiedInstruction);
+  let relayReviews: RelayReview[] = [];
 
-      return {
-        provider,
-        name,
-        branch: String(executed.branch || ""),
-        commits: Array.isArray(executed.commits) ? executed.commits : [],
-        pr: executed.pr || null,
-        summary: String(review.summary || `${name} development execution completed.`),
-      };
-    } catch (error) {
-      return {
-        provider,
-        name,
-        branch: "",
-        commits: [],
-        pr: null,
-        summary: "",
-        error: error instanceof Error ? error.message : String(error),
-      };
+  if (reviewProviders.length) {
+    const packet = actionReviewPacket(draftPlan.actions as Array<Record<string, unknown>>);
+    relayReviews = await Promise.all(reviewProviders.map(async (provider): Promise<RelayReview> => {
+      const name = DEV_PROVIDER_NAMES[provider] || provider;
+      const reviewPrompt = [
+        "ROYAL COMMAND RELAY REVIEW — READ ONLY",
+        `Work ID: ${workSeed.workId}`,
+        `Revision: ${workSeed.revision}`,
+        `Writer: ${writerName}`,
+        `Reviewer: ${name}`,
+        "You are a reviewer only. Do not modify code, create files, commit, push, merge, deploy, or impersonate the writer.",
+        "Review the writer's exact proposed file actions below against the user's order.",
+        "Focus only on material defects, regressions, security problems, missing requirements, or unnecessary scope.",
+        "Return a concise review with: VERDICT: PASS or REWORK; then findings with P0/P1/P2. If no material issue exists, return VERDICT: PASS.",
+        "",
+        "USER ORDER:",
+        executionPrompt,
+        "",
+        "WRITER PROPOSED ACTIONS:",
+        packet,
+      ].join("\n");
+
+      try {
+        const result = await orchestrateRoom(data.roomId, {
+          prompt: reviewPrompt,
+          history: [],
+          providers: [provider],
+          language,
+          modelSelections: data.modelSelections,
+        });
+        const response = result.responses.find((item) => item.provider === provider);
+        if (!response || response.error || !response.content.trim()) {
+          throw new Error(response?.error || `${name} returned no review`);
+        }
+        return { provider, name, content: response.content.trim() };
+      } catch (error) {
+        return { provider, name, content: "", error: error instanceof Error ? error.message : String(error) };
+      }
+    }));
+
+    const usableReviews = relayReviews.filter((item) => !item.error && item.content.trim());
+    if (usableReviews.length) {
+      const reviewerFeedback = usableReviews
+        .map((item) => `### ${item.name}\n${item.content}`)
+        .join("\n\n");
+      const refinementInstruction = [
+        verifiedInstruction,
+        "",
+        "ROYAL COMMAND RELAY REFINEMENT — ONE PASS ONLY",
+        "Independent reviewers examined your proposed file actions. Re-evaluate their findings against the user order and current repository.",
+        "Fix valid material findings, reject irrelevant findings, preserve working features, and return one final minimal executable plan.",
+        "Do not broaden scope merely because a reviewer suggested extra work.",
+        "",
+        reviewerFeedback,
+      ].join("\n");
+      draftPlan = await createPlan(refinementInstruction);
     }
-  }));
+  }
 
-  const successful = executions.filter((item) => !item.error && item.commits.length > 0);
-  const sections = executions.map((item) => {
-    if (item.error) return `### ${item.name}\nStatus: EXECUTION FAILED\nError: ${item.error}`;
-    const changed = item.commits.map((commit: { path?: string; operation?: string; commit?: string }) => `- ${commit.operation || "update"}: ${commit.path || ""} — ${commit.commit || ""}`).join("\n");
-    return [
-      `### ${item.name}`,
-      "Status: CODE_CHANGED_ON_SAFE_BRANCH",
-      `Branch: ${item.branch}`,
-      `PR: ${item.pr?.number || "not-created"}${item.pr?.url ? ` — ${item.pr.url}` : ""}`,
-      item.summary,
-      changed ? `Changed files:\n${changed}` : "",
-    ].filter(Boolean).join("\n");
+  const executeResponse = await fetch(new URL("/api/dev/agent", request.url), {
+    method: "POST",
+    headers: { "Content-Type": "application/json", cookie },
+    body: JSON.stringify({ provider: writer, instruction: verifiedInstruction, execute: true, actions: draftPlan.actions }),
+    cache: "no-store",
   });
+  const executed = await executeResponse.json();
+  if (!executeResponse.ok) throw new Error(executed.error || `${writerName} developer execution failed`);
+  if (executed.evidenceVerified !== true) throw new Error(`${writerName} execution returned without verified commit evidence`);
+
+  const commits = Array.isArray(executed.commits) ? executed.commits : [];
+  const branch = String(executed.branch || "");
+  const changed = commits
+    .map((commit: { path?: string; operation?: string; commit?: string }) => `- ${commit.operation || "update"}: ${commit.path || ""} — ${commit.commit || ""}`)
+    .join("\n");
+  const reviewSections = relayReviews.map((item) => item.error
+    ? `### ${item.name} — REVIEW FAILED\n${item.error}`
+    : `### ${item.name} — REVIEW ONLY\n${item.content}`);
+  const failedReviews = relayReviews.filter((item) => item.error).length;
 
   const finalAnswer = [
     "**Host-Verified Work Metadata**",
@@ -210,15 +280,44 @@ async function runSelectedDeveloperAgents(
     `**Parent Revision:** ${workSeed.workRecord?.parentRevision ?? "none"}`,
     `**Room ID:** ${data.roomId}`,
     "",
-    ...sections,
+    "### Relay Stage 1 — Writer",
+    `Writer: ${writerName}`,
+    "Status: FINAL PLAN EXECUTED ON SAFE BRANCH",
+    `Branch: ${branch}`,
+    `PR: ${executed.pr?.number || "not-created"}${executed.pr?.url ? ` — ${executed.pr.url}` : ""}`,
+    String(draftPlan.summary || `${writerName} relay-refined development plan executed.`),
+    changed ? `Changed files:\n${changed}` : "",
     "",
-    successful.length === executions.length
-      ? "**Final Status:** ALL ASSIGNED AI EXECUTIONS VERIFIED"
-      : successful.length
-        ? "**Final Status:** PARTIAL EXECUTION — see failed provider details above"
-        : "**Final Status:** EXECUTION FAILED",
-    "Production merge/deploy was not performed.",
-  ].join("\n\n");
+    reviewSections.length ? "### Relay Stage 2 — Independent Reviews" : "",
+    ...reviewSections,
+    "",
+    failedReviews
+      ? `**Final Status:** PARTIAL — WRITER COMMIT EVIDENCE VERIFIED; ${failedReviews} REVIEWER(S) FAILED TO RETURN A REVIEW`
+      : "**Final Status:** RELAY EXECUTION VERIFIED — SINGLE WRITER + REVIEW + ONE-PASS REFINEMENT + COMMIT EVIDENCE",
+    "Production merge/deploy was not performed. The safe branch is ready for preview/test deployment.",
+  ].filter(Boolean).join("\n\n");
+
+  const developerExecutions = [
+    {
+      provider: writer,
+      name: writerName,
+      role: "writer",
+      branch,
+      commits,
+      pr: executed.pr || null,
+      summary: String(draftPlan.summary || `${writerName} development execution completed.`),
+    },
+    ...relayReviews.map((item) => ({
+      provider: item.provider,
+      name: item.name,
+      role: "reviewer",
+      branch: "",
+      commits: [],
+      pr: null,
+      summary: item.content,
+      ...(item.error ? { error: item.error } : {}),
+    })),
+  ];
 
   let userMessage: unknown = null;
   let aiMessage: unknown = null;
@@ -236,7 +335,7 @@ async function runSelectedDeveloperAgents(
         author_type: "ai",
         content: finalAnswer,
         language,
-        metadata: { workId: workSeed.workId, revision: workSeed.revision, developerExecutions: executions, memberCommand: data.memberCommand },
+        metadata: { workId: workSeed.workId, revision: workSeed.revision, developerExecutions, memberCommand: data.memberCommand },
       })
       .select("*")
       .single();
@@ -244,35 +343,43 @@ async function runSelectedDeveloperAgents(
     aiMessage = aiMsg;
   } else {
     userMessage = localDb.addMessage({ roomId: data.roomId, authorType: "user", content: data.prompt, language });
-    aiMessage = localDb.addMessage({ roomId: data.roomId, authorType: "ai", content: finalAnswer, language, metadata: { developerExecutions: executions, memberCommand: data.memberCommand } });
+    aiMessage = localDb.addMessage({ roomId: data.roomId, authorType: "ai", content: finalAnswer, language, metadata: { developerExecutions, memberCommand: data.memberCommand } });
   }
 
   return {
     blocked: false,
-    providers: executionProviders,
-    responses: executions.map((item) => ({
-      provider: item.provider,
-      content: item.error ? `EXECUTION FAILED: ${item.error}` : item.summary,
-      latencyMs: 0,
-      ...(item.error ? { error: item.error } : {}),
-    })),
+    providers: [writer, ...reviewProviders],
+    responses: [
+      {
+        provider: writer,
+        content: String(draftPlan.summary || `${writerName} development execution completed.`),
+        latencyMs: 0,
+      },
+      ...relayReviews.map((item) => ({
+        provider: item.provider,
+        content: item.error ? `REVIEW FAILED: ${item.error}` : item.content,
+        latencyMs: 0,
+        ...(item.error ? { error: item.error } : {}),
+      })),
+    ],
     workId: workSeed.workId,
     revision: workSeed.revision,
     workRecord: workSeed.workRecord,
     finalAnswer,
     comparison: {
-      winners: successful.map((item) => item.provider),
+      winners: [writer],
       notes: [
-        "Executable RC Room development is routed only to user-selected connected developer AIs.",
-        "ChatGPT, Claude, Gemini, Grok, and Codex use the same host GitHub execution contract and isolated provider branches.",
-        "Selected developer AIs execute in parallel when their work is independently assigned.",
-        "Production merge/deploy remains approval-gated.",
+        `Single Write Authority: only ${writerName} may mutate repository files for this task.`,
+        "Other selected developer AIs are review-only and receive the writer's proposed file actions before execution.",
+        "Reviewer findings are returned to the writer for exactly one bounded refinement pass before commit.",
+        "SUCCESS requires host-verified commit evidence; reviewer failure is reported as PARTIAL rather than hidden.",
+        "Production merge/deploy remains outside the relay execution and is prepared only after preview testing.",
       ],
     },
     latencyMs: workSeed.latencyMs,
     userMessage,
     aiMessage,
-    developerExecutions: executions,
+    developerExecutions,
   };
 }
 
