@@ -2,11 +2,11 @@ import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 import { logger } from "@/lib/logger";
 import { extractProviderText } from "./openrouter";
 
-const OPENAI_PRIMARY_TIMEOUT_MS = 25_000;
-const OPENAI_RETRY_TIMEOUT_MS = 15_000;
-const OPENROUTER_FALLBACK_TIMEOUT_MS = 20_000;
-const DEFAULT_MAX_OUTPUT_TOKENS = 2_048;
-const OPENROUTER_FALLBACK_MAX_TOKENS = 1_024;
+const OPENAI_PRIMARY_TIMEOUT_MS = 20_000;
+const OPENAI_RETRY_TIMEOUT_MS = 10_000;
+const OPENROUTER_FALLBACK_TIMEOUT_MS = 14_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 3_072;
+const OPENROUTER_FALLBACK_MAX_TOKENS = 2_048;
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 const DEFAULT_OPENAI_RETRY_MODEL = "gpt-4o-mini";
 
@@ -26,6 +26,10 @@ async function withTimeout<T>(promise: Promise<T>, ms: number, label: string): P
 
 function outputTokenLimit(request: AIRequest) {
   return Math.min(request.maxTokens || DEFAULT_MAX_OUTPUT_TOKENS, DEFAULT_MAX_OUTPUT_TOKENS);
+}
+
+function usefulPartial(content: string) {
+  return content.trim().length > 200;
 }
 
 async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) {
@@ -134,13 +138,23 @@ export class OpenAIConnector implements AIConnector {
         try {
           const result = await callOpenAI(request, attempt.model, attempt.timeoutMs);
           if (!result.content) throw new Error("OpenAI returned an empty response");
-          if (result.tokenLimited) throw new Error("OpenAI response ended at its output-token limit before completion");
+          if (result.tokenLimited && !usefulPartial(result.content)) {
+            throw new Error("OpenAI response ended at its output-token limit before completion");
+          }
+          if (result.tokenLimited) {
+            logger.warn("ai.provider.partial_accepted", {
+              provider: this.displayName,
+              model: result.model,
+              reason: "output-token-limit",
+              contentChars: result.content.length,
+            });
+          }
           return {
             provider: this.id,
             model: result.model,
             content: result.content,
             latencyMs: Date.now() - started,
-            raw: result.raw,
+            raw: result.tokenLimited ? { ...result.raw, rcTruncated: true } : result.raw,
           };
         } catch (error) {
           const message = error instanceof Error ? error.message : "Unknown OpenAI error";
@@ -152,6 +166,7 @@ export class OpenAIConnector implements AIConnector {
             explicitModel: Boolean(explicitModel),
             error: message.slice(0, 500),
           });
+          if (/timed out/i.test(message)) break;
         }
       }
     } else {
@@ -170,13 +185,23 @@ export class OpenAIConnector implements AIConnector {
       try {
         const result = await callOpenRouterFallback(request);
         if (!result.content) throw new Error("OpenRouter OpenAI fallback returned an empty response");
-        if (result.tokenLimited) throw new Error("OpenRouter OpenAI fallback ended at its output-token limit before completion");
+        if (result.tokenLimited && !usefulPartial(result.content)) {
+          throw new Error("OpenRouter OpenAI fallback ended at its output-token limit before completion");
+        }
+        if (result.tokenLimited) {
+          logger.warn("ai.provider.partial_accepted", {
+            provider: this.displayName,
+            model: result.model,
+            reason: "output-token-limit",
+            contentChars: result.content.length,
+          });
+        }
         return {
           provider: this.id,
           model: result.model,
           content: result.content,
           latencyMs: Date.now() - started,
-          raw: { fallback: "openrouter", result: result.raw, previousErrors: errors },
+          raw: { fallback: "openrouter", result: result.raw, previousErrors: errors, rcTruncated: result.tokenLimited },
         };
       } catch (error) {
         errors.push(error instanceof Error ? error.message : "Unknown OpenRouter fallback error");
