@@ -1,4 +1,5 @@
 import { AnthropicConnector } from "./anthropic";
+import { CodexConnector } from "./codex";
 import { DemoConnector } from "./demo";
 import { GoogleConnector } from "./google";
 import { OpenAIConnector } from "./openai";
@@ -17,6 +18,7 @@ const nativeConnectors: Partial<Record<AIProviderId, AIConnector>> = {
   google: new GoogleConnector(),
   xai: new XAIConnector(),
   perplexity: new PerplexityConnector(),
+  codex: new CodexConnector(),
 };
 
 const catalogConnectors: Partial<Record<AIProviderId, AIConnector>> = {};
@@ -32,11 +34,10 @@ for (const id of listRegisteredProviderIds()) {
   );
 }
 
-// The RCA Room catalog intentionally exposes all 25 provider families. If a
-// dedicated Perplexity key is present, prefer the native Sonar connector. When
-// it is absent but OpenRouter is configured, the owner's explicit all-AI Room
-// configuration allows Perplexity to use the same catalog transport as the
-// other OpenRouter-backed providers. The provider identity remains Perplexity.
+// The RCA Room catalog exposes every registered AI family. If a dedicated
+// Perplexity key is present, prefer the native Sonar connector. Otherwise the
+// existing OpenRouter account may carry Perplexity while preserving its
+// provider identity.
 const perplexityOpenRouterConnector = new OpenRouterCatalogConnector(
   "perplexity",
   PROVIDER_LABELS.perplexity,
