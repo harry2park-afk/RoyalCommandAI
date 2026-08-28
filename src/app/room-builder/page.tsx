@@ -123,14 +123,24 @@ export default function RoomBuilderPage() {
     setSaving(true);
     setError("");
     try {
-      const response = await fetch("/api/rooms", {
+      const response = await fetch("/api/room-factory/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: cleanName, description: buildDescription() }),
+        body: JSON.stringify({
+          roomName: cleanName,
+          templateId,
+          countryCode: globalSettings.countryCode,
+          languageTag: globalSettings.languageTag,
+          timeZone: globalSettings.timeZone,
+          currencyCode: globalSettings.currencyCode,
+          approvalMode,
+          websiteKit,
+          selectedMaterials,
+        }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload?.room?.id) {
-        setError(typeof payload?.error === "string" ? payload.error : "Could not create the Room.");
+      if (!response.ok || !payload?.room?.id || !payload?.manifest?.id) {
+        setError(typeof payload?.error === "string" ? payload.error : "Could not create the Room with Factory Manifest evidence.");
         return;
       }
       router.push(`/rooms/${payload.room.id}`);
