@@ -81,11 +81,12 @@ export async function POST(request: Request) {
     ].join("\n");
 
     const isGpt56 = model.id.startsWith("openai:gpt-5.6-");
+    const maxTokens = model.id === "xai:grok-4.5" ? 4200 : 2200;
     const started = Date.now();
     const result = await executeModelBinding(binding, {
       messages: [{ role: "user", content: prompt }],
       ...(isGpt56 ? {} : { temperature: 0.2 }),
-      maxTokens: 2200,
+      maxTokens,
     });
 
     if (result.error || !result.content.trim()) {
