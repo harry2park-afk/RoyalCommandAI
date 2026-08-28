@@ -15,6 +15,7 @@ const GEMINI_DEFAULT_OUTPUT_TOKENS = 2048;
 const GEMINI_MAX_OUTPUT_TOKENS = 16384;
 const GEMINI_OPENROUTER_MAX_TOKENS = 16384;
 const GEMINI_DIRECT_TIMEOUT_MS = 22_000;
+const GEMINI_HIGH_DEMAND_RETRY_DELAY_MS = 1_200;
 
 const openRouterGemini = new OpenRouterCatalogConnector(
   "google",
@@ -43,6 +44,14 @@ async function fetchWithTimeout(url: string, init: RequestInit, timeoutMs: numbe
   } finally {
     clearTimeout(timer);
   }
+}
+
+function isHighDemandError(message: string) {
+  return /(high demand|resource exhausted|too many requests|\b429\b)/i.test(message);
+}
+
+async function wait(ms: number) {
+  await new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
 
 export class GoogleConnector implements AIConnector {
@@ -173,7 +182,18 @@ export class GoogleConnector implements AIConnector {
           explicitModel: Boolean(explicitModel),
           keySlot: index + 1,
         });
-        const result = await direct(apiKeys[index]!, targetModel);
+        let result = await direct(apiKeys[index]!, targetModel);
+
+        if (explicitModel && isHighDemandError(result.error || "")) {
+          logger.warn("ai.provider.high_demand_retry", {
+            provider: this.displayName,
+            model: targetModel,
+            delayMs: GEMINI_HIGH_DEMAND_RETRY_DELAY_MS,
+          });
+          await wait(GEMINI_HIGH_DEMAND_RETRY_DELAY_MS);
+          result = await direct(apiKeys[index]!, targetModel);
+        }
+
         if (!result.error && result.content?.trim()) return result;
         directErrors.push(`${targetModel}: ${result.error || "empty response"}`);
         if (/timed out/i.test(result.error || "")) break;
