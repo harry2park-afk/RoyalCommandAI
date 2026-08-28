@@ -21,6 +21,8 @@ type SourceAnswer = {
   content: string;
 };
 
+type RunPhase = "idle" | "running" | "success" | "error";
+
 const INTEGRATOR_OPTIONS: readonly IntegratorOption[] = [
   { id: "openai:gpt-5.6-sol", name: "GPT-5.6 Sol", connected: true },
   { id: "google:gemini-3.7-flash", name: "Gemini 3.7 Flash", connected: true },
@@ -116,6 +118,9 @@ export default function NativeSynthesisButton() {
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [open, setOpen] = useState(false);
   const [running, setRunning] = useState(false);
+  const [runPhase, setRunPhase] = useState<RunPhase>("idle");
+  const [runMessage, setRunMessage] = useState("");
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [selected, setSelected] = useState<string[]>(() => readSavedSelection(roomId));
   const [draftSelected, setDraftSelected] = useState<string[]>(() => readSavedSelection(roomId));
 
@@ -154,14 +159,26 @@ export default function NativeSynthesisButton() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!running) return;
+    const startedAt = Date.now();
+    setElapsedSeconds(0);
+    const timer = window.setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
+
   function openChooser() {
     if (running) return;
     setDraftSelected(selected);
+    setRunPhase("idle");
+    setRunMessage("");
     setOpen(true);
   }
 
   function toggleModel(model: IntegratorOption) {
-    if (!model.connected) return;
+    if (!model.connected || running) return;
     setDraftSelected((current) =>
       current.includes(model.id)
         ? current.filter((id) => id !== model.id)
@@ -170,15 +187,23 @@ export default function NativeSynthesisButton() {
   }
 
   async function saveAndRun() {
+    if (running) return;
     const clean = Array.from(new Set(draftSelected.filter((id) => CONNECTED_MODEL_IDS.has(id))));
     setSelected(clean);
     try {
       localStorage.setItem(storageKey, JSON.stringify(clean));
     } catch {}
-    setOpen(false);
 
-    if (!clean.length) return;
+    if (!clean.length) {
+      setRunPhase("error");
+      setRunMessage("Select at least one Connected model.");
+      return;
+    }
+
+    const names = clean.map((id) => INTEGRATOR_OPTIONS.find((item) => item.id === id)?.name || id);
     setRunning(true);
+    setRunPhase("running");
+    setRunMessage(`${names.join(" + ")} is creating the Integrated Answer…`);
 
     try {
       const roomResponse = await fetch(`/api/rooms/${roomId}`, { cache: "no-store" });
@@ -212,22 +237,30 @@ export default function NativeSynthesisButton() {
       const failed = results.filter((item) => !item.ok);
       const succeeded = results.filter((item) => item.ok);
       if (succeeded.length) {
-        if (failed.length) {
-          window.alert(`${succeeded.length} Integrated Answer(s) completed. Failed: ${failed.map((item) => item.name).join(", ")}`);
-        }
-        window.location.reload();
+        setRunning(false);
+        setRunPhase("success");
+        setRunMessage(
+          failed.length
+            ? `${succeeded.length} completed. Failed: ${failed.map((item) => item.name).join(", ")}. Loading completed answer(s)…`
+            : `${succeeded.map((item) => item.name).join(" + ")} completed. Loading answer(s)…`,
+        );
+        window.setTimeout(() => window.location.reload(), 1100);
         return;
       }
 
       throw new Error(failed.map((item) => `${item.name}: ${item.error}`).join("\n") || "Integrated Answer failed.");
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : "Integrated Answer failed.");
       setRunning(false);
+      setRunPhase("error");
+      setRunMessage(error instanceof Error ? error.message : "Integrated Answer failed.");
     }
   }
 
   function cancelAndClose() {
+    if (running) return;
     setDraftSelected(selected);
+    setRunPhase("idle");
+    setRunMessage("");
     setOpen(false);
   }
 
@@ -247,7 +280,11 @@ export default function NativeSynthesisButton() {
       </button>
 
       {open && createPortal(
-        <div className="fixed inset-0 z-[400] flex items-start justify-center bg-black/70 px-4 pb-4 pt-[105px]" role="presentation" onClick={cancelAndClose}>
+        <div
+          className="fixed inset-0 z-[400] flex items-start justify-center bg-black/70 px-4 pb-4 pt-[105px]"
+          role="presentation"
+          onClick={running ? undefined : cancelAndClose}
+        >
           <div className="flex max-h-[76vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-[#d7b64d]/60 bg-[#081321] text-[#f4f0e7] shadow-2xl" onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
               <div>
@@ -256,7 +293,14 @@ export default function NativeSynthesisButton() {
                   {draftSelected.length} Selected · 3 Connected · 7 Not Connected
                 </div>
               </div>
-              <button type="button" onClick={cancelAndClose} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs">Cancel</button>
+              <button
+                type="button"
+                onClick={cancelAndClose}
+                disabled={running}
+                className="rounded-lg border border-white/15 px-3 py-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Cancel
+              </button>
             </div>
 
             <div className="min-h-0 overflow-y-auto p-2">
@@ -266,9 +310,9 @@ export default function NativeSynthesisButton() {
                   <button
                     key={model.id}
                     type="button"
-                    disabled={!model.connected}
+                    disabled={!model.connected || running}
                     onClick={() => toggleModel(model)}
-                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left ${model.connected ? "hover:bg-white/[0.07]" : "cursor-not-allowed opacity-55"}`}
+                    className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left ${model.connected && !running ? "hover:bg-white/[0.07]" : "cursor-not-allowed opacity-55"}`}
                     aria-pressed={checked}
                   >
                     <span className="w-5 shrink-0 text-right text-xs text-[#7f8998]">{index + 1}</span>
@@ -284,14 +328,35 @@ export default function NativeSynthesisButton() {
               })}
             </div>
 
+            {runPhase !== "idle" && (
+              <div className={`mx-4 mb-3 rounded-xl border px-4 py-3 ${runPhase === "error" ? "border-red-400/30 bg-red-500/10 text-red-200" : runPhase === "success" ? "border-emerald-400/30 bg-emerald-500/10 text-emerald-200" : "border-[#d7b64d]/35 bg-[#d7b64d]/10 text-[#f4d66c]"}`}>
+                <div className="flex items-center gap-3">
+                  {runPhase === "running" && (
+                    <span className="h-5 w-5 shrink-0 animate-spin rounded-full border-2 border-[#d7b64d]/30 border-t-[#f4d66c]" aria-hidden="true" />
+                  )}
+                  {runPhase === "success" && <span className="text-lg">✓</span>}
+                  {runPhase === "error" && <span className="text-lg">!</span>}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-semibold">{runMessage}</div>
+                    {runPhase === "running" && (
+                      <div className="mt-1 text-xs text-[#c9b96f]">Working · {elapsedSeconds}s elapsed</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between gap-3 border-t border-white/10 px-4 py-3">
-              <div className="text-xs text-[#9aa4b3]">Select connected models. Done will create one Integrated Answer per selected model.</div>
+              <div className="text-xs text-[#9aa4b3]">
+                {running ? "Please wait. This window will stay open until the Integrated Answer finishes." : "Select connected models. Done will create one Integrated Answer per selected model."}
+              </div>
               <button
                 type="button"
                 onClick={() => void saveAndRun()}
-                className="rounded-lg border border-[#d7b64d]/70 bg-[#d7b64d]/10 px-5 py-2 text-sm font-semibold text-[#f4d66c]"
+                disabled={running}
+                className="rounded-lg border border-[#d7b64d]/70 bg-[#d7b64d]/10 px-5 py-2 text-sm font-semibold text-[#f4d66c] disabled:cursor-not-allowed disabled:opacity-50"
               >
-                Done
+                {running ? "Working…" : "Done"}
               </button>
             </div>
           </div>
