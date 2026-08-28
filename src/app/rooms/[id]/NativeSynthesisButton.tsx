@@ -162,7 +162,6 @@ export default function NativeSynthesisButton() {
   useEffect(() => {
     if (!running) return;
     const startedAt = Date.now();
-    setElapsedSeconds(0);
     const timer = window.setInterval(() => {
       setElapsedSeconds(Math.floor((Date.now() - startedAt) / 1000));
     }, 1000);
@@ -201,6 +200,7 @@ export default function NativeSynthesisButton() {
     }
 
     const names = clean.map((id) => INTEGRATOR_OPTIONS.find((item) => item.id === id)?.name || id);
+    setElapsedSeconds(0);
     setRunning(true);
     setRunPhase("running");
     setRunMessage(`${names.join(" + ")} is creating the Integrated Answer…`);
