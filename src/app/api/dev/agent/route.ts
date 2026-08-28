@@ -158,6 +158,26 @@ async function ensureWorkBranch(branch: string) {
   }
 }
 
+async function resolvePlanningRef(instruction: string, provider: DevProvider) {
+  const factoryWork = instruction.match(/Work ID:\s*(RC-FACTORY-[A-Z0-9-]+)/i);
+  if (!factoryWork) return BASE_BRANCH;
+
+  const revisionMatch = instruction.match(/Revision:\s*(\d+)/i);
+  const meta: WorkMeta = {
+    workId: factoryWork[1].toUpperCase(),
+    revision: Math.max(1, Number(revisionMatch?.[1] || 1)),
+  };
+  const branch = workBranch(meta, provider);
+  try {
+    await github(`/git/ref/heads/${encodeURIComponent(branch)}`);
+    return branch;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    if (/not found/i.test(message)) return BASE_BRANCH;
+    throw error;
+  }
+}
+
 async function developerModel(provider: DevProvider, prompt: string) {
   const connector = getConnector(provider as AIProviderId);
   if (!connector.isConfigured()) {
@@ -251,10 +271,10 @@ function createPullRequest(meta: WorkMeta, provider: DevProvider, branch: string
   };
 }
 
-async function generateOneAction(plan: PlannedAction, instruction: string, provider: DevProvider): Promise<DevAction> {
+async function generateOneAction(plan: PlannedAction, instruction: string, provider: DevProvider, planningRef = BASE_BRANCH): Promise<DevAction> {
   if (plan.operation === "delete") return { ...plan };
 
-  const current = await getFile(plan.path, BASE_BRANCH);
+  const current = await getFile(plan.path, planningRef);
   const currentBlock = current.exists
     ? `CURRENT FILE (${plan.path}):\n${current.content}`
     : `CURRENT FILE (${plan.path}): DOES NOT EXIST`;
@@ -345,7 +365,8 @@ export async function POST(request: Request) {
       });
     }
 
-    const tree = await github(`/git/trees/${encodeURIComponent(BASE_BRANCH)}?recursive=1`);
+    const planningRef = await resolvePlanningRef(instruction, provider);
+    const tree = await github(`/git/trees/${encodeURIComponent(planningRef)}?recursive=1`);
     const treeEntries = Array.isArray(tree.tree) ? tree.tree : [];
     const paths = treeEntries
       .filter((entry: unknown) => {
@@ -362,7 +383,7 @@ export async function POST(request: Request) {
 
     const summaries = [];
     for (const path of readPaths) {
-      const file = await getFile(path, BASE_BRANCH);
+      const file = await getFile(path, planningRef);
       if (file.exists) summaries.push(`--- ${path} ---\n${file.content.slice(0, 30000)}`);
     }
 
@@ -386,12 +407,13 @@ export async function POST(request: Request) {
     if (!planned.length) return NextResponse.json({ error: `${PROVIDER_NAMES[provider]} could not produce a safe executable change plan`, selection, planResult }, { status: 422 });
 
     const actions: DevAction[] = [];
-    for (const plan of planned) actions.push(await generateOneAction(plan, instruction, provider));
+    for (const plan of planned) actions.push(await generateOneAction(plan, instruction, provider, planningRef));
 
     return NextResponse.json({
       ok: true,
       executed: false,
       provider,
+      planningRef,
       summary: planResult.summary || selection.reason || "",
       actions,
     });
