@@ -12,6 +12,12 @@
     return name === "australia" || name.startsWith("australia ") || name === "australian";
   };
 
+  const isLegalRoom = (room) => {
+    const name = String(room?.name || "").trim().toLowerCase();
+    const description = String(room?.description || "").trim().toLowerCase();
+    return name.includes("법률") || name.includes("legal") || description.startsWith("legal office");
+  };
+
   function installStyle() {
     if (document.getElementById(STYLE_ID)) return;
     const style = document.createElement("style");
@@ -41,7 +47,8 @@
         cursor:pointer !important; color:#fff8e7 !important; text-shadow:0 1px 1px rgba(0,0,0,.55) !important;
       }
       #${SWITCHER_ID} .rc-room-tone-0 { border-color:#d36b78 !important; background:linear-gradient(135deg,#681428 0%,#a52842 52%,#50101f 100%) !important; }
-      #${SWITCHER_ID} .rc-room-tone-1 { border-color:#6f9ddd !important; background:linear-gradient(135deg,#173b70 0%,#245ca5 52%,#102f5b 100%) !important; }
+      #${SWITCHER_ID} .rc-room-tone-1,
+      #${SWITCHER_ID} .rc-room-legal { border-color:#6f9ddd !important; background:linear-gradient(135deg,#173b70 0%,#245ca5 52%,#102f5b 100%) !important; }
       #${SWITCHER_ID} .rc-room-tone-2 { border-color:#a98ed6 !important; background:linear-gradient(135deg,#3c245f 0%,#65439a 52%,#2b1948 100%) !important; }
       #${SWITCHER_ID} .rc-room-switcher-real[aria-current="page"] { outline:2px solid rgba(255,225,120,.85) !important; outline-offset:1px !important; }
       #${FINDER_ID} { flex:0 0 112px !important; width:112px !important; height:30px !important; margin-left:auto !important; margin-right:72px !important; border:1px solid #d9b44a !important; border-radius:6px !important; background:#7A0C2E !important; color:#fff4c2 !important; font:700 11px/28px "Times New Roman",Times,serif !important; text-align:center !important; white-space:nowrap !important; cursor:pointer !important; }
@@ -108,7 +115,8 @@
     visibleRooms.forEach((room, index) => {
       const button = document.createElement("button");
       button.type = "button";
-      button.className = `rc-room-switcher-button rc-room-switcher-real rc-room-tone-${index % 3}`;
+      const toneClass = isLegalRoom(room) ? "rc-room-legal" : `rc-room-tone-${index % 3}`;
+      button.className = `rc-room-switcher-button rc-room-switcher-real ${toneClass}`;
       button.textContent = String(room.name); button.title = String(room.name); button.dataset.roomId = String(room.id);
       if (String(room.id) === currentRoomId) button.setAttribute("aria-current", "page");
       button.addEventListener("click", () => {
