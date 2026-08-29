@@ -17,6 +17,10 @@ function requiresPayment(service: { pricing_type?: string | null; price_minor?: 
   return !service.default_included && service.pricing_type !== "free";
 }
 
+function isRoomScope(scope?: string | null) {
+  return scope === "room" || scope === "both";
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -35,7 +39,7 @@ export async function GET(
       .select("service_key,category,name_ko,name_en,summary_ko,summary_en,pricing_type,currency,price_minor,price_status,default_included,sort_order,connection_status,agreement_required,terms_version")
       .eq("active", true)
       .eq("customer_selectable", true)
-      .eq("connection_scope", "room")
+      .in("connection_scope", ["room", "both"])
       .order("category", { ascending: true })
       .order("sort_order", { ascending: true }),
     supabase
@@ -57,7 +61,7 @@ export async function GET(
         ...service,
         payment_required: requiresPayment(service),
         selection_status: selection?.selection_status || (service.default_included ? "active" : "cancelled"),
-        payment_status: selection?.payment_status || (service.default_included ? "not_required" : "not_required"),
+        payment_status: selection?.payment_status || "not_required",
         agreed_at: selection?.agreed_at || null,
       };
     }),
@@ -87,7 +91,7 @@ export async function POST(
     .select("service_key,default_included,active,customer_selectable,connection_scope,pricing_type,price_minor,currency,terms_version,agreement_required")
     .eq("service_key", serviceKey)
     .maybeSingle();
-  if (!service?.active || !service?.customer_selectable || service.connection_scope !== "room") {
+  if (!service?.active || !service?.customer_selectable || !isRoomScope(service.connection_scope)) {
     return NextResponse.json({ error: "Service unavailable in this Room" }, { status: 404 });
   }
   if (action === "disconnect" && service.default_included) {
