@@ -16,7 +16,7 @@ const channelSchema = z.enum([
 ]);
 
 const createSchema = z.object({
-  caseId: z.string().uuid(),
+  caseId: z.string().uuid().nullable().optional(),
   channel: channelSchema,
   direction: z.enum(["internal", "inbound", "outbound"]).default("internal"),
   counterpartyName: z.string().trim().max(200).nullable().optional(),
@@ -83,24 +83,12 @@ async function resolveRecordingPolicy(
   regionCode: string | null;
 }> {
   if (!countryCode) {
-    return {
-      policy: "prohibited",
-      status: "blocked",
-      reviewStatus: "missing_country",
-      countryCode: null,
-      regionCode,
-    };
+    return { policy: "prohibited", status: "blocked", reviewStatus: "missing_country", countryCode: null, regionCode };
   }
 
   const country = countryCode.toUpperCase();
   const region = regionCode?.toUpperCase() || null;
-
-  let row: {
-    review_status?: string;
-    recording_policy?: string;
-    country_code?: string;
-    region_code?: string | null;
-  } | null = null;
+  let row: { review_status?: string; recording_policy?: string; country_code?: string; region_code?: string | null } | null = null;
 
   if (region) {
     const { data } = await supabase
@@ -123,37 +111,21 @@ async function resolveRecordingPolicy(
   }
 
   if (!row || row.review_status !== "approved") {
-    return {
-      policy: "prohibited",
-      status: "blocked",
-      reviewStatus: row?.review_status || "missing_policy",
-      countryCode: country,
-      regionCode: region,
-    };
+    return { policy: "prohibited", status: "blocked", reviewStatus: row?.review_status || "missing_policy", countryCode: country, regionCode: region };
   }
 
-  const mapped: SessionRecordingPolicy =
-    row.recording_policy === "allowed"
-      ? "allowed"
-      : row.recording_policy === "notice_required"
-        ? "notice_required"
-        : row.recording_policy === "consent_required"
-          ? "consent_required"
-          : "prohibited";
+  const mapped: SessionRecordingPolicy = row.recording_policy === "allowed"
+    ? "allowed"
+    : row.recording_policy === "notice_required"
+      ? "notice_required"
+      : row.recording_policy === "consent_required"
+        ? "consent_required"
+        : "prohibited";
 
-  return {
-    policy: mapped,
-    status: initialRecordingState(mapped),
-    reviewStatus: row.review_status,
-    countryCode: country,
-    regionCode: region,
-  };
+  return { policy: mapped, status: initialRecordingState(mapped), reviewStatus: row.review_status, countryCode: country, regionCode: region };
 }
 
-export async function GET(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isSupabaseConfigured()) return NextResponse.json({ sessions: [] });
@@ -165,7 +137,7 @@ export async function GET(
   const caseId = new URL(request.url).searchParams.get("caseId");
   let query = supabase
     .from("communication_sessions")
-    .select("id, room_id, case_id, channel, direction, counterparty_name, counterparty_address, status, recording_policy, recording_status, started_at, ended_at, created_at, updated_at")
+    .select("id, room_id, case_id, channel, direction, counterparty_name, counterparty_address, status, recording_policy, recording_status, disposition, dispositioned_at, started_at, ended_at, created_at, updated_at")
     .eq("room_id", roomId)
     .eq("owner_id", user.id)
     .order("created_at", { ascending: false })
@@ -182,10 +154,7 @@ export async function GET(
   return NextResponse.json({ sessions: data || [] });
 }
 
-export async function POST(
-  request: Request,
-  context: { params: Promise<{ id: string }> },
-) {
+export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isSupabaseConfigured()) return NextResponse.json({ error: "Database unavailable" }, { status: 503 });
@@ -195,25 +164,22 @@ export async function POST(
   const { supabase, room, countryCode } = await roomContext(roomId, user.id);
   if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
-  const legalCase = await caseBelongsToRoom(supabase, roomId, user.id, input.caseId);
-  if (!legalCase) return NextResponse.json({ error: "Case not found" }, { status: 404 });
+  let legalCase: { id: string; case_number: number | null; title: string } | null = null;
+  if (input.caseId) {
+    legalCase = await caseBelongsToRoom(supabase, roomId, user.id, input.caseId);
+    if (!legalCase) return NextResponse.json({ error: "Case not found" }, { status: 404 });
+  }
 
   const voiceChannel = input.channel === "rc_voice" || input.channel === "rc_video" || input.channel === "phone";
   const policy = voiceChannel
     ? await resolveRecordingPolicy(supabase, countryCode, input.regionCode || null)
-    : {
-        policy: "unknown" as SessionRecordingPolicy,
-        status: "not_started" as SessionRecordingStatus,
-        reviewStatus: "not_applicable",
-        countryCode: countryCode?.toUpperCase() || null,
-        regionCode: input.regionCode?.toUpperCase() || null,
-      };
+    : { policy: "unknown" as SessionRecordingPolicy, status: "not_started" as SessionRecordingStatus, reviewStatus: "not_applicable", countryCode: countryCode?.toUpperCase() || null, regionCode: input.regionCode?.toUpperCase() || null };
 
   const { data, error } = await supabase
     .from("communication_sessions")
     .insert({
       room_id: roomId,
-      case_id: input.caseId,
+      case_id: input.caseId || null,
       owner_id: user.id,
       channel: input.channel,
       direction: input.direction,
@@ -222,19 +188,19 @@ export async function POST(
       status: "created",
       recording_policy: policy.policy,
       recording_status: policy.status,
+      disposition: input.caseId ? "case" : "pending",
+      dispositioned_at: input.caseId ? new Date().toISOString() : null,
       updated_at: new Date().toISOString(),
     })
-    .select("id, room_id, case_id, channel, direction, counterparty_name, counterparty_address, status, recording_policy, recording_status, started_at, ended_at, created_at, updated_at")
+    .select("id, room_id, case_id, channel, direction, counterparty_name, counterparty_address, status, recording_policy, recording_status, disposition, dispositioned_at, started_at, ended_at, created_at, updated_at")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  await supabase
-    .from("legal_cases")
-    .update({ updated_at: new Date().toISOString() })
-    .eq("id", input.caseId)
-    .eq("room_id", roomId)
-    .eq("owner_id", user.id);
+  if (input.caseId) {
+    await supabase.from("legal_cases").update({ updated_at: new Date().toISOString() })
+      .eq("id", input.caseId).eq("room_id", roomId).eq("owner_id", user.id);
+  }
 
   return NextResponse.json({
     session: data,
