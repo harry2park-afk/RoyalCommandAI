@@ -6,21 +6,19 @@ const MARKER = "data-rc-legal-wide";
 const EXIT_ID = "rc-legal-exit-to-room";
 
 function findLegalSection() {
-  const sections = Array.from(document.querySelectorAll<HTMLElement>("section"));
-  return sections.find((section) => {
-    if (section.offsetParent === null) return false;
+  const byMarker = document.querySelector<HTMLElement>(`section[${MARKER}="1"]`);
+  if (byMarker) return byMarker;
+
+  const byText = Array.from(document.querySelectorAll<HTMLElement>("section")).find((section) => {
     const text = (section.textContent || "").replace(/\s+/g, " ");
-    const hasTitle = text.includes("내 법률방") || text.includes("My Legal Room");
-    const buttons = Array.from(section.querySelectorAll<HTMLButtonElement>("button"));
-    const hasLegalActions = buttons.some((button) => {
-      const label = (button.textContent || "").replace(/\s+/g, " ");
-      return label.includes("내 사건 이야기하기") || label.includes("Tell my story");
-    });
-    return hasTitle && hasLegalActions;
-  }) || null;
+    return text.includes("내 법률방") || text.includes("My Legal Room");
+  });
+  if (byText) return byText;
+
+  return document.querySelector<HTMLElement>('section.fixed[class*="left-[245px]"][class*="right-[185px]"]');
 }
 
-function setImportantStyle(element: HTMLElement, property: string, value: string) {
+function forceStyle(element: HTMLElement, property: string, value: string) {
   element.style.setProperty(property, value, "important");
 }
 
@@ -29,15 +27,14 @@ function applyWideLayout() {
   if (!section) return false;
 
   section.setAttribute(MARKER, "1");
-  setImportantStyle(section, "left", "8px");
-  setImportantStyle(section, "right", "185px");
-  setImportantStyle(section, "width", "auto");
-  setImportantStyle(section, "max-width", "none");
-  setImportantStyle(section, "margin-left", "0");
-  setImportantStyle(section, "margin-right", "0");
-  setImportantStyle(section, "top", "104px");
-  setImportantStyle(section, "max-height", "calc(100dvh - 118px)");
-  setImportantStyle(section, "z-index", "460");
+  forceStyle(section, "left", "8px");
+  forceStyle(section, "right", "185px");
+  forceStyle(section, "width", "auto");
+  forceStyle(section, "max-width", "none");
+  forceStyle(section, "margin-left", "0");
+  forceStyle(section, "margin-right", "0");
+  forceStyle(section, "top", "104px");
+  forceStyle(section, "max-height", "calc(100dvh - 118px)");
 
   let exit = document.getElementById(EXIT_ID) as HTMLButtonElement | null;
   if (!exit) {
@@ -45,18 +42,20 @@ function applyWideLayout() {
     exit.id = EXIT_ID;
     exit.type = "button";
     exit.textContent = "RCA 채팅룸으로 나가기 / Exit to RCA Room";
-    exit.style.position = "fixed";
-    exit.style.right = "205px";
-    exit.style.top = "112px";
-    exit.style.zIndex = "520";
-    exit.style.border = "1px solid #d7b64d";
-    exit.style.borderRadius = "10px";
-    exit.style.background = "#7A0C2E";
-    exit.style.color = "#ffe18a";
-    exit.style.padding = "8px 14px";
-    exit.style.fontSize = "13px";
-    exit.style.fontWeight = "700";
-    exit.style.cursor = "pointer";
+    Object.assign(exit.style, {
+      position: "fixed",
+      right: "205px",
+      top: "112px",
+      zIndex: "510",
+      border: "1px solid #d7b64d",
+      borderRadius: "10px",
+      background: "#7A0C2E",
+      color: "#ffe18a",
+      padding: "8px 14px",
+      fontSize: "13px",
+      fontWeight: "700",
+      cursor: "pointer",
+    });
     exit.onclick = () => {
       const current = findLegalSection();
       if (!current) return;
@@ -65,7 +64,7 @@ function applyWideLayout() {
         return title.includes("줄이기") || title.includes("minimize");
       });
       if (closeButton) closeButton.click();
-      else current.style.display = "none";
+      else forceStyle(current, "display", "none");
     };
     document.body.appendChild(exit);
   }
@@ -75,25 +74,36 @@ function applyWideLayout() {
 
 export default function LegalRoomLayoutBridge() {
   useEffect(() => {
-    let timer = 0;
+    let interval = 0;
+    let frame = 0;
+
     const sync = () => {
-      const section = findLegalSection();
-      const exit = document.getElementById(EXIT_ID) as HTMLElement | null;
-      if (section) {
-        applyWideLayout();
-      } else if (exit) {
-        exit.style.display = "none";
-      }
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        const section = findLegalSection();
+        const exit = document.getElementById(EXIT_ID) as HTMLElement | null;
+        if (section && section.offsetParent !== null) {
+          applyWideLayout();
+        } else if (exit) {
+          exit.style.display = "none";
+        }
+      });
     };
 
     sync();
     const observer = new MutationObserver(sync);
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
-    timer = window.setInterval(sync, 250);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["style", "class"],
+    });
+    interval = window.setInterval(sync, 250);
 
     return () => {
       observer.disconnect();
-      window.clearInterval(timer);
+      window.clearInterval(interval);
+      window.cancelAnimationFrame(frame);
       document.getElementById(EXIT_ID)?.remove();
     };
   }, []);
