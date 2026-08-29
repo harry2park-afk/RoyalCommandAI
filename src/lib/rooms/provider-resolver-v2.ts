@@ -1,4 +1,4 @@
-import { decideDelivery, rankProvider, type DeliveryStrategy, type DeliverySurface, type ProviderCandidate } from "@/lib/rooms/connect-first-policy";
+import { decideDelivery, rankProvider, type DeliveryStrategy, type ProviderCandidate } from "@/lib/rooms/connect-first-policy";
 
 type ServiceRow = {
   service_key: string;
@@ -13,7 +13,6 @@ type OfferRow = {
   ownership_model: string;
   api_available: boolean;
   oauth_available: boolean;
-  delivery_surface: DeliverySurface;
   connection_status: ProviderCandidate["connectionStatus"];
   active: boolean;
   priority: number;
@@ -31,27 +30,13 @@ type ProviderRow = {
   active: boolean;
 };
 
-export type SafeResolvedProvider = {
-  providerKey: string;
-  providerName: string;
-  websiteUrl: string | null;
-  commercialModel: OfferRow["commercial_model"];
-  ownershipModel: string;
-  deliverySurface: DeliverySurface;
-  apiAvailable: boolean;
-  oauthAvailable: boolean;
-  connectionStatus: OfferRow["connection_status"];
-  currency: string;
-  customerPriceMinor: number | null;
-};
-
 export type ProviderResolution = {
   serviceKey: string;
   countryCode: string;
   deliveryStrategy: DeliveryStrategy;
   buildStatus: string;
   mode: "connect" | "rc_native" | "build_candidate" | "unavailable";
-  provider: SafeResolvedProvider | null;
+  providerKey: string | null;
 };
 
 function toCandidate(row: OfferRow): ProviderCandidate {
@@ -61,7 +46,6 @@ function toCandidate(row: OfferRow): ProviderCandidate {
     reviewStatus: row.review_status,
     apiAvailable: row.api_available,
     oauthAvailable: row.oauth_available,
-    deliverySurface: row.delivery_surface,
     preferred: row.preferred,
     priority: row.priority,
     providerFitScore: row.provider_fit_score,
@@ -94,13 +78,13 @@ export async function resolveServiceProviderV2(
       deliveryStrategy: typedService.delivery_strategy,
       buildStatus: typedService.build_status,
       mode: "rc_native",
-      provider: null,
+      providerKey: null,
     };
   }
 
   const { data: offers, error: offersError } = await supabase
     .from("rc_service_provider_offers")
-    .select("provider_key,commercial_model,ownership_model,api_available,oauth_available,delivery_surface,connection_status,active,priority,preferred,provider_fit_score,review_status,currency,customer_price_minor")
+    .select("provider_key,commercial_model,ownership_model,api_available,oauth_available,connection_status,active,priority,preferred,provider_fit_score,review_status,currency,customer_price_minor")
     .eq("service_key", normalizedServiceKey)
     .eq("country_code", normalizedCountry)
     .eq("active", true);
@@ -116,7 +100,7 @@ export async function resolveServiceProviderV2(
       deliveryStrategy: typedService.delivery_strategy,
       buildStatus: typedService.build_status,
       mode: decision.mode,
-      provider: null,
+      providerKey: null,
     };
   }
 
@@ -132,13 +116,13 @@ export async function resolveServiceProviderV2(
       deliveryStrategy: typedService.delivery_strategy,
       buildStatus: typedService.build_status,
       mode: "build_candidate",
-      provider: null,
+      providerKey: null,
     };
   }
 
   const { data: provider, error: providerError } = await supabase
     .from("rc_service_providers")
-    .select("provider_key,provider_name,website_url,active")
+    .select("provider_key,active")
     .eq("provider_key", winningOffer.provider_key)
     .maybeSingle();
 
@@ -151,7 +135,7 @@ export async function resolveServiceProviderV2(
       deliveryStrategy: typedService.delivery_strategy,
       buildStatus: typedService.build_status,
       mode: "build_candidate",
-      provider: null,
+      providerKey: null,
     };
   }
 
@@ -161,18 +145,6 @@ export async function resolveServiceProviderV2(
     deliveryStrategy: typedService.delivery_strategy,
     buildStatus: typedService.build_status,
     mode: "connect",
-    provider: {
-      providerKey: typedProvider.provider_key,
-      providerName: typedProvider.provider_name,
-      websiteUrl: typedProvider.website_url,
-      commercialModel: winningOffer.commercial_model,
-      ownershipModel: winningOffer.ownership_model,
-      deliverySurface: winningOffer.delivery_surface,
-      apiAvailable: winningOffer.api_available,
-      oauthAvailable: winningOffer.oauth_available,
-      connectionStatus: winningOffer.connection_status,
-      currency: winningOffer.currency,
-      customerPriceMinor: winningOffer.customer_price_minor,
-    },
+    providerKey: typedProvider.provider_key,
   };
 }
