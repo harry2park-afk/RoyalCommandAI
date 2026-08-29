@@ -14,6 +14,7 @@ import AIHelperVoiceBridge from "./AIHelperVoiceBridge";
 import MainChatMicBridge from "./MainChatMicBridge";
 import IntegratedAnswerInlineStatus from "./IntegratedAnswerInlineStatus";
 import LegalRoomStarter from "./LegalRoomStarter";
+import LegalHelperOpenBridge from "./LegalHelperOpenBridge";
 
 type Conversation = {
   id: string;
@@ -196,6 +197,7 @@ export default function StableRoomV3() {
       <RoomSiteLinks />
       <SavedConversationInspector />
       <AIHelperChat />
+      <LegalHelperOpenBridge />
       <AIHelperVoiceBridge />
       <MainChatMicBridge />
       <LiveAvatarLayer />
