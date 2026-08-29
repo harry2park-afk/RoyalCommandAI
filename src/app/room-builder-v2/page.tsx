@@ -62,8 +62,7 @@ export default function RoomBuilderV2Page() {
   const [user, setUser] = useState<CurrentUser | null>(null);
   const [countryCode, setCountryCode] = useState("");
   const [purpose, setPurpose] = useState("");
-  const [roomName, setRoomName] = useState("");
-  const [nameEdited, setNameEdited] = useState(false);
+  const [roomNameOverride, setRoomNameOverride] = useState("");
   const [saving, setSaving] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
@@ -90,12 +89,10 @@ export default function RoomBuilderV2Page() {
 
   const purposeMatch = useMemo(() => matchPurpose(purpose), [purpose]);
   const korean = user?.defaultLanguage?.toLowerCase().startsWith("ko") || false;
-
-  useEffect(() => {
-    if (!user || nameEdited) return;
-    const label = korean ? purposeMatch.ko : purposeMatch.label;
-    setRoomName(`${firstName(user.fullName)} ${label}`.trim());
-  }, [korean, nameEdited, purposeMatch, user]);
+  const automaticRoomName = user
+    ? `${firstName(user.fullName)} ${korean ? purposeMatch.ko : purposeMatch.label}`.trim()
+    : "";
+  const roomName = roomNameOverride || automaticRoomName;
 
   function startVoice() {
     if (listening) {
@@ -206,10 +203,7 @@ export default function RoomBuilderV2Page() {
             <input
               className="rc-input mt-2 min-h-12 text-lg font-semibold"
               value={roomName}
-              onChange={(event) => {
-                setNameEdited(true);
-                setRoomName(event.target.value);
-              }}
+              onChange={(event) => setRoomNameOverride(event.target.value)}
               maxLength={120}
             />
             <p className="mt-2 text-xs text-[var(--muted)]">{korean ? "이름은 자동으로 만들었습니다. 원하시면 지금 또는 나중에 바꾸실 수 있습니다." : "I created this name automatically. You can change it now or later."}</p>
