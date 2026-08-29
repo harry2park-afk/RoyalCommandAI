@@ -11,7 +11,7 @@ type Dict = Record<ConnectorTextKey, string>;
 const EN: Dict = {
   connectButton: "Connect", dialogTitle: "Connect to this Room", searchPlaceholder: "Search AI, apps, tools or services…",
   all: "All", ai: "AI", tools: "Apps & Tools", services: "Services", sendSelected: "Send to this Room",
-  selectedCount: "selected", connected: "Connected", notConnected: "Not connected", notAvailable: "Not available", loading: "Loading…",
+  selectedCount: "selected", connected: "Already connected", notConnected: "Not connected", notAvailable: "Not available", loading: "Loading…",
   included: "Included", pendingPayment: "Pending payment", planned: "Coming soon", connect: "Connect", disconnect: "Disconnect",
   payment: "Payment", cancel: "Cancel", agreementTitle: "Connection agreement",
   agreementBody: "I agree to connect the selected items to this Room and accept the displayed price, free-trial terms, renewal terms and applicable Royal Command service terms.",
@@ -28,7 +28,7 @@ const EN: Dict = {
 const KO: Dict = {
   connectButton: "연결", dialogTitle: "이 Room에 연결", searchPlaceholder: "AI, 앱, 도구 또는 서비스를 검색하세요…",
   all: "전체", ai: "AI", tools: "앱 및 도구", services: "서비스", sendSelected: "이 Room으로 보내기",
-  selectedCount: "개 선택", connected: "연결됨", notConnected: "연결 안 됨", notAvailable: "사용 불가", loading: "불러오는 중…",
+  selectedCount: "개 선택", connected: "이미 연결됨", notConnected: "연결 안 됨", notAvailable: "사용 불가", loading: "불러오는 중…",
   included: "기본 포함", pendingPayment: "결제 대기", planned: "준비 중", connect: "연결", disconnect: "연결 해제",
   payment: "결제", cancel: "취소", agreementTitle: "연결 동의",
   agreementBody: "선택한 항목을 이 Room에 연결하고 표시된 가격, 무료체험 조건, 자동갱신 조건 및 해당 Royal Command 서비스 약관에 동의합니다.",
@@ -73,7 +73,7 @@ const ZH_TW: Dict = {
 const AR: Dict = {
   connectButton: "اتصال", dialogTitle: "الاتصال بهذه الغرفة", searchPlaceholder: "ابحث عن الذكاء الاصطناعي أو التطبيقات أو الأدوات أو الخدمات…",
   all: "الكل", ai: "الذكاء الاصطناعي", tools: "التطبيقات والأدوات", services: "الخدمات", sendSelected: "إرسال إلى هذه الغرفة",
-  selectedCount: "محدد", connected: "متصل", notConnected: "غير متصل", notAvailable: "غير متاح", loading: "جارٍ التحميل…",
+  selectedCount: "محدد", connected: "متصل بالفعل", notConnected: "غير متصل", notAvailable: "غير متاح", loading: "جارٍ التحميل…",
   included: "مضمّن", pendingPayment: "بانتظار الدفع", planned: "قريبًا", connect: "اتصال", disconnect: "قطع الاتصال",
   payment: "الدفع", cancel: "إلغاء", agreementTitle: "اتفاقية الاتصال",
   agreementBody: "أوافق على توصيل العناصر المحددة بهذه الغرفة وقبول السعر المعروض وشروط التجربة المجانية والتجديد وشروط خدمة Royal Command المعمول بها.",
