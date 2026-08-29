@@ -36,26 +36,49 @@
     }
   }
 
-  function matchConnectToWarehouse() {
-    const button = Array.from(document.querySelectorAll('button')).find((item) => {
+  function findConnectButton() {
+    return Array.from(document.querySelectorAll('button')).find((item) => {
       if (!(item instanceof HTMLButtonElement)) return false;
       return item.style.position === 'fixed'
         && item.style.right === '184px'
         && item.style.zIndex === '355';
-    });
-    if (!(button instanceof HTMLButtonElement)) return;
+    }) || null;
+  }
 
-    // Connect only: mirror the AI Warehouse box dimensions/spacing.
-    button.style.boxSizing = 'border-box';
-    button.style.height = '32px';
-    button.style.width = '128px';
-    button.style.minWidth = '128px';
-    button.style.maxWidth = '128px';
-    button.style.top = '51px';
-    button.style.padding = '0 12px';
-    button.style.borderRadius = '6px';
-    button.style.fontSize = '10px';
-    button.style.gap = '4px';
+  function findWarehouseButton() {
+    return Array.from(document.querySelectorAll('button')).find((item) => {
+      if (!(item instanceof HTMLButtonElement)) return false;
+      return (item.title || '').startsWith('AI Warehouse');
+    }) || null;
+  }
+
+  function matchConnectToWarehouse() {
+    const connect = findConnectButton();
+    const warehouse = findWarehouseButton();
+    if (!(connect instanceof HTMLButtonElement) || !(warehouse instanceof HTMLButtonElement)) return;
+
+    const warehouseStyle = window.getComputedStyle(warehouse);
+    const warehouseRect = warehouse.getBoundingClientRect();
+
+    // Copy only the AI Warehouse box geometry/typography onto Connect.
+    // Keep Connect's own click handler, label, colours and connector logic untouched.
+    connect.style.boxSizing = warehouseStyle.boxSizing;
+    connect.style.height = `${warehouseRect.height}px`;
+    connect.style.width = `${warehouseRect.width}px`;
+    connect.style.minWidth = `${warehouseRect.width}px`;
+    connect.style.maxWidth = `${warehouseRect.width}px`;
+    connect.style.paddingTop = warehouseStyle.paddingTop;
+    connect.style.paddingRight = warehouseStyle.paddingRight;
+    connect.style.paddingBottom = warehouseStyle.paddingBottom;
+    connect.style.paddingLeft = warehouseStyle.paddingLeft;
+    connect.style.borderRadius = warehouseStyle.borderRadius;
+    connect.style.fontSize = warehouseStyle.fontSize;
+    connect.style.fontWeight = warehouseStyle.fontWeight;
+    connect.style.lineHeight = warehouseStyle.lineHeight;
+    connect.style.gap = warehouseStyle.gap;
+    connect.style.alignItems = warehouseStyle.alignItems;
+    connect.style.justifyContent = warehouseStyle.justifyContent;
+    connect.style.top = `${Math.round(warehouseRect.top)}px`;
   }
 
   let scheduled = false;
