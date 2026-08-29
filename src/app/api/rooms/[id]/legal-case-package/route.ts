@@ -3,6 +3,9 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 
+const STORAGE_BUCKET = "matter-documents";
+const SIGNED_URL_TTL_SECONDS = 60 * 60 * 24 * 7;
+
 function caseLabel(caseNumber: number | string | null, title: string) {
   const number = String(caseNumber ?? "").padStart(6, "0");
   return `CASE-${number} · ${title}`;
@@ -53,7 +56,7 @@ export async function GET(
 
   const { data: records, error: recordError } = await supabase
     .from("legal_story_entries")
-    .select("id, raw_transcript, ai_summary, audio_document_id, recorded_at, created_at, updated_at")
+    .select("id, case_id, raw_transcript, ai_summary, audio_document_id, recorded_at, created_at, updated_at")
     .eq("room_id", roomId)
     .eq("owner_id", user.id)
     .eq("case_id", caseId)
@@ -94,6 +97,8 @@ export async function GET(
     size_bytes: number;
     storage_path: string;
     created_at: string;
+    signed_url: string | null;
+    signed_url_expires_at: string | null;
   }> = [];
 
   if (documentIds.length) {
@@ -104,7 +109,19 @@ export async function GET(
       .eq("uploaded_by", user.id)
       .in("id", documentIds);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    documents = data || [];
+
+    const expiresAt = new Date(Date.now() + SIGNED_URL_TTL_SECONDS * 1000).toISOString();
+    documents = await Promise.all((data || []).map(async (document) => {
+      const { data: signed, error: signedError } = await supabase.storage
+        .from(STORAGE_BUCKET)
+        .createSignedUrl(document.storage_path, SIGNED_URL_TTL_SECONDS);
+
+      return {
+        ...document,
+        signed_url: signedError ? null : signed?.signedUrl || null,
+        signed_url_expires_at: signedError ? null : expiresAt,
+      };
+    }));
   }
 
   return NextResponse.json({
@@ -123,6 +140,7 @@ export async function GET(
         documents: documents.length,
       },
       preparedAt: new Date().toISOString(),
+      linkExpiresInSeconds: SIGNED_URL_TTL_SECONDS,
     },
   });
 }
