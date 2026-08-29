@@ -158,6 +158,10 @@ export default function RoomBuilderV2Page() {
     try {
       const locale = applyGlobalPreset(DEFAULT_GLOBAL_ROOM_SETTINGS, countryCode);
       const selectedMaterials = TEMPLATE_MATERIAL_PRESETS[purposeMatch.templateId] || TEMPLATE_MATERIAL_PRESETS.custom || [];
+      const countryEnglishTag = locale.languageTag.toLowerCase().startsWith("en-") ? locale.languageTag : "en-AU";
+      const supportedLanguageTags = language === "en"
+        ? [countryEnglishTag]
+        : [selectedLanguage.tag, countryEnglishTag];
       const response = await fetch("/api/room-factory/rooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -165,7 +169,8 @@ export default function RoomBuilderV2Page() {
           roomName: roomName.trim().slice(0, 120),
           templateId: purposeMatch.templateId,
           countryCode: locale.countryCode,
-          languageTag: selectedLanguage.tag,
+          languageTag: language === "en" ? countryEnglishTag : selectedLanguage.tag,
+          languageTags: supportedLanguageTags,
           timeZone: locale.timeZone,
           currencyCode: locale.currencyCode,
           approvalMode: "approval",
@@ -209,11 +214,16 @@ export default function RoomBuilderV2Page() {
         </section>
 
         <section className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-          <div className="text-sm font-semibold text-[var(--gold-soft)]">2. {korean ? "언어" : "Language"}</div>
-          <p className="mt-1 text-sm text-[var(--muted)]">{korean ? "어떤 언어로 이 Room을 사용하시겠어요?" : "Which language would you like to use in this Room?"}</p>
+          <div className="text-sm font-semibold text-[var(--gold-soft)]">2. {korean ? "주 사용 언어" : "Main language"}</div>
+          <p className="mt-1 text-sm text-[var(--muted)]">{korean ? "가장 편한 언어를 선택하세요. 영어도 함께 사용할 수 있습니다." : "Choose the language you are most comfortable with. English remains available too."}</p>
           <select className="rc-input mt-3 min-h-12 text-base" value={language} onChange={(event) => setLanguage(event.target.value)}>
             {LANGUAGES.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
           </select>
+          {language !== "en" ? (
+            <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] px-3 py-2 text-sm text-[var(--muted)]">
+              {korean ? `함께 사용: ${selectedLanguage.label} + English` : `Use together: ${selectedLanguage.label} + English`}
+            </div>
+          ) : null}
         </section>
 
         <section className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
