@@ -19,25 +19,29 @@ function storageContentType(mimeType: string) {
   return mimeType.split(";")[0]?.trim() || "application/octet-stream";
 }
 
+function cleanOptional(value: FormDataEntryValue | null, max: number) {
+  const text = String(value || "").trim();
+  return text ? text.slice(0, max) : null;
+}
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
-    if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const form = await request.formData();
-    const roomId = String(form.get("roomId") || "");
+    const roomId = String(form.get("roomId") || "").trim();
     const file = form.get("file");
     const requestedDestination = String(form.get("destinationType") || "inbox");
     const destinationType = DESTINATIONS.has(requestedDestination) ? requestedDestination : "inbox";
-    const caseId = String(form.get("caseId") || "").trim() || null;
+    const caseId = cleanOptional(form.get("caseId"), 80);
+    const projectKey = cleanOptional(form.get("projectKey"), 160);
+    const folderName = cleanOptional(form.get("folderName"), 240);
+    const displayTitle = cleanOptional(form.get("displayTitle"), 240);
+    const purpose = cleanOptional(form.get("purpose"), 240);
 
     if (!roomId || !(file instanceof File)) {
-      return NextResponse.json(
-        { error: "roomId and file are required" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "roomId and file are required" }, { status: 400 });
     }
 
     const caseDestination = destinationType === "case" || destinationType === "evidence" || destinationType === "lawyer_share";
@@ -46,10 +50,7 @@ export async function POST(request: Request) {
     }
 
     if (file.size > 15 * 1024 * 1024) {
-      return NextResponse.json(
-        { error: "File too large (max 15MB in MVP)" },
-        { status: 400 },
-      );
+      return NextResponse.json({ error: "File too large (max 15MB in MVP)" }, { status: 400 });
     }
 
     const mimeType = file.type || "application/octet-stream";
@@ -61,15 +62,20 @@ export async function POST(request: Request) {
       extractedText = extractDocumentText(buffer, file.name, mimeType).slice(0, MAX_EXTRACTED_TEXT);
     } catch (error) {
       extractionError = error instanceof Error ? error.message : "text extraction failed";
-      logger.warn("documents.extract.failed", {
-        roomId,
-        filename: file.name,
-        error: extractionError,
-      });
+      logger.warn("documents.extract.failed", { roomId, filename: file.name, error: extractionError });
     }
 
     if (isSupabaseConfigured()) {
       const supabase = await createClient();
+
+      const { data: room } = await supabase
+        .from("rooms")
+        .select("id")
+        .eq("id", roomId)
+        .eq("room_owner_id", user.id)
+        .eq("status", "active")
+        .maybeSingle();
+      if (!room) return NextResponse.json({ error: "Room not found" }, { status: 404 });
 
       if (caseId) {
         const { data: legalCase } = await supabase
@@ -79,27 +85,17 @@ export async function POST(request: Request) {
           .eq("room_id", roomId)
           .eq("owner_id", user.id)
           .maybeSingle();
-        if (!legalCase) {
-          return NextResponse.json({ error: "Case file not found" }, { status: 400 });
-        }
+        if (!legalCase) return NextResponse.json({ error: "Case file not found" }, { status: 400 });
       }
 
       const objectName = `${user.id}/${roomId}/${randomUUID()}-${safeFilename(file.name)}`;
-
       const { error: storageError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(objectName, buffer, {
-          // Browsers can emit values such as "audio/webm;codecs=opus". Supabase
-          // Storage validates bucket MIME types against the base media type, so
-          // preserve the original value in documents.mime_type but upload with
-          // the normalized base content type.
           contentType: storageContentType(mimeType),
           upsert: false,
         });
-
-      if (storageError) {
-        throw new Error(`Storage upload failed: ${storageError.message}`);
-      }
+      if (storageError) throw new Error(`Storage upload failed: ${storageError.message}`);
 
       const { data: doc, error: insertError } = await supabase
         .from("documents")
@@ -134,6 +130,11 @@ export async function POST(request: Request) {
           room_id: roomId,
           destination_type: destinationType,
           case_id: caseDestination ? caseId : null,
+          project_key: projectKey,
+          folder_name: folderName,
+          display_title: displayTitle || file.name,
+          purpose,
+          sort_order: 0,
           updated_at: new Date().toISOString(),
         });
 
@@ -159,6 +160,9 @@ export async function POST(request: Request) {
         extractedChars: extractedText.length,
         destinationType,
         caseId: caseDestination ? caseId : null,
+        projectKey,
+        folderName,
+        purpose,
       });
 
       return NextResponse.json({
@@ -173,6 +177,10 @@ export async function POST(request: Request) {
           extractedChars: extractedText.length,
           destinationType,
           caseId: caseDestination ? caseId : null,
+          projectKey,
+          folderName,
+          displayTitle: displayTitle || file.name,
+          purpose,
         },
       });
     }
@@ -199,7 +207,9 @@ export async function POST(request: Request) {
       persistent: false,
       extractedChars: extractedText.length,
       destinationType,
-      caseId: caseDestination ? caseId : null,
+      projectKey,
+      folderName,
+      purpose,
     });
 
     return NextResponse.json({
@@ -213,15 +223,14 @@ export async function POST(request: Request) {
         aiReadable: extractedText.length > 0,
         extractedChars: extractedText.length,
         destinationType,
-        caseId: caseDestination ? caseId : null,
+        projectKey,
+        folderName,
+        displayTitle: displayTitle || file.name,
+        purpose,
       },
     });
   } catch (error) {
-    logger.error("documents.upload.failed", {
-      error: error instanceof Error ? error.message : error,
-    });
-    return NextResponse.json({
-      error: error instanceof Error ? error.message : "Upload failed",
-    }, { status: 500 });
+    logger.error("documents.upload.failed", { error: error instanceof Error ? error.message : error });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Upload failed" }, { status: 500 });
   }
 }
