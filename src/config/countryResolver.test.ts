@@ -41,11 +41,22 @@ describe("country domain routing", () => {
     expect(getCountryConfigByDomain("example.invalid")).toBeNull();
   });
 
-  it("exposes a generic country-config registry for future rollout", () => {
-    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "US"]);
+  it("registers the first six launch-country configs without activating unverified domains", () => {
+    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "GB", "JP", "KR", "US"]);
     expect(hasCountryConfig("au")).toBe(true);
-    expect(hasCountryConfig("JP")).toBe(false);
+    expect(hasCountryConfig("JP")).toBe(true);
+    expect(hasCountryConfig("KR")).toBe(true);
+    expect(hasCountryConfig("GB")).toBe(true);
+
     expect(getCountryConfigByCountryCode("US")?.currency).toBe("USD");
-    expect(getCountryConfigByCountryCode("JP")).toBeNull();
+    expect(getCountryConfigByCountryCode("GB")?.currency).toBe("GBP");
+    expect(getCountryConfigByCountryCode("JP")?.currency).toBe("JPY");
+    expect(getCountryConfigByCountryCode("KR")?.currency).toBe("KRW");
+
+    // Configuration is not activation. Country domains remain unbound until
+    // ownership, hosting, auth callbacks and launch gates are verified.
+    expect(getCountryCodeByDomain("royalcommand.example.uk")).toBeNull();
+    expect(getCountryCodeByDomain("royalcommand.example.jp")).toBeNull();
+    expect(getCountryCodeByDomain("royalcommand.example.kr")).toBeNull();
   });
 });
