@@ -33,6 +33,7 @@ export default function LegalRoomStarter() {
   const [draftRaw, setDraftRaw] = useState("");
   const [draftAi, setDraftAi] = useState("");
   const [savingEntry, setSavingEntry] = useState(false);
+  const [rewritingId, setRewritingId] = useState("");
   const [listening, setListening] = useState("");
   const [playingId, setPlayingId] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
@@ -40,6 +41,7 @@ export default function LegalRoomStarter() {
   const recognitionRef = useRef<{ stop?: () => void } | null>(null);
 
   const korean = languageTag.toLowerCase().startsWith("ko");
+  const label = (ko: string, en: string) => korean ? `${ko} / ${en}` : en;
 
   useEffect(() => {
     let cancelled = false;
@@ -101,8 +103,8 @@ export default function LegalRoomStarter() {
   async function copyText(text: string, message?: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setStatus(message || (korean ? "복사했습니다." : "Copied."));
-    } catch { setStatus(korean ? "복사하지 못했습니다." : "Could not copy."); }
+      setStatus(message || label("복사했습니다.", "Copied."));
+    } catch { setStatus(label("복사하지 못했습니다.", "Could not copy.")); }
   }
 
   function startCaseConversation() {
@@ -126,21 +128,66 @@ export default function LegalRoomStarter() {
         body: JSON.stringify({ entryId, rawTranscript: draftRaw, aiSummary: draftAi }),
       });
       const payload = await response.json().catch(() => ({})) as { entry?: StoryEntry; error?: string };
-      if (!response.ok || !payload.entry) { setStatus(payload.error || (korean ? "수정 내용을 저장하지 못했습니다." : "Could not save changes.")); return; }
+      if (!response.ok || !payload.entry) { setStatus(payload.error || label("수정 내용을 저장하지 못했습니다.", "Could not save changes.")); return; }
       setStoryEntries((current) => current.map((item) => item.id === entryId ? payload.entry! : item));
       setEditingId("");
-      setStatus(korean ? "수정 내용을 저장했습니다." : "Changes saved.");
+      setStatus(label("수정 내용을 저장했습니다.", "Changes saved."));
     } finally { setSavingEntry(false); }
+  }
+
+  async function rewriteWithAi(entry: StoryEntry) {
+    const currentRaw = editingId === entry.id ? draftRaw : entry.raw_transcript;
+    const currentAi = editingId === entry.id ? draftAi : entry.ai_summary;
+    if (!currentRaw.trim()) return;
+    if (editingId !== entry.id) beginEdit(entry);
+    setRewritingId(entry.id);
+    setStatus(label("AI가 다시 정리하고 있습니다…", "AI is rewriting the record…"));
+    const instruction = korean
+      ? [
+          "아래 고객의 사건 원문을 사실을 추가하거나 삭제하지 말고 더 명확하고 읽기 쉽게 정리해 주세요.",
+          "법률 결론을 임의로 만들지 말고, 고객이 말한 사실과 불확실한 부분을 구분하세요.",
+          "중복 표현을 줄이고 날짜, 사람, 사건, 핵심 쟁점이 잘 보이게 작성하세요.",
+          "기존 AI 정리본이 있으면 참고하되 고객 원문과 충돌하면 고객 원문을 우선하세요.",
+          "결과는 바로 저장하지 않고 고객이 검토할 초안입니다.",
+          "",
+          `[고객 원문]\n${currentRaw}`,
+          "",
+          `[기존 AI 정리]\n${currentAi || "없음"}`,
+        ].join("\n")
+      : [
+          "Rewrite the customer's case record clearly and professionally without adding or removing facts.",
+          "Do not invent legal conclusions. Distinguish stated facts from uncertainty.",
+          "Reduce repetition and make dates, people, events and key issues easy to follow.",
+          "Use the existing AI summary only as a reference; if it conflicts with the customer's words, prioritize the customer's words.",
+          "This is a draft for customer review and must not be saved automatically.",
+          "",
+          `[Customer words]\n${currentRaw}`,
+          "",
+          `[Existing AI summary]\n${currentAi || "None"}`,
+        ].join("\n");
+    try {
+      const response = await fetch("/api/ai/helper", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ roomId, message: instruction, selectedLanguage: korean ? "ko" : "en", history: [] }),
+      });
+      const payload = await response.json().catch(() => ({})) as { answer?: string; error?: string };
+      if (!response.ok || !payload.answer) {
+        setStatus(payload.error || label("AI 정리를 만들지 못했습니다.", "Could not create the AI rewrite."));
+        return;
+      }
+      setEditingId(entry.id);
+      setDraftRaw(currentRaw);
+      setDraftAi(String(payload.answer));
+      setStatus(label("AI 새 정리본을 만들었습니다. 확인한 뒤 ‘수정 저장 / Save changes’를 누르세요.", "AI created a new draft. Review it, then press Save changes."));
+    } finally { setRewritingId(""); }
   }
 
   function startVoiceEdit(entry: StoryEntry, field: EditField) {
     if (editingId !== entry.id) beginEdit(entry);
-    const w = window as Window & {
-      SpeechRecognition?: new () => any;
-      webkitSpeechRecognition?: new () => any;
-    };
+    const w = window as Window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
     const Recognition = w.SpeechRecognition || w.webkitSpeechRecognition;
-    if (!Recognition) { setStatus(korean ? "이 브라우저에서는 음성 수정 기능을 사용할 수 없습니다." : "Voice editing is unavailable in this browser."); return; }
+    if (!Recognition) { setStatus(label("이 브라우저에서는 음성 수정 기능을 사용할 수 없습니다.", "Voice editing is unavailable in this browser.")); return; }
     recognitionRef.current?.stop?.();
     const recognition = new Recognition();
     recognition.lang = korean ? "ko-KR" : languageTag;
@@ -152,7 +199,7 @@ export default function LegalRoomStarter() {
       if (field === "raw") setDraftRaw((current) => current.trim() ? `${current.trim()} ${spoken}` : spoken);
       else setDraftAi((current) => current.trim() ? `${current.trim()} ${spoken}` : spoken);
     };
-    recognition.onerror = () => setStatus(korean ? "음성 입력을 받지 못했습니다." : "Voice input failed.");
+    recognition.onerror = () => setStatus(label("음성 입력을 받지 못했습니다.", "Voice input failed."));
     recognition.onend = () => { setListening(""); recognitionRef.current = null; };
     recognitionRef.current = recognition;
     setListening(`${entry.id}:${field}`);
@@ -161,31 +208,26 @@ export default function LegalRoomStarter() {
 
   function recordText(entry: StoryEntry) {
     return [
-      `${korean ? "기록 일시" : "Recorded"}: ${new Date(entry.recorded_at).toLocaleString()}`,
-      "",
-      korean ? "[내가 이야기한 내용]" : "[My words]",
-      entry.raw_transcript,
-      "",
-      korean ? "[AI 정리]" : "[AI summary]",
-      entry.ai_summary || (korean ? "아직 없음" : "Not available yet"),
+      `${label("기록 일시", "Recorded")}: ${new Date(entry.recorded_at).toLocaleString()}`,
+      "", label("[내가 이야기한 내용]", "[My words]"), entry.raw_transcript,
+      "", label("[AI 정리]", "[AI summary]"), entry.ai_summary || label("아직 없음", "Not available yet"),
     ].join("\n");
   }
 
   function recipientText(entry: StoryEntry, audience: "lawyer" | "court" | "other") {
     const base = recordText(entry);
-    if (audience === "lawyer") return `${korean ? "변호사 검토용 사건 기록" : "Case record for lawyer review"}\n\n${base}`;
-    if (audience === "court") return `${korean ? "법원·재판 준비용 사실 기록 (공식 제출 서식 아님)" : "Court / tribunal preparation record (not an official filing form)"}\n\n${base}`;
-    return `${korean ? "공유용 사건 기록" : "Case record to share"}\n\n${base}`;
+    if (audience === "lawyer") return `${label("변호사 검토용 사건 기록", "Case record for lawyer review")}\n\n${base}`;
+    if (audience === "court") return `${label("법원·재판 준비용 사실 기록 (공식 제출 서식 아님)", "Court / tribunal preparation record (not an official filing form)")}\n\n${base}`;
+    return `${label("공유용 사건 기록", "Case record to share")}\n\n${base}`;
   }
 
   function sendByEmail(entry: StoryEntry, audience: "lawyer" | "other") {
-    const subject = audience === "lawyer" ? (korean ? "사건 기록 검토 요청" : "Case record for review") : (korean ? "사건 기록 공유" : "Shared case record");
-    const body = recipientText(entry, audience);
-    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    const subject = audience === "lawyer" ? label("사건 기록 검토 요청", "Case record for review") : label("사건 기록 공유", "Shared case record");
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(recipientText(entry, audience))}`;
   }
 
   async function prepareCourt(entry: StoryEntry) {
-    await copyText(recipientText(entry, "court"), korean ? "법원·재판 준비용 기록을 복사했습니다. 제출 전 내용을 확인하세요." : "Court-preparation record copied. Review before filing.");
+    await copyText(recipientText(entry, "court"), label("법원·재판 준비용 기록을 복사했습니다. 제출 전 내용을 확인하세요.", "Court-preparation record copied. Review before filing."));
   }
 
   async function playAudio(entry: StoryEntry) {
@@ -193,33 +235,33 @@ export default function LegalRoomStarter() {
     try {
       const response = await fetch(`/api/rooms/${roomId}/legal-story/${entry.id}/audio`, { cache: "no-store" });
       const payload = await response.json().catch(() => ({})) as { url?: string; error?: string };
-      if (!response.ok || !payload.url) { setStatus(payload.error || (korean ? "녹음을 열 수 없습니다." : "Could not open recording.")); return; }
+      if (!response.ok || !payload.url) { setStatus(payload.error || label("녹음을 열 수 없습니다.", "Could not open recording.")); return; }
       audioRef.current?.pause();
       const audio = new Audio(payload.url);
       audioRef.current = audio;
       setPlayingId(entry.id);
       audio.onended = () => setPlayingId("");
-      audio.onerror = () => { setPlayingId(""); setStatus(korean ? "녹음을 재생하지 못했습니다." : "Could not play recording."); };
+      audio.onerror = () => { setPlayingId(""); setStatus(label("녹음을 재생하지 못했습니다.", "Could not play recording.")); };
       await audio.play();
     } catch { setPlayingId(""); }
   }
 
   async function deleteAudio(entry: StoryEntry) {
     if (!entry.audio_document_id) return;
-    if (!window.confirm(korean ? "이 녹음 파일을 삭제하시겠습니까? 글 기록은 그대로 남습니다." : "Delete this recording? The written record will remain.")) return;
+    if (!window.confirm(label("이 녹음 파일을 삭제하시겠습니까? 글 기록은 그대로 남습니다.", "Delete this recording? The written record will remain."))) return;
     const response = await fetch(`/api/rooms/${roomId}/legal-story/${entry.id}/audio`, { method: "DELETE" });
     const payload = await response.json().catch(() => ({})) as { error?: string };
-    if (!response.ok) { setStatus(payload.error || (korean ? "녹음을 삭제하지 못했습니다." : "Could not delete recording.")); return; }
+    if (!response.ok) { setStatus(payload.error || label("녹음을 삭제하지 못했습니다.", "Could not delete recording.")); return; }
     audioRef.current?.pause();
     setPlayingId("");
     setStoryEntries((current) => current.map((item) => item.id === entry.id ? { ...item, audio_document_id: null } : item));
-    setStatus(korean ? "녹음 파일을 삭제했습니다." : "Recording deleted.");
+    setStatus(label("녹음 파일을 삭제했습니다.", "Recording deleted."));
   }
 
   async function addEvidence() {
     const file = fileRef.current?.files?.[0] || null;
     const title = evidenceTitle.trim() || file?.name || "";
-    if (!title) { setStatus(korean ? "증거 제목이나 파일을 하나 넣어 주세요." : "Add an evidence title or file."); return; }
+    if (!title) { setStatus(label("증거 제목이나 파일을 하나 넣어 주세요.", "Add an evidence title or file.")); return; }
     setUploading(true); setStatus("");
     try {
       let documentId: string | null = null;
@@ -227,74 +269,75 @@ export default function LegalRoomStarter() {
         const form = new FormData(); form.set("roomId", roomId); form.set("file", file);
         const uploadResponse = await fetch("/api/documents/upload", { method: "POST", body: form });
         const uploadPayload = await uploadResponse.json().catch(() => ({})) as { document?: { id?: string }; error?: string };
-        if (!uploadResponse.ok || !uploadPayload.document?.id) { setStatus(uploadPayload.error || (korean ? "파일을 올리지 못했습니다." : "Could not upload file.")); return; }
+        if (!uploadResponse.ok || !uploadPayload.document?.id) { setStatus(uploadPayload.error || label("파일을 올리지 못했습니다.", "Could not upload file.")); return; }
         documentId = uploadPayload.document.id;
       }
       const response = await fetch(`/api/rooms/${roomId}/legal-workspace`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, eventDate: evidenceDate || null, description: evidenceDescription, documentId }) });
       const payload = await response.json().catch(() => ({})) as { evidence?: EvidenceItem; error?: string };
-      if (!response.ok || !payload.evidence) { setStatus(payload.error || (korean ? "증거 기록을 저장하지 못했습니다." : "Could not save evidence.")); return; }
+      if (!response.ok || !payload.evidence) { setStatus(payload.error || label("증거 기록을 저장하지 못했습니다.", "Could not save evidence.")); return; }
       setEvidence((current) => [payload.evidence!, ...current]);
       if (file && documentId) setDocuments((current) => [{ id: documentId, filename: file.name, mime_type: file.type, size_bytes: file.size, created_at: new Date().toISOString() }, ...current]);
       setEvidenceTitle(""); setEvidenceDate(""); setEvidenceDescription(""); if (fileRef.current) fileRef.current.value = "";
-      setStatus(korean ? "증거를 보관했습니다." : "Evidence saved.");
+      setStatus(label("증거를 보관했습니다.", "Evidence saved."));
     } finally { setUploading(false); }
   }
 
   if (!loaded || !enabled) return null;
-  if (minimized) return <button type="button" className="fixed left-[245px] top-[104px] z-[240] rounded-full border border-[#d7b64d] bg-[#7A0C2E] px-4 py-2 text-sm font-semibold text-[#ffe18a] shadow-lg max-lg:left-3 max-lg:top-20" onClick={() => setMinimized(false)}>{korean ? "⚖ 법률 도구" : "⚖ Legal tools"}</button>;
+  if (minimized) return <button type="button" className="fixed left-[245px] top-[104px] z-[240] rounded-full border border-[#d7b64d] bg-[#7A0C2E] px-4 py-2 text-sm font-semibold text-[#ffe18a] shadow-lg max-lg:left-3 max-lg:top-20" onClick={() => setMinimized(false)}>{label("⚖ 법률 도구", "⚖ Legal tools")}</button>;
 
   const documentById = new Map(documents.map((item) => [item.id, item]));
   const smallButton = "rounded-lg border border-white/15 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-white/80 hover:bg-white/[0.08]";
 
   return (
-    <section className="fixed left-[245px] right-[185px] top-[104px] z-[230] mx-auto max-h-[calc(100dvh-205px)] max-w-[900px] overflow-y-auto rounded-2xl border border-[#d7b64d]/70 bg-[#07111f]/[0.98] p-4 shadow-[0_18px_55px_rgba(0,0,0,.58)] max-lg:left-3 max-lg:right-3 max-lg:top-20 max-lg:max-h-[calc(100dvh-110px)]">
-      <div className="flex items-start justify-between gap-3"><div><div className="text-lg font-semibold text-[#f3d36a]">{korean ? "내 법률방" : "My Legal Room"}</div><p className="mt-1 text-sm text-white/70">{korean ? "어려운 법률용어 없이, 먼저 말하고 기록하면 됩니다." : "Start by talking and keeping a record. No legal jargon needed."}</p></div><button type="button" onClick={() => setMinimized(true)} className="grid h-8 w-8 place-items-center rounded-full text-white/60 hover:bg-white/10" title={korean ? "줄이기" : "Minimize"}><X size={17} /></button></div>
+    <section className="fixed left-[245px] right-[185px] top-[104px] z-[230] mx-auto max-h-[calc(100dvh-205px)] max-w-[980px] overflow-y-auto rounded-2xl border border-[#d7b64d]/70 bg-[#07111f]/[0.98] p-4 shadow-[0_18px_55px_rgba(0,0,0,.58)] max-lg:left-3 max-lg:right-3 max-lg:top-20 max-lg:max-h-[calc(100dvh-110px)]">
+      <div className="flex items-start justify-between gap-3"><div><div className="text-lg font-semibold text-[#f3d36a]">{label("내 법률방", "My Legal Room")}</div><p className="mt-1 text-sm text-white/70">{label("어려운 법률용어 없이, 먼저 말하고 기록하면 됩니다.", "Start by talking and keeping a record. No legal jargon needed.")}</p></div><button type="button" onClick={() => setMinimized(true)} className="grid h-8 w-8 place-items-center rounded-full text-white/60 hover:bg-white/10" title={label("줄이기", "Minimize")}><X size={17} /></button></div>
 
       <div className="mt-4 grid grid-cols-2 gap-2 md:grid-cols-5">
-        <button type="button" onClick={startCaseConversation} className="rounded-xl border border-[#d7b64d]/45 bg-[#d7b64d]/10 p-3 text-left hover:bg-[#d7b64d]/15"><MessageCircle size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{korean ? "내 사건 이야기하기" : "Tell my story"}</div></button>
-        <button type="button" onClick={() => setMode("story")} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><FileText size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{korean ? "사건 기록" : "Case record"}</div></button>
-        <button type="button" onClick={() => setMode("evidence")} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><FolderOpen size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{korean ? "증거 보관" : "Evidence"}</div></button>
-        <button type="button" onClick={() => setMode("ai")} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><Sparkles size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{korean ? "AI에게 물어보기" : "Ask my AI"}</div></button>
-        <button type="button" onClick={() => setMode("lawyer")} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><Scale size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{korean ? "변호사 준비" : "Prepare for lawyer"}</div></button>
+        <button type="button" onClick={startCaseConversation} className="rounded-xl border border-[#d7b64d]/45 bg-[#d7b64d]/10 p-3 text-left hover:bg-[#d7b64d]/15"><MessageCircle size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{label("내 사건 이야기하기", "Tell my story")}</div></button>
+        <button type="button" onClick={() => setMode("story")} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><FileText size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{label("사건 기록", "Case record")}</div></button>
+        <button type="button" onClick={() => setMode("evidence")} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><FolderOpen size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{label("증거 보관", "Evidence")}</div></button>
+        <button type="button" onClick={() => setMode("ai")} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><Sparkles size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{label("AI에게 물어보기", "Ask my AI")}</div></button>
+        <button type="button" onClick={() => setMode("lawyer")} className="rounded-xl border border-white/10 bg-white/[0.03] p-3 text-left hover:bg-white/[0.06]"><Scale size={19} className="text-[#f3d36a]" /><div className="mt-2 text-sm font-semibold">{label("변호사 준비", "Prepare for lawyer")}</div></button>
       </div>
 
-      {mode === "home" ? <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/75">{korean ? "먼저 ‘내 사건 이야기하기’를 눌러 편하게 말씀해 주세요. 올리면 고객의 말, AI 정리본, 녹음이 사건 기록에 자동 저장됩니다." : "Start with ‘Tell my story’. Your words, AI summary and recording are saved automatically in Case record."}</div> : null}
+      {mode === "home" ? <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/75">{label("먼저 ‘내 사건 이야기하기’를 눌러 편하게 말씀해 주세요. 올리면 고객의 말, AI 정리본, 녹음이 사건 기록에 자동 저장됩니다.", "Start with ‘Tell my story’. Your words, AI summary and recording are saved automatically in Case record.")}</div> : null}
 
       {mode === "story" ? (
         <div className="mt-4 space-y-3">
-          <div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-[#f3d36a]">{korean ? "저장된 사건 기록" : "Saved case records"}</div><div className="mt-1 text-xs text-white/55">{korean ? "말한 내용과 AI 정리본을 수정하고, 녹음을 듣거나 삭제하고, 필요한 곳에 보낼 수 있습니다." : "Edit your words and AI summary, play/delete recordings, and prepare the record for sharing."}</div></div><div className="text-xs text-white/45">{storyEntries.length}{korean ? "건" : " records"}</div></div>
+          <div className="flex items-center justify-between gap-3"><div><div className="text-sm font-semibold text-[#f3d36a]">{label("저장된 사건 기록", "Saved case records")}</div><div className="mt-1 text-xs text-white/55">{label("원문과 AI 정리본을 수정하고, AI에게 다시 정리시키고, 녹음을 듣거나 삭제하고, 필요한 곳에 보낼 수 있습니다.", "Edit the original and AI summary, ask AI to rewrite it, play/delete recordings, and prepare the record for sharing.")}</div></div><div className="text-xs text-white/45">{storyEntries.length}{korean ? "건 / records" : " records"}</div></div>
 
           <div className="space-y-3">
             {storyEntries.length ? storyEntries.map((entry) => {
               const editing = editingId === entry.id;
               return (
                 <article key={entry.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-semibold text-[#f3d36a]">{new Date(entry.recorded_at).toLocaleString()}</div>{entry.audio_document_id ? <div className="flex gap-2"><button type="button" className={smallButton} onClick={() => void playAudio(entry)}>{playingId === entry.id ? (korean ? "재생 중…" : "Playing…") : (korean ? "▶ 녹음 듣기" : "▶ Play recording")}</button><button type="button" className={smallButton} onClick={() => void deleteAudio(entry)}>{korean ? "녹음 삭제" : "Delete recording"}</button></div> : null}</div>
+                  <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-xs font-semibold text-[#f3d36a]">{new Date(entry.recorded_at).toLocaleString()}</div>{entry.audio_document_id ? <div className="flex flex-wrap gap-2"><button type="button" className={smallButton} onClick={() => void playAudio(entry)}>{playingId === entry.id ? label("재생 중…", "Playing…") : label("▶ 녹음 듣기", "▶ Play recording")}</button><button type="button" className={smallButton} onClick={() => void deleteAudio(entry)}>{label("녹음 삭제", "Delete recording")}</button></div> : null}</div>
 
                   <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-lg border border-white/10 bg-white/[0.025] p-3"><div className="mb-2 flex items-center justify-between gap-2"><div className="text-xs font-semibold text-white/55">{korean ? "내가 이야기한 내용" : "My words"}</div>{editing ? <button type="button" className={smallButton} onClick={() => startVoiceEdit(entry, "raw")}>{listening === `${entry.id}:raw` ? (korean ? "듣는 중…" : "Listening…") : (korean ? "🎙 말로 수정" : "🎙 Voice edit")}</button> : null}</div>{editing ? <textarea className="rc-input min-h-36 font-sans text-sm leading-6" value={draftRaw} onChange={(event) => setDraftRaw(event.target.value)} /> : <div className="whitespace-pre-wrap text-sm leading-6 text-white/85">{entry.raw_transcript}</div>}</div>
-                    <div className="rounded-lg border border-[#d7b64d]/20 bg-[#d7b64d]/[0.04] p-3"><div className="mb-2 flex items-center justify-between gap-2"><div className="text-xs font-semibold text-[#f3d36a]">{korean ? "AI 정리" : "AI summary"}</div>{editing ? <button type="button" className={smallButton} onClick={() => startVoiceEdit(entry, "ai")}>{listening === `${entry.id}:ai` ? (korean ? "듣는 중…" : "Listening…") : (korean ? "🎙 말로 수정" : "🎙 Voice edit")}</button> : null}</div>{editing ? <textarea className="rc-input min-h-36 font-sans text-sm leading-6" value={draftAi} onChange={(event) => setDraftAi(event.target.value)} /> : <div className="whitespace-pre-wrap text-sm leading-6 text-white/80">{entry.ai_summary || (korean ? "AI 정리 저장 중 또는 아직 없음" : "AI summary is still saving or not available yet")}</div>}</div>
+                    <div className="rounded-lg border border-white/10 bg-white/[0.025] p-3"><div className="mb-2 flex items-center justify-between gap-2"><div className="text-xs font-semibold text-white/55">{label("내가 이야기한 내용", "My words")}</div>{editing ? <button type="button" className={smallButton} onClick={() => startVoiceEdit(entry, "raw")}>{listening === `${entry.id}:raw` ? label("듣는 중…", "Listening…") : label("🎙 말로 수정", "🎙 Voice edit")}</button> : null}</div>{editing ? <textarea className="rc-input min-h-36 font-sans text-sm leading-6" value={draftRaw} onChange={(event) => setDraftRaw(event.target.value)} /> : <div className="whitespace-pre-wrap text-sm leading-6 text-white/85">{entry.raw_transcript}</div>}</div>
+                    <div className="rounded-lg border border-[#d7b64d]/20 bg-[#d7b64d]/[0.04] p-3"><div className="mb-2 flex items-center justify-between gap-2"><div className="text-xs font-semibold text-[#f3d36a]">{label("AI 정리", "AI summary")}</div>{editing ? <button type="button" className={smallButton} onClick={() => startVoiceEdit(entry, "ai")}>{listening === `${entry.id}:ai` ? label("듣는 중…", "Listening…") : label("🎙 말로 수정", "🎙 Voice edit")}</button> : null}</div>{editing ? <textarea className="rc-input min-h-36 font-sans text-sm leading-6" value={draftAi} onChange={(event) => setDraftAi(event.target.value)} /> : <div className="whitespace-pre-wrap text-sm leading-6 text-white/80">{entry.ai_summary || label("AI 정리 저장 중 또는 아직 없음", "AI summary is still saving or not available yet")}</div>}</div>
                   </div>
 
                   <div className="mt-3 flex flex-wrap gap-2">
-                    {editing ? <><button type="button" disabled={savingEntry} onClick={() => void saveEntry(entry.id)} className="rounded-lg border border-[#d7b64d] bg-[#7A0C2E] px-3 py-1.5 text-xs font-semibold text-[#ffe18a] disabled:opacity-50">{savingEntry ? (korean ? "저장 중…" : "Saving…") : (korean ? "수정 저장" : "Save changes")}</button><button type="button" className={smallButton} onClick={() => setEditingId("")}>{korean ? "취소" : "Cancel"}</button></> : <button type="button" className={smallButton} onClick={() => beginEdit(entry)}>{korean ? "수정" : "Edit"}</button>}
-                    <button type="button" className={smallButton} onClick={() => void copyText(recordText(entry))}>{korean ? "복사" : "Copy"}</button>
-                    <button type="button" className={smallButton} onClick={() => sendByEmail(entry, "lawyer")}>{korean ? "변호사에게" : "To lawyer"}</button>
-                    <button type="button" className={smallButton} onClick={() => void prepareCourt(entry)}>{korean ? "법원·재판 준비용" : "Court prep"}</button>
-                    <button type="button" className={smallButton} onClick={() => sendByEmail(entry, "other")}>{korean ? "다른 사람에게" : "Share with someone"}</button>
+                    {editing ? <><button type="button" disabled={savingEntry} onClick={() => void saveEntry(entry.id)} className="rounded-lg border border-[#d7b64d] bg-[#7A0C2E] px-3 py-1.5 text-xs font-semibold text-[#ffe18a] disabled:opacity-50">{savingEntry ? label("저장 중…", "Saving…") : label("수정 저장", "Save changes")}</button><button type="button" className={smallButton} onClick={() => setEditingId("")}>{label("취소", "Cancel")}</button></> : <button type="button" className={smallButton} onClick={() => beginEdit(entry)}>{label("수정", "Edit")}</button>}
+                    <button type="button" disabled={rewritingId === entry.id} className="rounded-lg border border-[#d7b64d]/70 bg-[#7A0C2E]/80 px-3 py-1.5 text-xs font-semibold text-[#ffe18a] disabled:opacity-50" onClick={() => void rewriteWithAi(entry)}>{rewritingId === entry.id ? label("AI 정리 중…", "AI rewriting…") : label("✨ AI에게 다시 정리", "✨ AI Rewrite")}</button>
+                    <button type="button" className={smallButton} onClick={() => void copyText(recordText(entry))}>{label("복사", "Copy")}</button>
+                    <button type="button" className={smallButton} onClick={() => sendByEmail(entry, "lawyer")}>{label("변호사에게", "To lawyer")}</button>
+                    <button type="button" className={smallButton} onClick={() => void prepareCourt(entry)}>{label("법원·재판 준비용", "Court prep")}</button>
+                    <button type="button" className={smallButton} onClick={() => sendByEmail(entry, "other")}>{label("다른 사람에게", "Share with someone")}</button>
                   </div>
                 </article>
               );
-            }) : <div className="rounded-xl border border-white/10 bg-black/20 p-5 text-sm text-white/50">{korean ? "아직 저장된 사건 기록이 없습니다. ‘내 사건 이야기하기’에서 말씀한 뒤 ‘내 말 올리기’를 누르면 여기에 자동 저장됩니다." : "No case records saved yet. Use ‘Tell my story’ and send your words; the record will appear here automatically."}</div>}
+            }) : <div className="rounded-xl border border-white/10 bg-black/20 p-5 text-sm text-white/50">{label("아직 저장된 사건 기록이 없습니다. ‘내 사건 이야기하기’에서 말씀한 뒤 ‘내 말 올리기’를 누르면 여기에 자동 저장됩니다.", "No case records saved yet. Use ‘Tell my story’ and send your words; the record will appear here automatically.")}</div>}
           </div>
         </div>
       ) : null}
 
-      {mode === "evidence" ? <div className="mt-4 space-y-3"><div className="grid gap-2 md:grid-cols-2"><input className="rc-input" value={evidenceTitle} onChange={(event) => setEvidenceTitle(event.target.value)} placeholder={korean ? "증거 제목" : "Evidence title"} /><input className="rc-input" type="date" value={evidenceDate} onChange={(event) => setEvidenceDate(event.target.value)} /></div><textarea className="rc-input min-h-20 font-sans text-sm" value={evidenceDescription} onChange={(event) => setEvidenceDescription(event.target.value)} placeholder={korean ? "이 증거가 무엇을 보여주는지 간단히 적으세요." : "Briefly say what this evidence shows."} /><input ref={fileRef} className="block w-full text-sm text-white/70" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx" /><button type="button" disabled={uploading} onClick={() => void addEvidence()} className="rounded-lg border border-[#d7b64d] bg-[#7A0C2E] px-5 py-2 text-sm font-semibold text-[#ffe18a] disabled:opacity-50">{uploading ? (korean ? "보관 중…" : "Saving…") : (korean ? "증거 보관" : "Save evidence")}</button><div className="space-y-2 pt-2">{evidence.length ? evidence.map((item) => { const document = item.document_id ? documentById.get(item.document_id) : null; return <div key={item.id} className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm"><div className="font-semibold text-white">{item.title}</div><div className="mt-1 text-xs text-white/55">{item.event_date || new Date(item.created_at).toLocaleDateString()}{document ? ` · ${document.filename}` : ""}</div>{item.description ? <div className="mt-2 text-white/70">{item.description}</div> : null}</div>; }) : <div className="text-sm text-white/50">{korean ? "아직 보관한 증거가 없습니다." : "No evidence saved yet."}</div>}</div></div> : null}
+      {mode === "evidence" ? <div className="mt-4 space-y-3"><div className="grid gap-2 md:grid-cols-2"><input className="rc-input" value={evidenceTitle} onChange={(event) => setEvidenceTitle(event.target.value)} placeholder={label("증거 제목", "Evidence title")} /><input className="rc-input" type="date" value={evidenceDate} onChange={(event) => setEvidenceDate(event.target.value)} /></div><textarea className="rc-input min-h-20 font-sans text-sm" value={evidenceDescription} onChange={(event) => setEvidenceDescription(event.target.value)} placeholder={label("이 증거가 무엇을 보여주는지 간단히 적으세요.", "Briefly say what this evidence shows.")} /><input ref={fileRef} className="block w-full text-sm text-white/70" type="file" accept="image/*,.pdf,.doc,.docx,.txt,.csv,.xlsx" /><button type="button" disabled={uploading} onClick={() => void addEvidence()} className="rounded-lg border border-[#d7b64d] bg-[#7A0C2E] px-5 py-2 text-sm font-semibold text-[#ffe18a] disabled:opacity-50">{uploading ? label("보관 중…", "Saving…") : label("증거 보관", "Save evidence")}</button><div className="space-y-2 pt-2">{evidence.length ? evidence.map((item) => { const document = item.document_id ? documentById.get(item.document_id) : null; return <div key={item.id} className="rounded-lg border border-white/10 bg-black/20 p-3 text-sm"><div className="font-semibold text-white">{item.title}</div><div className="mt-1 text-xs text-white/55">{item.event_date || new Date(item.created_at).toLocaleDateString()}{document ? ` · ${document.filename}` : ""}</div>{item.description ? <div className="mt-2 text-white/70">{item.description}</div> : null}</div>; }) : <div className="text-sm text-white/50">{label("아직 보관한 증거가 없습니다.", "No evidence saved yet.")}</div>}</div></div> : null}
 
-      {mode === "ai" || mode === "lawyer" ? <div className="mt-4"><p className="mb-2 text-sm text-white/70">{mode === "ai" ? (korean ? "아래 질문을 복사해서 본인이 사용하는 ChatGPT, Claude, Gemini 등 원하는 AI에 붙여넣으세요." : "Copy this question into the AI you use.") : (korean ? "이 질문을 AI에 붙여넣으면 변호사에게 보낼 사건 요약 초안을 만들도록 요청할 수 있습니다." : "Use this prompt to ask your AI for a lawyer-ready summary draft.")}</p><textarea readOnly className="rc-input min-h-52 font-sans text-xs leading-5" value={mode === "ai" ? askAiPrompt : lawyerPrompt} /><button type="button" onClick={() => void copyText(mode === "ai" ? askAiPrompt : lawyerPrompt)} className="mt-3 rounded-lg border border-[#d7b64d] bg-[#7A0C2E] px-5 py-2 text-sm font-semibold text-[#ffe18a]">{korean ? "복사" : "Copy"}</button></div> : null}
+      {mode === "ai" || mode === "lawyer" ? <div className="mt-4"><p className="mb-2 text-sm text-white/70">{mode === "ai" ? label("아래 질문을 복사해서 본인이 사용하는 ChatGPT, Claude, Gemini 등 원하는 AI에 붙여넣으세요.", "Copy this question into the AI you use.") : label("이 질문을 AI에 붙여넣으면 변호사에게 보낼 사건 요약 초안을 만들도록 요청할 수 있습니다.", "Use this prompt to ask your AI for a lawyer-ready summary draft.")}</p><textarea readOnly className="rc-input min-h-52 font-sans text-xs leading-5" value={mode === "ai" ? askAiPrompt : lawyerPrompt} /><button type="button" onClick={() => void copyText(mode === "ai" ? askAiPrompt : lawyerPrompt)} className="mt-3 rounded-lg border border-[#d7b64d] bg-[#7A0C2E] px-5 py-2 text-sm font-semibold text-[#ffe18a]">{label("복사", "Copy")}</button></div> : null}
 
-      {mode !== "home" ? <button type="button" className="mt-4 text-sm text-[#f3d36a] underline" onClick={() => setMode("home")}>{korean ? "처음으로" : "Back to start"}</button> : null}
+      {mode !== "home" ? <button type="button" className="mt-4 text-sm text-[#f3d36a] underline" onClick={() => setMode("home")}>{label("처음으로", "Back to start")}</button> : null}
       {status ? <div className="mt-3 rounded-lg border border-white/10 bg-black/20 px-3 py-2 text-xs text-white/70">{status}</div> : null}
     </section>
   );
