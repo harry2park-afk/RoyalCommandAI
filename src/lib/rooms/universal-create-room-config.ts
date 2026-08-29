@@ -2,7 +2,7 @@ export type BillingType = "monthly" | "one_time" | "quote" | "included";
 
 export type CatalogItem = {
   id: string;
-  category: "ai" | "secretary" | "communication" | "business" | "professional" | "files" | "education" | "mail" | "website" | "maintenance";
+  category: "ai" | "secretary" | "communication" | "business" | "professional" | "accounting" | "legal" | "files" | "education" | "mail" | "website" | "maintenance";
   name: string;
   description: string;
   billing: BillingType;
@@ -20,21 +20,21 @@ export type IndustryProfile = {
   recommended: string[];
 };
 
-export const CREATE_ROOM_FORM_VERSION = "0.3";
+export const CREATE_ROOM_FORM_VERSION = "0.4";
 export const BASIC_ROOM_MONTHLY_AUD = 3.8;
 export const BASIC_TRIAL_DAYS = 30;
 export const PROMOTION_PERCENT = 30;
 export const WEBSITE_BENEFIT_THRESHOLD_AUD = 80;
 
 export const INDUSTRIES: IndustryProfile[] = [
-  { id: "accountant", label: "Accountant", keywords: ["accountant", "accounting", "회계", "세무", "gst", "bas"], recommended: ["ai-chatgpt", "secretary-basic", "cloud-phone-notify", "accounting-connect", "files-advanced", "calendar"] },
-  { id: "legal", label: "Legal", keywords: ["legal", "law", "lawyer", "변호사", "법률"], recommended: ["ai-claude", "secretary-basic", "cloud-phone-ai", "legal-connect", "files-advanced", "esign", "calendar"] },
+  { id: "accountant", label: "Accountant", keywords: ["accountant", "accounting", "회계", "세무", "gst", "bas"], recommended: ["ai-chatgpt", "secretary-basic", "cloud-phone-notify", "accounting-connect", "accounting-xero", "files-advanced", "calendar"] },
+  { id: "legal", label: "Legal", keywords: ["legal", "law", "lawyer", "변호사", "법률"], recommended: ["ai-claude", "secretary-basic", "cloud-phone-ai", "legal-connect", "legal-leap-lawconnect", "files-advanced", "esign", "calendar"] },
   { id: "real-estate", label: "Real Estate", keywords: ["real estate", "property", "부동산"], recommended: ["ai-chatgpt", "secretary-basic", "cloud-phone-business", "booking", "sms", "calendar"] },
   { id: "medical", label: "Medical / Health", keywords: ["medical", "clinic", "doctor", "health", "의료", "병원"], recommended: ["ai-gemini", "secretary-basic", "booking", "sms", "files-advanced", "calendar"] },
   { id: "insurance", label: "Insurance", keywords: ["insurance", "보험"], recommended: ["ai-chatgpt", "secretary-basic", "cloud-phone-notify", "files-advanced", "esign"] },
   { id: "trading", label: "Trading / Import-Export", keywords: ["trading", "import", "export", "무역", "수입", "수출"], recommended: ["ai-chatgpt", "email", "files-advanced", "invoice", "calendar"] },
   { id: "writer", label: "Writer / Creator", keywords: ["writer", "author", "book", "작가", "책", "집필"], recommended: ["ai-chatgpt", "files-advanced", "translation"] },
-  { id: "general", label: "General / Personal", keywords: [], recommended: ["ai-chatgpt", "files-basic", "calendar"] },
+  { id: "general", label: "General / Personal", keywords: [], recommended: ["ai-chatgpt", "files-basic", "integration-learning", "calendar"] },
 ];
 
 export const CATALOG: CatalogItem[] = [
@@ -72,11 +72,24 @@ export const CATALOG: CatalogItem[] = [
   { id: "lawyer-collaboration", category: "professional", name: "Lawyer Collaboration Access", description: "Allow an authorised lawyer to review shared case records, request documents and communicate with the customer through controlled access.", billing: "monthly", priceLabel: "Price to confirm" },
   { id: "accountant-collaboration", category: "professional", name: "Accountant Collaboration Access", description: "Allow an authorised accountant to review selected accounting files, request documents and work with the customer in the Room.", billing: "monthly", priceLabel: "Price to confirm" },
 
+  { id: "accounting-xero", category: "accounting", name: "Xero Connection", description: "Connect or prepare a connection to Xero for supported accounting workflows such as invoices, bank/accounting records, GST/BAS work and accountant collaboration. Availability depends on API permissions and the customer's Xero plan.", billing: "quote", priceLabel: "Connection/setup price to confirm" },
+  { id: "accounting-myob", category: "accounting", name: "MYOB Connection", description: "Connect or prepare a connection to MYOB for supported bookkeeping and accounting workflows. Useful for Australian businesses already using MYOB. Availability depends on MYOB API access and the customer's subscription.", billing: "quote", priceLabel: "Connection/setup price to confirm" },
+  { id: "accounting-quickbooks", category: "accounting", name: "QuickBooks Connection", description: "Connect or prepare a connection to QuickBooks Online for supported invoicing, bookkeeping, reports and accountant workflows. Availability depends on Intuit permissions and the customer's plan.", billing: "quote", priceLabel: "Connection/setup price to confirm" },
+  { id: "accounting-reckon", category: "accounting", name: "Reckon Connection", description: "Connect or prepare a connection to Reckon for supported Australian accounting and bookkeeping workflows. Availability depends on the Reckon product and available integration method.", billing: "quote", priceLabel: "Connection/setup price to confirm" },
+  { id: "accounting-other", category: "accounting", name: "Other Accounting Software", description: "Request connection to another accounting, bookkeeping, payroll or tax system. Royal Command first checks whether an official API or safe supported integration is available.", billing: "quote", priceLabel: "Compatibility check / quote" },
+
+  { id: "legal-leap-lawconnect", category: "legal", name: "LEAP / LawConnect Connection", description: "For firms using LEAP and LawConnect. Intended for supported matter, document-sharing and client-collaboration workflows. Connection scope depends on official integration access and permissions.", billing: "quote", priceLabel: "Connection/setup price to confirm" },
+  { id: "legal-smokeball", category: "legal", name: "Smokeball Connection", description: "For law firms using Smokeball practice management. Intended for supported matter, document, client and workflow integration where official access permits.", billing: "quote", priceLabel: "Connection/setup price to confirm" },
+  { id: "legal-clio", category: "legal", name: "Clio Connection", description: "For firms using Clio Manage or related Clio tools. Intended for supported matter, document, billing and client workflow integration where official API access permits.", billing: "quote", priceLabel: "Connection/setup price to confirm" },
+  { id: "legal-actionstep", category: "legal", name: "Actionstep Connection", description: "For firms using Actionstep. Intended for supported legal practice-management and workflow integration where official API access and permissions permit.", billing: "quote", priceLabel: "Connection/setup price to confirm" },
+  { id: "legal-other", category: "legal", name: "Other Legal Practice Software", description: "Request connection to another legal practice, conveyancing or case-management system. Royal Command checks official API/support availability before promising a connection.", billing: "quote", priceLabel: "Compatibility check / quote" },
+
   { id: "files-basic", category: "files", name: "Room File Organizer", description: "Store files directly into a selected Room, project and folder. Useful for personal files, accounting, education, legal work, writing and general projects.", billing: "included", priceLabel: "Included with Basic RC Room" },
   { id: "files-advanced", category: "files", name: "Advanced File Management", description: "For larger file collections: project folders, structured naming, advanced search, automatic classification and organized work sets.", billing: "monthly", priceLabel: "Price to confirm" },
   { id: "writer-project", category: "files", name: "Writer / Book Project", description: "Organize a book by title, chapters, drafts, research, references and supporting files so the Room can help assemble the manuscript.", billing: "monthly", priceLabel: "Price to confirm" },
   { id: "secure-share", category: "files", name: "Secure File Sharing", description: "Share selected files with approved professionals, staff or collaborators without exposing the entire Room.", billing: "monthly", priceLabel: "Price to confirm" },
 
+  { id: "integration-learning", category: "education", name: "RC Connection Guide", description: "Learn what can be connected to a Royal Command Room: AI, Cloud Phone, accounting software, legal software, files, email, calendars, experts and business tools. Use this guide before deciding what to activate.", billing: "included", priceLabel: "Included" },
   { id: "education-basic", category: "education", name: "Learning / Study Workspace", description: "Organize course notes, assignments, learning files and AI study assistance inside the Room.", billing: "monthly", priceLabel: "Price to confirm" },
   { id: "training-business", category: "education", name: "Staff Training Workspace", description: "Create training materials, assignments and guided learning for staff or teams.", billing: "monthly", priceLabel: "Price to confirm" },
 
