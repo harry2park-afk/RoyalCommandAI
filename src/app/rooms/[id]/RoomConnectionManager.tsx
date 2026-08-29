@@ -132,7 +132,7 @@ export default function RoomConnectionManager() {
       </button>
 
       {open && (
-        <div role="dialog" aria-modal="true" aria-label="Room connections" style={{ position: "fixed", inset: 0, zIndex: 180, background: "rgba(0,0,0,.62)", display: "grid", placeItems: "center", padding: 24 }} onMouseDown={(event) => { if (event.target === event.currentTarget) setOpen(false); }}>
+        <div role="dialog" aria-modal="true" aria-label="Room connections" style={{ position: "fixed", inset: 0, zIndex: 5000, background: "rgba(0,0,0,.62)", display: "grid", placeItems: "center", padding: 24 }} onMouseDown={(event) => { if (event.target === event.currentTarget && !agreeService && !paymentNotice) setOpen(false); }}>
           <div style={{ width: "min(980px, 94vw)", maxHeight: "84vh", overflow: "hidden", border: "1px solid #d6ad31", borderRadius: 16, background: "#07111f", color: "#f3f5f7", boxShadow: "0 20px 60px rgba(0,0,0,.55)" }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: "1px solid rgba(214,173,49,.35)" }}>
               <div><div style={{ color: "#f6d76b", fontSize: 21, fontWeight: 900 }}>연결 관리 / Connections</div><div style={{ marginTop: 4, color: "#b8c1cf", fontSize: 13 }}>기능만 선택하세요. 공급업체 연결은 Royal Command가 처리합니다.</div></div>
@@ -178,8 +178,8 @@ export default function RoomConnectionManager() {
       )}
 
       {agreeService && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 220, background: "rgba(0,0,0,.72)", display: "grid", placeItems: "center", padding: 24 }}>
-          <div style={{ width: "min(520px,92vw)", border: "1px solid #d6ad31", borderRadius: 14, background: "#081322", color: "#fff", padding: 20 }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 5100, background: "rgba(0,0,0,.78)", display: "grid", placeItems: "center", padding: 24 }}>
+          <div style={{ width: "min(520px,92vw)", maxHeight: "80vh", overflowY: "auto", border: "1px solid #d6ad31", borderRadius: 14, background: "#081322", color: "#fff", padding: 20, boxShadow: "0 24px 70px rgba(0,0,0,.65)" }}>
             <div style={{ fontSize: 20, fontWeight: 900, color: "#f6d76b" }}>연결 동의 / Agreement</div>
             <div style={{ marginTop: 12, fontWeight: 800 }}>{agreeService.name_ko || agreeService.name_en}</div>
             <div style={{ marginTop: 8, color: "#bdc7d4", lineHeight: 1.5 }}>이 기능을 이 Room에 추가하는 것과 표시된 요금 및 Royal Command 서비스 약관에 동의합니다.</div>
@@ -193,8 +193,8 @@ export default function RoomConnectionManager() {
       )}
 
       {paymentNotice && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 230, background: "rgba(0,0,0,.74)", display: "grid", placeItems: "center", padding: 24 }}>
-          <div style={{ width: "min(520px,92vw)", border: "1px solid #d6ad31", borderRadius: 14, background: "#081322", color: "#fff", padding: 20 }}>
+        <div style={{ position: "fixed", inset: 0, zIndex: 5200, background: "rgba(0,0,0,.8)", display: "grid", placeItems: "center", padding: 24 }}>
+          <div style={{ width: "min(520px,92vw)", maxHeight: "80vh", overflowY: "auto", border: "1px solid #d6ad31", borderRadius: 14, background: "#081322", color: "#fff", padding: 20, boxShadow: "0 24px 70px rgba(0,0,0,.65)" }}>
             <div style={{ fontSize: 20, fontWeight: 900, color: "#f6d76b" }}>결제 / Payment</div>
             <div style={{ marginTop: 12, fontWeight: 800 }}>{paymentNotice.name_ko || paymentNotice.name_en}</div>
             <div style={{ marginTop: 8, color: "#bdc7d4" }}>{priceLabel(paymentNotice)}</div>
