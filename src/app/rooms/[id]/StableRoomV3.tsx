@@ -16,7 +16,7 @@ import IntegratedAnswerInlineStatus from "./IntegratedAnswerInlineStatus";
 import LegalRoomStarter from "./LegalRoomStarter";
 import LegalHelperOpenBridge from "./LegalHelperOpenBridge";
 import LegalCasePackage from "./LegalCasePackage";
-import AISelectionPersistenceBridge from "./AISelectionPersistenceBridge";
+import AISelectionAccountRestore from "./AISelectionAccountRestore";
 
 type Conversation = {
   id: string;
@@ -206,7 +206,7 @@ export default function StableRoomV3() {
       <IntegratedAnswerInlineStatus />
       <LegalRoomStarter />
       <LegalCasePackage />
-      <AISelectionPersistenceBridge />
+      <AISelectionAccountRestore />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
   );
