@@ -1,0 +1,55 @@
+{
+  "countryCode": "JP",
+  "locale": "ja-JP",
+  "secondaryLocale": null,
+  "currency": "JPY",
+  "phoneCountryCode": "+81",
+  "dateFormat": "YYYY/MM/DD",
+  "timeFormat": "24h",
+  "addressFormat": [
+    "postal_code",
+    "prefecture",
+    "city_ward_town",
+    "street_block",
+    "building_detail"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Asia/Tokyo"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "corporate_number": "optional",
+    "consumption_tax_registration_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "stripe",
+    "status": "NOT_CONNECTED",
+    "future": ["Credit/Debit", "Apple Pay", "Google Pay", "Local payment methods after review"]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": ["Stripe Tax", "Avalara"]
+  },
+  "taxStructure": {
+    "system": "Consumption Tax",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "jpPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "jpLegalProvider": { "status": "NOT_CONNECTED" },
+    "jpPrivacyProvider": { "status": "NOT_CONNECTED" }
+  }
+}
