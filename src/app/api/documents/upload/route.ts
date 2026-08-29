@@ -14,6 +14,10 @@ function safeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(-160) || "upload.bin";
 }
 
+function storageContentType(mimeType: string) {
+  return mimeType.split(";")[0]?.trim() || "application/octet-stream";
+}
+
 export async function POST(request: Request) {
   try {
     const user = await getCurrentUser();
@@ -62,7 +66,11 @@ export async function POST(request: Request) {
       const { error: storageError } = await supabase.storage
         .from(STORAGE_BUCKET)
         .upload(objectName, buffer, {
-          contentType: mimeType,
+          // Browsers can emit values such as "audio/webm;codecs=opus". Supabase
+          // Storage validates bucket MIME types against the base media type, so
+          // preserve the original value in documents.mime_type but upload with
+          // the normalized base content type.
+          contentType: storageContentType(mimeType),
           upsert: false,
         });
 
