@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveServiceProviderV2 } from "@/lib/rooms/provider-resolver-v2";
 
 const SERVICE_KEY_PATTERN = /^[a-z0-9][a-z0-9._-]{1,119}$/i;
@@ -23,7 +23,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const supabase = await createClient();
+    // Authentication remains user-scoped above. Internal supplier/commercial tables are read
+    // only through the server-side service role so client-facing RLS can remain fail-closed.
+    const supabase = createAdminClient();
     const resolution = await resolveServiceProviderV2(supabase, serviceKey, countryCode);
 
     if (!resolution) {
