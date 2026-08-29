@@ -13,6 +13,7 @@ import LiveAvatarLayer from "./LiveAvatarLayer";
 import AIHelperVoiceBridge from "./AIHelperVoiceBridge";
 import MainChatMicBridge from "./MainChatMicBridge";
 import IntegratedAnswerInlineStatus from "./IntegratedAnswerInlineStatus";
+import LegalRoomStarter from "./LegalRoomStarter";
 
 type Conversation = {
   id: string;
@@ -199,6 +200,7 @@ export default function StableRoomV3() {
       <MainChatMicBridge />
       <LiveAvatarLayer />
       <IntegratedAnswerInlineStatus />
+      <LegalRoomStarter />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
   );
