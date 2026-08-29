@@ -27,6 +27,16 @@ type DocumentItem = {
   created_at: string;
 };
 
+type StoryEntry = {
+  id: string;
+  raw_transcript: string;
+  ai_summary: string;
+  audio_document_id: string | null;
+  recorded_at: string;
+  created_at: string;
+  updated_at: string;
+};
+
 type LegalPayload = {
   enabled: boolean;
   languageTag?: string;
@@ -46,9 +56,9 @@ export default function LegalRoomStarter() {
   const [minimized, setMinimized] = useState(false);
   const [mode, setMode] = useState<Mode>("home");
   const [workspace, setWorkspace] = useState<Workspace>({ caseStory: "", desiredOutcome: "", updatedAt: null });
+  const [storyEntries, setStoryEntries] = useState<StoryEntry[]>([]);
   const [evidence, setEvidence] = useState<EvidenceItem[]>([]);
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [status, setStatus] = useState("");
   const [evidenceTitle, setEvidenceTitle] = useState("");
@@ -81,26 +91,27 @@ export default function LegalRoomStarter() {
     return () => { cancelled = true; };
   }, [roomId]);
 
-  async function saveWorkspace(next: Workspace) {
-    setSaving(true);
-    setStatus("");
-    try {
-      const response = await fetch(`/api/rooms/${roomId}/legal-workspace`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ caseStory: next.caseStory, desiredOutcome: next.desiredOutcome }),
-      });
-      const payload = await response.json().catch(() => ({})) as { workspace?: Workspace; error?: string };
-      if (!response.ok || !payload.workspace) {
-        setStatus(payload.error || (korean ? "저장하지 못했습니다." : "Could not save."));
-        return;
-      }
-      setWorkspace(payload.workspace);
-      setStatus(korean ? "저장되었습니다." : "Saved.");
-    } finally {
-      setSaving(false);
-    }
-  }
+  useEffect(() => {
+    if (!enabled) return;
+    let cancelled = false;
+
+    const refreshStoryEntries = () => {
+      void fetch(`/api/rooms/${roomId}/legal-story`, { cache: "no-store" })
+        .then(async (response) => ({ response, payload: await response.json().catch(() => ({})) as { entries?: StoryEntry[] } }))
+        .then(({ response, payload }) => {
+          if (cancelled || !response.ok) return;
+          setStoryEntries(Array.isArray(payload.entries) ? payload.entries : []);
+        })
+        .catch(() => undefined);
+    };
+
+    refreshStoryEntries();
+    window.addEventListener("rc:legal-story-saved", refreshStoryEntries);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("rc:legal-story-saved", refreshStoryEntries);
+    };
+  }, [enabled, roomId]);
 
   const askAiPrompt = useMemo(() => [
     "다음은 제가 직접 기록한 사건 내용입니다.",
@@ -236,17 +247,52 @@ export default function LegalRoomStarter() {
 
       {mode === "home" ? (
         <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/75">
-          {korean ? "먼저 ‘내 사건 이야기하기’를 눌러 편하게 말씀해 주세요. 오늘 다 말하지 않아도 됩니다. 사건 기록은 언제든 다시 열어 고치고 추가할 수 있습니다." : "Start with ‘Tell my story’. You do not need to finish today. Your case record can be edited and expanded anytime."}
+          {korean ? "먼저 ‘내 사건 이야기하기’를 눌러 편하게 말씀해 주세요. 올리면 고객의 말과 AI 정리본이 사건 기록에 자동으로 저장됩니다." : "Start with ‘Tell my story’. When sent, your words and the AI summary are saved automatically in Case record."}
         </div>
       ) : null}
 
       {mode === "story" ? (
         <div className="mt-4 space-y-3">
-          <label className="block text-sm font-semibold text-[#f3d36a]">{korean ? "무슨 일이 있었나요?" : "What happened?"}</label>
-          <textarea className="rc-input min-h-44 font-sans text-sm leading-6" value={workspace.caseStory} onChange={(event) => setWorkspace((current) => ({ ...current, caseStory: event.target.value }))} placeholder={korean ? "순서가 틀려도 괜찮습니다. 기억나는 대로 적으세요." : "Write it in your own words. The order does not have to be perfect."} />
-          <label className="block text-sm font-semibold text-[#f3d36a]">{korean ? "어떤 결과를 원하세요?" : "What outcome do you want?"}</label>
-          <textarea className="rc-input min-h-20 font-sans text-sm leading-6" value={workspace.desiredOutcome} onChange={(event) => setWorkspace((current) => ({ ...current, desiredOutcome: event.target.value }))} placeholder={korean ? "예: 돈을 돌려받고 싶다, 사과를 받고 싶다, 소송을 검토하고 싶다." : "For example: recover money, receive an apology, consider a claim."} />
-          <button type="button" disabled={saving} onClick={() => void saveWorkspace(workspace)} className="rounded-lg border border-[#d7b64d] bg-[#7A0C2E] px-5 py-2 text-sm font-semibold text-[#ffe18a] disabled:opacity-50">{saving ? (korean ? "저장 중…" : "Saving…") : (korean ? "기록 저장" : "Save record")}</button>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-sm font-semibold text-[#f3d36a]">{korean ? "저장된 사건 기록" : "Saved case records"}</div>
+              <div className="mt-1 text-xs text-white/55">{korean ? "‘내 사건 이야기하기’에서 올린 내용이 날짜별로 자동 저장됩니다." : "Entries sent from ‘Tell my story’ are saved here automatically by date."}</div>
+            </div>
+            <div className="text-xs text-white/45">{storyEntries.length}{korean ? "건" : " records"}</div>
+          </div>
+
+          <div className="space-y-3">
+            {storyEntries.length ? storyEntries.map((entry) => {
+              const audioDocument = entry.audio_document_id ? documentById.get(entry.audio_document_id) : null;
+              return (
+                <article key={entry.id} className="rounded-xl border border-white/10 bg-black/20 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs font-semibold text-[#f3d36a]">{new Date(entry.recorded_at).toLocaleString()}</div>
+                    {entry.audio_document_id ? (
+                      <div className="rounded-full border border-emerald-400/25 bg-emerald-400/10 px-2 py-1 text-[11px] text-emerald-200">
+                        {korean ? "🎙 음성 저장됨" : "🎙 Voice saved"}{audioDocument?.filename ? ` · ${audioDocument.filename}` : ""}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="rounded-lg border border-white/10 bg-white/[0.025] p-3">
+                      <div className="mb-2 text-xs font-semibold text-white/55">{korean ? "내가 이야기한 내용" : "My words"}</div>
+                      <div className="whitespace-pre-wrap text-sm leading-6 text-white/85">{entry.raw_transcript}</div>
+                    </div>
+                    <div className="rounded-lg border border-[#d7b64d]/20 bg-[#d7b64d]/[0.04] p-3">
+                      <div className="mb-2 text-xs font-semibold text-[#f3d36a]">{korean ? "AI 정리" : "AI summary"}</div>
+                      <div className="whitespace-pre-wrap text-sm leading-6 text-white/80">{entry.ai_summary || (korean ? "AI 정리 저장 중 또는 아직 없음" : "AI summary is still saving or not available yet")}</div>
+                    </div>
+                  </div>
+                </article>
+              );
+            }) : (
+              <div className="rounded-xl border border-white/10 bg-black/20 p-5 text-sm text-white/50">
+                {korean ? "아직 저장된 사건 기록이 없습니다. ‘내 사건 이야기하기’에서 말씀한 뒤 ‘내 말 올리기’를 누르면 여기에 자동 저장됩니다." : "No case records saved yet. Use ‘Tell my story’ and send your words; the record will appear here automatically."}
+              </div>
+            )}
+          </div>
         </div>
       ) : null}
 
