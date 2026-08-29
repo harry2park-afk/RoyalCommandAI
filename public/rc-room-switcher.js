@@ -20,10 +20,10 @@
         top: 50% !important;
         transform: translate(-50%, -50%) !important;
         display: grid !important;
-        grid-template-columns: repeat(var(--rc-room-count, 1), minmax(0, 72px)) !important;
+        grid-template-columns: repeat(var(--rc-room-count, 1), minmax(0, 150px)) !important;
         justify-content: center !important;
-        gap: 4px !important;
-        width: min(calc(var(--rc-room-count, 1) * 76px), calc(100vw - 720px)) !important;
+        gap: 6px !important;
+        width: min(calc(var(--rc-room-count, 1) * 156px), calc(100vw - 720px)) !important;
         min-width: 0 !important;
         margin: 0 !important;
         align-items: center !important;
@@ -37,10 +37,10 @@
         white-space: nowrap !important;
         border: 1px solid #bcae8d !important;
         border-radius: 6px !important;
-        padding: 0 8px !important;
+        padding: 0 10px !important;
         font-family: "Times New Roman", Times, serif !important;
-        font-size: clamp(9px, 0.72vw, 12px) !important;
-        font-weight: 600 !important;
+        font-size: clamp(11px, 0.78vw, 13px) !important;
+        font-weight: 700 !important;
         line-height: 28px !important;
         text-align: center !important;
         cursor: pointer !important;
