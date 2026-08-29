@@ -6,10 +6,22 @@ const MARKER = "data-rc-legal-wide";
 const EXIT_ID = "rc-legal-exit-to-room";
 
 function findLegalSection() {
-  return Array.from(document.querySelectorAll<HTMLElement>("section")).find((section) => {
+  const sections = Array.from(document.querySelectorAll<HTMLElement>("section"));
+  return sections.find((section) => {
+    if (section.offsetParent === null) return false;
     const text = (section.textContent || "").replace(/\s+/g, " ");
-    return text.includes("내 법률방") || text.includes("My Legal Room");
+    const hasTitle = text.includes("내 법률방") || text.includes("My Legal Room");
+    const buttons = Array.from(section.querySelectorAll<HTMLButtonElement>("button"));
+    const hasLegalActions = buttons.some((button) => {
+      const label = (button.textContent || "").replace(/\s+/g, " ");
+      return label.includes("내 사건 이야기하기") || label.includes("Tell my story");
+    });
+    return hasTitle && hasLegalActions;
   }) || null;
+}
+
+function setImportantStyle(element: HTMLElement, property: string, value: string) {
+  element.style.setProperty(property, value, "important");
 }
 
 function applyWideLayout() {
@@ -17,14 +29,15 @@ function applyWideLayout() {
   if (!section) return false;
 
   section.setAttribute(MARKER, "1");
-  section.style.left = "10px";
-  section.style.right = "185px";
-  section.style.width = "auto";
-  section.style.maxWidth = "none";
-  section.style.marginLeft = "0";
-  section.style.marginRight = "0";
-  section.style.top = "104px";
-  section.style.maxHeight = "calc(100dvh - 118px)";
+  setImportantStyle(section, "left", "8px");
+  setImportantStyle(section, "right", "185px");
+  setImportantStyle(section, "width", "auto");
+  setImportantStyle(section, "max-width", "none");
+  setImportantStyle(section, "margin-left", "0");
+  setImportantStyle(section, "margin-right", "0");
+  setImportantStyle(section, "top", "104px");
+  setImportantStyle(section, "max-height", "calc(100dvh - 118px)");
+  setImportantStyle(section, "z-index", "460");
 
   let exit = document.getElementById(EXIT_ID) as HTMLButtonElement | null;
   if (!exit) {
@@ -35,7 +48,7 @@ function applyWideLayout() {
     exit.style.position = "fixed";
     exit.style.right = "205px";
     exit.style.top = "112px";
-    exit.style.zIndex = "510";
+    exit.style.zIndex = "520";
     exit.style.border = "1px solid #d7b64d";
     exit.style.borderRadius = "10px";
     exit.style.background = "#7A0C2E";
@@ -66,7 +79,7 @@ export default function LegalRoomLayoutBridge() {
     const sync = () => {
       const section = findLegalSection();
       const exit = document.getElementById(EXIT_ID) as HTMLElement | null;
-      if (section && section.offsetParent !== null) {
+      if (section) {
         applyWideLayout();
       } else if (exit) {
         exit.style.display = "none";
@@ -76,7 +89,7 @@ export default function LegalRoomLayoutBridge() {
     sync();
     const observer = new MutationObserver(sync);
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "class"] });
-    timer = window.setInterval(sync, 700);
+    timer = window.setInterval(sync, 250);
 
     return () => {
       observer.disconnect();
