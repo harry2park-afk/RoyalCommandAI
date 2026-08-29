@@ -7,6 +7,10 @@ function requiresPayment(service: { pricing_type?: string | null; default_includ
   return !service.default_included && service.pricing_type !== "free";
 }
 
+function isRcaScope(scope?: string | null) {
+  return scope === "rca_chat" || scope === "both";
+}
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -19,7 +23,7 @@ export async function GET() {
       .select("service_key,category,name_ko,name_en,summary_ko,summary_en,pricing_type,currency,price_minor,price_status,default_included,sort_order,connection_status,agreement_required,terms_version")
       .eq("active", true)
       .eq("customer_selectable", true)
-      .eq("connection_scope", "rca_chat")
+      .in("connection_scope", ["rca_chat", "both"])
       .order("category", { ascending: true })
       .order("sort_order", { ascending: true }),
     supabase
@@ -64,7 +68,7 @@ export async function POST(request: Request) {
     .select("service_key,default_included,active,customer_selectable,connection_scope,pricing_type,price_minor,currency,terms_version,agreement_required")
     .eq("service_key", serviceKey)
     .maybeSingle();
-  if (!service?.active || !service?.customer_selectable || service.connection_scope !== "rca_chat") {
+  if (!service?.active || !service?.customer_selectable || !isRcaScope(service.connection_scope)) {
     return NextResponse.json({ error: "Service unavailable in RCA Chat Room" }, { status: 404 });
   }
   if (action === "disconnect" && service.default_included) {
