@@ -18,6 +18,7 @@ import LegalHelperOpenBridge from "./LegalHelperOpenBridge";
 import LegalCaseSelectorBridge from "./LegalCaseSelectorBridge";
 import LegalRoomLayoutBridge from "./LegalRoomLayoutBridge";
 import AISelectionAccountRestore from "./AISelectionAccountRestore";
+import RCFileDestinationBridge from "./RCFileDestinationBridge";
 
 type Conversation = {
   id: string;
@@ -197,6 +198,7 @@ export default function StableRoomV3() {
       <FirstRoomWelcome />
       <TopRoomFinderOverlay />
       <CustomerProfileHub />
+      <RCFileDestinationBridge />
       <RoomSiteLinks />
       <SavedConversationInspector />
       <AIHelperChat />
