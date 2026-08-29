@@ -15,6 +15,7 @@ import MainChatMicBridge from "./MainChatMicBridge";
 import IntegratedAnswerInlineStatus from "./IntegratedAnswerInlineStatus";
 import LegalRoomStarter from "./LegalRoomStarter";
 import LegalHelperOpenBridge from "./LegalHelperOpenBridge";
+import AISelectionPersistenceBridge from "./AISelectionPersistenceBridge";
 
 type Conversation = {
   id: string;
@@ -203,6 +204,7 @@ export default function StableRoomV3() {
       <LiveAvatarLayer />
       <IntegratedAnswerInlineStatus />
       <LegalRoomStarter />
+      <AISelectionPersistenceBridge />
       <RoomV3 key={`${roomId}:${version}`} />
     </>
   );
