@@ -1,0 +1,55 @@
+{
+  "countryCode": "KR",
+  "locale": "ko-KR",
+  "secondaryLocale": null,
+  "currency": "KRW",
+  "phoneCountryCode": "+82",
+  "dateFormat": "YYYY-MM-DD",
+  "timeFormat": "24h",
+  "addressFormat": [
+    "postal_code",
+    "province_or_special_city",
+    "city_district",
+    "road_name_address",
+    "building_detail"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Asia/Seoul"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "business_registration_number": "optional",
+    "corporate_registration_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "provider_pending_review",
+    "status": "NOT_CONNECTED",
+    "future": ["Credit/Debit", "Local payment methods after review"]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": ["Provider pending review"]
+  },
+  "taxStructure": {
+    "system": "VAT",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "krPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "krLegalProvider": { "status": "NOT_CONNECTED" },
+    "krPrivacyProvider": { "status": "NOT_CONNECTED" }
+  }
+}
