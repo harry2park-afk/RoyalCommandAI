@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Plug, X } from "lucide-react";
 
@@ -74,9 +74,23 @@ export default function RoomConnectionManager() {
     }
   }
 
-  useEffect(() => {
-    if (open) void load();
-  }, [open, roomId]);
+  function openConnections() {
+    setOpen(true);
+    void load();
+  }
+
+  function openRoomUtility(target: "sites" | "ai-help") {
+    const selector = target === "sites"
+      ? 'button[title="My Sites"], button[title="Accounting Sites"]'
+      : 'button[title="AI Help"]';
+    const button = document.querySelector<HTMLButtonElement>(selector);
+    if (!button) {
+      setError(target === "sites" ? "My Sites is not available in this Room." : "AI Help is not available in this Room.");
+      return;
+    }
+    setOpen(false);
+    window.requestAnimationFrame(() => button.click());
+  }
 
   async function disconnect(service: Service) {
     setBusyKey(service.service_key);
@@ -127,7 +141,7 @@ export default function RoomConnectionManager() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} title="Connect or disconnect Room services" style={{ position: "fixed", right: 342, bottom: 18, zIndex: 86, display: "flex", alignItems: "center", gap: 7, border: "1px solid #d6ad31", borderRadius: 10, background: "#7b1023", color: "#f6d76b", padding: "9px 14px", fontWeight: 800, boxShadow: "0 6px 18px rgba(0,0,0,.35)", cursor: "pointer" }}>
+      <button type="button" onClick={openConnections} title="Connect or disconnect Room services" style={{ position: "fixed", right: 342, bottom: 18, zIndex: 86, display: "flex", alignItems: "center", gap: 7, border: "1px solid #d6ad31", borderRadius: 10, background: "#7b1023", color: "#f6d76b", padding: "9px 14px", fontWeight: 800, boxShadow: "0 6px 18px rgba(0,0,0,.35)", cursor: "pointer" }}>
         <Plug size={17} /> 연결 관리 / Connections
       </button>
 
@@ -137,6 +151,12 @@ export default function RoomConnectionManager() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 20px", borderBottom: "1px solid rgba(214,173,49,.35)" }}>
               <div><div style={{ color: "#f6d76b", fontSize: 21, fontWeight: 900 }}>연결 관리 / Connections</div><div style={{ marginTop: 4, color: "#b8c1cf", fontSize: 13 }}>기능만 선택하세요. 공급업체 연결은 Royal Command가 처리합니다.</div></div>
               <button type="button" onClick={() => setOpen(false)} style={{ border: 0, background: "transparent", color: "#fff", cursor: "pointer" }}><X size={25} /></button>
+            </div>
+
+            <div role="tablist" aria-label="Room utility sections" style={{ padding: "10px 18px", display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, borderBottom: "1px solid rgba(214,173,49,.25)", background: "#091522" }}>
+              <button type="button" role="tab" aria-selected="true" style={{ border: "1px solid #d6ad31", borderRadius: 9, padding: "9px 10px", background: "#7b1023", color: "#f6d76b", fontWeight: 850, cursor: "default" }}>연결 관리 / Connections</button>
+              <button type="button" role="tab" aria-selected="false" onClick={() => openRoomUtility("sites")} style={{ border: "1px solid #566273", borderRadius: 9, padding: "9px 10px", background: "#101a29", color: "#d9e0e8", fontWeight: 800, cursor: "pointer" }}>사이트 / My Sites</button>
+              <button type="button" role="tab" aria-selected="false" onClick={() => openRoomUtility("ai-help")} style={{ border: "1px solid #566273", borderRadius: 9, padding: "9px 10px", background: "#101a29", color: "#d9e0e8", fontWeight: 800, cursor: "pointer" }}>AI Help</button>
             </div>
 
             <div style={{ padding: "12px 18px", display: "flex", gap: 8, flexWrap: "wrap", borderBottom: "1px solid rgba(255,255,255,.08)" }}>
