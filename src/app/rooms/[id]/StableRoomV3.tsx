@@ -5,7 +5,6 @@ import { useParams } from "next/navigation";
 import RoomV3 from "./RoomV3";
 import CustomerProfileHub from "./CustomerProfileHub";
 import TopRoomFinderOverlay from "./TopRoomFinderOverlay";
-import RoomSiteLinks from "./RoomSiteLinks";
 import SavedConversationInspector from "./SavedConversationInspector";
 import FirstRoomWelcome from "./FirstRoomWelcome";
 import AIHelperChat from "./AIHelperChat";
@@ -200,7 +199,6 @@ export default function StableRoomV3() {
       <TopRoomFinderOverlay />
       <CustomerProfileHub />
       <RCFileDestinationBridge />
-      <RoomSiteLinks />
       <SavedConversationInspector />
       <AIHelperChat />
       <RoomConnectorPanel />
