@@ -1,0 +1,104 @@
+import { describe, expect, it } from "vitest";
+import type { CountryConfig } from "../types/countryConfig";
+import { getConfiguredCountryCodes, getCountryConfigByCountryCode } from "./countryResolver";
+import {
+  evaluateCountryOperationalLaunch,
+  type CountryOperationalEvidence,
+} from "./countryOperationalLaunchGate";
+
+const unverifiedEvidence: CountryOperationalEvidence = {
+  domainBinding: "NEEDS_REVIEW",
+  authCallback: "NEEDS_REVIEW",
+  sessionCookies: "NEEDS_REVIEW",
+  communicationsRules: "NEEDS_REVIEW",
+  dataResidency: "NEEDS_REVIEW",
+  localization: "NEEDS_REVIEW",
+  requiredIntegrations: "NEEDS_REVIEW",
+  previewSmokeTest: "NEEDS_REVIEW",
+  rollbackPath: "NEEDS_REVIEW",
+};
+
+const verifiedEvidence: CountryOperationalEvidence = {
+  domainBinding: "VERIFIED",
+  authCallback: "VERIFIED",
+  sessionCookies: "VERIFIED",
+  communicationsRules: "VERIFIED",
+  dataResidency: "VERIFIED",
+  localization: "VERIFIED",
+  requiredIntegrations: "VERIFIED",
+  previewSmokeTest: "VERIFIED",
+  rollbackPath: "VERIFIED",
+};
+
+function makeCountryGateReady(config: CountryConfig): CountryConfig {
+  return {
+    ...config,
+    compliance: {
+      legal: "READY",
+      tax: "READY",
+      medical: "READY",
+      investment: "READY",
+      privacy: "READY",
+    },
+    taxStructure: config.taxStructure
+      ? { ...config.taxStructure, status: "READY" }
+      : { system: "verified-for-test", status: "READY" },
+    payments: { ...config.payments, status: "CONNECTED" },
+    tax: { ...config.tax, status: "CONNECTED" },
+  };
+}
+
+describe("country operational launch readiness gate", () => {
+  it("covers the six first-wave country configurations", () => {
+    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "GB", "JP", "KR", "US"]);
+
+    for (const countryCode of getConfiguredCountryCodes()) {
+      const config = getCountryConfigByCountryCode(countryCode);
+      expect(config, countryCode).not.toBeNull();
+
+      const gate = evaluateCountryOperationalLaunch(config!, unverifiedEvidence);
+      expect(gate.launchable, countryCode).toBe(false);
+      expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("ROLLBACK_PATH_NOT_VERIFIED");
+    }
+  });
+
+  it("does not allow operational evidence to bypass legal, tax or payment blockers", () => {
+    const config = getCountryConfigByCountryCode("AU");
+    expect(config).not.toBeNull();
+
+    const gate = evaluateCountryOperationalLaunch(config!, verifiedEvidence);
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual([]);
+    expect(gate.countryGate.blockers.length).toBeGreaterThan(0);
+  });
+
+  it("fails closed on any missing operational verification even when the country gate is ready", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      dataResidency: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["DATA_RESIDENCY_NOT_VERIFIED"]);
+  });
+
+  it("only becomes launchable when both country and operational evidence are verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    expect(evaluateCountryOperationalLaunch(ready, verifiedEvidence)).toEqual({
+      launchable: true,
+      countryGate: { launchable: true, blockers: [] },
+      operationalBlockers: [],
+    });
+  });
+});
