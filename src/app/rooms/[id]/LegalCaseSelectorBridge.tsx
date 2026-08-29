@@ -68,7 +68,24 @@ export default function LegalCaseSelectorBridge() {
     return () => document.removeEventListener("click", onClickCapture, true);
   }, [roomId]);
 
-  function chooseCase(item: LegalCase) {
+  async function chooseCase(item: LegalCase) {
+    setError("");
+    try {
+      const response = await fetch(`/api/rooms/${roomId}/legal-cases`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ caseId: item.id, title: item.title }),
+      });
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { error?: string };
+        setError(payload.error || "사건 파일을 선택하지 못했습니다. / Could not select case file.");
+        return;
+      }
+    } catch {
+      setError("사건 파일을 선택하지 못했습니다. / Could not select case file.");
+      return;
+    }
+
     window.sessionStorage.setItem(storageKey(roomId), item.id);
     window.sessionStorage.setItem(`${storageKey(roomId)}:title`, item.title);
     window.sessionStorage.setItem(`${storageKey(roomId)}:number`, fileNumber(item.case_number));
@@ -97,7 +114,7 @@ export default function LegalCaseSelectorBridge() {
         return;
       }
       setNewTitle("");
-      chooseCase(payload.case);
+      await chooseCase(payload.case);
     } finally {
       setCreating(false);
     }
@@ -122,7 +139,7 @@ export default function LegalCaseSelectorBridge() {
             <button
               key={item.id}
               type="button"
-              onClick={() => chooseCase(item)}
+              onClick={() => void chooseCase(item)}
               className="flex w-full items-center gap-4 rounded-xl border border-white/10 bg-white/[0.03] p-4 text-left hover:border-[#d7b64d]/55 hover:bg-[#d7b64d]/[0.06]"
             >
               <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-[#d7b64d]/35 bg-[#d7b64d]/10 text-[#f3d36a]"><FolderOpen size={21} /></span>
