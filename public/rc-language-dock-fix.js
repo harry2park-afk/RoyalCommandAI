@@ -36,7 +36,7 @@
     }
   }
 
-  function tightenConnectButton() {
+  function matchConnectToWarehouse() {
     const button = Array.from(document.querySelectorAll('button')).find((item) => {
       if (!(item instanceof HTMLButtonElement)) return false;
       return item.style.position === 'fixed'
@@ -45,14 +45,17 @@
     });
     if (!(button instanceof HTMLButtonElement)) return;
 
-    // Connect only: keep every other Room button untouched.
+    // Connect only: mirror the AI Warehouse box dimensions/spacing.
     button.style.boxSizing = 'border-box';
-    button.style.height = '60px';
-    button.style.width = '176px';
-    button.style.minWidth = '176px';
-    button.style.maxWidth = '176px';
-    button.style.top = '48px';
+    button.style.height = '32px';
+    button.style.width = '128px';
+    button.style.minWidth = '128px';
+    button.style.maxWidth = '128px';
+    button.style.top = '51px';
     button.style.padding = '0 12px';
+    button.style.borderRadius = '6px';
+    button.style.fontSize = '10px';
+    button.style.gap = '4px';
   }
 
   let scheduled = false;
@@ -62,7 +65,7 @@
     requestAnimationFrame(() => {
       scheduled = false;
       moveLanguageBox();
-      tightenConnectButton();
+      matchConnectToWarehouse();
     });
   }
 
