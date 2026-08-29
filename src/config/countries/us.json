@@ -32,6 +32,10 @@
     "ein": "optional",
     "state_of_incorporation": "optional"
   },
+  "taxStructure": {
+    "system": "Federal/state/local tax (jurisdiction-specific)",
+    "status": "NEEDS_REVIEW"
+  },
   "compliance": {
     "legal": "NEEDS_REVIEW",
     "tax": "NEEDS_REVIEW",

@@ -59,4 +59,16 @@ describe("country domain routing", () => {
     expect(getCountryCodeByDomain("royalcommand.example.jp")).toBeNull();
     expect(getCountryCodeByDomain("royalcommand.example.kr")).toBeNull();
   });
+
+  it("requires explicit tax-structure review metadata for every first-wave country", () => {
+    for (const countryCode of getConfiguredCountryCodes()) {
+      const config = getCountryConfigByCountryCode(countryCode);
+      expect(config, countryCode).not.toBeNull();
+      expect(config?.taxStructure, countryCode).toBeDefined();
+      expect(config?.taxStructure?.system.trim().length, countryCode).toBeGreaterThan(0);
+      expect(["READY", "NEEDS_REVIEW", "BLOCKED"], countryCode).toContain(
+        config?.taxStructure?.status,
+      );
+    }
+  });
 });
