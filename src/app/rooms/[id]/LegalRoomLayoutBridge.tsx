@@ -22,6 +22,11 @@ function forceStyle(element: HTMLElement, property: string, value: string) {
   element.style.setProperty(property, value, "important");
 }
 
+function isVisible(element: HTMLElement) {
+  const style = window.getComputedStyle(element);
+  return style.display !== "none" && style.visibility !== "hidden";
+}
+
 function applyWideLayout() {
   const section = findLegalSection();
   if (!section) return false;
@@ -82,7 +87,7 @@ export default function LegalRoomLayoutBridge() {
       frame = window.requestAnimationFrame(() => {
         const section = findLegalSection();
         const exit = document.getElementById(EXIT_ID) as HTMLElement | null;
-        if (section && section.offsetParent !== null) {
+        if (section && isVisible(section)) {
           applyWideLayout();
         } else if (exit) {
           exit.style.display = "none";
