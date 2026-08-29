@@ -7,9 +7,9 @@ import {
   CATALOG,
   CREATE_ROOM_FORM_VERSION,
   PROMOTION_PERCENT,
-  type CatalogItem,
 } from "@/lib/rooms/universal-create-room-config";
 import { commercialMeta } from "@/lib/rooms/room-connection-commercial";
+import { EXPANDED_CATALOG } from "@/lib/rooms/room-connection-expanded-catalog";
 import {
   CREATE_ROOM_COUNTRIES,
   CREATE_ROOM_LANGUAGES,
@@ -22,6 +22,44 @@ type Props = {
   initialRoomName?: string;
   initialCountryCode?: string;
 };
+
+type ConnectionCategory =
+  | "ai"
+  | "secretary"
+  | "communication"
+  | "professional"
+  | "accounting"
+  | "legal"
+  | "files"
+  | "education"
+  | "media"
+  | "music"
+  | "sports"
+  | "travel"
+  | "marketplace"
+  | "business"
+  | "mail"
+  | "website"
+  | "maintenance";
+
+type ConnectionItem = {
+  id: string;
+  category: ConnectionCategory;
+  subcategory?: string;
+  name: string;
+  description: string;
+  billing: "monthly" | "one_time" | "quote" | "included";
+  priceAud?: number;
+  priceLabel?: string;
+  consultation?: boolean;
+  includedIn?: string[];
+  exclusiveGroup?: string;
+};
+
+const ALL_CATALOG: ConnectionItem[] = [
+  ...(CATALOG as unknown as ConnectionItem[]),
+  ...(EXPANDED_CATALOG as ConnectionItem[]),
+];
 
 function normaliseLocale(value?: string): CreateRoomLocale {
   const code = (value || "en").toLowerCase();
@@ -47,7 +85,7 @@ function money(value: number) {
   }).format(value);
 }
 
-function categoryLabel(category: CatalogItem["category"], locale: CreateRoomLocale) {
+function categoryLabel(category: ConnectionCategory, locale: CreateRoomLocale) {
   if (locale === "ko") {
     return ({
       ai: "AI 연결",
@@ -58,6 +96,11 @@ function categoryLabel(category: CatalogItem["category"], locale: CreateRoomLoca
       legal: "법률 소프트웨어",
       files: "파일 · 프로젝트",
       education: "교육 · 학습",
+      media: "영상 · 콘텐츠 제작",
+      music: "음악",
+      sports: "스포츠",
+      travel: "여행 · 예약 · 티켓",
+      marketplace: "중고 Marketplace",
       business: "업무 도구",
       mail: "우편 서비스",
       website: "웹사이트 제작",
@@ -73,6 +116,11 @@ function categoryLabel(category: CatalogItem["category"], locale: CreateRoomLoca
     legal: "Legal Software",
     files: "Files · Projects",
     education: "Education · Learning",
+    media: "Video · Content Creation",
+    music: "Music",
+    sports: "Sports",
+    travel: "Travel · Booking · Tickets",
+    marketplace: "Community Marketplace",
     business: "Business Tools",
     mail: "Mail Service",
     website: "Website Production",
@@ -87,29 +135,47 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
   const [promotion, setPromotion] = useState(true);
   const [agreement, setAgreement] = useState(false);
   const [purchaseReview, setPurchaseReview] = useState(false);
-  const [activeCategory, setActiveCategory] = useState<CatalogItem["category"]>("ai");
+  const [activeCategory, setActiveCategory] = useState<ConnectionCategory>("ai");
 
   const t = createRoomCopy(locale);
   const isKorean = locale === "ko";
-  const selectedItems = useMemo(() => CATALOG.filter((item) => selected.includes(item.id)), [selected]);
+  const selectedItems = useMemo(() => ALL_CATALOG.filter((item) => selected.includes(item.id)), [selected]);
   const monthlyKnown = BASIC_ROOM_MONTHLY_AUD + selectedItems.reduce((sum, item) => sum + (item.billing === "monthly" ? item.priceAud || 0 : 0), 0);
   const oneTimeKnown = selectedItems.reduce((sum, item) => sum + (item.billing === "one_time" ? item.priceAud || 0 : 0), 0);
   const discount = promotion ? monthlyKnown * (PROMOTION_PERCENT / 100) : 0;
   const monthlyTotal = Math.max(0, monthlyKnown - discount);
   const unconfirmed = selectedItems.some((item) => item.priceAud == null && item.billing !== "included");
 
-  const categories = ["ai", "secretary", "communication", "professional", "accounting", "legal", "files", "education", "business", "mail", "website", "maintenance"] as CatalogItem["category"][];
-  const visibleItems = CATALOG.filter((item) => item.category === activeCategory);
+  const categories: ConnectionCategory[] = [
+    "ai",
+    "secretary",
+    "communication",
+    "professional",
+    "accounting",
+    "legal",
+    "files",
+    "education",
+    "media",
+    "music",
+    "sports",
+    "travel",
+    "marketplace",
+    "business",
+    "mail",
+    "website",
+    "maintenance",
+  ];
+  const visibleItems = ALL_CATALOG.filter((item) => item.category === activeCategory);
 
   function toggle(id: string) {
-    const item = CATALOG.find((entry) => entry.id === id);
+    const item = ALL_CATALOG.find((entry) => entry.id === id);
     if (!item) return;
     setSelected((current) => {
       const adding = !current.includes(id);
       let next = adding ? [...current, id] : current.filter((entry) => entry !== id);
       if (adding && item.exclusiveGroup) {
         next = next.filter((entry) => {
-          const candidate = CATALOG.find((catalogItem) => catalogItem.id === entry);
+          const candidate = ALL_CATALOG.find((catalogItem) => catalogItem.id === entry);
           return !candidate || candidate.exclusiveGroup !== item.exclusiveGroup || entry === id;
         });
       }
@@ -117,7 +183,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
     });
   }
 
-  function priceText(item: CatalogItem) {
+  function priceText(item: ConnectionItem) {
     if (item.billing === "included") return item.priceLabel || "Included";
     if (item.priceLabel) return item.priceLabel;
     if (item.priceAud == null) return "Price to confirm";
@@ -129,8 +195,8 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const text = isKorean
-      ? "이 화면은 로열 커맨드 룸에 연결할 서비스를 배우고 선택하는 곳입니다. 먼저 카테고리를 고르면 해당 연결 도구만 표시됩니다. 인공지능, 전화와 비서, 회계, 법률, 파일, 교육, 업무도구 등을 필요할 때 연결할 수 있습니다. 고객 명의로 직접 가입하는 서비스와 로열 커맨드가 제휴 또는 리셀할 수 있는 서비스도 구분해서 안내합니다. 국가별 가격과 공급업체 조건은 다를 수 있으며 확정되지 않은 가격은 결제 전에 반드시 확인합니다."
-      : "This screen lets you learn about and choose services for a Royal Command Room. Choose a category first and only the relevant connection tools are shown. AI, phone and secretary services, accounting, legal, files, education and business tools can be added when needed. Customer-owned supplier accounts are distinguished from services that may support Royal Command partner or resale terms. Country pricing and supplier terms can differ and unconfirmed prices must be reviewed before payment.";
+      ? "이 화면은 로열 커맨드 룸에 연결할 서비스를 배우고 선택하는 곳입니다. 먼저 카테고리를 고르면 해당 연결 도구만 표시됩니다. 인공지능, 전화와 비서, 회계, 법률, 파일, 교육뿐 아니라 영상 제작, 음악, 스포츠, 여행과 예약, 티켓, 중고 마켓플레이스 같은 분야도 필요한 만큼 확장할 수 있습니다. 각 분야 안에는 세부 기능이 따로 있어 고객은 하고 싶은 일을 선택하고 로열 커맨드가 필요한 연결을 뒤에서 구성하는 방식입니다. 고객 명의 직접가입, 제휴, 리셀, 도매, 커미션 방식과 국가별 가격은 서비스마다 별도로 관리합니다. 확정되지 않은 가격은 결제 전에 반드시 확인합니다."
+      : "This screen lets you learn about and choose services for a Royal Command Room. Choose a category first and only the relevant tools are shown. In addition to AI, phone, accounting, legal, files and education, the catalogue can expand into video creation, music, sports, travel, reservations, tickets and community marketplace services. Each area has subcategories so the customer can choose the outcome they want while Royal Command configures the required connections behind the scenes. Customer-direct, partner, resale, wholesale and commission models, as well as country pricing, are managed per service. Unconfirmed prices must be reviewed before payment.";
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = isKorean ? "ko-KR" : "en-AU";
     utterance.rate = 0.95;
@@ -147,7 +213,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
               <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{isKorean ? "이 Room에 필요한 연결 도구를 선택하세요" : "Choose the connections for this Room"}</h1>
               {initialRoomName ? <div className="mt-2 text-sm text-emerald-200">Room name: <strong>{initialRoomName}</strong></div> : null}
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-                {isKorean ? "먼저 아래 카테고리를 선택하세요. 선택한 분야의 연결 도구만 표시되므로 서비스가 수백 개로 늘어나도 화면이 복잡해지지 않습니다. 개인 Room에도 나중에 필요한 기능을 추가할 수 있습니다." : "Choose a category first. Only relevant connection tools are shown, so the screen stays simple even as the catalogue grows to hundreds of services. A personal Room can add more capabilities later."}
+                {isKorean ? "먼저 아래 카테고리를 선택하세요. 영상·음악·스포츠·여행 같은 새 분야가 계속 추가되어도 선택한 분야의 도구만 보여주므로 화면은 단순하게 유지됩니다. 개인 Room에도 나중에 필요한 기능을 추가할 수 있습니다." : "Choose a category first. Even as new areas such as video, music, sports and travel are added, only the selected category is shown, keeping the screen simple. A personal Room can add more capabilities later."}
               </p>
               <button type="button" onClick={speakGuide} className="mt-4 rounded-xl border border-[var(--gold)]/45 bg-[var(--gold)]/10 px-4 py-2 text-sm font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)] hover:text-black">🔊 {isKorean ? "전체 연결 도구 안내 듣기" : "Listen to connection guide"}</button>
             </div>
@@ -170,7 +236,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
               </select>
             </label>
           </div>
-          <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "국가와 언어는 별개입니다. 국가에 따라 가격·공급업체·사용 가능 기능을 따로 적용할 수 있습니다." : "Country and language are separate. Pricing, suppliers and availability can be configured independently for each country."}</p>
+          <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "국가와 언어는 별개입니다. 국가에 따라 가격·공급업체·법적 사용 가능 범위를 따로 적용할 수 있습니다." : "Country and language are separate. Pricing, suppliers and legally available capabilities can be configured independently for each country."}</p>
         </header>
 
         <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
@@ -178,7 +244,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
           <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             {categories.map((category) => {
               const active = activeCategory === category;
-              const count = CATALOG.filter((item) => item.category === category).length;
+              const count = ALL_CATALOG.filter((item) => item.category === category).length;
               return (
                 <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`rounded-xl border px-3 py-3 text-left text-sm transition ${active ? "border-[var(--gold)] bg-[var(--gold)]/15 text-[var(--gold-soft)]" : "border-white/10 bg-black/10 hover:border-white/25"}`}>
                   <div className="font-semibold">{categoryLabel(category, locale)}</div>
@@ -192,7 +258,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
           <section className="rounded-[24px] border border-white/10 bg-black/20 p-4 md:p-5">
             <h2 className="text-xl font-semibold text-[var(--gold-soft)]">{categoryLabel(activeCategory, locale)}</h2>
-            <p className="mt-1 text-xs text-[var(--muted)]">{isKorean ? "필요한 서비스만 선택하세요. 국가별 실제 가격과 계약조건은 결제 전에 다시 확인합니다." : "Select only what you need. Country-specific pricing and supplier terms are verified before payment."}</p>
+            <p className="mt-1 text-xs text-[var(--muted)]">{isKorean ? "필요한 서비스만 선택하세요. 세부분야가 표시되므로 같은 카테고리 안에서도 원하는 기능을 쉽게 찾을 수 있습니다." : "Select only what you need. Subcategories help you find the right capability inside each area."}</p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {visibleItems.map((item) => {
                 const active = selected.includes(item.id);
@@ -201,6 +267,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
                   <div key={item.id} className={`rounded-2xl border p-4 transition ${active ? "border-emerald-400/80 bg-emerald-500/12 shadow-[0_0_0_1px_rgba(52,211,153,.16)]" : "border-white/10 bg-black/10"}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div>
+                        {item.subcategory ? <div className="mb-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-emerald-200/80">{item.subcategory}</div> : null}
                         <div className="font-semibold">{item.name}</div>
                         <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{item.description}</p>
                       </div>
