@@ -9,6 +9,7 @@ import {
   PROMOTION_PERCENT,
   type CatalogItem,
 } from "@/lib/rooms/universal-create-room-config";
+import { commercialMeta } from "@/lib/rooms/room-connection-commercial";
 import {
   CREATE_ROOM_COUNTRIES,
   CREATE_ROOM_LANGUAGES,
@@ -53,9 +54,9 @@ function categoryLabel(category: CatalogItem["category"], locale: CreateRoomLoca
       secretary: "AI 비서",
       communication: "전화 · SMS · 이메일 · 통역",
       professional: "전문가 연결",
-      accounting: "회계 소프트웨어 연결",
-      legal: "법률 소프트웨어 연결",
-      files: "파일 · 프로젝트 정리",
+      accounting: "회계 소프트웨어",
+      legal: "법률 소프트웨어",
+      files: "파일 · 프로젝트",
       education: "교육 · 학습",
       business: "업무 도구",
       mail: "우편 서비스",
@@ -68,8 +69,8 @@ function categoryLabel(category: CatalogItem["category"], locale: CreateRoomLoca
     secretary: "AI Secretary",
     communication: "Phone · SMS · Email · Translation",
     professional: "Professional Connections",
-    accounting: "Accounting Software Connections",
-    legal: "Legal Software Connections",
+    accounting: "Accounting Software",
+    legal: "Legal Software",
     files: "Files · Projects",
     education: "Education · Learning",
     business: "Business Tools",
@@ -86,6 +87,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
   const [promotion, setPromotion] = useState(true);
   const [agreement, setAgreement] = useState(false);
   const [purchaseReview, setPurchaseReview] = useState(false);
+  const [activeCategory, setActiveCategory] = useState<CatalogItem["category"]>("ai");
 
   const t = createRoomCopy(locale);
   const isKorean = locale === "ko";
@@ -97,6 +99,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
   const unconfirmed = selectedItems.some((item) => item.priceAud == null && item.billing !== "included");
 
   const categories = ["ai", "secretary", "communication", "professional", "accounting", "legal", "files", "education", "business", "mail", "website", "maintenance"] as CatalogItem["category"][];
+  const visibleItems = CATALOG.filter((item) => item.category === activeCategory);
 
   function toggle(id: string) {
     const item = CATALOG.find((entry) => entry.id === id);
@@ -126,8 +129,8 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const text = isKorean
-      ? "이 화면은 로열 커맨드 룸에 연결할 수 있는 전체 도구를 배우고 선택하는 곳입니다. 챗지피티, 클로드, 제미나이, 그록 같은 인공지능을 연결할 수 있습니다. 회계는 제로, 마이옵, 퀵북스, 레콘 같은 프로그램 연결 옵션이 있고, 법률은 립과 로커넥트, 스모크볼, 클리오, 액션스텝 같은 시스템 연결 옵션을 확인할 수 있습니다. 클라우드 폰은 기본 전화번호, 알림 서비스, 인공지능 전화 비서, 회사와 전문가용 업무 전화 등 단계가 다릅니다. 파일 정리, 교육, 전문가 협업, 이메일, 캘린더와 다른 업무 도구도 선택할 수 있습니다. 무료 또는 기본 포함 기능과 유료 기능을 구분해서 보여주며, 가격이 확정되지 않은 연결은 결제 전에 반드시 확인합니다."
-      : "This screen is where you learn about and choose the tools that can connect to a Royal Command Room. You can connect AI services such as ChatGPT, Claude, Gemini and Grok. Accounting connection options include Xero, MYOB, QuickBooks and Reckon. Legal connection options include LEAP and LawConnect, Smokeball, Clio and Actionstep. Cloud Phone has different tiers including a basic number, notifications, an AI phone secretary, and business or professional phone workflows. You can also select file organisation, education, professional collaboration, email, calendars and other business tools. Included and paid features are shown separately, and any unconfirmed connection price must be reviewed before payment.";
+      ? "이 화면은 로열 커맨드 룸에 연결할 서비스를 배우고 선택하는 곳입니다. 먼저 카테고리를 고르면 해당 연결 도구만 표시됩니다. 인공지능, 전화와 비서, 회계, 법률, 파일, 교육, 업무도구 등을 필요할 때 연결할 수 있습니다. 고객 명의로 직접 가입하는 서비스와 로열 커맨드가 제휴 또는 리셀할 수 있는 서비스도 구분해서 안내합니다. 국가별 가격과 공급업체 조건은 다를 수 있으며 확정되지 않은 가격은 결제 전에 반드시 확인합니다."
+      : "This screen lets you learn about and choose services for a Royal Command Room. Choose a category first and only the relevant connection tools are shown. AI, phone and secretary services, accounting, legal, files, education and business tools can be added when needed. Customer-owned supplier accounts are distinguished from services that may support Royal Command partner or resale terms. Country pricing and supplier terms can differ and unconfirmed prices must be reviewed before payment.";
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = isKorean ? "ko-KR" : "en-AU";
     utterance.rate = 0.95;
@@ -144,7 +147,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
               <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{isKorean ? "이 Room에 필요한 연결 도구를 선택하세요" : "Choose the connections for this Room"}</h1>
               {initialRoomName ? <div className="mt-2 text-sm text-emerald-200">Room name: <strong>{initialRoomName}</strong></div> : null}
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-                {isKorean ? "아래 네모난 카드에서 필요한 기능만 선택하세요. 개인 Room도 나중에 AI·회계·법률·Cloud Phone·전문가·파일관리 같은 기능을 추가할 수 있습니다. 이 목록은 무엇을 연결할 수 있는지 배우는 안내 목록이기도 합니다." : "Select only the services you need from the cards below. Even a personal Room can later add AI, accounting, legal, Cloud Phone, expert or advanced file services. This list also teaches you what can be connected."}
+                {isKorean ? "먼저 아래 카테고리를 선택하세요. 선택한 분야의 연결 도구만 표시되므로 서비스가 수백 개로 늘어나도 화면이 복잡해지지 않습니다. 개인 Room에도 나중에 필요한 기능을 추가할 수 있습니다." : "Choose a category first. Only relevant connection tools are shown, so the screen stays simple even as the catalogue grows to hundreds of services. A personal Room can add more capabilities later."}
               </p>
               <button type="button" onClick={speakGuide} className="mt-4 rounded-xl border border-[var(--gold)]/45 bg-[var(--gold)]/10 px-4 py-2 text-sm font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)] hover:text-black">🔊 {isKorean ? "전체 연결 도구 안내 듣기" : "Listen to connection guide"}</button>
             </div>
@@ -167,45 +170,63 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
               </select>
             </label>
           </div>
-          <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "국가와 언어는 별개입니다. 예: United States + 한국어. 기본 버튼과 메뉴는 English로 유지됩니다." : "Country and language are separate. Core buttons and menus remain English."}</p>
+          <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "국가와 언어는 별개입니다. 국가에 따라 가격·공급업체·사용 가능 기능을 따로 적용할 수 있습니다." : "Country and language are separate. Pricing, suppliers and availability can be configured independently for each country."}</p>
         </header>
 
+        <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
+          <div className="mb-3 text-sm font-semibold text-[var(--gold-soft)]">{isKorean ? "연결 카테고리" : "Connection categories"}</div>
+          <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {categories.map((category) => {
+              const active = activeCategory === category;
+              const count = CATALOG.filter((item) => item.category === category).length;
+              return (
+                <button key={category} type="button" onClick={() => setActiveCategory(category)} className={`rounded-xl border px-3 py-3 text-left text-sm transition ${active ? "border-[var(--gold)] bg-[var(--gold)]/15 text-[var(--gold-soft)]" : "border-white/10 bg-black/10 hover:border-white/25"}`}>
+                  <div className="font-semibold">{categoryLabel(category, locale)}</div>
+                  <div className="mt-1 text-xs text-[var(--muted)]">{count} {isKorean ? "개 연결" : "connections"}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
-          <section className="space-y-4">
-            {categories.map((category) => (
-              <section key={category} className="rounded-[24px] border border-white/10 bg-black/20 p-4 md:p-5">
-                <h2 className="text-lg font-semibold text-[var(--gold-soft)]">{categoryLabel(category, locale)}</h2>
-                <div className="mt-4 grid gap-3 md:grid-cols-2">
-                  {CATALOG.filter((item) => item.category === category).map((item) => {
-                    const active = selected.includes(item.id);
-                    return (
-                      <div key={item.id} className={`rounded-2xl border p-4 transition ${active ? "border-emerald-400/80 bg-emerald-500/12 shadow-[0_0_0_1px_rgba(52,211,153,.16)]" : "border-white/10 bg-black/10"}`}>
-                        <div className="flex items-start justify-between gap-3">
-                          <div>
-                            <div className="font-semibold">{item.name}</div>
-                            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{item.description}</p>
-                          </div>
-                          <div className="shrink-0 text-right text-xs font-semibold text-[var(--gold-soft)]">{priceText(item)}</div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => toggle(item.id)}
-                          aria-pressed={active}
-                          className={`mt-4 min-h-12 w-full rounded-xl border px-4 py-3 text-sm font-bold transition ${active ? "border-emerald-300 bg-emerald-500 text-black" : "border-[var(--gold)]/60 bg-[var(--gold)]/10 text-[var(--gold-soft)] hover:bg-[var(--gold)] hover:text-black"}`}
-                        >
-                          {active ? (isKorean ? "선택됨 ✓ — 취소" : "SELECTED ✓ — REMOVE") : (isKorean ? "선택 — Room에 연결" : "SELECT — CONNECT TO ROOM")}
-                        </button>
+          <section className="rounded-[24px] border border-white/10 bg-black/20 p-4 md:p-5">
+            <h2 className="text-xl font-semibold text-[var(--gold-soft)]">{categoryLabel(activeCategory, locale)}</h2>
+            <p className="mt-1 text-xs text-[var(--muted)]">{isKorean ? "필요한 서비스만 선택하세요. 국가별 실제 가격과 계약조건은 결제 전에 다시 확인합니다." : "Select only what you need. Country-specific pricing and supplier terms are verified before payment."}</p>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              {visibleItems.map((item) => {
+                const active = selected.includes(item.id);
+                const meta = commercialMeta(item.id);
+                return (
+                  <div key={item.id} className={`rounded-2xl border p-4 transition ${active ? "border-emerald-400/80 bg-emerald-500/12 shadow-[0_0_0_1px_rgba(52,211,153,.16)]" : "border-white/10 bg-black/10"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold">{item.name}</div>
+                        <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{item.description}</p>
                       </div>
-                    );
-                  })}
-                </div>
-              </section>
-            ))}
+                      <div className="shrink-0 text-right text-xs font-semibold text-[var(--gold-soft)]">{priceText(item)}</div>
+                    </div>
+                    <div className="mt-3 rounded-lg border border-white/10 bg-black/15 px-3 py-2 text-[11px] leading-4">
+                      <div className="font-semibold text-emerald-200">{isKorean ? meta.labelKo : meta.labelEn}</div>
+                      {(isKorean ? meta.noteKo : meta.noteEn) ? <div className="mt-1 text-[var(--muted)]">{isKorean ? meta.noteKo : meta.noteEn}</div> : null}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => toggle(item.id)}
+                      aria-pressed={active}
+                      className={`mt-4 min-h-12 w-full rounded-xl border px-4 py-3 text-sm font-bold transition ${active ? "border-emerald-300 bg-emerald-500 text-black" : "border-[var(--gold)]/60 bg-[var(--gold)]/10 text-[var(--gold-soft)] hover:bg-[var(--gold)] hover:text-black"}`}
+                    >
+                      {active ? (isKorean ? "선택됨 ✓ — 취소" : "SELECTED ✓ — REMOVE") : (isKorean ? "선택 — Room에 연결" : "SELECT — CONNECT TO ROOM")}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </section>
 
           <aside className="h-fit rounded-[28px] border border-[var(--gold)]/35 bg-black/35 p-5 shadow-[0_20px_70px_rgba(0,0,0,.3)] lg:sticky lg:top-6">
             <div className="text-sm font-semibold text-[var(--gold-soft)]">{isKorean ? "내 연결 선택 목록" : "My Connection Selection"}</div>
-            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{isKorean ? "선택한 연결 서비스만 여기에 표시됩니다. 카드를 다시 누르면 제거됩니다." : "Only selected connections appear here. Select again to remove one."}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{isKorean ? "선택한 연결 서비스만 여기에 표시됩니다. 다른 카테고리로 이동해도 선택은 유지됩니다." : "Only selected connections appear here. Your selections stay in place while browsing other categories."}</p>
 
             <div className="mt-4 space-y-2">
               {selectedItems.length ? selectedItems.map((item) => (
@@ -224,7 +245,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
               <div className="flex justify-between"><span>Promotion {PROMOTION_PERCENT}%</span><strong className="text-emerald-300">−{money(discount)}</strong></div>
               <div className="flex justify-between border-t border-white/10 pt-3 text-base"><span>{isKorean ? "월 예상 합계" : "Monthly total"}</span><strong className="text-xl text-[var(--gold-soft)]">{money(monthlyTotal)}</strong></div>
               {oneTimeKnown > 0 ? <div className="flex justify-between"><span>{isKorean ? "일회성 작업" : "One-time work"}</span><strong>{money(oneTimeKnown)}</strong></div> : null}
-              {unconfirmed ? <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-xs leading-5 text-amber-100">{isKorean ? "선택한 서비스 중 아직 가격이 확정되지 않은 항목이 있습니다. 이 항목은 현재 합계에 포함되지 않으며 결제 전에 반드시 가격을 확인합니다." : "Some selected services have unconfirmed pricing. They are not included in the known total and must be confirmed before payment."}</div> : null}
+              {unconfirmed ? <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-xs leading-5 text-amber-100">{isKorean ? "선택한 서비스 중 아직 가격이 확정되지 않은 항목이 있습니다. 국가별 파트너 가격·할인·RC 마진을 확인한 뒤 결제 전에 최종 금액을 보여줍니다." : "Some selected services have unconfirmed pricing. Country partner cost, customer discount and RC margin must be verified before the final amount is shown."}</div> : null}
             </div>
 
             <label className="mt-4 flex items-center gap-2 text-xs text-[var(--muted)]"><input type="checkbox" checked={promotion} onChange={(event) => setPromotion(event.target.checked)} className="accent-emerald-500" /> Promotion {PROMOTION_PERCENT}%</label>
@@ -236,7 +257,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
             {purchaseReview ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="font-semibold">{isKorean ? "연결 서비스 확인" : "Purchase Review"}</div>
-                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{isKorean ? "선택한 서비스와 금액을 확인한 뒤 동의하면 결제 연결 단계로 이동합니다. 현재 실제 결제 연결은 아직 활성화하지 않았으므로 이 화면에서 임의로 과금하지 않습니다." : "Review your selected services and pricing. Payment integration is not yet activated in this form, so no charge is made from this screen."}</p>
+                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{isKorean ? "선택한 서비스, 소유 방식, 국가별 가격을 확인한 뒤 동의하면 결제 연결 단계로 이동합니다. 가격이 확정되지 않은 서비스는 결제되지 않습니다." : "Review selected services, ownership method and country pricing before proceeding. Services with unconfirmed pricing are not charged."}</p>
                 <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={agreement} onChange={(event) => setAgreement(event.target.checked)} className="mt-1 h-4 w-4 accent-emerald-500" /><span>{isKorean ? "선택한 서비스와 예상 금액을 확인했습니다." : "I reviewed my selected services and estimated charges."}</span></label>
                 <button type="button" disabled={!agreement} className="mt-3 min-h-11 w-full rounded-xl border border-[var(--gold)]/50 px-3 py-2 font-semibold text-[var(--gold-soft)] disabled:opacity-35">Agreement & Payment</button>
               </div>
