@@ -90,7 +90,9 @@ async function resolveRecordingPolicy(
   const region = regionCode?.toUpperCase() || null;
   let row: { review_status?: string; recording_policy?: string; country_code?: string; region_code?: string | null } | null = null;
 
-  if (region) {
+  // Australia uses one nationwide conservative policy. Region-specific rows must never
+  // override it because callers may travel between states/territories during use.
+  if (region && country !== "AU") {
     const { data } = await supabase
       .from("communication_recording_policies")
       .select("country_code, region_code, review_status, recording_policy")
@@ -111,7 +113,7 @@ async function resolveRecordingPolicy(
   }
 
   if (!row || row.review_status !== "approved") {
-    return { policy: "prohibited", status: "blocked", reviewStatus: row?.review_status || "missing_policy", countryCode: country, regionCode: region };
+    return { policy: "prohibited", status: "blocked", reviewStatus: row?.review_status || "missing_policy", countryCode: country, regionCode: country === "AU" ? null : region };
   }
 
   const mapped: SessionRecordingPolicy = row.recording_policy === "allowed"
@@ -122,7 +124,13 @@ async function resolveRecordingPolicy(
         ? "consent_required"
         : "prohibited";
 
-  return { policy: mapped, status: initialRecordingState(mapped), reviewStatus: row.review_status, countryCode: country, regionCode: region };
+  return {
+    policy: mapped,
+    status: initialRecordingState(mapped),
+    reviewStatus: row.review_status,
+    countryCode: country,
+    regionCode: country === "AU" ? null : region,
+  };
 }
 
 export async function GET(request: Request, context: { params: Promise<{ id: string }> }) {
