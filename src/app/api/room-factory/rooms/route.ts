@@ -83,7 +83,23 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     let householdId = input.householdId;
 
-    if (!householdId) {
+    if (householdId) {
+      // `households_select_member` is intentionally used as the first isolation
+      // boundary: a supplied household is usable only when the current user can
+      // see it as its owner or an existing household member.
+      const { data: accessibleHousehold, error: householdAccessError } = await supabase
+        .from("households")
+        .select("id")
+        .eq("id", householdId)
+        .maybeSingle();
+
+      if (householdAccessError) {
+        return NextResponse.json({ error: householdAccessError.message }, { status: 500 });
+      }
+      if (!accessibleHousehold) {
+        return NextResponse.json({ error: "Household is not available to the current user." }, { status: 403 });
+      }
+    } else {
       const { data: household, error: householdError } = await supabase
         .from("households")
         .insert({
