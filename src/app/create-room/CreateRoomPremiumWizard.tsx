@@ -52,7 +52,9 @@ function categoryLabel(category: CatalogItem["category"], locale: CreateRoomLoca
       ai: "AI 연결",
       secretary: "AI 비서",
       communication: "전화 · SMS · 이메일 · 통역",
-      professional: "법률 · 회계 · 전문가 연결",
+      professional: "전문가 연결",
+      accounting: "회계 소프트웨어 연결",
+      legal: "법률 소프트웨어 연결",
       files: "파일 · 프로젝트 정리",
       education: "교육 · 학습",
       business: "업무 도구",
@@ -65,7 +67,9 @@ function categoryLabel(category: CatalogItem["category"], locale: CreateRoomLoca
     ai: "AI Connections",
     secretary: "AI Secretary",
     communication: "Phone · SMS · Email · Translation",
-    professional: "Legal · Accounting · Experts",
+    professional: "Professional Connections",
+    accounting: "Accounting Software Connections",
+    legal: "Legal Software Connections",
     files: "Files · Projects",
     education: "Education · Learning",
     business: "Business Tools",
@@ -92,7 +96,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
   const monthlyTotal = Math.max(0, monthlyKnown - discount);
   const unconfirmed = selectedItems.some((item) => item.priceAud == null && item.billing !== "included");
 
-  const categories = ["ai", "secretary", "communication", "professional", "files", "education", "business", "mail", "website", "maintenance"] as CatalogItem["category"][];
+  const categories = ["ai", "secretary", "communication", "professional", "accounting", "legal", "files", "education", "business", "mail", "website", "maintenance"] as CatalogItem["category"][];
 
   function toggle(id: string) {
     const item = CATALOG.find((entry) => entry.id === id);
@@ -122,8 +126,8 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
     if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
     window.speechSynthesis.cancel();
     const text = isKorean
-      ? "이 화면에서 이 방에 연결할 서비스를 선택할 수 있습니다. 기본 기능과 유료 기능을 각각 확인하세요. 클라우드 폰은 단순 전화번호부터 알림 서비스, 인공지능 전화 비서, 회사와 전문가용 업무 전화까지 단계가 다릅니다. 법률, 회계, 파일 관리, 교육, 인공지능과 다른 업무 도구도 필요할 때 선택할 수 있습니다. 가격이 확정된 서비스는 금액이 표시되고, 아직 확정되지 않은 서비스는 가격 확인 필요라고 표시됩니다. 선택만으로 바로 과금되지 않으며 마지막 결제 단계에서 확인합니다."
-      : "On this screen you can choose services to connect to this Room. Review included and paid options. Cloud Phone ranges from a basic phone number to notifications, an AI phone secretary, and business or professional phone workflows. You can also add legal, accounting, file management, education, AI and other business tools. Confirmed prices are shown, while unconfirmed services are clearly marked. Selecting a service does not charge you immediately; final charges are reviewed at the payment step.";
+      ? "이 화면은 로열 커맨드 룸에 연결할 수 있는 전체 도구를 배우고 선택하는 곳입니다. 챗지피티, 클로드, 제미나이, 그록 같은 인공지능을 연결할 수 있습니다. 회계는 제로, 마이옵, 퀵북스, 레콘 같은 프로그램 연결 옵션이 있고, 법률은 립과 로커넥트, 스모크볼, 클리오, 액션스텝 같은 시스템 연결 옵션을 확인할 수 있습니다. 클라우드 폰은 기본 전화번호, 알림 서비스, 인공지능 전화 비서, 회사와 전문가용 업무 전화 등 단계가 다릅니다. 파일 정리, 교육, 전문가 협업, 이메일, 캘린더와 다른 업무 도구도 선택할 수 있습니다. 무료 또는 기본 포함 기능과 유료 기능을 구분해서 보여주며, 가격이 확정되지 않은 연결은 결제 전에 반드시 확인합니다."
+      : "This screen is where you learn about and choose the tools that can connect to a Royal Command Room. You can connect AI services such as ChatGPT, Claude, Gemini and Grok. Accounting connection options include Xero, MYOB, QuickBooks and Reckon. Legal connection options include LEAP and LawConnect, Smokeball, Clio and Actionstep. Cloud Phone has different tiers including a basic number, notifications, an AI phone secretary, and business or professional phone workflows. You can also select file organisation, education, professional collaboration, email, calendars and other business tools. Included and paid features are shown separately, and any unconfirmed connection price must be reviewed before payment.";
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = isKorean ? "ko-KR" : "en-AU";
     utterance.rate = 0.95;
@@ -140,9 +144,9 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
               <h1 className="mt-2 text-3xl font-semibold md:text-4xl">{isKorean ? "이 Room에 필요한 연결 도구를 선택하세요" : "Choose the connections for this Room"}</h1>
               {initialRoomName ? <div className="mt-2 text-sm text-emerald-200">Room name: <strong>{initialRoomName}</strong></div> : null}
               <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-                {isKorean ? "아래 네모난 카드에서 필요한 기능만 선택하세요. 개인 Room도 나중에 법률·회계·Cloud Phone·전문가·파일관리 같은 기능을 추가할 수 있습니다. 무료 또는 기본 포함 기능과 유료 연결 기능을 구분해 표시합니다." : "Select only the services you need from the cards below. Even a personal Room can later add legal, accounting, Cloud Phone, expert or advanced file services. Included and paid connections are clearly distinguished."}
+                {isKorean ? "아래 네모난 카드에서 필요한 기능만 선택하세요. 개인 Room도 나중에 AI·회계·법률·Cloud Phone·전문가·파일관리 같은 기능을 추가할 수 있습니다. 이 목록은 무엇을 연결할 수 있는지 배우는 안내 목록이기도 합니다." : "Select only the services you need from the cards below. Even a personal Room can later add AI, accounting, legal, Cloud Phone, expert or advanced file services. This list also teaches you what can be connected."}
               </p>
-              <button type="button" onClick={speakGuide} className="mt-4 rounded-xl border border-[var(--gold)]/45 bg-[var(--gold)]/10 px-4 py-2 text-sm font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)] hover:text-black">🔊 {isKorean ? "서비스 안내 듣기" : "Listen to service guide"}</button>
+              <button type="button" onClick={speakGuide} className="mt-4 rounded-xl border border-[var(--gold)]/45 bg-[var(--gold)]/10 px-4 py-2 text-sm font-semibold text-[var(--gold-soft)] hover:bg-[var(--gold)] hover:text-black">🔊 {isKorean ? "전체 연결 도구 안내 듣기" : "Listen to connection guide"}</button>
             </div>
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-right">
               <div className="text-xs text-emerald-200">{BASIC_TRIAL_DAYS} Day Trial</div>
