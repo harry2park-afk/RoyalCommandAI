@@ -98,13 +98,12 @@ export default function LegalRoomLayoutBridge() {
     const onTopLegalButtonClick = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element)) return;
-      const button = target.closest<HTMLButtonElement>("button");
-      if (!button) return;
+      const control = target.closest<HTMLElement>("button, [role='button'], a");
+      if (!control) return;
 
-      const text = (button.textContent || "").replace(/\s+/g, " ").trim();
-      const rect = button.getBoundingClientRect();
-      const looksLikeTopLegalRoomButton = rect.top < 100 && (text.includes("법률") || /\blegal\b/i.test(text));
-      if (!looksLikeTopLegalRoomButton) return;
+      const text = (control.textContent || "").replace(/\s+/g, " ").trim();
+      const isHarryLegalRoomButton = text.includes("Harry") && text.includes("법률");
+      if (!isHarryLegalRoomButton) return;
 
       const legalToolsButton = findLegalToolsButton();
       if (!legalToolsButton) return;
