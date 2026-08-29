@@ -11,12 +11,32 @@ type FactoryRoom = {
   factoryVersion: string;
 };
 
+type ResumeLane = {
+  lane_id?: string;
+  status?: string;
+  rework_round?: number;
+  evidence?: Record<string, unknown> | null;
+};
+
+type HostStatus = {
+  httpStatus?: number;
+  latestWork?: { work_id?: string } | null;
+  activeLocks?: unknown[];
+  lanes?: ResumeLane[];
+  resume?: {
+    overallStatus?: string;
+    nextAction?: string;
+    nextLaneId?: string | null;
+  } | null;
+  [key: string]: unknown;
+};
+
 export default function RoomFactoryResumePage() {
   const [rooms, setRooms] = useState<FactoryRoom[]>([]);
   const [roomId, setRoomId] = useState("");
   const [loading, setLoading] = useState(true);
   const [checking, setChecking] = useState(false);
-  const [status, setStatus] = useState<unknown>(null);
+  const [status, setStatus] = useState<HostStatus | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -42,21 +62,15 @@ export default function RoomFactoryResumePage() {
     try {
       const response = await fetch(`/api/room-factory/work-status?roomId=${encodeURIComponent(roomId)}`, { cache: "no-store" });
       const payload = await response.json().catch(() => ({}));
-      setStatus({ httpStatus: response.status, ...payload });
+      const nextStatus = payload && typeof payload === "object" ? payload as Record<string, unknown> : {};
+      setStatus({ httpStatus: response.status, ...nextStatus });
     } finally {
       setChecking(false);
     }
   }
 
-  useEffect(() => {
-    if (roomId) void refresh();
-    // refresh is intentionally triggered by room selection only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
-
-  const data = status && typeof status === "object" ? status as Record<string, any> : {};
-  const lanes = Array.isArray(data.lanes) ? data.lanes : [];
-  const resume = data.resume && typeof data.resume === "object" ? data.resume : {};
+  const lanes = Array.isArray(status?.lanes) ? status.lanes : [];
+  const resume = status?.resume && typeof status.resume === "object" ? status.resume : {};
 
   return (
     <main className="min-h-screen px-5 py-8 md:px-8">
@@ -68,7 +82,7 @@ export default function RoomFactoryResumePage() {
         <div className="mt-6 flex flex-col gap-3 md:flex-row md:items-end">
           <div className="flex-1">
             <label className="mb-2 block text-sm font-semibold">Factory-created Room</label>
-            <select className="rc-input" value={roomId} onChange={(event) => setRoomId(event.target.value)} disabled={loading || checking}>
+            <select className="rc-input" value={roomId} onChange={(event) => { setRoomId(event.target.value); setStatus(null); }} disabled={loading || checking}>
               {!rooms.length && <option value="">{loading ? "Loading…" : "No Factory-created Rooms found"}</option>}
               {rooms.map((room) => <option key={room.roomId} value={room.roomId}>{room.name} · {room.countryCode} · {room.templateId}</option>)}
             </select>
@@ -88,15 +102,15 @@ export default function RoomFactoryResumePage() {
           </div>
           <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
             <div className="text-xs uppercase tracking-wider text-white/50">Latest Work</div>
-            <div className="mt-2 break-all text-sm font-semibold">{String(data.latestWork?.work_id || "Not started")}</div>
-            <div className="mt-1 text-xs text-white/50">Active locks: {Array.isArray(data.activeLocks) ? data.activeLocks.length : 0}</div>
+            <div className="mt-2 break-all text-sm font-semibold">{String(status?.latestWork?.work_id || "Not started")}</div>
+            <div className="mt-1 text-xs text-white/50">Active locks: {Array.isArray(status?.activeLocks) ? status.activeLocks.length : 0}</div>
           </div>
         </section>
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-4">
           <div className="mb-3 text-sm font-semibold text-[var(--gold-soft)]">Work Lanes</div>
           <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
-            {lanes.map((lane: any) => (
+            {lanes.map((lane) => (
               <div key={String(lane.lane_id)} className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <div className="text-xs font-semibold uppercase">{String(lane.lane_id)}</div>
                 <div className="mt-2 text-sm">{String(lane.status)}</div>
@@ -110,7 +124,7 @@ export default function RoomFactoryResumePage() {
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-4">
           <div className="mb-2 text-sm font-semibold text-[var(--gold-soft)]">Authoritative Host Snapshot</div>
-          <pre className="max-h-[600px] overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-white/70">{status ? JSON.stringify(status, null, 2) : "No status loaded."}</pre>
+          <pre className="max-h-[600px] overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-white/70">{status ? JSON.stringify(status, null, 2) : "Select a Factory Room and click Refresh Host Status."}</pre>
         </section>
       </div>
     </main>
