@@ -36,6 +36,25 @@
     }
   }
 
+  function tightenConnectButton() {
+    const button = Array.from(document.querySelectorAll('button')).find((item) => {
+      if (!(item instanceof HTMLButtonElement)) return false;
+      return item.style.position === 'fixed'
+        && item.style.right === '184px'
+        && item.style.zIndex === '355';
+    });
+    if (!(button instanceof HTMLButtonElement)) return;
+
+    // Connect only: keep every other Room button untouched.
+    button.style.boxSizing = 'border-box';
+    button.style.height = '60px';
+    button.style.width = '176px';
+    button.style.minWidth = '176px';
+    button.style.maxWidth = '176px';
+    button.style.top = '48px';
+    button.style.padding = '0 12px';
+  }
+
   let scheduled = false;
   function schedule() {
     if (scheduled) return;
@@ -43,6 +62,7 @@
     requestAnimationFrame(() => {
       scheduled = false;
       moveLanguageBox();
+      tightenConnectButton();
     });
   }
 
