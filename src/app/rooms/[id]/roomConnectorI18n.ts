@@ -9,7 +9,7 @@ export type ConnectorTextKey =
 type Dict = Record<ConnectorTextKey, string>;
 
 const EN: Dict = {
-  connectButton: "Connect", dialogTitle: "Connect to this Room", searchPlaceholder: "Search AI, apps, tools or services…",
+  connectButton: "Connect to Room", dialogTitle: "Connect to this Room", searchPlaceholder: "Search AI, apps, tools or services…",
   all: "All", ai: "AI", tools: "Apps & Tools", services: "Services", sendSelected: "Send to this Room",
   selectedCount: "selected", connected: "Already connected", notConnected: "Not connected", notAvailable: "Not available", loading: "Loading…",
   included: "Included", pendingPayment: "Pending payment", planned: "Coming soon", connect: "Connect", disconnect: "Disconnect",
@@ -26,7 +26,7 @@ const EN: Dict = {
 };
 
 const KO: Dict = {
-  connectButton: "연결", dialogTitle: "이 Room에 연결", searchPlaceholder: "AI, 앱, 도구 또는 서비스를 검색하세요…",
+  connectButton: "Connect to Room", dialogTitle: "이 Room에 연결", searchPlaceholder: "AI, 앱, 도구 또는 서비스를 검색하세요…",
   all: "전체", ai: "AI", tools: "앱 및 도구", services: "서비스", sendSelected: "이 Room으로 보내기",
   selectedCount: "개 선택", connected: "이미 연결됨", notConnected: "연결 안 됨", notAvailable: "사용 불가", loading: "불러오는 중…",
   included: "기본 포함", pendingPayment: "결제 대기", planned: "준비 중", connect: "연결", disconnect: "연결 해제",
@@ -43,7 +43,7 @@ const KO: Dict = {
 };
 
 const ZH_CN: Dict = {
-  connectButton: "连接", dialogTitle: "连接到此房间", searchPlaceholder: "搜索 AI、应用、工具或服务…",
+  connectButton: "Connect to Room", dialogTitle: "连接到此房间", searchPlaceholder: "搜索 AI、应用、工具或服务…",
   all: "全部", ai: "AI", tools: "应用与工具", services: "服务", sendSelected: "发送到此房间",
   selectedCount: "项已选择", connected: "已连接", notConnected: "未连接", notAvailable: "不可用", loading: "加载中…",
   included: "已包含", pendingPayment: "等待付款", planned: "即将推出", connect: "连接", disconnect: "断开连接",
@@ -57,7 +57,7 @@ const ZH_CN: Dict = {
 };
 
 const ZH_TW: Dict = {
-  connectButton: "連接", dialogTitle: "連接到此房間", searchPlaceholder: "搜尋 AI、應用程式、工具或服務…",
+  connectButton: "Connect to Room", dialogTitle: "連接到此房間", searchPlaceholder: "搜尋 AI、應用程式、工具或服務…",
   all: "全部", ai: "AI", tools: "應用程式與工具", services: "服務", sendSelected: "傳送到此房間",
   selectedCount: "項已選擇", connected: "已連接", notConnected: "未連接", notAvailable: "不可用", loading: "載入中…",
   included: "已包含", pendingPayment: "等待付款", planned: "即將推出", connect: "連接", disconnect: "中斷連接",
@@ -71,7 +71,7 @@ const ZH_TW: Dict = {
 };
 
 const AR: Dict = {
-  connectButton: "اتصال", dialogTitle: "الاتصال بهذه الغرفة", searchPlaceholder: "ابحث عن الذكاء الاصطناعي أو التطبيقات أو الأدوات أو الخدمات…",
+  connectButton: "Connect to Room", dialogTitle: "الاتصال بهذه الغرفة", searchPlaceholder: "ابحث عن الذكاء الاصطناعي أو التطبيقات أو الأدوات أو الخدمات…",
   all: "الكل", ai: "الذكاء الاصطناعي", tools: "التطبيقات والأدوات", services: "الخدمات", sendSelected: "إرسال إلى هذه الغرفة",
   selectedCount: "محدد", connected: "متصل بالفعل", notConnected: "غير متصل", notAvailable: "غير متاح", loading: "جارٍ التحميل…",
   included: "مضمّن", pendingPayment: "بانتظار الدفع", planned: "قريبًا", connect: "اتصال", disconnect: "قطع الاتصال",
