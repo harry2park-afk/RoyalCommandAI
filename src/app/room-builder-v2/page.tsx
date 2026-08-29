@@ -86,6 +86,7 @@ export default function RoomBuilderV2Page() {
   const [roomNameOverride, setRoomNameOverride] = useState("");
   const [saving, setSaving] = useState(false);
   const [listening, setListening] = useState(false);
+  const [helperOpen, setHelperOpen] = useState(true);
   const [error, setError] = useState("");
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
@@ -120,8 +121,20 @@ export default function RoomBuilderV2Page() {
     ? `${firstName(user.fullName)} ${korean ? purposeMatch.ko : purposeMatch.label}`.trim()
     : "";
   const roomName = roomNameOverride || automaticRoomName;
+  const helperMessage = korean
+    ? "안녕하세요. 제가 Room 만들기를 도와드리겠습니다. 먼저 국가와 가장 편한 언어를 선택해 주세요. 그 다음 무엇을 하고 싶은지 편하게 말씀해 주세요. 정확하게 설명하지 않으셔도 됩니다. 말하기 싫으시면 아래 칸에 글로 적으셔도 됩니다."
+    : "Hello. I will help you create your Room. First choose your country and the language you are most comfortable with. Then simply tell me what you would like to do. You do not need to explain it perfectly. If you prefer, you can type below instead.";
+
+  function speakHelper() {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(helperMessage);
+    utterance.lang = selectedLanguage.tag;
+    window.speechSynthesis.speak(utterance);
+  }
 
   function startVoice() {
+    setHelperOpen(true);
     if (listening) {
       recognitionRef.current?.stop();
       return;
@@ -144,7 +157,7 @@ export default function RoomBuilderV2Page() {
     recognition.onend = () => setListening(false);
     recognition.onerror = () => {
       setListening(false);
-      setError(korean ? "음성을 듣지 못했습니다. 다시 눌러 말씀하시거나 글로 적어주세요." : "I could not hear that. Please try again or type instead.");
+      setError(korean ? "음성을 듣지 못했습니다. 마이크를 다시 눌러 말씀하시거나 글로 적어주세요." : "I could not hear that. Tap the microphone again or type instead.");
     };
     recognitionRef.current = recognition;
     setListening(true);
@@ -196,15 +209,25 @@ export default function RoomBuilderV2Page() {
       <div className="mx-auto max-w-2xl rounded-3xl border border-[var(--gold)]/35 bg-black/20 p-5 shadow-[0_20px_60px_rgba(0,0,0,.3)] md:p-7">
         <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--gold-soft)]">Royal Command · Easy Room Builder</p>
         <h1 className="mt-2 text-3xl font-semibold">{korean ? "새 Room 만들기" : "Create a new Room"}</h1>
-        <p className="mt-3 text-base leading-7 text-[var(--muted)]">
-          {korean
-            ? "세 가지만 알려주세요. 기술적인 설정은 Royal Command가 준비합니다."
-            : "Just tell us three things. Royal Command prepares the technical settings for you."}
-        </p>
+
+        {helperOpen ? (
+          <section className="mt-5 rounded-2xl border border-[var(--gold)]/40 bg-[var(--gold)]/5 p-4 shadow-lg">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-[var(--gold-soft)]">AI Helper</div>
+                <p className="mt-2 text-base leading-7">{helperMessage}</p>
+              </div>
+              <button type="button" className="rounded-full border border-white/15 px-3 py-2 text-lg" aria-label={korean ? "AI Helper 닫기" : "Close AI Helper"} title={korean ? "닫기" : "Close"} onClick={() => setHelperOpen(false)}>×</button>
+            </div>
+            <div className="mt-4 flex items-center justify-center gap-4">
+              <button type="button" className={`flex h-14 w-14 items-center justify-center rounded-full border text-2xl ${listening ? "border-red-400 bg-red-500/15" : "border-[var(--gold)]/50 bg-black/20"}`} aria-label={korean ? "마이크" : "Microphone"} title={korean ? "마이크" : "Microphone"} onClick={startVoice}>🎤</button>
+              <button type="button" className="flex h-14 w-14 items-center justify-center rounded-full border border-[var(--gold)]/50 bg-black/20 text-2xl" aria-label={korean ? "안내 듣기" : "Hear instructions"} title={korean ? "안내 듣기" : "Hear instructions"} onClick={speakHelper}>🔊</button>
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
           <div className="text-sm font-semibold text-[var(--gold-soft)]">1. {korean ? "국가" : "Country"}</div>
-          <p className="mt-1 text-sm text-[var(--muted)]">{korean ? "이 Room을 어느 나라에서 사용하실 건가요?" : "Which country will this Room be used in?"}</p>
           <select className="rc-input mt-3 min-h-12 text-base" value={countryCode} onChange={(event) => setCountryCode(event.target.value)}>
             <option value="">{korean ? "국가 선택" : "Choose country"}</option>
             {GLOBAL_ROOM_PRESETS.filter((preset) => preset.id !== "GLOBAL").map((preset) => (
@@ -215,7 +238,6 @@ export default function RoomBuilderV2Page() {
 
         <section className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
           <div className="text-sm font-semibold text-[var(--gold-soft)]">2. {korean ? "주 사용 언어" : "Main language"}</div>
-          <p className="mt-1 text-sm text-[var(--muted)]">{korean ? "가장 편한 언어를 선택하세요. 영어도 함께 사용할 수 있습니다." : "Choose the language you are most comfortable with. English remains available too."}</p>
           <select className="rc-input mt-3 min-h-12 text-base" value={language} onChange={(event) => setLanguage(event.target.value)}>
             {LANGUAGES.map((item) => <option key={item.code} value={item.code}>{item.label}</option>)}
           </select>
@@ -228,41 +250,34 @@ export default function RoomBuilderV2Page() {
 
         <section className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
           <div className="text-sm font-semibold text-[var(--gold-soft)]">3. {korean ? "무엇을 하고 싶으세요?" : "What would you like to do?"}</div>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {korean ? "정확하게 설명하실 필요 없습니다. 그냥 편하게 말씀하세요. 예: ‘소송 문제 때문에 도움받고 싶어요.’" : "You do not need to explain it perfectly. Just speak naturally. For example: ‘I need help with a legal problem.’"}
-          </p>
-          <button type="button" className="rc-btn rc-btn-primary mt-4 min-h-14 w-full text-lg" onClick={startVoice}>
-            {listening ? (korean ? "■ 말하기 끝내기" : "■ Stop speaking") : (korean ? "🎤 말로 말씀하기" : "🎤 Speak")}
-          </button>
           <textarea
             className="rc-input mt-3 min-h-32 text-base leading-7"
             value={purpose}
-            onChange={(event) => setPurpose(event.target.value)}
-            placeholder={korean ? "말하거나, 여기에 편하게 적으세요…" : "Speak, or type here in your own words…"}
+            onChange={(event) => {
+              if (helperOpen) setHelperOpen(false);
+              setPurpose(event.target.value);
+            }}
+            placeholder={korean ? "말하기 싫으시면 여기에 편하게 적으세요…" : "If you prefer not to speak, type here…"}
           />
+          {!helperOpen ? (
+            <div className="mt-3 flex justify-center gap-3">
+              <button type="button" className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-xl" aria-label={korean ? "마이크" : "Microphone"} title={korean ? "마이크" : "Microphone"} onClick={startVoice}>🎤</button>
+              <button type="button" className="flex h-11 w-11 items-center justify-center rounded-full border border-white/15 text-xl" aria-label={korean ? "AI Helper 다시 열기" : "Open AI Helper"} title={korean ? "AI Helper 다시 열기" : "Open AI Helper"} onClick={() => setHelperOpen(true)}>🔊</button>
+            </div>
+          ) : null}
         </section>
 
         {purpose.trim() ? (
           <section className="mt-4 rounded-2xl border border-[var(--gold)]/30 bg-[var(--gold)]/5 p-4">
             <div className="text-sm text-[var(--muted)]">{korean ? "Room 이름" : "Room name"}</div>
-            <input
-              className="rc-input mt-2 min-h-12 text-lg font-semibold"
-              value={roomName}
-              onChange={(event) => setRoomNameOverride(event.target.value)}
-              maxLength={120}
-            />
+            <input className="rc-input mt-2 min-h-12 text-lg font-semibold" value={roomName} onChange={(event) => setRoomNameOverride(event.target.value)} maxLength={120} />
             <p className="mt-2 text-xs text-[var(--muted)]">{korean ? "이름은 자동으로 만들었습니다. 원하시면 지금 또는 나중에 바꾸실 수 있습니다." : "The name was created automatically. You can change it now or later."}</p>
           </section>
         ) : null}
 
         {error ? <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm">{error}</div> : null}
 
-        <button
-          type="button"
-          className="rc-btn rc-btn-primary mt-6 min-h-14 w-full text-lg font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!canCreate}
-          onClick={createRoom}
-        >
+        <button type="button" className="rc-btn rc-btn-primary mt-6 min-h-14 w-full text-lg font-semibold disabled:cursor-not-allowed disabled:opacity-40" disabled={!canCreate} onClick={createRoom}>
           {saving ? (korean ? "Room 만드는 중…" : "Creating your Room…") : (korean ? "내 Room 만들기" : "Create My Room")}
         </button>
       </div>
