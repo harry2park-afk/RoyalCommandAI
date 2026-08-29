@@ -7,6 +7,7 @@ export const signupSchema = z.object({
   password: z.string().min(8),
   fullName: z.string().min(1).max(120),
   defaultLanguage: z.string().min(2).max(12).default("en"),
+  countryCode: z.string().length(2),
 });
 
 export const loginSchema = z.object({
