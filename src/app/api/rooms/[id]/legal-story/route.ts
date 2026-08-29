@@ -12,7 +12,10 @@ const createSchema = z.object({
 
 const updateSchema = z.object({
   entryId: z.string().uuid(),
-  aiSummary: z.string().max(100_000),
+  rawTranscript: z.string().max(100_000).optional(),
+  aiSummary: z.string().max(100_000).optional(),
+}).refine((value) => value.rawTranscript !== undefined || value.aiSummary !== undefined, {
+  message: "Nothing to update",
 });
 
 async function legalRoomContext(roomId: string, userId: string) {
@@ -33,6 +36,42 @@ async function legalRoomContext(roomId: string, userId: string) {
     .maybeSingle();
 
   return { supabase, enabled: manifest?.template_id === "legal" };
+}
+
+async function rebuildWorkspaceStory(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  roomId: string,
+  userId: string,
+) {
+  const [{ data: entries }, { data: workspace }] = await Promise.all([
+    supabase
+      .from("legal_story_entries")
+      .select("raw_transcript, recorded_at")
+      .eq("room_id", roomId)
+      .eq("owner_id", userId)
+      .order("recorded_at", { ascending: true }),
+    supabase
+      .from("legal_room_workspaces")
+      .select("desired_outcome")
+      .eq("room_id", roomId)
+      .eq("owner_id", userId)
+      .maybeSingle(),
+  ]);
+
+  const caseStory = (entries || [])
+    .map((entry) => `[${entry.recorded_at}]\n${entry.raw_transcript}`)
+    .join("\n\n")
+    .slice(0, 100_000);
+
+  await supabase
+    .from("legal_room_workspaces")
+    .upsert({
+      room_id: roomId,
+      owner_id: userId,
+      case_story: caseStory,
+      desired_outcome: workspace?.desired_outcome || "",
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "room_id" });
 }
 
 export async function GET(
@@ -99,27 +138,7 @@ export async function POST(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-
-  const { data: workspace } = await supabase
-    .from("legal_room_workspaces")
-    .select("case_story, desired_outcome")
-    .eq("room_id", id)
-    .eq("owner_id", user.id)
-    .maybeSingle();
-
-  const existingStory = workspace?.case_story || "";
-  const datedEntry = `[${recordedAt}]\n${input.rawTranscript}`;
-  const combinedStory = existingStory.trim() ? `${existingStory.trim()}\n\n${datedEntry}` : datedEntry;
-  await supabase
-    .from("legal_room_workspaces")
-    .upsert({
-      room_id: id,
-      owner_id: user.id,
-      case_story: combinedStory.slice(0, 100_000),
-      desired_outcome: workspace?.desired_outcome || "",
-      updated_at: new Date().toISOString(),
-    }, { onConflict: "room_id" });
-
+  await rebuildWorkspaceStory(supabase, id, user.id);
   return NextResponse.json({ entry: data }, { status: 201 });
 }
 
@@ -136,9 +155,15 @@ export async function PATCH(
   const { supabase, enabled } = await legalRoomContext(id, user.id);
   if (!enabled) return NextResponse.json({ error: "Not a legal Room" }, { status: 400 });
 
+  const update: { raw_transcript?: string; ai_summary?: string; updated_at: string } = {
+    updated_at: new Date().toISOString(),
+  };
+  if (input.rawTranscript !== undefined) update.raw_transcript = input.rawTranscript;
+  if (input.aiSummary !== undefined) update.ai_summary = input.aiSummary;
+
   const { data, error } = await supabase
     .from("legal_story_entries")
-    .update({ ai_summary: input.aiSummary, updated_at: new Date().toISOString() })
+    .update(update)
     .eq("id", input.entryId)
     .eq("room_id", id)
     .eq("owner_id", user.id)
@@ -146,5 +171,6 @@ export async function PATCH(
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (input.rawTranscript !== undefined) await rebuildWorkspaceStory(supabase, id, user.id);
   return NextResponse.json({ entry: data });
 }
