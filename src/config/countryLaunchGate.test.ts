@@ -22,6 +22,30 @@ describe("country launch readiness gate", () => {
     expect(evaluateCountryLaunch(base!).blockers).toContain("TAX_STRUCTURE_REVIEW");
   });
 
+  it("fails closed when country-specific tax structure evidence is missing", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+
+    const otherwiseReady: CountryConfig = {
+      ...base!,
+      compliance: {
+        legal: "READY",
+        tax: "READY",
+        medical: "READY",
+        investment: "READY",
+        privacy: "READY",
+      },
+      taxStructure: undefined,
+      payments: { ...base!.payments, status: "CONNECTED" },
+      tax: { ...base!.tax, status: "CONNECTED" },
+    };
+
+    expect(evaluateCountryLaunch(otherwiseReady)).toEqual({
+      launchable: false,
+      blockers: ["TAX_STRUCTURE_REVIEW"],
+    });
+  });
+
   it("only becomes launchable when compliance, tax structure, payments and tax are all explicitly verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
