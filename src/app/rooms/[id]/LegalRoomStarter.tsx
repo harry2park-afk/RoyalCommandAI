@@ -29,7 +29,6 @@ type DocumentItem = {
 
 type LegalPayload = {
   enabled: boolean;
-  room?: { id: string; name: string };
   languageTag?: string;
   workspace?: Workspace;
   evidence?: EvidenceItem[];
@@ -38,30 +37,12 @@ type LegalPayload = {
 
 type Mode = "home" | "story" | "evidence" | "ai" | "lawyer";
 
-type HelperOpenDetail = {
-  greeting: string;
-  captureEvent: string;
-  autoSend: boolean;
-};
-
-function appendStory(current: string, next: string) {
-  const clean = next.trim();
-  if (!clean) return current;
-  const stamp = new Intl.DateTimeFormat(undefined, {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date());
-  return `${current.trim()}${current.trim() ? "\n\n" : ""}[${stamp}] ${clean}`;
-}
-
 export default function LegalRoomStarter() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
   const [enabled, setEnabled] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [languageTag, setLanguageTag] = useState("en-AU");
   const [minimized, setMinimized] = useState(false);
   const [mode, setMode] = useState<Mode>("home");
   const [workspace, setWorkspace] = useState<Workspace>({ caseStory: "", desiredOutcome: "", updatedAt: null });
@@ -74,29 +55,30 @@ export default function LegalRoomStarter() {
   const [evidenceDate, setEvidenceDate] = useState("");
   const [evidenceDescription, setEvidenceDescription] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const languageTagRef = useRef("en-AU");
 
-  const korean = languageTagRef.current.toLowerCase().startsWith("ko");
-
-  async function refresh() {
-    if (!roomId) return;
-    const response = await fetch(`/api/rooms/${roomId}/legal-workspace`, { cache: "no-store" });
-    const payload = await response.json().catch(() => ({})) as LegalPayload;
-    if (!response.ok) {
-      setLoaded(true);
-      return;
-    }
-    setEnabled(Boolean(payload.enabled));
-    if (payload.languageTag) languageTagRef.current = payload.languageTag;
-    if (payload.workspace) setWorkspace(payload.workspace);
-    setEvidence(Array.isArray(payload.evidence) ? payload.evidence : []);
-    setDocuments(Array.isArray(payload.documents) ? payload.documents : []);
-    setLoaded(true);
-  }
+  const korean = languageTag.toLowerCase().startsWith("ko");
 
   useEffect(() => {
-    void refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    let cancelled = false;
+    fetch(`/api/rooms/${roomId}/legal-workspace`, { cache: "no-store" })
+      .then(async (response) => ({ response, payload: await response.json().catch(() => ({})) as LegalPayload }))
+      .then(({ response, payload }) => {
+        if (cancelled) return;
+        if (!response.ok) {
+          setLoaded(true);
+          return;
+        }
+        setEnabled(Boolean(payload.enabled));
+        setLanguageTag(payload.languageTag || "en-AU");
+        if (payload.workspace) setWorkspace(payload.workspace);
+        setEvidence(Array.isArray(payload.evidence) ? payload.evidence : []);
+        setDocuments(Array.isArray(payload.documents) ? payload.documents : []);
+        setLoaded(true);
+      })
+      .catch(() => {
+        if (!cancelled) setLoaded(true);
+      });
+    return () => { cancelled = true; };
   }, [roomId]);
 
   async function saveWorkspace(next: Workspace) {
@@ -120,65 +102,38 @@ export default function LegalRoomStarter() {
     }
   }
 
-  useEffect(() => {
-    const capture = (event: Event) => {
-      const detail = (event as CustomEvent<{ message?: string }>).detail;
-      const message = detail?.message?.trim();
-      if (!message) return;
-      setWorkspace((current) => {
-        const next = { ...current, caseStory: appendStory(current.caseStory, message) };
-        void saveWorkspace(next);
-        return next;
-      });
-    };
-    window.addEventListener("rc:legal-case-story", capture as EventListener);
-    return () => window.removeEventListener("rc:legal-case-story", capture as EventListener);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomId]);
+  const askAiPrompt = useMemo(() => [
+    "다음은 제가 직접 기록한 사건 내용입니다.",
+    "사실을 임의로 추가하지 말고, 아래 내용을 바탕으로 다음을 정리해 주세요:",
+    "1) 핵심 사실 2) 시간순 정리 3) 빠진 정보와 추가로 확인할 질문 4) 가지고 있어야 할 증거 목록 5) 변호사에게 물어볼 질문.",
+    "확실하지 않은 부분은 확실하지 않다고 표시해 주세요.",
+    "",
+    `사건 기록:\n${workspace.caseStory || "아직 기록 없음"}`,
+    "",
+    `제가 원하는 결과:\n${workspace.desiredOutcome || "아직 기록 없음"}`,
+  ].join("\n"), [workspace.caseStory, workspace.desiredOutcome]);
 
-  const askAiPrompt = useMemo(() => {
-    return [
-      "다음은 제가 직접 기록한 사건 내용입니다.",
-      "사실을 임의로 추가하지 말고, 아래 내용을 바탕으로 다음을 정리해 주세요:",
-      "1) 핵심 사실 2) 시간순 정리 3) 빠진 정보와 추가로 확인할 질문 4) 가지고 있어야 할 증거 목록 5) 변호사에게 물어볼 질문.",
-      "확실하지 않은 부분은 확실하지 않다고 표시해 주세요.",
-      "",
-      `사건 기록:\n${workspace.caseStory || "아직 기록 없음"}`,
-      "",
-      `제가 원하는 결과:\n${workspace.desiredOutcome || "아직 기록 없음"}`,
-    ].join("\n");
-  }, [workspace.caseStory, workspace.desiredOutcome]);
-
-  const lawyerPrompt = useMemo(() => {
-    return [
-      "다음 사건 기록을 변호사에게 처음 보내기 좋은 짧고 정확한 사건 요약으로 정리해 주세요.",
-      "사실을 임의로 만들지 말고, 날짜/사람/사건/증거/제가 원하는 결과를 구분해 주세요.",
-      "마지막에는 변호사에게 확인할 질문 목록을 만들어 주세요.",
-      "",
-      `사건 기록:\n${workspace.caseStory || "아직 기록 없음"}`,
-      "",
-      `제가 원하는 결과:\n${workspace.desiredOutcome || "아직 기록 없음"}`,
-    ].join("\n");
-  }, [workspace.caseStory, workspace.desiredOutcome]);
+  const lawyerPrompt = useMemo(() => [
+    "다음 사건 기록을 변호사에게 처음 보내기 좋은 짧고 정확한 사건 요약으로 정리해 주세요.",
+    "사실을 임의로 만들지 말고, 날짜/사람/사건/증거/제가 원하는 결과를 구분해 주세요.",
+    "마지막에는 변호사에게 확인할 질문 목록을 만들어 주세요.",
+    "",
+    `사건 기록:\n${workspace.caseStory || "아직 기록 없음"}`,
+    "",
+    `제가 원하는 결과:\n${workspace.desiredOutcome || "아직 기록 없음"}`,
+  ].join("\n"), [workspace.caseStory, workspace.desiredOutcome]);
 
   async function copyText(text: string) {
     try {
       await navigator.clipboard.writeText(text);
-      setStatus(korean ? "복사했습니다. 원하는 AI에 붙여넣으세요." : "Copied. Paste it into your AI." );
+      setStatus(korean ? "복사했습니다. 원하는 AI에 붙여넣으세요." : "Copied. Paste it into your AI.");
     } catch {
       setStatus(korean ? "복사하지 못했습니다. 내용을 직접 선택해 주세요." : "Could not copy. Select the text manually.");
     }
   }
 
   function startCaseConversation() {
-    const detail: HelperOpenDetail = {
-      greeting: korean
-        ? "무슨 일이 있었는지 편하게 말씀해 주세요. 한 번에 다 말씀하지 않으셔도 됩니다."
-        : "Tell me what happened in your own words. You do not need to tell me everything at once.",
-      captureEvent: "rc:legal-case-story",
-      autoSend: true,
-    };
-    window.dispatchEvent(new CustomEvent<HelperOpenDetail>("rc:ai-helper-open", { detail }));
+    window.dispatchEvent(new CustomEvent("rc:ai-helper-open"));
     setMinimized(true);
   }
 
@@ -189,6 +144,7 @@ export default function LegalRoomStarter() {
       setStatus(korean ? "증거 제목이나 파일을 하나 넣어 주세요." : "Add an evidence title or file.");
       return;
     }
+
     setUploading(true);
     setStatus("");
     try {
@@ -221,9 +177,18 @@ export default function LegalRoomStarter() {
         setStatus(payload.error || (korean ? "증거 기록을 저장하지 못했습니다." : "Could not save evidence."));
         return;
       }
-      setEvidence((current) => [payload.evidence!, ...current]);
+
+      const savedEvidence = payload.evidence;
+      setEvidence((current) => [savedEvidence, ...current]);
       if (file && documentId) {
-        setDocuments((current) => [{ id: documentId, filename: file.name, mime_type: file.type, size_bytes: file.size, created_at: new Date().toISOString() }, ...current]);
+        const savedDocument: DocumentItem = {
+          id: documentId,
+          filename: file.name,
+          mime_type: file.type,
+          size_bytes: file.size,
+          created_at: new Date().toISOString(),
+        };
+        setDocuments((current) => [savedDocument, ...current]);
       }
       setEvidenceTitle("");
       setEvidenceDate("");
@@ -271,7 +236,7 @@ export default function LegalRoomStarter() {
 
       {mode === "home" ? (
         <div className="mt-4 rounded-xl border border-white/10 bg-black/20 p-4 text-sm leading-6 text-white/75">
-          {korean ? "먼저 ‘내 사건 이야기하기’를 눌러 편하게 말씀해 주세요. 오늘 다 말하지 않아도 됩니다. 말씀한 내용은 사건 기록에 계속 추가해서 보관할 수 있습니다." : "Start with ‘Tell my story’. You do not need to finish today. Your record can grow over time."}
+          {korean ? "먼저 ‘내 사건 이야기하기’를 눌러 편하게 말씀해 주세요. 오늘 다 말하지 않아도 됩니다. 사건 기록은 언제든 다시 열어 고치고 추가할 수 있습니다." : "Start with ‘Tell my story’. You do not need to finish today. Your case record can be edited and expanded anytime."}
         </div>
       ) : null}
 
