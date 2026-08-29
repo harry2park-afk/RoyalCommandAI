@@ -49,6 +49,10 @@ function roomIdFromPath() {
   return match?.[1] || "";
 }
 
+function activeCaseStorageKey(roomId: string) {
+  return `royalcommand:legal:${roomId}:active-case`;
+}
+
 function applyLargeLegalHelperLayout() {
   const image = document.querySelector<HTMLImageElement>('img[alt="Royal Command AI Helper"]');
   const imageWrap = image?.parentElement;
@@ -59,8 +63,8 @@ function applyLargeLegalHelperLayout() {
   const roomId = roomIdFromPath();
   if (!roomId) return false;
 
-  outer.style.left = "245px";
-  outer.style.right = "185px";
+  outer.style.setProperty("left", "8px", "important");
+  outer.style.setProperty("right", "185px", "important");
   outer.style.top = "198px";
   outer.style.bottom = "10px";
   outer.style.width = "auto";
@@ -365,6 +369,7 @@ function applyLargeLegalHelperLayout() {
     if (!rawTranscript) return;
 
     const recordedAt = new Date().toISOString();
+    const selectedCaseId = window.sessionStorage.getItem(activeCaseStorageKey(roomId));
     assistantAtSubmit = assistantText.textContent || "";
     paneMode = "ai";
     awaitingAnswer = true;
@@ -378,7 +383,7 @@ function applyLargeLegalHelperLayout() {
         const response = await fetch(`/api/rooms/${roomId}/legal-story`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ rawTranscript, recordedAt, audioDocumentId }),
+          body: JSON.stringify({ rawTranscript, recordedAt, audioDocumentId, caseId: selectedCaseId || undefined }),
         });
         const payload = await response.json().catch(() => ({})) as { entry?: { id?: string } };
         if (response.ok && payload.entry?.id) {
