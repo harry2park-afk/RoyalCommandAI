@@ -61,6 +61,7 @@ function applyLargeLegalHelperLayout() {
   const assistantText = children.find((item) => item.className.includes("whitespace-pre-wrap"));
   const form = content.querySelector("form");
   const textarea = form?.querySelector("textarea");
+  const submitButton = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
   const latestUser = children.find((item) => item.className.includes("line-clamp-2"));
   if (latestUser) latestUser.style.display = "none";
 
@@ -107,6 +108,27 @@ function applyLargeLegalHelperLayout() {
   textarea.style.overflowY = "auto";
   textarea.style.resize = "none";
   textarea.style.transition = "height 180ms ease";
+
+  if (submitButton instanceof HTMLButtonElement) {
+    submitButton.style.width = "auto";
+    submitButton.style.minWidth = "116px";
+    submitButton.style.paddingLeft = "12px";
+    submitButton.style.paddingRight = "12px";
+    submitButton.style.gap = "6px";
+    submitButton.style.display = "inline-flex";
+    submitButton.style.alignItems = "center";
+    submitButton.style.justifyContent = "center";
+    submitButton.style.whiteSpace = "nowrap";
+    if (!submitButton.querySelector('[data-legal-send-label="1"]')) {
+      const label = document.createElement("span");
+      label.dataset.legalSendLabel = "1";
+      label.textContent = /[가-힣]/.test(textarea.placeholder) ? "내 말 올리기" : "Send my words";
+      label.style.fontSize = "13px";
+      label.style.fontWeight = "700";
+      submitButton.appendChild(label);
+      submitButton.title = label.textContent;
+    }
+  }
 
   if (panel.dataset.legalDynamicPanes === "1") return true;
   panel.dataset.legalDynamicPanes = "1";
