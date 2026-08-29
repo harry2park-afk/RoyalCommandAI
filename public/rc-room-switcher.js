@@ -19,11 +19,11 @@
     style.textContent = `
       .royal-room-main main > div.fixed:first-of-type > div:first-child { position: relative !important; }
       #${COUNTRY_ID} {
-        flex:0 0 auto !important; min-width:118px !important; max-width:170px !important; height:30px !important;
-        margin-left:8px !important; padding:0 12px !important; overflow:hidden !important; text-overflow:ellipsis !important;
+        flex:0 0 205px !important; width:205px !important; min-width:205px !important; max-width:205px !important; height:34px !important;
+        margin-left:10px !important; padding:0 14px !important; overflow:hidden !important; text-overflow:ellipsis !important;
         white-space:nowrap !important; border:1px solid #e2bd4f !important; border-radius:6px !important;
         background:linear-gradient(135deg,#7b5a08 0%,#c79d27 48%,#664600 100%) !important; color:#fff8e7 !important;
-        font:700 12px/28px "Times New Roman",Times,serif !important; text-align:center !important; cursor:pointer !important;
+        font:700 18px/32px "Times New Roman",Times,serif !important; text-align:center !important; cursor:pointer !important;
         box-shadow:inset 0 0 8px rgba(255,239,170,.28),0 0 8px rgba(212,175,55,.20) !important;
       }
       #${SWITCHER_ID} {
@@ -47,7 +47,7 @@
       #${FINDER_ID} { flex:0 0 112px !important; width:112px !important; height:30px !important; margin-left:auto !important; margin-right:72px !important; border:1px solid #d9b44a !important; border-radius:6px !important; background:#7A0C2E !important; color:#fff4c2 !important; font:700 11px/28px "Times New Roman",Times,serif !important; text-align:center !important; white-space:nowrap !important; cursor:pointer !important; }
       .royal-room-main main > div.fixed:first-of-type > div:first-child > a[href="/dashboard"] { display:none !important; }
       @media (max-width:1200px) {
-        #${COUNTRY_ID} { min-width:82px !important; max-width:100px !important; font-size:9px !important; margin-left:4px !important; }
+        #${COUNTRY_ID} { flex-basis:120px !important; width:120px !important; min-width:120px !important; max-width:120px !important; height:30px !important; font-size:12px !important; line-height:28px !important; margin-left:4px !important; padding:0 6px !important; }
         #${SWITCHER_ID} { grid-template-columns:repeat(var(--rc-room-count,1),minmax(90px,120px)) !important; width:min(calc(var(--rc-room-count,1) * 124px),calc(100vw - 430px)) !important; gap:3px !important; }
         #${SWITCHER_ID} .rc-room-switcher-button { min-width:90px !important; max-width:120px !important; height:28px !important; line-height:26px !important; padding:0 5px !important; font-size:10px !important; }
       }
