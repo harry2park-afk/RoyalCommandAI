@@ -39,6 +39,18 @@ function hideRedundantLegalToolsButton() {
   if (button) forceStyle(button, "display", "none");
 }
 
+function minimizeLegalSection(section: HTMLElement) {
+  const closeButton = Array.from(section.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
+    const title = (button.title || "").toLowerCase();
+    return title.includes("줄이기") || title.includes("minimize");
+  });
+  if (closeButton) {
+    closeButton.click();
+    return true;
+  }
+  return false;
+}
+
 function applyWideLayout() {
   const section = findLegalSection();
   if (!section) return false;
@@ -76,12 +88,7 @@ function applyWideLayout() {
     exit.onclick = () => {
       const current = findLegalSection();
       if (!current) return;
-      const closeButton = Array.from(current.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
-        const title = (button.title || "").toLowerCase();
-        return title.includes("줄이기") || title.includes("minimize");
-      });
-      if (closeButton) closeButton.click();
-      else forceStyle(current, "display", "none");
+      if (!minimizeLegalSection(current)) forceStyle(current, "display", "none");
       hideRedundantLegalToolsButton();
     };
     document.body.appendChild(exit);
@@ -94,6 +101,7 @@ export default function LegalRoomLayoutBridge() {
   useEffect(() => {
     let interval = 0;
     let frame = 0;
+    let initialRefreshCloseDone = false;
 
     const onTopLegalButtonClick = (event: MouseEvent) => {
       const target = event.target;
@@ -120,6 +128,16 @@ export default function LegalRoomLayoutBridge() {
         hideRedundantLegalToolsButton();
         const section = findLegalSection();
         const exit = document.getElementById(EXIT_ID) as HTMLElement | null;
+
+        if (!initialRefreshCloseDone && section && isVisible(section)) {
+          initialRefreshCloseDone = true;
+          if (minimizeLegalSection(section)) {
+            hideRedundantLegalToolsButton();
+            if (exit) exit.style.display = "none";
+            return;
+          }
+        }
+
         if (section && isVisible(section)) {
           applyWideLayout();
         } else if (exit) {
