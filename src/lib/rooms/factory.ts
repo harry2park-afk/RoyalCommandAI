@@ -9,6 +9,7 @@ export type RoomFactoryInput = {
   templateId: string;
   countryCode: string;
   languageTag: string;
+  languageTags?: string[];
   timeZone?: string;
   currencyCode?: string;
   approvalMode?: RoomFactoryApprovalMode;
@@ -36,6 +37,7 @@ export type RoomFactoryBlueprint = {
   };
   locale: GlobalRoomSettings & {
     countryProfileStatus: RoomFactoryCountryStatus;
+    supportedLanguageTags: string[];
   };
   execution: {
     approvalMode: RoomFactoryApprovalMode;
@@ -132,6 +134,10 @@ export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactor
   const countryCode = normaliseCountry(input.countryCode);
   const preset = presetFor(countryCode);
   const languageTag = normaliseLanguage(input.languageTag || preset?.languageTag || DEFAULT_GLOBAL_ROOM_SETTINGS.languageTag);
+  const supportedLanguageTags = Array.from(new Set([
+    languageTag,
+    ...(input.languageTags || []).map(normaliseLanguage),
+  ])).filter(Boolean).slice(0, 10);
   const timeZone = (input.timeZone || preset?.timeZone || DEFAULT_GLOBAL_ROOM_SETTINGS.timeZone).trim().slice(0, 80);
   const currencyCode = (input.currencyCode || preset?.currencyCode || DEFAULT_GLOBAL_ROOM_SETTINGS.currencyCode).trim().toUpperCase().slice(0, 3);
   const blockers: string[] = [];
@@ -145,10 +151,14 @@ export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactor
     warnings.push("Country is not yet a registered RCA profile. Safe build may continue, but country-specific compliance must remain unverified until a profile is added.");
   }
 
-  const locale: GlobalRoomSettings & { countryProfileStatus: RoomFactoryCountryStatus } = {
+  const locale: GlobalRoomSettings & {
+    countryProfileStatus: RoomFactoryCountryStatus;
+    supportedLanguageTags: string[];
+  } = {
     ...DEFAULT_GLOBAL_ROOM_SETTINGS,
     countryCode,
     languageTag,
+    supportedLanguageTags,
     timeZone,
     currencyCode,
     textDirection: languageTag.toLowerCase().startsWith("ar") ? "rtl" : "ltr",
