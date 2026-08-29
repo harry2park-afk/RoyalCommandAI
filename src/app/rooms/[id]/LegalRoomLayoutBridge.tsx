@@ -27,6 +27,15 @@ function isVisible(element: HTMLElement) {
   return style.display !== "none" && style.visibility !== "hidden";
 }
 
+function hideRedundantLegalToolsButton() {
+  for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>("button"))) {
+    const text = (button.textContent || "").replace(/\s+/g, " ").trim();
+    if (text.includes("법률 도구") && text.includes("Legal tools")) {
+      forceStyle(button, "display", "none");
+    }
+  }
+}
+
 function applyWideLayout() {
   const section = findLegalSection();
   if (!section) return false;
@@ -70,6 +79,7 @@ function applyWideLayout() {
       });
       if (closeButton) closeButton.click();
       else forceStyle(current, "display", "none");
+      hideRedundantLegalToolsButton();
     };
     document.body.appendChild(exit);
   }
@@ -85,6 +95,7 @@ export default function LegalRoomLayoutBridge() {
     const sync = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
+        hideRedundantLegalToolsButton();
         const section = findLegalSection();
         const exit = document.getElementById(EXIT_ID) as HTMLElement | null;
         if (section && isVisible(section)) {
