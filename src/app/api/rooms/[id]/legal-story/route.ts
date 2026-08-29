@@ -174,9 +174,13 @@ export async function POST(
     if (!document) return NextResponse.json({ error: "Audio document not found" }, { status: 400 });
   }
 
-  let caseId = input.caseId || null;
-  if (caseId) caseId = await validCaseId(supabase, id, user.id, caseId);
-  if (!caseId) caseId = await defaultCaseId(supabase, id, user.id);
+  let caseId: string | null = null;
+  if (input.caseId) {
+    caseId = await validCaseId(supabase, id, user.id, input.caseId);
+    if (!caseId) return NextResponse.json({ error: "Case file not found" }, { status: 400 });
+  } else {
+    caseId = await defaultCaseId(supabase, id, user.id);
+  }
   if (!caseId) return NextResponse.json({ error: "Could not resolve case file" }, { status: 500 });
 
   const recordedAt = input.recordedAt || new Date().toISOString();
