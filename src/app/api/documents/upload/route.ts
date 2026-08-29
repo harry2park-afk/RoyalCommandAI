@@ -9,6 +9,7 @@ import { isSupabaseConfigured } from "@/lib/utils";
 
 const STORAGE_BUCKET = "matter-documents";
 const MAX_EXTRACTED_TEXT = 60_000;
+const DESTINATIONS = new Set(["inbox", "personal", "case", "evidence", "lawyer_share"]);
 
 function safeFilename(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]+/g, "_").slice(-160) || "upload.bin";
@@ -28,12 +29,20 @@ export async function POST(request: Request) {
     const form = await request.formData();
     const roomId = String(form.get("roomId") || "");
     const file = form.get("file");
+    const requestedDestination = String(form.get("destinationType") || "inbox");
+    const destinationType = DESTINATIONS.has(requestedDestination) ? requestedDestination : "inbox";
+    const caseId = String(form.get("caseId") || "").trim() || null;
 
     if (!roomId || !(file instanceof File)) {
       return NextResponse.json(
         { error: "roomId and file are required" },
         { status: 400 },
       );
+    }
+
+    const caseDestination = destinationType === "case" || destinationType === "evidence" || destinationType === "lawyer_share";
+    if (caseDestination && !caseId) {
+      return NextResponse.json({ error: "caseId is required for this destination" }, { status: 400 });
     }
 
     if (file.size > 15 * 1024 * 1024) {
@@ -61,6 +70,20 @@ export async function POST(request: Request) {
 
     if (isSupabaseConfigured()) {
       const supabase = await createClient();
+
+      if (caseId) {
+        const { data: legalCase } = await supabase
+          .from("legal_cases")
+          .select("id")
+          .eq("id", caseId)
+          .eq("room_id", roomId)
+          .eq("owner_id", user.id)
+          .maybeSingle();
+        if (!legalCase) {
+          return NextResponse.json({ error: "Case file not found" }, { status: 400 });
+        }
+      }
+
       const objectName = `${user.id}/${roomId}/${randomUUID()}-${safeFilename(file.name)}`;
 
       const { error: storageError } = await supabase.storage
@@ -103,6 +126,23 @@ export async function POST(request: Request) {
         throw new Error(`Document record failed: ${insertError.message}`);
       }
 
+      const { error: destinationError } = await supabase
+        .from("rc_file_destinations")
+        .insert({
+          document_id: doc.id,
+          owner_id: user.id,
+          room_id: roomId,
+          destination_type: destinationType,
+          case_id: caseDestination ? caseId : null,
+          updated_at: new Date().toISOString(),
+        });
+
+      if (destinationError) {
+        await supabase.from("documents").delete().eq("id", doc.id).eq("uploaded_by", user.id);
+        await supabase.storage.from(STORAGE_BUCKET).remove([objectName]);
+        throw new Error(`File destination failed: ${destinationError.message}`);
+      }
+
       await supabase.from("messages").insert({
         room_id: roomId,
         author_type: "system",
@@ -117,6 +157,8 @@ export async function POST(request: Request) {
         userId: user.id,
         persistent: true,
         extractedChars: extractedText.length,
+        destinationType,
+        caseId: caseDestination ? caseId : null,
       });
 
       return NextResponse.json({
@@ -129,6 +171,8 @@ export async function POST(request: Request) {
           createdAt: doc.created_at,
           aiReadable: extractedText.length > 0,
           extractedChars: extractedText.length,
+          destinationType,
+          caseId: caseDestination ? caseId : null,
         },
       });
     }
@@ -154,6 +198,8 @@ export async function POST(request: Request) {
       userId: user.id,
       persistent: false,
       extractedChars: extractedText.length,
+      destinationType,
+      caseId: caseDestination ? caseId : null,
     });
 
     return NextResponse.json({
@@ -166,6 +212,8 @@ export async function POST(request: Request) {
         createdAt: doc.createdAt,
         aiReadable: extractedText.length > 0,
         extractedChars: extractedText.length,
+        destinationType,
+        caseId: caseDestination ? caseId : null,
       },
     });
   } catch (error) {
