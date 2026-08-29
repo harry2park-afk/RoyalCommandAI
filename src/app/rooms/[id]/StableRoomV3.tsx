@@ -19,7 +19,7 @@ import LegalCaseSelectorBridge from "./LegalCaseSelectorBridge";
 import LegalRoomLayoutBridge from "./LegalRoomLayoutBridge";
 import AISelectionAccountRestore from "./AISelectionAccountRestore";
 import RCFileDestinationBridge from "./RCFileDestinationBridge";
-import RoomConnectionManager from "./RoomConnectionManager";
+import RoomConnectorPanel from "./RoomConnectorPanel";
 
 type Conversation = {
   id: string;
@@ -203,7 +203,7 @@ export default function StableRoomV3() {
       <RoomSiteLinks />
       <SavedConversationInspector />
       <AIHelperChat />
-      <RoomConnectionManager />
+      <RoomConnectorPanel />
       <LegalHelperOpenBridge />
       <LegalCaseSelectorBridge />
       <LegalRoomLayoutBridge />
