@@ -8,7 +8,7 @@ const AI_TITLES: Record<string, string> = {
   anthropic: "Claude",
   google: "Gemini",
   xai: "Grok",
-  codex: "Codex",
+  codex: "OpenAI Codex",
   deepseek: "DeepSeek",
   perplexity: "Perplexity",
   mistral: "Mistral",
