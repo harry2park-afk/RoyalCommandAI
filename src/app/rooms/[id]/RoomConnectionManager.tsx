@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import { Plug, X } from "lucide-react";
 
@@ -74,9 +74,10 @@ export default function RoomConnectionManager() {
     }
   }
 
-  useEffect(() => {
-    if (open) void load();
-  }, [open, roomId]);
+  function openConnections() {
+    setOpen(true);
+    void load();
+  }
 
   function openRoomUtility(target: "sites" | "ai-help") {
     const selector = target === "sites"
@@ -140,7 +141,7 @@ export default function RoomConnectionManager() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} title="Connect or disconnect Room services" style={{ position: "fixed", right: 342, bottom: 18, zIndex: 86, display: "flex", alignItems: "center", gap: 7, border: "1px solid #d6ad31", borderRadius: 10, background: "#7b1023", color: "#f6d76b", padding: "9px 14px", fontWeight: 800, boxShadow: "0 6px 18px rgba(0,0,0,.35)", cursor: "pointer" }}>
+      <button type="button" onClick={openConnections} title="Connect or disconnect Room services" style={{ position: "fixed", right: 342, bottom: 18, zIndex: 86, display: "flex", alignItems: "center", gap: 7, border: "1px solid #d6ad31", borderRadius: 10, background: "#7b1023", color: "#f6d76b", padding: "9px 14px", fontWeight: 800, boxShadow: "0 6px 18px rgba(0,0,0,.35)", cursor: "pointer" }}>
         <Plug size={17} /> 연결 관리 / Connections
       </button>
 
