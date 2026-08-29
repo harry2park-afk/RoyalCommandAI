@@ -19,6 +19,8 @@ export async function getCurrentUser() {
         "User",
       defaultLanguage:
         (user.user_metadata?.default_language as string) || "en",
+      countryCode:
+        (user.user_metadata?.country_code as string) || "",
       mode: "supabase" as const,
     };
   }
@@ -32,6 +34,7 @@ export async function getCurrentUser() {
     email: user.email,
     fullName: user.fullName,
     defaultLanguage: user.defaultLanguage,
+    countryCode: "",
     mode: "local" as const,
   };
 }

@@ -21,6 +21,7 @@ export async function POST(request: Request) {
           data: {
             full_name: data.fullName,
             default_language: data.defaultLanguage,
+            country_code: data.countryCode,
           },
         },
       });
