@@ -6,7 +6,7 @@ import RightMenuPasteFix from "./RightMenuPasteFix";
 import SpeakerTtsBridge from "./SpeakerTtsBridge";
 import NativeSynthesisButton from "./NativeSynthesisButton";
 
-const ROOM_UI_VERSION = "20260821-room-management";
+const ROOM_UI_VERSION = "20260829-legal-speaker-recovery";
 
 export default function RoomPage() {
   return (
@@ -64,10 +64,6 @@ export default function RoomPage() {
         }
         html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) > button:not([class*="bg-[#7A0C2E]"]):not(:last-child) {
           display: none !important;
-        }
-
-        .royal-room-main button[data-speaker-control="true"] {
-          transform: translateY(46px) !important;
         }
 
         /* Room manager: keep the three dots, replace only the rectangular border with a gear outline. */
