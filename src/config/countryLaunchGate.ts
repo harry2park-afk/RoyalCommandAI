@@ -30,7 +30,7 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
 
   if (config.compliance.legal !== "READY") blockers.push("LEGAL_REVIEW");
   if (config.compliance.tax !== "READY") blockers.push("TAX_REVIEW");
-  if (config.taxStructure && config.taxStructure.status !== "READY") blockers.push("TAX_STRUCTURE_REVIEW");
+  if (!config.taxStructure || config.taxStructure.status !== "READY") blockers.push("TAX_STRUCTURE_REVIEW");
   if (config.compliance.medical !== "READY") blockers.push("MEDICAL_REVIEW");
   if (config.compliance.investment !== "READY") blockers.push("INVESTMENT_REVIEW");
   if (config.compliance.privacy !== "READY") blockers.push("PRIVACY_REVIEW");
