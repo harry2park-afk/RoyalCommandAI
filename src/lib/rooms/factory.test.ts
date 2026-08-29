@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getConfiguredCountryCodes } from "../../config/countryResolver";
 import { compileRoomFactoryBlueprint, roomFactoryCountryCoverage } from "./factory";
 
 describe("Room Factory Control Plane V1", () => {
@@ -61,6 +62,24 @@ describe("Room Factory Control Plane V1", () => {
     expect(blueprint.readiness.warnings.join(" ")).toMatch(/compliance.*unverified/i);
   });
 
+  it("uses locale defaults without pretending a locale-only country is a configured profile", () => {
+    expect(getConfiguredCountryCodes()).not.toContain("SG");
+
+    const blueprint = compileRoomFactoryBlueprint({
+      roomName: "Singapore Technology Room",
+      templateId: "technology",
+      countryCode: "SG",
+      languageTag: "",
+    });
+
+    expect(blueprint.locale.countryCode).toBe("SG");
+    expect(blueprint.locale.languageTag).toBe("en-SG");
+    expect(blueprint.locale.timeZone).toBe("Asia/Singapore");
+    expect(blueprint.locale.currencyCode).toBe("SGD");
+    expect(blueprint.locale.countryProfileStatus).toBe("custom-profile-required");
+    expect(blueprint.readiness.warnings.join(" ")).toMatch(/country.*profile.*compliance.*unverified/i);
+  });
+
   it("blocks an incomplete blueprint before safe build", () => {
     const blueprint = compileRoomFactoryBlueprint({
       roomName: "",
@@ -91,9 +110,11 @@ describe("Room Factory Control Plane V1", () => {
     expect(blueprint.clonePolicy.credentials).toBe(false);
   });
 
-  it("exposes a country-overlay model suitable for scaling beyond registered profiles", () => {
+  it("reports locale coverage separately from configured launch profiles", () => {
     const coverage = roomFactoryCountryCoverage();
-    expect(coverage.registeredProfiles).toBeGreaterThanOrEqual(100);
+    expect(coverage.registeredProfiles).toBe(getConfiguredCountryCodes().length);
+    expect(coverage.registeredProfiles).toBe(6);
+    expect(coverage.localePresets).toBeGreaterThanOrEqual(100);
     expect(coverage.extensibleCountryModel).toBe(true);
     expect(coverage.strategy).toMatch(/global core.*country-profile overlays/i);
   });
