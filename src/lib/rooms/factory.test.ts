@@ -14,6 +14,7 @@ describe("Room Factory Control Plane V1", () => {
 
     expect(blueprint.room.templateId).toBe("legal");
     expect(blueprint.locale.countryProfileStatus).toBe("registered");
+    expect(blueprint.locale.supportedLanguageTags).toEqual(["en-AU"]);
     expect(blueprint.readiness.readyForSafeBuild).toBe(true);
     expect(blueprint.execution.singleWriteAuthority).toBe(true);
     expect(blueprint.execution.reviewerCanWrite).toBe(false);
@@ -28,6 +29,20 @@ describe("Room Factory Control Plane V1", () => {
     });
     expect(blueprint.lanes).toHaveLength(5);
     expect(blueprint.lanes.every((lane) => lane.writeAuthority === "single-writer")).toBe(true);
+  });
+
+  it("keeps a primary language and additional supported languages together", () => {
+    const blueprint = compileRoomFactoryBlueprint({
+      roomName: "Harry Legal",
+      templateId: "legal",
+      countryCode: "AU",
+      languageTag: "ko-KR",
+      languageTags: ["ko-KR", "en-AU", "ko-KR"],
+    });
+
+    expect(blueprint.locale.languageTag).toBe("ko-KR");
+    expect(blueprint.locale.supportedLanguageTags).toEqual(["ko-KR", "en-AU"]);
+    expect(blueprint.locale.countryCode).toBe("AU");
   });
 
   it("supports an unregistered country without duplicating or pretending compliance", () => {

@@ -10,6 +10,7 @@ const factoryCreateSchema = z.object({
   templateId: z.string().min(1).max(80),
   countryCode: z.string().min(1).max(8),
   languageTag: z.string().min(1).max(35),
+  languageTags: z.array(z.string().min(1).max(35)).max(10).optional(),
   timeZone: z.string().min(1).max(80),
   currencyCode: z.string().min(3).max(3),
   approvalMode: z.enum(["safe", "approval", "autonomous"]).default("approval"),
