@@ -22,6 +22,9 @@ type Service = {
   payment_required?: boolean;
   payment_status?: string;
   selection_status: "selected" | "pending_payment" | "active" | "paused" | "cancelled";
+  trial_days?: number | null;
+  billing_interval?: string | null;
+  trial_auto_renew?: boolean | null;
 };
 
 type Category = "ai" | "tools" | "services";
@@ -66,11 +69,14 @@ function nameOf(service: Service, locale: string) {
 function summaryOf(service: Service, locale: string) {
   return locale.toLowerCase().startsWith("ko") ? (service.summary_ko || service.summary_en || "") : (service.summary_en || service.summary_ko || "");
 }
-function pricing(service: Service) {
-  if (service.default_included || service.pricing_type === "free") return { label: "FREE", free: true, confirmed: true };
-  if (service.price_status === "quote") return { label: "PAY · Quote", free: false, confirmed: true };
-  if (service.price_status === "tbd" || service.price_minor == null) return { label: "Price pending", free: false, confirmed: false };
-  return { label: `PAY · ${service.currency || "AUD"} ${(service.price_minor / 100).toFixed(2)}`, free: false, confirmed: true };
+function pricing(service: Service, text: ReturnType<typeof connectorDict>) {
+  const trialDays = Number(service.trial_days || 0);
+  const trialPrefix = trialDays > 0 ? `${trialDays}-day ${text.freeTrial}` : "";
+  if (service.default_included || service.pricing_type === "free") return { label: trialPrefix || "FREE", free: true, confirmed: true };
+  if (service.price_status === "quote") return { label: trialPrefix ? `${trialPrefix} · ${text.thenPay} PAY · Quote` : "PAY · Quote", free: false, confirmed: true };
+  if (service.price_status === "tbd" || service.price_minor == null) return { label: trialPrefix ? `${trialPrefix} · ${text.thenPay} Price pending` : "Price pending", free: false, confirmed: false };
+  const paid = `PAY · ${service.currency || "AUD"} ${(service.price_minor / 100).toFixed(2)}${service.billing_interval === "monthly" ? "/month" : ""}`;
+  return { label: trialPrefix ? `${trialPrefix} · ${text.thenPay} ${paid}` : paid, free: false, confirmed: true };
 }
 
 export default function RoomConnectorPanel() {
@@ -140,7 +146,6 @@ export default function RoomConnectorPanel() {
     try {
       const payments: string[] = [];
 
-      // AI pricing is not yet stored in the server catalog, so never silently activate or charge it here.
       for (const ai of aiStates) {
         if (!selected.has(`ai:${ai.id}`) || ai.connected || !ai.available) continue;
         payments.push(`${ai.label} · ${korean ? "가격 확인 필요" : "Price confirmation required"}`);
@@ -148,7 +153,7 @@ export default function RoomConnectorPanel() {
 
       for (const service of services) {
         if (!selected.has(`service:${service.service_key}`)) continue;
-        const price = pricing(service);
+        const price = pricing(service, text);
         if (!price.confirmed) continue;
         if (service.default_included || service.selection_status === "active") continue;
         const response = await fetch(`/api/rooms/${roomId}/services`, {
@@ -197,14 +202,17 @@ export default function RoomConnectorPanel() {
         <div style={{ padding: 14, borderBottom: "1px solid rgba(255,255,255,.08)" }}>
           <div style={{ display: "flex", gap: 9 }}>{cat("ai", text.ai, "#173b68", "#fff")}{cat("tools", text.tools, "#28633f", "#fff")}{cat("services", text.services, "#d3ad38", "#241900")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #455267", borderRadius: 9, background: "#0c1624", padding: "0 10px", marginTop: 10 }}><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={text.searchPlaceholder} style={{ width: "100%", height: 38, border: 0, outline: 0, background: "transparent", color: "#fff" }}/></div>
+          <div style={{ marginTop: 10, border: "1px solid rgba(214,173,49,.38)", borderRadius: 9, background: "rgba(214,173,49,.07)", padding: "9px 11px", fontSize: 11, lineHeight: 1.45, color: "#d8dfeb" }}>
+            <strong style={{ color: "#f6d76b" }}>{text.trialPolicyTitle}</strong> · {text.trialPolicyBody}
+          </div>
         </div>
 
-        <div style={{ maxHeight: "52vh", overflowY: "auto", padding: "8px 14px" }}>
+        <div style={{ maxHeight: "48vh", overflowY: "auto", padding: "8px 14px" }}>
           {error && <div style={{ margin: "6px 0 10px", padding: 9, border: "1px solid #b64545", borderRadius: 8, color: "#ffd2cc" }}>{error}</div>}
           {loading ? <div style={{ padding: 26, textAlign: "center", color: "#b8c1cf" }}>{text.loading}</div> : <>
             {visibleAi.map((ai) => {
               const key = `ai:${ai.id}`; const checked = selected.has(key);
-              return <div key={key} style={{ display: "grid", gridTemplateColumns: "180px 1fr 130px 120px", gap: 12, alignItems: "center", minHeight: 68, borderBottom: "1px solid rgba(255,255,255,.1)" }}>
+              return <div key={key} style={{ display: "grid", gridTemplateColumns: "180px 1fr 170px 120px", gap: 12, alignItems: "center", minHeight: 68, borderBottom: "1px solid rgba(255,255,255,.1)" }}>
                 <div><strong>{ai.label}</strong><div style={{ fontSize: 11, color: "#9fb0c3", marginTop: 3 }}>{ai.modelInfo || (korean ? "모델 정보 확인 중" : "Model info pending")}</div></div>
                 <div style={{ fontSize: 12, color: "#c7d1dc", lineHeight: 1.4 }}>{korean ? ai.ko : ai.en}</div>
                 <div style={{ textAlign: "center", fontWeight: 900, color: "#ffd56a" }}>{korean ? "가격 확인" : "Price pending"}</div>
@@ -213,8 +221,8 @@ export default function RoomConnectorPanel() {
             })}
 
             {visibleServices.map((service) => {
-              const key = `service:${service.service_key}`; const checked = selected.has(key); const p = pricing(service); const active = service.default_included || service.selection_status === "active"; const pending = service.selection_status === "pending_payment"; const planned = service.connection_status === "planned";
-              return <div key={key} style={{ display: "grid", gridTemplateColumns: "180px 1fr 130px 120px", gap: 12, alignItems: "center", minHeight: 68, borderBottom: "1px solid rgba(255,255,255,.1)" }}>
+              const key = `service:${service.service_key}`; const checked = selected.has(key); const p = pricing(service, text); const active = service.default_included || service.selection_status === "active"; const pending = service.selection_status === "pending_payment"; const planned = service.connection_status === "planned";
+              return <div key={key} style={{ display: "grid", gridTemplateColumns: "180px 1fr 170px 120px", gap: 12, alignItems: "center", minHeight: 68, borderBottom: "1px solid rgba(255,255,255,.1)" }}>
                 <div><strong>{nameOf(service, locale)}</strong></div>
                 <div style={{ fontSize: 12, color: "#c7d1dc", lineHeight: 1.4 }}>{summaryOf(service, locale) || (korean ? "이 Room에서 사용할 수 있는 연결 도구 또는 서비스" : "A tool or service that can be connected to this Room")}</div>
                 <div style={{ textAlign: "center", fontWeight: 900, color: p.free ? "#7fe3a1" : p.confirmed ? "#ffd56a" : "#aeb8c6" }}>{p.label}</div>
@@ -228,8 +236,8 @@ export default function RoomConnectorPanel() {
       </div>
     </div>}
 
-    {confirmOpen && <div style={{ position: "fixed", inset: 0, zIndex: 5100, background: "rgba(0,0,0,.78)", display: "grid", placeItems: "center" }}><div style={{ width: "min(520px,92vw)", border: "1px solid #d6ad31", borderRadius: 14, background: "#081322", color: "#fff", padding: 18 }}><div style={{ fontSize: 19, fontWeight: 900, color: "#f6d76b" }}>{text.agreementTitle}</div><label style={{ display: "flex", gap: 9, marginTop: 14, lineHeight: 1.5 }}><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}/><span>{text.agreementBody}</span></label><div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 18 }}><button type="button" onClick={() => setConfirmOpen(false)} style={{ padding: "8px 12px" }}>{text.cancel}</button><button type="button" disabled={!agreed || busy} onClick={() => void sendSelected()} style={{ padding: "8px 12px", background: "#7b1023", color: "#f6d76b", border: "1px solid #d6ad31", borderRadius: 8 }}>{text.agreeAndSend}</button></div></div></div>}
+    {confirmOpen && <div dir={rtl ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 5100, background: "rgba(0,0,0,.78)", display: "grid", placeItems: "center" }}><div style={{ width: "min(560px,92vw)", border: "1px solid #d6ad31", borderRadius: 14, background: "#081322", color: "#fff", padding: 18 }}><div style={{ fontSize: 19, fontWeight: 900, color: "#f6d76b" }}>{text.agreementTitle}</div><div style={{ marginTop: 12, border: "1px solid rgba(214,173,49,.35)", borderRadius: 9, padding: 10, background: "rgba(214,173,49,.06)", fontSize: 12, lineHeight: 1.55 }}><div>• {text.trialConsent}</div><div>• {text.chargeNotice}</div><div>• {text.cancelPolicy}</div></div><label style={{ display: "flex", gap: 9, marginTop: 14, lineHeight: 1.5 }}><input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)}/><span>{text.agreementBody}</span></label><div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 18 }}><button type="button" onClick={() => setConfirmOpen(false)} style={{ padding: "8px 12px" }}>{text.cancel}</button><button type="button" disabled={!agreed || busy} onClick={() => void sendSelected()} style={{ padding: "8px 12px", background: "#7b1023", color: "#f6d76b", border: "1px solid #d6ad31", borderRadius: 8 }}>{text.agreeAndSend}</button></div></div></div>}
 
-    {paymentItems.length > 0 && <div style={{ position: "fixed", inset: 0, zIndex: 5200, background: "rgba(0,0,0,.8)", display: "grid", placeItems: "center" }}><div style={{ width: "min(520px,92vw)", border: "1px solid #d6ad31", borderRadius: 14, background: "#081322", color: "#fff", padding: 18 }}><div style={{ fontSize: 19, fontWeight: 900, color: "#f6d76b" }}>{text.paymentTitle}</div><div style={{ marginTop: 12, color: "#ffe6a0" }}>{text.paymentUnavailable}</div><div style={{ marginTop: 10, fontSize: 12, color: "#bdc7d4" }}>{paymentItems.join(" · ")}</div><div style={{ textAlign: "right", marginTop: 16 }}><button type="button" onClick={() => setPaymentItems([])} style={{ background: "#7b1023", color: "#f6d76b", border: "1px solid #d6ad31", borderRadius: 8, padding: "8px 12px" }}>{text.ok}</button></div></div></div>}
+    {paymentItems.length > 0 && <div dir={rtl ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 5200, background: "rgba(0,0,0,.8)", display: "grid", placeItems: "center" }}><div style={{ width: "min(520px,92vw)", border: "1px solid #d6ad31", borderRadius: 14, background: "#081322", color: "#fff", padding: 18 }}><div style={{ fontSize: 19, fontWeight: 900, color: "#f6d76b" }}>{text.paymentTitle}</div><div style={{ marginTop: 12, color: "#ffe6a0" }}>{text.paymentUnavailable}</div><div style={{ marginTop: 10, fontSize: 12, color: "#bdc7d4" }}>{paymentItems.join(" · ")}</div><div style={{ textAlign: "right", marginTop: 16 }}><button type="button" onClick={() => setPaymentItems([])} style={{ background: "#7b1023", color: "#f6d76b", border: "1px solid #d6ad31", borderRadius: 8, padding: "8px 12px" }}>{text.ok}</button></div></div></div>}
   </>;
 }
