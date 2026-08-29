@@ -8,6 +8,7 @@ import { TEMPLATE_MATERIAL_PRESETS } from "@/lib/rooms/materials";
 type CurrentUser = {
   fullName: string;
   defaultLanguage: string;
+  countryCode: string;
 };
 
 type SpeechResultEvent = {
@@ -27,12 +28,10 @@ type SpeechRecognitionInstance = {
 
 type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance;
 
-declare global {
-  interface Window {
-    SpeechRecognition?: SpeechRecognitionConstructor;
-    webkitSpeechRecognition?: SpeechRecognitionConstructor;
-  }
-}
+type SpeechCapableWindow = Window & {
+  SpeechRecognition?: SpeechRecognitionConstructor;
+  webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
 
 const PURPOSES = [
   { templateId: "legal", label: "Legal", ko: "법률", words: ["legal", "law", "lawsuit", "court", "lawyer", "법률", "법", "소송", "변호사", "재판"] },
@@ -60,9 +59,10 @@ function firstName(fullName: string) {
 export default function RoomBuilderV2Page() {
   const router = useRouter();
   const [user, setUser] = useState<CurrentUser | null>(null);
-  const [countryCode, setCountryCode] = useState("");
   const [purpose, setPurpose] = useState("");
   const [roomNameOverride, setRoomNameOverride] = useState("");
+  const [profileCountry, setProfileCountry] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [listening, setListening] = useState(false);
   const [error, setError] = useState("");
@@ -81,6 +81,7 @@ export default function RoomBuilderV2Page() {
       setUser({
         fullName: String(payload.user.fullName || "User"),
         defaultLanguage: String(payload.user.defaultLanguage || "en"),
+        countryCode: String(payload.user.countryCode || ""),
       });
     }
     void loadUser();
@@ -94,12 +95,34 @@ export default function RoomBuilderV2Page() {
     : "";
   const roomName = roomNameOverride || automaticRoomName;
 
+  async function saveLegacyCountry() {
+    if (!user || !profileCountry || savingProfile) return;
+    setSavingProfile(true);
+    setError("");
+    try {
+      const response = await fetch("/api/auth/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ countryCode: profileCountry }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setError(typeof payload?.error === "string" ? payload.error : "Could not save your country.");
+        return;
+      }
+      setUser((current) => current ? { ...current, countryCode: profileCountry } : current);
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
   function startVoice() {
     if (listening) {
       recognitionRef.current?.stop();
       return;
     }
-    const Recognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const speechWindow = window as SpeechCapableWindow;
+    const Recognition = speechWindow.SpeechRecognition || speechWindow.webkitSpeechRecognition;
     if (!Recognition) {
       setError(korean ? "이 기기의 브라우저에서는 음성 입력을 바로 사용할 수 없습니다. 아래 칸에 편하게 글로 적어주세요." : "Voice input is not available in this browser. Please type in the box below.");
       return;
@@ -124,11 +147,11 @@ export default function RoomBuilderV2Page() {
   }
 
   async function createRoom() {
-    if (!user || !countryCode || !purpose.trim() || !roomName.trim() || saving) return;
+    if (!user?.countryCode || !purpose.trim() || !roomName.trim() || saving) return;
     setSaving(true);
     setError("");
     try {
-      const locale = applyGlobalPreset(DEFAULT_GLOBAL_ROOM_SETTINGS, countryCode);
+      const locale = applyGlobalPreset(DEFAULT_GLOBAL_ROOM_SETTINGS, user.countryCode);
       const selectedMaterials = TEMPLATE_MATERIAL_PRESETS[purposeMatch.templateId] || TEMPLATE_MATERIAL_PRESETS.custom || [];
       const response = await fetch("/api/room-factory/rooms", {
         method: "POST",
@@ -156,74 +179,77 @@ export default function RoomBuilderV2Page() {
     }
   }
 
-  const canCreate = Boolean(user && countryCode && purpose.trim() && roomName.trim() && !saving);
+  const canCreate = Boolean(user?.countryCode && purpose.trim() && roomName.trim() && !saving);
 
   return (
     <main className="min-h-screen px-4 py-6 md:px-6">
       <div className="mx-auto max-w-2xl rounded-3xl border border-[var(--gold)]/35 bg-black/20 p-5 shadow-[0_20px_60px_rgba(0,0,0,.3)] md:p-7">
-        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--gold-soft)]">Royal Command · Easy Room Builder V2</p>
-        <h1 className="mt-2 text-3xl font-semibold">{korean ? "말씀만 해주세요" : "Just tell me what you need"}</h1>
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-[var(--gold-soft)]">Royal Command · Easy Room Builder</p>
+        <h1 className="mt-2 text-3xl font-semibold">{korean ? "무엇을 하고 싶으세요?" : "What would you like to do?"}</h1>
         <p className="mt-3 text-base leading-7 text-[var(--muted)]">
           {korean
-            ? "어려운 설정은 제가 뒤에서 준비합니다. 두 가지만 알려주시면 기본 Room을 만들어 드립니다. 들어가신 뒤 언제든 원하는 것을 추가하거나 바꿀 수 있습니다."
-            : "I will prepare the difficult settings in the background. Answer just two simple questions. You can change or add anything after you enter your Room."}
+            ? "어려운 설정은 묻지 않습니다. 그냥 말씀해 주세요. Royal Command가 기본 Room을 준비하고, 들어가신 뒤 원하는 것을 언제든 추가하거나 바꿀 수 있습니다."
+            : "No technical setup questions. Just tell us what you want to do. Royal Command will prepare a basic Room that you can change anytime."}
         </p>
 
-        <section className="mt-7 rounded-2xl border border-white/10 bg-black/20 p-4">
-          <div className="text-sm font-semibold text-[var(--gold-soft)]">1</div>
-          <div className="mt-1 text-xl font-semibold">{korean ? "어느 나라에서 사용하실 건가요?" : "Which country will you use this in?"}</div>
-          <select className="rc-input mt-4 min-h-12 text-base" value={countryCode} onChange={(event) => setCountryCode(event.target.value)}>
-            <option value="">{korean ? "나라를 선택하세요" : "Choose your country"}</option>
-            {GLOBAL_ROOM_PRESETS.filter((preset) => preset.id !== "GLOBAL").map((preset) => (
-              <option key={preset.id} value={preset.id}>{preset.label}</option>
-            ))}
-          </select>
-        </section>
-
-        <section className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
-          <div className="text-sm font-semibold text-[var(--gold-soft)]">2</div>
-          <div className="mt-1 text-xl font-semibold">{korean ? "무엇을 하고 싶으세요?" : "What would you like to do?"}</div>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">
-            {korean ? "정확하게 설명하실 필요 없습니다. 예: ‘소송 때문에 법률 도움을 받고 싶어요.’ 그냥 편하게 말씀하세요." : "You do not need to explain it perfectly. For example: ‘I need help with a legal problem.’ Just speak naturally."}
-          </p>
-          <button type="button" className="rc-btn rc-btn-primary mt-4 min-h-12 w-full text-base" onClick={startVoice}>
-            {listening ? (korean ? "■ 말하기 끝내기" : "■ Stop speaking") : (korean ? "🎤 말로 말씀하기" : "🎤 Speak")}
-          </button>
-          <textarea
-            className="rc-input mt-3 min-h-32 text-base leading-7"
-            value={purpose}
-            onChange={(event) => setPurpose(event.target.value)}
-            placeholder={korean ? "말하거나, 여기에 편하게 적으세요…" : "Speak, or type here in your own words…"}
-          />
-        </section>
-
-        {purpose.trim() ? (
-          <section className="mt-4 rounded-2xl border border-[var(--gold)]/30 bg-[var(--gold)]/5 p-4">
-            <div className="text-sm text-[var(--muted)]">{korean ? "만들 Room 이름" : "Your Room name"}</div>
-            <input
-              className="rc-input mt-2 min-h-12 text-lg font-semibold"
-              value={roomName}
-              onChange={(event) => setRoomNameOverride(event.target.value)}
-              maxLength={120}
-            />
-            <p className="mt-2 text-xs text-[var(--muted)]">{korean ? "이름은 자동으로 만들었습니다. 원하시면 지금 또는 나중에 바꾸실 수 있습니다." : "I created this name automatically. You can change it now or later."}</p>
+        {user && !user.countryCode ? (
+          <section className="mt-6 rounded-2xl border border-[var(--gold)]/30 bg-[var(--gold)]/5 p-4">
+            <div className="text-sm font-semibold text-[var(--gold-soft)]">{korean ? "기존 계정 확인 — 처음 한 번만" : "Existing account — one-time check"}</div>
+            <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{korean ? "예전에 가입하셔서 국가 정보가 없습니다. 한 번만 선택하면 앞으로 다시 묻지 않습니다." : "Your older account has no saved country. Choose it once and we will not ask again."}</p>
+            <select className="rc-input mt-3 min-h-12 text-base" value={profileCountry} onChange={(event) => setProfileCountry(event.target.value)}>
+              <option value="">{korean ? "국가 선택" : "Choose country"}</option>
+              {GLOBAL_ROOM_PRESETS.filter((preset) => preset.id !== "GLOBAL").map((preset) => (
+                <option key={preset.id} value={preset.id}>{preset.label}</option>
+              ))}
+            </select>
+            <button type="button" className="rc-btn rc-btn-primary mt-3 min-h-12 w-full" disabled={!profileCountry || savingProfile} onClick={saveLegacyCountry}>
+              {savingProfile ? (korean ? "저장 중…" : "Saving…") : (korean ? "저장하고 계속" : "Save and continue")}
+            </button>
           </section>
         ) : null}
 
-        {error ? <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm">{error}</div> : null}
+        {user?.countryCode ? (
+          <>
+            <section className="mt-6 rounded-2xl border border-white/10 bg-black/20 p-4">
+              <p className="text-sm leading-6 text-[var(--muted)]">
+                {korean ? "정확하게 설명하실 필요 없습니다. 예: ‘소송 문제 때문에 도움받고 싶어요.’ 그냥 편하게 말씀하세요." : "You do not need to explain it perfectly. For example: ‘I need help with a legal problem.’ Just speak naturally."}
+              </p>
+              <button type="button" className="rc-btn rc-btn-primary mt-4 min-h-14 w-full text-lg" onClick={startVoice}>
+                {listening ? (korean ? "■ 말하기 끝내기" : "■ Stop speaking") : (korean ? "🎤 말로 말씀하기" : "🎤 Speak")}
+              </button>
+              <textarea
+                className="rc-input mt-3 min-h-32 text-base leading-7"
+                value={purpose}
+                onChange={(event) => setPurpose(event.target.value)}
+                placeholder={korean ? "말하거나, 여기에 편하게 적으세요…" : "Speak, or type here in your own words…"}
+              />
+            </section>
 
-        <button
-          type="button"
-          className="rc-btn rc-btn-primary mt-6 min-h-14 w-full text-lg font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-          disabled={!canCreate}
-          onClick={createRoom}
-        >
-          {saving ? (korean ? "Room 만드는 중…" : "Creating your Room…") : (korean ? "내 Room 만들기" : "Create My Room")}
-        </button>
+            {purpose.trim() ? (
+              <section className="mt-4 rounded-2xl border border-[var(--gold)]/30 bg-[var(--gold)]/5 p-4">
+                <div className="text-sm text-[var(--muted)]">{korean ? "Room 이름" : "Room name"}</div>
+                <input
+                  className="rc-input mt-2 min-h-12 text-lg font-semibold"
+                  value={roomName}
+                  onChange={(event) => setRoomNameOverride(event.target.value)}
+                  maxLength={120}
+                />
+                <p className="mt-2 text-xs text-[var(--muted)]">{korean ? "이름은 자동으로 만들었습니다. 원하시면 지금 또는 나중에 바꾸실 수 있습니다." : "The name was created automatically. You can change it now or later."}</p>
+              </section>
+            ) : null}
 
-        <p className="mt-4 text-center text-xs leading-5 text-[var(--muted)]">
-          {korean ? "AI, 보안, Memory, Tool 같은 기술 설정은 여기서 묻지 않습니다. Royal Command가 기본값을 준비합니다." : "We do not ask you to configure AI, security, memory or tools here. Royal Command prepares the safe defaults."}
-        </p>
+            {error ? <div className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm">{error}</div> : null}
+
+            <button
+              type="button"
+              className="rc-btn rc-btn-primary mt-6 min-h-14 w-full text-lg font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={!canCreate}
+              onClick={createRoom}
+            >
+              {saving ? (korean ? "Room 만드는 중…" : "Creating your Room…") : (korean ? "내 Room 만들기" : "Create My Room")}
+            </button>
+          </>
+        ) : null}
       </div>
     </main>
   );
