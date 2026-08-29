@@ -1,0 +1,55 @@
+{
+  "countryCode": "GB",
+  "locale": "en-GB",
+  "secondaryLocale": null,
+  "currency": "GBP",
+  "phoneCountryCode": "+44",
+  "dateFormat": "DD/MM/YYYY",
+  "timeFormat": "24h",
+  "addressFormat": [
+    "building_and_street",
+    "address_line_2",
+    "locality",
+    "post_town",
+    "postcode"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Europe/London"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "company_number": "optional",
+    "vat_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "stripe",
+    "status": "NOT_CONNECTED",
+    "future": ["Credit/Debit", "Apple Pay", "Google Pay", "Bacs Direct Debit"]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": ["Stripe Tax", "Avalara"]
+  },
+  "taxStructure": {
+    "system": "VAT",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "gbPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "gbLegalProvider": { "status": "NOT_CONNECTED" },
+    "gbPrivacyProvider": { "status": "NOT_CONNECTED" }
+  }
+}
