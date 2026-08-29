@@ -1,4 +1,4 @@
-import { decideDelivery, rankProvider, type DeliveryStrategy, type ProviderCandidate } from "@/lib/rooms/connect-first-policy";
+import { decideDelivery, rankProvider, type DeliveryStrategy, type DeliverySurface, type ProviderCandidate } from "@/lib/rooms/connect-first-policy";
 
 type ServiceRow = {
   service_key: string;
@@ -13,6 +13,7 @@ type OfferRow = {
   ownership_model: string;
   api_available: boolean;
   oauth_available: boolean;
+  delivery_surface: DeliverySurface;
   connection_status: ProviderCandidate["connectionStatus"];
   active: boolean;
   priority: number;
@@ -36,6 +37,7 @@ export type SafeResolvedProvider = {
   websiteUrl: string | null;
   commercialModel: OfferRow["commercial_model"];
   ownershipModel: string;
+  deliverySurface: DeliverySurface;
   apiAvailable: boolean;
   oauthAvailable: boolean;
   connectionStatus: OfferRow["connection_status"];
@@ -59,6 +61,7 @@ function toCandidate(row: OfferRow): ProviderCandidate {
     reviewStatus: row.review_status,
     apiAvailable: row.api_available,
     oauthAvailable: row.oauth_available,
+    deliverySurface: row.delivery_surface,
     preferred: row.preferred,
     priority: row.priority,
     providerFitScore: row.provider_fit_score,
@@ -97,7 +100,7 @@ export async function resolveServiceProviderV2(
 
   const { data: offers, error: offersError } = await supabase
     .from("rc_service_provider_offers")
-    .select("provider_key,commercial_model,ownership_model,api_available,oauth_available,connection_status,active,priority,preferred,provider_fit_score,review_status,currency,customer_price_minor")
+    .select("provider_key,commercial_model,ownership_model,api_available,oauth_available,delivery_surface,connection_status,active,priority,preferred,provider_fit_score,review_status,currency,customer_price_minor")
     .eq("service_key", normalizedServiceKey)
     .eq("country_code", normalizedCountry)
     .eq("active", true);
@@ -164,6 +167,7 @@ export async function resolveServiceProviderV2(
       websiteUrl: typedProvider.website_url,
       commercialModel: winningOffer.commercial_model,
       ownershipModel: winningOffer.ownership_model,
+      deliverySurface: winningOffer.delivery_surface,
       apiAvailable: winningOffer.api_available,
       oauthAvailable: winningOffer.oauth_available,
       connectionStatus: winningOffer.connection_status,
