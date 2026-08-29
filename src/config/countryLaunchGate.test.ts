@@ -16,7 +16,13 @@ describe("country launch readiness gate", () => {
     }
   });
 
-  it("only becomes launchable when compliance, payments and tax are all explicitly verified", () => {
+  it("blocks launch while a country-specific tax structure still needs review", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base?.taxStructure?.status).toBe("NEEDS_REVIEW");
+    expect(evaluateCountryLaunch(base!).blockers).toContain("TAX_STRUCTURE_REVIEW");
+  });
+
+  it("only becomes launchable when compliance, tax structure, payments and tax are all explicitly verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
 
@@ -29,6 +35,7 @@ describe("country launch readiness gate", () => {
         investment: "READY",
         privacy: "READY",
       },
+      taxStructure: base!.taxStructure ? { ...base!.taxStructure, status: "READY" } : undefined,
       payments: { ...base!.payments, status: "CONNECTED" },
       tax: { ...base!.tax, status: "CONNECTED" },
     };
