@@ -224,8 +224,35 @@ export default function RoomConnectorPanel() {
 
   return (
     <>
-      <button type="button" onClick={openConnector} title={text.dialogTitle} style={{ position: "fixed", right: 342, bottom: 18, zIndex: 86, display: "flex", alignItems: "center", gap: 7, border: "1px solid #d6ad31", borderRadius: 10, background: "#7b1023", color: "#f6d76b", padding: "9px 14px", fontWeight: 800, boxShadow: "0 6px 18px rgba(0,0,0,.35)", cursor: "pointer" }}>
-        <Plug size={17} /> {text.connectButton}
+      <button
+        type="button"
+        onClick={openConnector}
+        title={text.dialogTitle}
+        style={{
+          position: "fixed",
+          right: 184,
+          top: 52,
+          zIndex: 355,
+          height: 60,
+          minWidth: 172,
+          maxWidth: 240,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 8,
+          border: "2px solid #9f1d2d",
+          borderRadius: 9,
+          background: "linear-gradient(180deg, #f2d566 0%, #d9b640 100%)",
+          color: "#3a2410",
+          padding: "0 16px",
+          fontSize: 14,
+          fontWeight: 900,
+          whiteSpace: "nowrap",
+          boxShadow: "0 4px 12px rgba(0,0,0,.32)",
+          cursor: "pointer",
+        }}
+      >
+        <Plug size={18} /> {text.connectButton}
       </button>
 
       {open && (
