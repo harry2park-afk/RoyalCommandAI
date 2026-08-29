@@ -36,6 +36,8 @@ async function legalRoomContext(roomId: string, userId: string) {
   return { supabase, enabled: manifest?.template_id === "legal" };
 }
 
+const caseSelect = "id, case_number, title, status, created_at, updated_at";
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -50,7 +52,7 @@ export async function GET(
 
   const { data, error } = await supabase
     .from("legal_cases")
-    .select("id, title, status, created_at, updated_at")
+    .select(caseSelect)
     .eq("room_id", id)
     .eq("owner_id", user.id)
     .order("updated_at", { ascending: false });
@@ -81,7 +83,7 @@ export async function POST(
       status: "active",
       updated_at: new Date().toISOString(),
     })
-    .select("id, title, status, created_at, updated_at")
+    .select(caseSelect)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -113,7 +115,7 @@ export async function PATCH(
     .eq("id", input.caseId)
     .eq("room_id", id)
     .eq("owner_id", user.id)
-    .select("id, title, status, created_at, updated_at")
+    .select(caseSelect)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
