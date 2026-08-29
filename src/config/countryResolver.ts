@@ -1,5 +1,8 @@
 import auConfig from "./countries/au.json";
 import caConfig from "./countries/ca.json";
+import gbConfig from "./countries/gb.json";
+import jpConfig from "./countries/jp.json";
+import krConfig from "./countries/kr.json";
 import usConfig from "./countries/us.json";
 import type { CountryConfig } from "../types/countryConfig";
 
@@ -13,6 +16,9 @@ type DomainBinding = {
 const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   AU: auConfig as CountryConfig,
   CA: caConfig as CountryConfig,
+  GB: gbConfig as CountryConfig,
+  JP: jpConfig as CountryConfig,
+  KR: krConfig as CountryConfig,
   US: usConfig as CountryConfig,
 };
 
