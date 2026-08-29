@@ -27,13 +27,16 @@ function isVisible(element: HTMLElement) {
   return style.display !== "none" && style.visibility !== "hidden";
 }
 
-function hideRedundantLegalToolsButton() {
-  for (const button of Array.from(document.querySelectorAll<HTMLButtonElement>("button"))) {
+function findLegalToolsButton() {
+  return Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
     const text = (button.textContent || "").replace(/\s+/g, " ").trim();
-    if (text.includes("법률 도구") && text.includes("Legal tools")) {
-      forceStyle(button, "display", "none");
-    }
-  }
+    return text.includes("법률 도구") && text.includes("Legal tools");
+  }) || null;
+}
+
+function hideRedundantLegalToolsButton() {
+  const button = findLegalToolsButton();
+  if (button) forceStyle(button, "display", "none");
 }
 
 function applyWideLayout() {
@@ -92,6 +95,26 @@ export default function LegalRoomLayoutBridge() {
     let interval = 0;
     let frame = 0;
 
+    const onTopLegalButtonClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest<HTMLButtonElement>("button");
+      if (!button) return;
+
+      const text = (button.textContent || "").replace(/\s+/g, " ").trim();
+      const rect = button.getBoundingClientRect();
+      const looksLikeTopLegalRoomButton = rect.top < 100 && (text.includes("법률") || /\blegal\b/i.test(text));
+      if (!looksLikeTopLegalRoomButton) return;
+
+      const legalToolsButton = findLegalToolsButton();
+      if (!legalToolsButton) return;
+
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      legalToolsButton.click();
+    };
+
     const sync = () => {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
@@ -106,6 +129,7 @@ export default function LegalRoomLayoutBridge() {
       });
     };
 
+    document.addEventListener("click", onTopLegalButtonClick, true);
     sync();
     const observer = new MutationObserver(sync);
     observer.observe(document.body, {
@@ -117,6 +141,7 @@ export default function LegalRoomLayoutBridge() {
     interval = window.setInterval(sync, 250);
 
     return () => {
+      document.removeEventListener("click", onTopLegalButtonClick, true);
       observer.disconnect();
       window.clearInterval(interval);
       window.cancelAnimationFrame(frame);
