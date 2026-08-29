@@ -83,6 +83,7 @@ export async function POST(
     if (!document) return NextResponse.json({ error: "Audio document not found" }, { status: 400 });
   }
 
+  const recordedAt = input.recordedAt || new Date().toISOString();
   const { data, error } = await supabase
     .from("legal_story_entries")
     .insert({
@@ -91,13 +92,34 @@ export async function POST(
       raw_transcript: input.rawTranscript,
       ai_summary: "",
       audio_document_id: input.audioDocumentId || null,
-      recorded_at: input.recordedAt || new Date().toISOString(),
+      recorded_at: recordedAt,
       updated_at: new Date().toISOString(),
     })
     .select("id, raw_transcript, ai_summary, audio_document_id, recorded_at, created_at, updated_at")
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  const { data: workspace } = await supabase
+    .from("legal_room_workspaces")
+    .select("case_story, desired_outcome")
+    .eq("room_id", id)
+    .eq("owner_id", user.id)
+    .maybeSingle();
+
+  const existingStory = workspace?.case_story || "";
+  const datedEntry = `[${recordedAt}]\n${input.rawTranscript}`;
+  const combinedStory = existingStory.trim() ? `${existingStory.trim()}\n\n${datedEntry}` : datedEntry;
+  await supabase
+    .from("legal_room_workspaces")
+    .upsert({
+      room_id: id,
+      owner_id: user.id,
+      case_story: combinedStory.slice(0, 100_000),
+      desired_outcome: workspace?.desired_outcome || "",
+      updated_at: new Date().toISOString(),
+    }, { onConflict: "room_id" });
+
   return NextResponse.json({ entry: data }, { status: 201 });
 }
 
