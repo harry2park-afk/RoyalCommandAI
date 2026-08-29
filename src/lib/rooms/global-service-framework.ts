@@ -1,4 +1,4 @@
-export const GLOBAL_SERVICE_FRAMEWORK_VERSION = "1.0" as const;
+export const GLOBAL_SERVICE_FRAMEWORK_VERSION = "1.1" as const;
 
 export const GLOBAL_SERVICE_CATEGORIES = [
   "ai",
@@ -22,18 +22,11 @@ export const GLOBAL_SERVICE_CATEGORIES = [
 
 export type GlobalServiceCategory = (typeof GLOBAL_SERVICE_CATEGORIES)[number];
 
-export const DELIVERY_SURFACE_PRIORITY = [
-  "rc_embedded",
-  "rc_managed",
-  "external_fallback",
-] as const;
-
 export const COMMERCIAL_MODEL_PRIORITY = [
   "wholesale",
   "rc_resale",
   "commission",
   "referral",
-  "customer_direct",
   "custom_quote",
 ] as const;
 
@@ -54,12 +47,11 @@ export type CountryPackContract = {
 
 export const GLOBAL_DELIVERY_RULES = [
   "One Global Core serves every country; country-specific differences live in Country Packs or country terms.",
-  "Customers should use Royal Command as the primary operating surface whenever technically and contractually possible.",
-  "Prefer RC-embedded integrations. Use RC-managed supplier accounts or customer-owned accounts when supplier identity rules require them.",
-  "Use external supplier websites only when the workflow cannot safely, lawfully or technically be delivered through Royal Command.",
-  "Prefer wholesale or RC resale where supplier terms allow customer savings and a sustainable RC margin.",
+  "Customers choose the capability they want; Royal Command chooses and manages the supplier connection behind the scenes.",
+  "Prefer approved wholesale, resale, API and OAuth supplier arrangements that Royal Command can operate for the customer.",
+  "If Royal Command cannot provide a suitable connection, handle any customer-direct supplier proposal separately rather than making it a normal Room choice.",
   "Never assume a discount, margin, commission, API capability or country availability before supplier terms are verified.",
-  "Keep supplier cost, RC margin, commission and internal commercial notes server-side only.",
+  "Keep supplier cost, RC margin, commission and internal supplier-selection logic server-side only.",
   "Keep country, language and currency independently configurable.",
   "A supplier can be replaced without changing the customer-facing Room workflow.",
   "Build RC-native functionality only when no suitable supplier exists or the capability is strategically core to Royal Command.",
@@ -94,6 +86,5 @@ export const GLOBAL_LAUNCH_PRINCIPLE = {
   countryLayer: "country_pack",
   providerLayer: "country_aware_provider_registry",
   commercialLayer: "country_aware_supplier_terms",
-  customerSurface: "royal_command_first",
-  fallback: "external_only_when_required",
+  customerExperience: "capability_only_supplier_hidden",
 } as const;
