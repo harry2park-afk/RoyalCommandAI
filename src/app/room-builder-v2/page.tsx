@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { applyGlobalPreset, DEFAULT_GLOBAL_ROOM_SETTINGS, GLOBAL_ROOM_PRESETS } from "@/lib/rooms/global";
 import { TEMPLATE_MATERIAL_PRESETS } from "@/lib/rooms/materials";
@@ -77,6 +77,11 @@ function languageCode(value: string) {
   return value.toLowerCase().split("-")[0];
 }
 
+function isCreateCommand(value: string) {
+  const normalized = value.toLowerCase();
+  return ["만들", "생성", "해줘", "해주세요", "해 주세요", "create", "make", "build"].some((word) => normalized.includes(word));
+}
+
 export default function RoomBuilderV2Page() {
   const router = useRouter();
   const [user, setUser] = useState<CurrentUser | null>(null);
@@ -87,10 +92,12 @@ export default function RoomBuilderV2Page() {
   const [saving, setSaving] = useState(false);
   const [listening, setListening] = useState(false);
   const [helperOpen, setHelperOpen] = useState(true);
+  const [helperStatus, setHelperStatus] = useState("");
   const [error, setError] = useState("");
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const introPlayedRef = useRef(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const creatingRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -120,23 +127,23 @@ export default function RoomBuilderV2Page() {
     };
   }, [router]);
 
-  const purposeMatch = useMemo(() => matchPurpose(purpose), [purpose]);
   const korean = language === "ko";
   const selectedLanguage = LANGUAGES.find((item) => item.code === language) || LANGUAGES[0];
+  const purposeMatch = matchPurpose(purpose);
   const automaticRoomName = user
     ? `${firstName(user.fullName)} ${korean ? purposeMatch.ko : purposeMatch.label}`.trim()
     : "";
   const roomName = roomNameOverride || automaticRoomName;
   const helperMessage = korean
-    ? "마이크를 누르고, 만들고 싶은 Room을 편하게 말씀해 주세요."
-    : "Tap the microphone and tell me what Room you would like to create.";
+    ? "마이크를 누르고, 만들고 싶은 Room을 말씀해 주세요."
+    : "Tap the microphone and tell me what Room you would like me to create.";
 
-  async function playNaturalIntro() {
+  async function playNaturalSpeech(text: string, greeting = false) {
     try {
       const response = await fetch("/api/ai/helper/speech", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: helperMessage, language: selectedLanguage.tag, greeting: true }),
+        body: JSON.stringify({ text, language: selectedLanguage.tag, greeting }),
       });
       if (!response.ok) return false;
       const blob = await response.blob();
@@ -146,8 +153,10 @@ export default function RoomBuilderV2Page() {
       const audio = new Audio(url);
       audioRef.current = audio;
       await audio.play();
-      introPlayedRef.current = true;
-      return true;
+      return new Promise<boolean>((resolve) => {
+        audio.onended = () => resolve(true);
+        audio.onerror = () => resolve(false);
+      });
     } catch {
       return false;
     }
@@ -155,10 +164,64 @@ export default function RoomBuilderV2Page() {
 
   useEffect(() => {
     if (!user || !helperOpen || introPlayedRef.current) return;
-    void playNaturalIntro();
-    // Browser autoplay policies may block this first attempt. The microphone click retries it.
+    introPlayedRef.current = true;
+    void playNaturalSpeech(helperMessage, true);
+    // Browser autoplay can be blocked; the microphone click still works normally.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, helperOpen]);
+
+  async function createRoomFromText(sourceText: string) {
+    const cleanText = sourceText.trim();
+    if (!user || !countryCode || !language || !cleanText || creatingRef.current) return;
+
+    const matched = matchPurpose(cleanText);
+    const generatedName = roomNameOverride || `${firstName(user.fullName)} ${korean ? matched.ko : matched.label}`.trim();
+    if (!generatedName) return;
+
+    creatingRef.current = true;
+    setSaving(true);
+    setListening(false);
+    recognitionRef.current?.stop();
+    setError("");
+    setHelperStatus(korean ? `네, ${matched.ko} Room을 만들겠습니다.` : `Yes. I will create your ${matched.label} Room.`);
+
+    await playNaturalSpeech(
+      korean ? `네, ${matched.ko} 방을 만들겠습니다.` : `Yes. I will create your ${matched.label} Room.`,
+    );
+
+    try {
+      const locale = applyGlobalPreset(DEFAULT_GLOBAL_ROOM_SETTINGS, countryCode);
+      const selectedMaterials = TEMPLATE_MATERIAL_PRESETS[matched.templateId] || TEMPLATE_MATERIAL_PRESETS.custom || [];
+      const countryEnglishTag = locale.languageTag.toLowerCase().startsWith("en-") ? locale.languageTag : "en-AU";
+      const supportedLanguageTags = language === "en" ? [countryEnglishTag] : [selectedLanguage.tag, countryEnglishTag];
+      const response = await fetch("/api/room-factory/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          roomName: generatedName.slice(0, 120),
+          templateId: matched.templateId,
+          countryCode: locale.countryCode,
+          languageTag: language === "en" ? countryEnglishTag : selectedLanguage.tag,
+          languageTags: supportedLanguageTags,
+          timeZone: locale.timeZone,
+          currencyCode: locale.currencyCode,
+          approvalMode: "approval",
+          websiteKit: false,
+          selectedMaterials,
+        }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok || !payload?.room?.id) {
+        setError(typeof payload?.error === "string" ? payload.error : (korean ? "Room을 만들지 못했습니다. 다시 말씀해 주세요." : "I could not create the Room. Please try again."));
+        setHelperStatus("");
+        return;
+      }
+      router.push(`/rooms/${payload.room.id}`);
+    } finally {
+      creatingRef.current = false;
+      setSaving(false);
+    }
+  }
 
   function beginRecognition() {
     const speechWindow = window as SpeechCapableWindow;
@@ -168,13 +231,16 @@ export default function RoomBuilderV2Page() {
       return;
     }
     setError("");
+    setHelperStatus("");
     const recognition = new Recognition();
     recognition.lang = selectedLanguage.tag;
     recognition.interimResults = false;
-    recognition.continuous = true;
+    recognition.continuous = false;
     recognition.onresult = (event) => {
       const latest = event.results[event.results.length - 1]?.[0]?.transcript?.trim();
-      if (latest) setPurpose((current) => `${current}${current ? " " : ""}${latest}`);
+      if (!latest) return;
+      setPurpose(latest);
+      if (isCreateCommand(latest)) void createRoomFromText(latest);
     };
     recognition.onend = () => setListening(false);
     recognition.onerror = () => {
@@ -192,50 +258,7 @@ export default function RoomBuilderV2Page() {
       recognitionRef.current?.stop();
       return;
     }
-    if (!introPlayedRef.current) {
-      const played = await playNaturalIntro();
-      if (played && audioRef.current) {
-        audioRef.current.onended = () => beginRecognition();
-        return;
-      }
-    }
     beginRecognition();
-  }
-
-  async function createRoom() {
-    if (!user || !countryCode || !language || !purpose.trim() || !roomName.trim() || saving) return;
-    setSaving(true);
-    setError("");
-    try {
-      const locale = applyGlobalPreset(DEFAULT_GLOBAL_ROOM_SETTINGS, countryCode);
-      const selectedMaterials = TEMPLATE_MATERIAL_PRESETS[purposeMatch.templateId] || TEMPLATE_MATERIAL_PRESETS.custom || [];
-      const countryEnglishTag = locale.languageTag.toLowerCase().startsWith("en-") ? locale.languageTag : "en-AU";
-      const supportedLanguageTags = language === "en" ? [countryEnglishTag] : [selectedLanguage.tag, countryEnglishTag];
-      const response = await fetch("/api/room-factory/rooms", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roomName: roomName.trim().slice(0, 120),
-          templateId: purposeMatch.templateId,
-          countryCode: locale.countryCode,
-          languageTag: language === "en" ? countryEnglishTag : selectedLanguage.tag,
-          languageTags: supportedLanguageTags,
-          timeZone: locale.timeZone,
-          currencyCode: locale.currencyCode,
-          approvalMode: "approval",
-          websiteKit: false,
-          selectedMaterials,
-        }),
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok || !payload?.room?.id) {
-        setError(typeof payload?.error === "string" ? payload.error : (korean ? "Room을 만들지 못했습니다. 다시 시도해 주세요." : "The Room could not be created. Please try again."));
-        return;
-      }
-      router.push(`/rooms/${payload.room.id}`);
-    } finally {
-      setSaving(false);
-    }
   }
 
   const canCreate = Boolean(user && countryCode && language && purpose.trim() && roomName.trim() && !saving);
@@ -252,7 +275,7 @@ export default function RoomBuilderV2Page() {
               <img src="/ai-helper-woman.svg" alt="AI Helper" className="h-24 w-24 shrink-0 rounded-2xl object-cover" />
               <div className="min-w-0 flex-1">
                 <div className="text-sm font-semibold text-[var(--gold-soft)]">AI Helper</div>
-                <p className="mt-2 text-base leading-6">{helperMessage}</p>
+                <p className="mt-2 text-base leading-6">{helperStatus || helperMessage}</p>
               </div>
               <button type="button" className="rounded-full border border-white/15 px-3 py-2 text-lg" aria-label={korean ? "AI Helper 닫기" : "Close AI Helper"} onClick={() => setHelperOpen(false)}>×</button>
             </div>
@@ -263,11 +286,12 @@ export default function RoomBuilderV2Page() {
                 aria-label={korean ? "마이크로 Room 만들기" : "Create Room by voice"}
                 title={korean ? "마이크" : "Microphone"}
                 onClick={startVoice}
+                disabled={saving}
               >
                 🎤
               </button>
             </div>
-            <p className="mt-3 text-center text-sm text-[var(--muted)]">{korean ? "마이크를 누르면 말로 Room을 만들 수 있습니다." : "Tap the microphone to create your Room by voice."}</p>
+            <p className="mt-3 text-center text-sm text-[var(--muted)]">{korean ? "예: ‘법률방 만들어 주세요.’" : "For example: ‘Create a legal Room for me.’"}</p>
           </section>
         ) : null}
 
@@ -325,7 +349,7 @@ export default function RoomBuilderV2Page() {
           type="button"
           className="rc-btn rc-btn-primary mt-6 min-h-14 w-full text-lg font-semibold disabled:cursor-not-allowed disabled:opacity-40"
           disabled={!canCreate}
-          onClick={createRoom}
+          onClick={() => void createRoomFromText(purpose)}
         >
           {saving ? (korean ? "Room 만드는 중…" : "Creating your Room…") : (korean ? "내 Room 만들기" : "Create My Room")}
         </button>
