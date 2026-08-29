@@ -1,3 +1,4 @@
+-- Work Queue Ticket: #468
 -- Reduce the exposed SECURITY DEFINER surface for Room Factory planning.
 -- Preserve the existing public RPC signature used by the app, but move the
 -- privileged implementation to the non-exposed private schema and expose a
