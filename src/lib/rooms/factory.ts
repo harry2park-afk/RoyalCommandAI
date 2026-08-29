@@ -1,3 +1,4 @@
+import { getConfiguredCountryCodes, hasCountryConfig } from "../../config/countryResolver";
 import { DEFAULT_GLOBAL_ROOM_SETTINGS, GLOBAL_ROOM_PRESETS, type GlobalRoomSettings } from "./global";
 import { ROOM_TEMPLATES } from "./templates";
 
@@ -120,7 +121,7 @@ function normaliseLanguage(value: string) {
 }
 
 function registeredCountry(code: string) {
-  return GLOBAL_ROOM_PRESETS.some((item) => item.id === code);
+  return hasCountryConfig(code);
 }
 
 function presetFor(code: string) {
@@ -148,7 +149,7 @@ export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactor
   if (!timeZone) blockers.push("Time zone is required.");
   if (currencyCode.length !== 3) blockers.push("Currency must be a 3-letter code.");
   if (!registeredCountry(countryCode)) {
-    warnings.push("Country is not yet a registered RCA profile. Safe build may continue, but country-specific compliance must remain unverified until a profile is added.");
+    warnings.push("Country is not yet a configured RCA country profile. Locale defaults may be used, but country-specific compliance must remain unverified until a CountryConfig is added.");
   }
 
   const locale: GlobalRoomSettings & {
@@ -207,8 +208,9 @@ export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactor
 
 export function roomFactoryCountryCoverage() {
   return {
-    registeredProfiles: GLOBAL_ROOM_PRESETS.filter((item) => item.id !== "GLOBAL").length,
+    registeredProfiles: getConfiguredCountryCodes().length,
+    localePresets: GLOBAL_ROOM_PRESETS.filter((item) => item.id !== "GLOBAL").length,
     extensibleCountryModel: true,
-    strategy: "One global core plus country-profile overlays. Unregistered ISO-style country codes use a safe custom-profile-required state instead of cloning the core.",
+    strategy: "One global core plus country-profile overlays. Locale presets may scale ahead of launch profiles, while countries without a verified CountryConfig remain custom-profile-required.",
   } as const;
 }
