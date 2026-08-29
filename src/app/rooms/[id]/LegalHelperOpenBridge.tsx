@@ -2,6 +2,39 @@
 
 import { useEffect } from "react";
 
+type LegalUiLanguage = "en" | "ko" | "zh" | "ja" | "es" | "fr" | "de" | "vi" | "th" | "id";
+
+const ACTION_LABELS: Record<LegalUiLanguage, { speak: string; send: string }> = {
+  en: { speak: "Speak", send: "Send my words" },
+  ko: { speak: "말하기", send: "내 말 올리기" },
+  zh: { speak: "说话", send: "发送我的话" },
+  ja: { speak: "話す", send: "自分の言葉を送る" },
+  es: { speak: "Hablar", send: "Enviar mis palabras" },
+  fr: { speak: "Parler", send: "Envoyer mes mots" },
+  de: { speak: "Sprechen", send: "Meine Worte senden" },
+  vi: { speak: "Nói", send: "Gửi lời của tôi" },
+  th: { speak: "พูด", send: "ส่งคำพูดของฉัน" },
+  id: { speak: "Bicara", send: "Kirim kata saya" },
+};
+
+function detectRoomLanguage(): LegalUiLanguage {
+  const selects = Array.from(document.querySelectorAll("select"));
+  for (const select of selects) {
+    const raw = `${select.value} ${select.options[select.selectedIndex]?.text || ""}`.toLowerCase();
+    if (/\b(ko|kr|korean)\b|한국|한국어/.test(raw)) return "ko";
+    if (/\b(zh|cn|chinese)\b|中文|中国/.test(raw)) return "zh";
+    if (/\b(ja|jp|japanese)\b|日本/.test(raw)) return "ja";
+    if (/\b(es|spanish)\b|español/.test(raw)) return "es";
+    if (/\b(fr|french)\b|français/.test(raw)) return "fr";
+    if (/\b(de|german)\b|deutsch/.test(raw)) return "de";
+    if (/\b(vi|vietnamese)\b|tiếng việt/.test(raw)) return "vi";
+    if (/\b(th|thai)\b|ไทย/.test(raw)) return "th";
+    if (/\b(id|indonesian)\b|bahasa indonesia/.test(raw)) return "id";
+    if (/\b(en|english)\b|영어/.test(raw)) return "en";
+  }
+  return "en";
+}
+
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
@@ -62,6 +95,7 @@ function applyLargeLegalHelperLayout() {
   const form = content.querySelector("form");
   const textarea = form?.querySelector("textarea");
   const submitButton = form?.querySelector<HTMLButtonElement>('button[type="submit"]');
+  const micButton = form?.querySelector<HTMLButtonElement>('button[type="button"]');
   const latestUser = children.find((item) => item.className.includes("line-clamp-2"));
   if (latestUser) latestUser.style.display = "none";
 
@@ -109,26 +143,52 @@ function applyLargeLegalHelperLayout() {
   textarea.style.resize = "none";
   textarea.style.transition = "height 180ms ease";
 
-  if (submitButton instanceof HTMLButtonElement) {
-    submitButton.style.width = "auto";
-    submitButton.style.minWidth = "116px";
-    submitButton.style.paddingLeft = "12px";
-    submitButton.style.paddingRight = "12px";
-    submitButton.style.gap = "6px";
-    submitButton.style.display = "inline-flex";
-    submitButton.style.alignItems = "center";
-    submitButton.style.justifyContent = "center";
-    submitButton.style.whiteSpace = "nowrap";
-    if (!submitButton.querySelector('[data-legal-send-label="1"]')) {
-      const label = document.createElement("span");
-      label.dataset.legalSendLabel = "1";
-      label.textContent = /[가-힣]/.test(textarea.placeholder) ? "내 말 올리기" : "Send my words";
-      label.style.fontSize = "13px";
-      label.style.fontWeight = "700";
-      submitButton.appendChild(label);
-      submitButton.title = label.textContent;
+  const syncActionLabels = () => {
+    const labels = ACTION_LABELS[detectRoomLanguage()];
+    if (micButton instanceof HTMLButtonElement) {
+      micButton.style.width = "auto";
+      micButton.style.minWidth = "84px";
+      micButton.style.paddingLeft = "10px";
+      micButton.style.paddingRight = "10px";
+      micButton.style.gap = "6px";
+      micButton.style.display = "inline-flex";
+      micButton.style.alignItems = "center";
+      micButton.style.justifyContent = "center";
+      micButton.style.whiteSpace = "nowrap";
+      let micLabel = micButton.querySelector<HTMLElement>('[data-legal-mic-label="1"]');
+      if (!micLabel) {
+        micLabel = document.createElement("span");
+        micLabel.dataset.legalMicLabel = "1";
+        micLabel.style.fontSize = "13px";
+        micLabel.style.fontWeight = "700";
+        micButton.appendChild(micLabel);
+      }
+      micLabel.textContent = labels.speak;
+      micButton.title = labels.speak;
     }
-  }
+    if (submitButton instanceof HTMLButtonElement) {
+      submitButton.style.width = "auto";
+      submitButton.style.minWidth = "116px";
+      submitButton.style.paddingLeft = "12px";
+      submitButton.style.paddingRight = "12px";
+      submitButton.style.gap = "6px";
+      submitButton.style.display = "inline-flex";
+      submitButton.style.alignItems = "center";
+      submitButton.style.justifyContent = "center";
+      submitButton.style.whiteSpace = "nowrap";
+      let sendLabel = submitButton.querySelector<HTMLElement>('[data-legal-send-label="1"]');
+      if (!sendLabel) {
+        sendLabel = document.createElement("span");
+        sendLabel.dataset.legalSendLabel = "1";
+        sendLabel.style.fontSize = "13px";
+        sendLabel.style.fontWeight = "700";
+        submitButton.appendChild(sendLabel);
+      }
+      sendLabel.textContent = labels.send;
+      submitButton.title = labels.send;
+    }
+  };
+  syncActionLabels();
 
   if (panel.dataset.legalDynamicPanes === "1") return true;
   panel.dataset.legalDynamicPanes = "1";
@@ -139,6 +199,7 @@ function applyLargeLegalHelperLayout() {
   let lastAiChange = 0;
 
   const resize = () => {
+    syncActionLabels();
     const now = Date.now();
     const userText = textarea.value;
     const aiText = assistantText.textContent || "";
