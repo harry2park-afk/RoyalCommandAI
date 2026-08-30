@@ -35,32 +35,39 @@ function normalizedCountry(value?: string | null) {
   return /^[A-Z]{2}$/.test(raw) ? raw : null;
 }
 
+export function localeForEnglishCountry(countryCode?: string | null) {
+  const country = normalizedCountry(countryCode);
+  if (country === "AU") return "en-AU";
+  if (country === "GB") return "en-GB";
+  return "en-US";
+}
+
 export function normalizeLegacyLanguage(value?: string | null, countryCode?: string | null) {
   const raw = (value || "").trim();
   if (!raw) return null;
 
-  // Backward compatibility: current Royal Command uses `en` to mean Australian English.
-  if (raw.toLowerCase() === "en") return "en-AU";
+  // The visible language choice stays generic: `English` / `en`.
+  // Country Pack decides the English regional locale automatically.
+  if (raw.toLowerCase() === "en" || raw.toLowerCase() === "english") {
+    return localeForEnglishCountry(countryCode);
+  }
   if (raw.toLowerCase() === "ko") return "ko-KR";
 
-  const country = normalizedCountry(countryCode);
   if (raw.toUpperCase() === "AU") return "en-AU";
   if (raw.toUpperCase() === "US") return "en-US";
   if (raw.toUpperCase() === "GB") return "en-GB";
   if (raw.toUpperCase() === "KR") return "ko-KR";
 
-  const canonical = canonicalLocale(raw);
-  if (canonical) return canonical;
-
-  if (raw.toLowerCase() === "english") return country ? COUNTRY_DEFAULT_LOCALE[country] || GLOBAL_FALLBACK_LOCALE : GLOBAL_FALLBACK_LOCALE;
-  return null;
+  return canonicalLocale(raw);
 }
 
 export function resolveGlobalLocale(input: LocaleResolutionInput = {}): LocaleResolution {
   const countryCode = normalizedCountry(input.countryCode);
+  const legacyRaw = (input.legacyLanguage || "").trim().toLowerCase();
+  const genericEnglishSelected = legacyRaw === "en" || legacyRaw === "english";
 
   const explicit = canonicalLocale(input.explicitUiLocale);
-  if (explicit) {
+  if (explicit && !(genericEnglishSelected && explicit.toLowerCase().startsWith("en-"))) {
     return { locale: explicit, language: explicit.split("-")[0], countryCode, source: "explicit" };
   }
 
@@ -69,17 +76,14 @@ export function resolveGlobalLocale(input: LocaleResolutionInput = {}): LocaleRe
     return { locale: legacy, language: legacy.split("-")[0], countryCode, source: "legacy" };
   }
 
+  if (explicit) {
+    return { locale: explicit, language: explicit.split("-")[0], countryCode, source: "explicit" };
+  }
+
   if (countryCode && COUNTRY_DEFAULT_LOCALE[countryCode]) {
     const locale = COUNTRY_DEFAULT_LOCALE[countryCode];
     return { locale, language: locale.split("-")[0], countryCode, source: "country" };
   }
 
   return { locale: GLOBAL_FALLBACK_LOCALE, language: "en", countryCode, source: "fallback" };
-}
-
-export function localeForEnglishCountry(countryCode?: string | null) {
-  const country = normalizedCountry(countryCode);
-  if (country === "AU") return "en-AU";
-  if (country === "GB") return "en-GB";
-  return "en-US";
 }
