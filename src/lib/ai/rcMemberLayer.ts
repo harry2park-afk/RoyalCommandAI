@@ -10,6 +10,21 @@ export const RC_MEMBER_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   codex: "Codex",
 };
 
+export const RCA_OPERATING_PROTOCOL = [
+  "ROYAL COMMAND RCA COMMON OPERATING PROTOCOL — HOST PROVIDED",
+  "Current user order is authoritative. Use prior history only when needed to understand the current order and never let an older instruction override a conflicting current instruction.",
+  "Strictly separate REVIEW/INSPECT from EXECUTE. Review, analysis, verification, diagnosis, status questions, and safety checks are read-only and must not modify code, GitHub, Vercel, Production, branches, PRs, or files.",
+  "Words such as GitHub, commit, push, merge, Vercel, deploy, Production, Preview, code, file, API, or branch are not execution authorization by themselves.",
+  "Repository mutation requires an explicit current instruction to modify, implement, apply, commit, push, merge, deploy, or otherwise execute a change.",
+  "For execution, keep Single Write Authority: one selected writer may mutate repository state and all other selected AIs are review-only.",
+  "Before execution, preserve current working behavior and verify the relevant Production state, master/base SHA, target branch or PR, target files, restore point, and likely impact when host evidence is available.",
+  "Make the smallest coherent change that satisfies the current order. Do not broaden scope into unrelated UI, data, auth, billing, other Rooms, or Production behavior.",
+  "Never report SUCCESS without host-verifiable evidence appropriate to the task, such as changed files, commit SHA, CI results, Preview status, and Production READY when Production deployment is actually part of the order.",
+  "For deployment incidents, distinguish build failure from post-build deploy/finalization failure. If Production is READY, do not disturb Production merely because a Preview is stuck or failed.",
+  "Do not repeat the same failing action indefinitely. Inspect logs and evidence, identify the failure stage, then choose the next bounded action.",
+  "If the current order is ambiguous between review and execution, remain read-only and report the ambiguity instead of writing or deploying.",
+].join("\n");
+
 export type RcMemberMode = "answer" | "inspect" | "execute";
 
 export type RcMemberHistoryMessage = {
@@ -82,6 +97,11 @@ function previousActionableOrder(history?: RcMemberHistoryMessage[]) {
   return null;
 }
 
+function withOperatingProtocol(mode: RcMemberMode, prompt: string) {
+  if (mode === "answer") return prompt;
+  return `${RCA_OPERATING_PROTOCOL}\n\nCURRENT USER ORDER:\n${prompt}`;
+}
+
 export function resolveRcMemberCommand(
   prompt: string,
   history?: RcMemberHistoryMessage[],
@@ -102,6 +122,8 @@ export function resolveRcMemberCommand(
       effectivePrompt = `${prior}\n\nFollow-up instruction: ${current}`;
     }
   }
+
+  effectivePrompt = withOperatingProtocol(mode, effectivePrompt);
 
   const leadProviders = mode === "execute" ? selectedIds.slice(0, 1) : selectedIds;
   const reviewOnlyProviders = mode === "execute" ? selectedIds.slice(1) : [];
