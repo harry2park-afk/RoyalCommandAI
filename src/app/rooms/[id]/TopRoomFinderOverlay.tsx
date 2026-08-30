@@ -80,7 +80,21 @@ export default function TopRoomFinderOverlay() {
     return selectedCategory[5].map((id) => ROOM_BY_ID.get(id)).filter(Boolean) as RoomDirectoryItem[];
   }, [clean, selectedCategory]);
 
+  function openRoomBuilder(room: RoomDirectoryItem) {
+    const next = new URL("/room-builder", window.location.origin);
+    next.searchParams.set("template", room.templateId);
+    next.searchParams.set("name", room.label);
+    next.searchParams.set("roomType", room.id);
+    if (currentRoomId) next.searchParams.set("returnRoom", currentRoomId);
+    window.location.assign(next.toString());
+  }
+
   async function chooseRoom(room: RoomDirectoryItem) {
+    if (room.id === "legal") {
+      openRoomBuilder(room);
+      return;
+    }
+
     try {
       const response = await fetch("/api/rooms", { cache: "no-store" });
       const payload = response.ok ? await response.json() : null;
@@ -98,12 +112,7 @@ export default function TopRoomFinderOverlay() {
       }
     } catch {}
 
-    const next = new URL("/room-builder", window.location.origin);
-    next.searchParams.set("template", room.templateId);
-    next.searchParams.set("name", room.label);
-    next.searchParams.set("roomType", room.id);
-    if (currentRoomId) next.searchParams.set("returnRoom", currentRoomId);
-    window.location.assign(next.toString());
+    openRoomBuilder(room);
   }
 
   function close() {
