@@ -13,7 +13,7 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <RoomGuideLiveInputMirror />
       <style>{`
         aside:has(img[src="/ai-helper-woman.svg"]) > div[class~="-mt-[84px]"] {
-          margin-top: -15px !important;
+          margin-top: -30px !important;
         }
         aside:has(img[src="/ai-helper-woman.svg"]) img[src="/ai-helper-woman.svg"] {
           transform: translateY(-10px);
