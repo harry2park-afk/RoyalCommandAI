@@ -353,9 +353,10 @@ export default function RoomBuilderAIFormAssistant() {
       });
       streamRef.current = stream;
       activeRef.current = true;
-      setListening(true);
-      startWaveform(stream);
-      setMicStatus("듣고 있습니다…");
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = false;
+      });
+      setMicStatus("음성 연결 중…");
 
       const tokenResponse = await fetch(`/api/voice/realtime-token?lang=${encodeURIComponent(realtimeLanguage(languageTag))}`, { cache: "no-store" });
       const tokenPayload = await tokenResponse.json().catch(() => ({}));
@@ -370,7 +371,13 @@ export default function RoomBuilderAIFormAssistant() {
       dcRef.current = dc;
 
       dc.addEventListener("open", () => {
-        if (!closingRef.current) setMicStatus("말씀하세요…");
+        if (closingRef.current) return;
+        streamRef.current?.getAudioTracks().forEach((audioTrack) => {
+          audioTrack.enabled = true;
+        });
+        setListening(true);
+        if (streamRef.current) startWaveform(streamRef.current);
+        setMicStatus("말씀하세요…");
       });
       dc.addEventListener("message", (event) => {
         let message: any;
