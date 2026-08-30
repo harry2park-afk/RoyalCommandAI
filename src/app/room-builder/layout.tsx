@@ -12,6 +12,25 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <RoomBuilderAIFormAssistant />
       <RoomGuideLiveInputMirror />
       <style>{`
+        aside:has(img[src="/ai-helper-woman.svg"]) > div[class~="-mt-[84px]"] {
+          margin-top: -45px !important;
+        }
+        aside:has(img[src="/ai-helper-woman.svg"]) img[src="/ai-helper-woman.svg"] {
+          transform: translateY(-10px);
+        }
+        aside:has(img[src="/ai-helper-woman.svg"]) div:has(> img[src="/ai-helper-woman.svg"])::after {
+          content: "";
+          position: absolute;
+          left: 27%;
+          right: 27%;
+          bottom: 13px;
+          height: 2px;
+          border-radius: 999px;
+          background: linear-gradient(90deg, transparent, #d8b548 12%, #f1d66a 50%, #d8b548 88%, transparent);
+          box-shadow: 0 0 4px rgba(241, 214, 106, 0.35);
+          pointer-events: none;
+        }
+
         @media (min-width: 1024px) {
           .rc-room-builder-workspace {
             width: calc(100vw - 600px) !important;
