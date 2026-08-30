@@ -30,6 +30,9 @@ type Service = {
 type Category = "ai" | "tools" | "services";
 type CoreAI = { id: string; label: string; titlePrefix: string; ko: string; en: string };
 type CoreAIState = CoreAI & { available: boolean; connected: boolean; modelInfo: string };
+type DisconnectTarget =
+  | { kind: "ai"; ai: CoreAIState }
+  | { kind: "service"; service: Service };
 
 const CORE_AI: CoreAI[] = [
   { id: "openai", label: "ChatGPT", titlePrefix: "ChatGPT", ko: "질문, 분석, 글쓰기, 코딩과 일반 업무를 지원하는 OpenAI AI", en: "OpenAI AI for questions, analysis, writing, coding and general work" },
@@ -71,9 +74,11 @@ function bucket(service: Service): Exclude<Category, "ai"> {
 function nameOf(service: Service, locale: string) {
   return locale.toLowerCase().startsWith("ko") ? (service.name_ko || service.name_en) : (service.name_en || service.name_ko);
 }
+
 function summaryOf(service: Service, locale: string) {
   return locale.toLowerCase().startsWith("ko") ? (service.summary_ko || service.summary_en || "") : (service.summary_en || service.summary_ko || "");
 }
+
 function pricing(service: Service, text: ReturnType<typeof connectorDict>) {
   const trialDays = Number(service.trial_days || 0);
   const trialPrefix = trialDays > 0 ? `${trialDays}-day ${text.freeTrial}` : "";
@@ -104,6 +109,7 @@ export default function RoomConnectorPanel() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [paymentItems, setPaymentItems] = useState<string[]>([]);
+  const [disconnectTarget, setDisconnectTarget] = useState<DisconnectTarget | null>(null);
 
   const visibleAi = useMemo(() => {
     if (category !== "ai") return [];
@@ -128,26 +134,43 @@ export default function RoomConnectorPanel() {
       setServices(Array.isArray(payload?.services) ? payload.services : []);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : text.loadError);
-    } finally { setLoading(false); }
+    } finally {
+      setLoading(false);
+    }
   }
 
   function openPanel() {
-    setOpen(true); setCategory("services"); setQuery(""); setSelected(new Set()); void load();
+    setOpen(true);
+    setCategory("services");
+    setQuery("");
+    setSelected(new Set());
+    void load();
   }
 
   function toggle(key: string, blocked = false) {
     if (blocked) return;
-    setSelected((current) => { const next = new Set(current); next.has(key) ? next.delete(key) : next.add(key); return next; });
+    setSelected((current) => {
+      const next = new Set(current);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
   }
 
   function startSend() {
-    if (!selected.size) { setError(text.nothingSelected); return; }
-    setAgreed(false); setConfirmOpen(true); setError("");
+    if (!selected.size) {
+      setError(text.nothingSelected);
+      return;
+    }
+    setAgreed(false);
+    setConfirmOpen(true);
+    setError("");
   }
 
   async function sendSelected() {
     if (!agreed) return;
-    setBusy(true); setConfirmOpen(false); setError("");
+    setBusy(true);
+    setConfirmOpen(false);
+    setError("");
     try {
       const payments: string[] = [];
 
@@ -162,7 +185,8 @@ export default function RoomConnectorPanel() {
         if (!price.confirmed) continue;
         if (service.default_included || service.selection_status === "active") continue;
         const response = await fetch(`/api/rooms/${roomId}/services`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ serviceKey: service.service_key, action: "agree_connect", agree: true }),
         });
         const payload = await response.json().catch(() => ({}));
@@ -175,34 +199,85 @@ export default function RoomConnectorPanel() {
       if (payments.length) setPaymentItems(payments);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : text.connectError);
-    } finally { setBusy(false); }
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function disconnect(service: Service) {
-    setBusy(true); setError("");
+    setBusy(true);
+    setError("");
     try {
       const response = await fetch(`/api/rooms/${roomId}/services`, {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ serviceKey: service.service_key, action: "disconnect" }),
       });
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(payload?.error || text.disconnectError);
       await load();
-    } catch (cause) { setError(cause instanceof Error ? cause.message : text.disconnectError); }
-    finally { setBusy(false); }
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : text.disconnectError);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmDisconnect() {
+    const target = disconnectTarget;
+    if (!target || busy) return;
+    setDisconnectTarget(null);
+
+    if (target.kind === "service") {
+      await disconnect(target.service);
+      return;
+    }
+
+    const button = findAiButton(target.ai);
+    if (!button || button.disabled) {
+      setError(korean ? "이 AI 연결을 지금 해제할 수 없습니다." : "This AI connection cannot be disconnected right now.");
+      return;
+    }
+    button.click();
+    window.setTimeout(() => setAiStates(readAiStates()), 0);
   }
 
   const cat = (value: Category, label: string, background: string, color: string) => (
     <button type="button" onClick={() => { setCategory(value); setQuery(""); }} style={{ flex: 1, minWidth: 150, height: 48, border: category === value ? "3px solid #fff2a8" : "1px solid rgba(255,255,255,.24)", borderRadius: 10, background, color, fontWeight: 900, fontSize: 14, cursor: "pointer" }}>{label}</button>
   );
 
-  const selectStyle = (checked: boolean) => ({ minWidth: 110, height: 34, border: checked ? "1px solid #d6ad31" : "1px solid #667487", borderRadius: 8, background: checked ? "#2d6a45" : "#111c2a", color: checked ? "#fff7c7" : "#edf2f7", fontWeight: 850, cursor: "pointer" } as const);
+  const selectStyle = (checked: boolean) => ({
+    minWidth: 110,
+    height: 34,
+    border: checked ? "1px solid #d6ad31" : "1px solid #667487",
+    borderRadius: 8,
+    background: checked ? "#2d6a45" : "#111c2a",
+    color: checked ? "#fff7c7" : "#edf2f7",
+    fontWeight: 850,
+    cursor: "pointer",
+  } as const);
+
+  const connectedControl = (onDisconnect: () => void) => (
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 8 }}>
+      <span style={{ color: "#7fe3a1", fontWeight: 900, whiteSpace: "nowrap" }}>✓ {text.connected}</span>
+      <button
+        type="button"
+        disabled={busy}
+        onClick={onDisconnect}
+        title={korean ? "연결 끊기" : "Disconnect"}
+        aria-label={korean ? "연결 끊기" : "Disconnect"}
+        style={{ width: 34, height: 34, border: "1px solid #b9535f", borderRadius: 8, background: "#3a141b", color: "#ff9ca7", display: "grid", placeItems: "center", cursor: busy ? "default" : "pointer", opacity: busy ? .55 : 1 }}
+      >
+        <X size={18} />
+      </button>
+    </div>
+  );
 
   return <>
     <button type="button" onClick={openPanel} title={text.dialogTitle} style={{ position: "fixed", right: 184, top: 52, zIndex: 355, height: 60, minWidth: 172, maxWidth: 240, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "2px solid #9f1d2d", borderRadius: 9, background: "linear-gradient(180deg,#f2d566,#d9b640)", color: "#3a2410", padding: "0 16px", fontSize: 14, fontWeight: 900, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,.32)", cursor: "pointer" }}><Plug size={18}/>{text.connectButton}</button>
 
     {open && <div role="dialog" aria-modal="true" aria-label={text.dialogTitle} dir={rtl ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 5000, background: "rgba(0,0,0,.62)", display: "grid", placeItems: "center", padding: 18 }}>
-      <div style={{ width: "min(900px,95vw)", maxHeight: "84vh", overflow: "hidden", border: "1px solid #d6ad31", borderRadius: 14, background: "#07111f", color: "#f3f5f7" }}>
+      <div style={{ width: "min(980px,95vw)", maxHeight: "84vh", overflow: "hidden", border: "1px solid #d6ad31", borderRadius: 14, background: "#07111f", color: "#f3f5f7" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "1px solid rgba(214,173,49,.35)" }}><strong style={{ color: "#f6d76b", fontSize: 19 }}>{text.dialogTitle}</strong><button type="button" onClick={() => setOpen(false)} style={{ border: 0, background: "transparent", color: "#fff", cursor: "pointer" }}><X size={23}/></button></div>
         <div style={{ padding: 14, borderBottom: "1px solid rgba(255,255,255,.08)" }}>
           <div style={{ display: "flex", gap: 9 }}>{cat("services", "Professional Services", "#d3ad38", "#241900")}{cat("tools", "Business Systems", "#28633f", "#fff")}{cat("ai", "AI Intelligence", "#173b68", "#fff")}</div>
@@ -216,28 +291,48 @@ export default function RoomConnectorPanel() {
           {error && <div style={{ margin: "6px 0 10px", padding: 9, border: "1px solid #b64545", borderRadius: 8, color: "#ffd2cc" }}>{error}</div>}
           {loading ? <div style={{ padding: 26, textAlign: "center", color: "#b8c1cf" }}>{text.loading}</div> : <>
             {visibleAi.map((ai) => {
-              const key = `ai:${ai.id}`; const checked = selected.has(key);
-              return <div key={key} style={{ display: "grid", gridTemplateColumns: "180px 1fr 170px 120px", gap: 12, alignItems: "center", minHeight: 68, borderBottom: "1px solid rgba(255,255,255,.1)" }}>
+              const key = `ai:${ai.id}`;
+              const checked = selected.has(key);
+              return <div key={key} style={{ display: "grid", gridTemplateColumns: "180px 1fr 160px 210px", gap: 12, alignItems: "center", minHeight: 68, borderBottom: "1px solid rgba(255,255,255,.1)" }}>
                 <div><strong>{ai.label}</strong><div style={{ fontSize: 11, color: "#9fb0c3", marginTop: 3 }}>{ai.modelInfo || (korean ? "모델 정보 확인 중" : "Model info pending")}</div></div>
                 <div style={{ fontSize: 12, color: "#c7d1dc", lineHeight: 1.4 }}>{korean ? ai.ko : ai.en}</div>
                 <div style={{ textAlign: "center", fontWeight: 900, color: "#ffd56a" }}>{korean ? "가격 확인" : "Price pending"}</div>
-                {ai.connected ? <div style={{ textAlign: "center", color: "#7fe3a1", fontWeight: 850 }}>✓ {text.connected}</div> : !ai.available ? <div style={{ textAlign: "center", color: "#aeb8c6" }}>{text.notAvailable}</div> : <button type="button" onClick={() => toggle(key)} style={selectStyle(checked)}>{checked ? `✓ ${korean ? "선택됨" : "Selected"}` : text.connect}</button>}
+                {ai.connected ? connectedControl(() => setDisconnectTarget({ kind: "ai", ai })) : !ai.available ? <div style={{ textAlign: "center", color: "#aeb8c6" }}>{text.notAvailable}</div> : <button type="button" onClick={() => toggle(key)} style={selectStyle(checked)}>{checked ? `✓ ${korean ? "선택됨" : "Selected"}` : text.connect}</button>}
               </div>;
             })}
 
             {visibleServices.map((service) => {
-              const key = `service:${service.service_key}`; const checked = selected.has(key); const p = pricing(service, text); const active = service.default_included || service.selection_status === "active"; const pending = service.selection_status === "pending_payment"; const planned = service.connection_status === "planned";
-              return <div key={key} style={{ display: "grid", gridTemplateColumns: "180px 1fr 170px 120px", gap: 12, alignItems: "center", minHeight: 68, borderBottom: "1px solid rgba(255,255,255,.1)" }}>
+              const key = `service:${service.service_key}`;
+              const checked = selected.has(key);
+              const p = pricing(service, text);
+              const active = service.selection_status === "active";
+              const pending = service.selection_status === "pending_payment";
+              const planned = service.connection_status === "planned";
+              return <div key={key} style={{ display: "grid", gridTemplateColumns: "180px 1fr 160px 210px", gap: 12, alignItems: "center", minHeight: 68, borderBottom: "1px solid rgba(255,255,255,.1)" }}>
                 <div><strong>{nameOf(service, locale)}</strong></div>
                 <div style={{ fontSize: 12, color: "#c7d1dc", lineHeight: 1.4 }}>{summaryOf(service, locale) || (korean ? "이 Room에서 사용할 수 있는 연결 도구 또는 서비스" : "A tool or service that can be connected to this Room")}</div>
                 <div style={{ textAlign: "center", fontWeight: 900, color: p.free ? "#7fe3a1" : p.confirmed ? "#ffd56a" : "#aeb8c6" }}>{p.label}</div>
-                {active ? <div style={{ textAlign: "center", color: "#7fe3a1", fontWeight: 850 }}>✓ {text.connected}</div> : pending ? <div style={{ textAlign: "center", color: "#ffd56a", fontWeight: 850 }}>{text.payment}</div> : planned || !p.confirmed ? <div style={{ textAlign: "center", color: "#aeb8c6" }}>{planned ? text.planned : p.label}</div> : <button type="button" onClick={() => toggle(key)} style={selectStyle(checked)}>{checked ? `✓ ${korean ? "선택됨" : "Selected"}` : text.connect}</button>}
+                {active ? connectedControl(() => setDisconnectTarget({ kind: "service", service })) : pending ? <div style={{ textAlign: "center", color: "#ffd56a", fontWeight: 850 }}>{text.payment}</div> : planned || !p.confirmed ? <div style={{ textAlign: "center", color: "#aeb8c6" }}>{planned ? text.planned : p.label}</div> : <button type="button" onClick={() => toggle(key)} style={selectStyle(checked)}>{checked ? `✓ ${korean ? "선택됨" : "Selected"}` : text.connect}</button>}
               </div>;
             })}
           </>}
         </div>
 
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 14px", borderTop: "1px solid rgba(255,255,255,.08)" }}><span style={{ color: "#b8c1cf", fontSize: 12 }}>{selected.size} {text.selectedCount}</span><button type="button" disabled={busy || !selected.size} onClick={startSend} style={{ border: "1px solid #d6ad31", borderRadius: 9, background: "#7b1023", color: "#f6d76b", padding: "9px 14px", fontWeight: 900, opacity: selected.size && !busy ? 1 : .5 }}>{text.sendSelected}</button></div>
+      </div>
+    </div>}
+
+    {disconnectTarget && <div role="dialog" aria-modal="true" dir={rtl ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 5150, background: "rgba(0,0,0,.8)", display: "grid", placeItems: "center", padding: 18 }}>
+      <div style={{ width: "min(470px,92vw)", border: "1px solid #b9535f", borderRadius: 14, background: "#081322", color: "#fff", padding: 18 }}>
+        <div style={{ color: "#ffb3bb", fontSize: 19, fontWeight: 900 }}>{korean ? "연결을 끊을까요?" : "Disconnect this connection?"}</div>
+        <div style={{ marginTop: 10, color: "#c9d2de", lineHeight: 1.5 }}>
+          {disconnectTarget.kind === "ai" ? disconnectTarget.ai.label : nameOf(disconnectTarget.service, locale)}
+          {korean ? " 연결을 현재 Room에서만 해제합니다. 다른 Room에는 영향을 주지 않습니다." : " will be disconnected only from the current Room. Other Rooms are not affected."}
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 9, marginTop: 18 }}>
+          <button type="button" disabled={busy} onClick={() => setDisconnectTarget(null)} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #596779", background: "#142033", color: "#fff" }}>{text.cancel}</button>
+          <button type="button" disabled={busy} onClick={() => void confirmDisconnect()} style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid #b9535f", background: "#5a1721", color: "#ffd9dd", fontWeight: 900 }}>✕ {korean ? "연결 끊기" : "Disconnect"}</button>
+        </div>
       </div>
     </div>}
 
