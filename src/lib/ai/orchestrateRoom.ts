@@ -1,6 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import { orchestrate, type OrchestrateInput, type OrchestrateResult } from "./orchestrator";
 import { boundClientHistory, normalizeRoomHistory, MAX_ROOM_HISTORY_MESSAGES } from "./roomConversationMemory";
+import { persistWithRevisionRetry } from "./workRevisionPersistence";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { logger } from "@/lib/logger";
@@ -187,42 +188,81 @@ async function resolveWorkMetadata(
     return candidate;
   }
 
-  // Idempotent insert: parallel provider calls for the same request may arrive together.
-  // Ignore the duplicate instead of emitting a PostgreSQL unique-violation, then read
-  // the single authoritative winner selected by (room_id, request_key).
-  const { error: upsertError } = await supabase
-    .from("room_work_records")
-    .upsert({
-      room_id: roomId,
-      request_key: requestKey,
-      work_id: candidate.workId,
-      revision: candidate.revision,
-      parent_revision: candidate.parentRevision || null,
-      title: candidate.title || null,
-      status: "received",
-    }, {
-      onConflict: "room_id,request_key",
-      ignoreDuplicates: true,
-    });
+  const persistence = await persistWithRevisionRetry(candidate, {
+    async persist(record) {
+      const { error } = await supabase
+        .from("room_work_records")
+        .upsert({
+          room_id: roomId,
+          request_key: requestKey,
+          work_id: record.workId,
+          revision: record.revision,
+          parent_revision: record.parentRevision || null,
+          title: record.title || null,
+          status: "received",
+        }, {
+          onConflict: "room_id,request_key",
+          ignoreDuplicates: true,
+        });
 
-  if (upsertError) {
-    logger.warn("ai.room_work.persist_failed", { roomId, error: upsertError.message });
-    return candidate;
+      return {
+        error: error ? { code: error.code, message: error.message } : null,
+      };
+    },
+
+    async findByRequestKey() {
+      const { data, error } = await supabase
+        .from("room_work_records")
+        .select(selectColumns)
+        .eq("room_id", roomId)
+        .eq("request_key", requestKey)
+        .maybeSingle();
+
+      if (error) throw new Error(`authoritative work lookup failed: ${error.message}`);
+      return data ? workFromRow(data as PersistedWorkRow) : null;
+    },
+
+    async findLatestRevision(workId) {
+      const { data, error } = await supabase
+        .from("room_work_records")
+        .select("revision")
+        .eq("room_id", roomId)
+        .eq("work_id", workId)
+        .order("revision", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw new Error(`latest work revision lookup failed: ${error.message}`);
+      return data ? Number(data.revision) : null;
+    },
+  });
+
+  if (persistence.ok) {
+    if (persistence.retries > 0) {
+      logger.info("ai.room_work.revision_conflict_recovered", {
+        roomId,
+        workId: persistence.record.workId,
+        revision: persistence.record.revision,
+        parentRevision: persistence.record.parentRevision,
+        retries: persistence.retries,
+      });
+    }
+    return persistence.record;
   }
 
-  const { data: authoritative, error: authoritativeError } = await supabase
-    .from("room_work_records")
-    .select(selectColumns)
-    .eq("room_id", roomId)
-    .eq("request_key", requestKey)
-    .single();
-
-  if (authoritative) return workFromRow(authoritative as PersistedWorkRow);
-
-  logger.warn("ai.room_work.authoritative_lookup_failed", {
+  logger.warn("ai.room_work.persist_failed", {
     roomId,
-    error: authoritativeError?.message || "authoritative work row missing after idempotent upsert",
+    workId: candidate.workId,
+    revision: candidate.revision,
+    kind: persistence.kind,
+    retries: persistence.retries,
+    error: persistence.error?.message,
   });
+
+  if (persistence.kind === "conflict_unresolved") {
+    throw new Error("Unable to allocate an authoritative Room Work revision after concurrent updates.");
+  }
+
   return candidate;
 }
 
