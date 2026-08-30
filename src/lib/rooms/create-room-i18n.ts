@@ -9,6 +9,7 @@ export type CountryOption = {
 export const CREATE_ROOM_COUNTRIES: CountryOption[] = [
   { code: "AU", label: "Australia", locale: "en" },
   { code: "US", label: "United States", locale: "en" },
+  { code: "CA", label: "Canada", locale: "en" },
   { code: "GB", label: "United Kingdom", locale: "en" },
   { code: "SG", label: "Singapore", locale: "en" },
   { code: "HK", label: "Hong Kong", locale: "en" },
