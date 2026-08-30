@@ -12,6 +12,10 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <RoomBuilderAIFormAssistant />
       <RoomGuideLiveInputMirror />
       <style>{`
+        aside:has(img[src="/ai-helper-woman.svg"]) > div[class~="-mt-[84px]"] {
+          margin-top: 0 !important;
+        }
+
         @media (min-width: 1024px) {
           .rc-room-builder-workspace {
             width: calc(100vw - 600px) !important;
