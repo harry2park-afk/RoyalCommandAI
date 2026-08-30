@@ -18,6 +18,8 @@ type UiPreferences = {
   rightPanelApps?: string[];
   hiddenRoomIds?: string[];
   language?: string;
+  uiLocale?: string;
+  countryCode?: string;
   chatSidebarWidth?: number;
   chatSidebarCollapsed?: boolean;
   chatHistoryTitles?: Record<string, string>;
@@ -84,6 +86,14 @@ function sanitise(value: unknown): UiPreferences {
   if (typeof input.language === "string" && input.language.length <= 32) {
     result.language = input.language;
   }
+  if (typeof input.uiLocale === "string" && input.uiLocale.length <= 32) {
+    try {
+      result.uiLocale = Intl.getCanonicalLocales(input.uiLocale)[0];
+    } catch {}
+  }
+  if (typeof input.countryCode === "string" && /^[a-z]{2}$/i.test(input.countryCode.trim())) {
+    result.countryCode = input.countryCode.trim().toUpperCase();
+  }
   if (typeof input.chatSidebarWidth === "number" && Number.isFinite(input.chatSidebarWidth)) {
     result.chatSidebarWidth = Math.max(12, Math.min(420, Math.round(input.chatSidebarWidth)));
   }
@@ -103,7 +113,9 @@ function sanitise(value: unknown): UiPreferences {
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!isSupabaseConfigured()) return NextResponse.json({ preferences: {} });
+  if (!isSupabaseConfigured()) {
+    return NextResponse.json({ preferences: user.countryCode ? { countryCode: user.countryCode } : {} });
+  }
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -116,6 +128,9 @@ export async function GET() {
   const preferences = sanitise(data?.ui_preferences);
   if (!preferences.language && typeof data?.default_language === "string") {
     preferences.language = data.default_language;
+  }
+  if (!preferences.countryCode && user.countryCode) {
+    preferences.countryCode = user.countryCode.toUpperCase();
   }
   return NextResponse.json({ preferences });
 }
@@ -146,6 +161,7 @@ export async function PATCH(request: Request) {
     ui_preferences: merged,
     updated_at: new Date().toISOString(),
   };
+  // Legacy compatibility only. uiLocale and countryCode never overwrite default_language.
   if (incoming.language) update.default_language = incoming.language;
 
   const { error } = await supabase.from("profiles").update(update).eq("id", user.id);
