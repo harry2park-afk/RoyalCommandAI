@@ -38,8 +38,12 @@ export function hasGlobalNoWriteIntent(prompt: string) {
 }
 
 function hasMutationRequest(prompt: string) {
-  return /(?:코드|파일|소스|github|repository|repo\b|저장소|브랜치|branch|commit|커밋|push|merge|배포|deploy|vercel|ui|화면|레이아웃|component|tsx|typescript|css|기능|api|database|db\b|데이터베이스|schema|스키마|migration|마이그레이션|웹사이트|홈페이지|페이지|앱|route|라우트).{0,48}(?:수정해|수정하세요|고쳐|고치세요|변경해|변경하세요|바꿔|바꾸세요|구현해|구현하세요|추가해|추가하세요|삭제해|삭제하세요|제거해|제거하세요|생성해|생성하세요|적용해|적용하세요|반영해|반영하세요|배포해|배포하세요|deploy|commit|커밋|push|merge)/i.test(prompt)
-    || /(?:수정해|수정하세요|고쳐|고치세요|변경해|변경하세요|구현해|구현하세요|삭제해|삭제하세요|생성해|생성하세요|적용해|적용하세요|반영해|반영하세요).{0,48}(?:코드|파일|소스|ui|화면|기능|api|database|db\b|데이터베이스|웹사이트|페이지|앱|repository|repo|저장소)/i.test(prompt);
+  const explicitMutationVerb = /(?:수정해|수정하세요|고쳐|고치세요|변경해|변경하세요|바꿔|바꾸세요|구현해|구현하세요|추가해|추가하세요|삭제해|삭제하세요|제거해|제거하세요|생성해|생성하세요|적용해|적용하세요|반영해|반영하세요|배포해|배포하세요|커밋해|커밋하세요|푸시해|푸시하세요|머지해|머지하세요|\b(?:deploy|commit|push|merge)\s+(?:it|this|these|the|my|our|changes?|branch|code|update|fix)\b)/i;
+  const mutationTarget = /(?:코드|파일|소스|github|repository|repo\b|저장소|브랜치|branch|commit|커밋|push|merge|배포|deploy|vercel|ui|화면|레이아웃|component|tsx|typescript|css|기능|api|database|db\b|데이터베이스|schema|스키마|migration|마이그레이션|웹사이트|홈페이지|페이지|앱|route|라우트)/i;
+
+  const targetThenVerb = new RegExp(`${mutationTarget.source}.{0,48}${explicitMutationVerb.source}`, "i");
+  const verbThenTarget = new RegExp(`${explicitMutationVerb.source}.{0,48}${mutationTarget.source}`, "i");
+  return targetThenVerb.test(prompt) || verbThenTarget.test(prompt);
 }
 
 function hasExplicitExecutionRequest(prompt: string) {
