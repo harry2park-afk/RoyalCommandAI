@@ -201,22 +201,28 @@
     if (!connectorCatalog) return;
     const category = currentCategory(parts);
     const names = Array.isArray(connectorCatalog[category]) ? connectorCatalog[category].slice(0, 30) : [];
-    Array.from(parts.list.querySelectorAll('[data-rc-catalog-extra="1"]')).forEach((node) => node.remove());
-
     const existing = existingRowNames(parts.list);
     const actualRowCount = Array.from(parts.list.children).filter((el) => {
       if (!(el instanceof HTMLElement) || el.dataset.rcCatalogExtra === '1') return false;
       return Boolean(el.style.gridTemplateColumns);
     }).length;
     let remaining = Math.max(0, 30 - actualRowCount);
+    const desired = [];
 
     for (const name of names) {
       if (remaining <= 0) break;
       const lower = name.toLowerCase();
       if (existing.some((text) => text.includes(lower))) continue;
-      parts.list.appendChild(makeCatalogRow(name, category));
+      desired.push(name);
       remaining -= 1;
     }
+
+    const current = Array.from(parts.list.querySelectorAll('[data-rc-catalog-extra="1"]'))
+      .map((node) => String(node.querySelector('strong')?.textContent || ''));
+    if (current.length === desired.length && current.every((name, index) => name === desired[index])) return;
+
+    Array.from(parts.list.querySelectorAll('[data-rc-catalog-extra="1"]')).forEach((node) => node.remove());
+    desired.forEach((name) => parts.list.appendChild(makeCatalogRow(name, category)));
   }
 
   function allCatalogItems() {
