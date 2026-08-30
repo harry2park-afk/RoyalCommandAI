@@ -39,6 +39,7 @@ const CORE_AI: CoreAI[] = [
 ];
 
 const TOOL_HINTS = ["email","mail","calendar","file","document","phone","telephony","music","media","xero","myob","quickbooks","payroll","bank","esign","e-sign","signature","storage","translation","marketplace","sports","travel","youtube","video"];
+const HIDDEN_CONNECTOR_SERVICE_KEYS = new Set(["advanced_ai"]);
 
 function findAiButton(ai: CoreAI) {
   return Array.from(document.querySelectorAll<HTMLButtonElement>("button"))
@@ -56,6 +57,10 @@ function readAiStates(): CoreAIState[] {
       modelInfo: title.startsWith(`${ai.titlePrefix} —`) ? title.slice(ai.titlePrefix.length + 3).trim() : "",
     };
   });
+}
+
+function isVisibleConnectorService(service: Service) {
+  return !service.default_included && !HIDDEN_CONNECTOR_SERVICE_KEYS.has(service.service_key);
 }
 
 function bucket(service: Service): Exclude<Category, "ai"> {
@@ -109,7 +114,7 @@ export default function RoomConnectorPanel() {
   const visibleServices = useMemo(() => {
     if (category === "ai") return [];
     const q = query.trim().toLowerCase();
-    return services.filter((service) => bucket(service) === category && (!q || `${service.service_key} ${service.category} ${service.name_en} ${service.name_ko} ${service.summary_en || ""} ${service.summary_ko || ""}`.toLowerCase().includes(q)));
+    return services.filter((service) => isVisibleConnectorService(service) && bucket(service) === category && (!q || `${service.service_key} ${service.category} ${service.name_en} ${service.name_ko} ${service.summary_en || ""} ${service.summary_ko || ""}`.toLowerCase().includes(q)));
   }, [services, query, category]);
 
   async function load() {
