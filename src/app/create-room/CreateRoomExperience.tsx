@@ -55,7 +55,7 @@ export default function CreateRoomExperience({ customer }: { customer: CustomerI
 
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">
               <div className="text-sm font-semibold text-emerald-200">{isKorean ? "가입 고객 무료 AI 교육·수료증 혜택" : "Free AI training & certificate benefit"}</div>
-              <div className="mt-2 text-sm leading-6">{isKorean ? "A$3.80 이상 가입 고객은 30일 AI 교육, 기본 시험 5회, 70점 이상 합격 시 Royal Command 전자 수료증을 무료로 받을 수 있습니다. 불합격 시 2주 추가 학습과 새 시험 5회를 합격할 때까지 무료로 반복 제공합니다." : "Members on A$3.80+ plans receive the 30-day AI training program, five exam attempts per cycle, and a free Royal Command electronic Certificate of Completion after achieving 70% or higher. If not passed, an extra two-week study period and five new attempts are provided until passed."}</div>
+              <div className="mt-2 text-sm leading-6">{isKorean ? "US$3.80 이상 Room 플랜 가입 고객은 30일 AI 교육, 기본 시험 5회, 70점 이상 합격 시 Royal Command 전자 수료증을 무료로 받을 수 있습니다. 불합격 시 2주 추가 학습과 새 시험 5회를 합격할 때까지 무료로 반복 제공합니다." : "Members on Room plans starting at US$3.80 receive the 30-day AI training program, five exam attempts per cycle, and a free Royal Command electronic Certificate of Completion after achieving 70% or higher. If not passed, an extra two-week study period and five new attempts are provided until passed."}</div>
             </div>
           </div>
         </section>
