@@ -161,11 +161,16 @@ export default function TopRoomFinderOverlay() {
                 <div className="mt-1 text-[9px] text-cyan-300">Advanced systems: {selectedCategory[4]}</div>
               </div>
             ) : null}
-            <div className="divide-y divide-white/8">
+            <div>
               {visibleRooms.map((room) => (
-                <button key={room.id} type="button" onClick={() => void chooseRoom(room)} className="flex w-full items-center gap-2 bg-transparent px-0 py-2 text-left hover:bg-white/[0.03]">
-                  <span className="min-w-0 flex-1 truncate text-[10px] font-bold text-white">{room.label}</span>
-                  <span className="shrink-0 text-[9px] font-semibold text-[#f6d873]">Select ›</span>
+                <button
+                  key={room.id}
+                  type="button"
+                  onClick={() => void chooseRoom(room)}
+                  className="group flex min-h-[46px] w-full cursor-pointer items-center gap-3 border-b border-white/25 bg-transparent px-3 py-2 text-left transition-colors hover:border-[#d9b44a]/80 hover:bg-white/[0.07] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#f6d873]"
+                >
+                  <span className="pointer-events-none min-w-0 flex-1 truncate text-[14px] font-bold leading-5 text-white group-hover:text-[#fff5c4]">{room.label}</span>
+                  <span className="pointer-events-none shrink-0 text-[12px] font-bold text-[#f6d873] group-hover:text-[#ffe98c]">Select ›</span>
                 </button>
               ))}
               {!visibleRooms.length ? <div className="px-2 py-5 text-center text-[10px] text-white/45">No matching Rooms found.</div> : null}
