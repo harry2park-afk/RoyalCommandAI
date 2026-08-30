@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveRcMemberCommand } from "./rcMemberLayer";
+import { RCA_OPERATING_PROTOCOL, resolveRcMemberCommand } from "./rcMemberLayer";
 
 const five = ["openai", "anthropic", "google", "xai", "codex"] as const;
 
@@ -63,6 +63,39 @@ describe("RC Member Layer", () => {
     );
     expect(command.mode).toBe("inspect");
     expect(command.gitWrite).toBe(false);
+  });
+
+  it("injects the same host operating protocol into inspection orders", () => {
+    const prompt = "Vercel Preview 상태를 검토하고 원인만 분석해주세요.";
+    const command = resolveRcMemberCommand(prompt, undefined, ["openai", "google"]);
+    expect(command.mode).toBe("inspect");
+    expect(command.effectivePrompt).toContain(RCA_OPERATING_PROTOCOL);
+    expect(command.effectivePrompt).toContain("CURRENT USER ORDER:");
+    expect(command.effectivePrompt).toContain(prompt);
+    expect(command.effectivePrompt).toContain("Words such as GitHub, commit, push, merge, Vercel, deploy, Production, Preview");
+    expect(command.effectivePrompt).toContain("If the current order is ambiguous between review and execution, remain read-only");
+  });
+
+  it("injects the host operating protocol into execution orders without weakening single-writer routing", () => {
+    const command = resolveRcMemberCommand(
+      "이 GitHub 코드를 수정하고 변경사항을 커밋하세요.",
+      undefined,
+      ["openai", "google"],
+    );
+    expect(command.mode).toBe("execute");
+    expect(command.gitWrite).toBe(true);
+    expect(command.leadProviders).toEqual(["openai"]);
+    expect(command.reviewOnlyProviders).toEqual(["google"]);
+    expect(command.effectivePrompt).toContain(RCA_OPERATING_PROTOCOL);
+    expect(command.effectivePrompt).toContain("Single Write Authority");
+    expect(command.effectivePrompt).toContain("Never report SUCCESS without host-verifiable evidence");
+  });
+
+  it("leaves ordinary answer prompts unchanged", () => {
+    const prompt = "이 기능이 무엇인지 설명해주세요.";
+    const command = resolveRcMemberCommand(prompt, undefined, ["openai"]);
+    expect(command.mode).toBe("answer");
+    expect(command.effectivePrompt).toBe(prompt);
   });
 
   it("recognizes natural Korean execution verbs", () => {
