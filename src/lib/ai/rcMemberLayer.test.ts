@@ -39,6 +39,32 @@ describe("RC Member Layer", () => {
     expect(command.gitWrite).toBe(false);
   });
 
+  it("keeps Vercel cancellation safety review read-only even when deployment and commit nouns are nearby", () => {
+    const prompt = [
+      "Vercel Preview 하나가 BUILDING 상태에서 비정상적으로 오래 멈춰 있습니다.",
+      "Production은 정상 READY 상태입니다.",
+      "멈춘 것은 Production이 아니라 Preview 배포입니다.",
+      "해당 Preview의 마지막 커밋은 문구 1줄만 수정한 작업입니다.",
+      "이 stuck Preview만 Cancel해도 현재 Production, GitHub 코드, 브랜치, PR에 문제가 생기지 않는지 검토해주세요.",
+    ].join("\n");
+
+    const command = resolveRcMemberCommand(prompt, undefined, [...five]);
+    expect(command.mode).toBe("inspect");
+    expect(command.gitWrite).toBe(false);
+    expect(command.leadProviders).toEqual([...five]);
+    expect(command.reviewOnlyProviders).toEqual([]);
+  });
+
+  it("does not mistake deployment and commit status language for a write command", () => {
+    const command = resolveRcMemberCommand(
+      "Preview 배포 상태와 마지막 커밋 내용을 검토하고 위험을 분석해주세요.",
+      undefined,
+      ["openai", "google"],
+    );
+    expect(command.mode).toBe("inspect");
+    expect(command.gitWrite).toBe(false);
+  });
+
   it("recognizes natural Korean execution verbs", () => {
     for (const prompt of [
       "이 GitHub 라우팅 작업을 끝내세요.",
@@ -49,6 +75,18 @@ describe("RC Member Layer", () => {
       expect(command.mode).toBe("execute");
       expect(command.gitWrite).toBe(true);
     }
+  });
+
+  it("keeps explicit commit orders executable", () => {
+    const command = resolveRcMemberCommand(
+      "이 GitHub 코드를 수정하고 변경사항을 커밋하세요.",
+      undefined,
+      ["openai", "google"],
+    );
+    expect(command.mode).toBe("execute");
+    expect(command.gitWrite).toBe(true);
+    expect(command.leadProviders).toEqual(["openai"]);
+    expect(command.reviewOnlyProviders).toEqual(["google"]);
   });
 
   it("inherits a prior executable order for a natural short continuation", () => {
