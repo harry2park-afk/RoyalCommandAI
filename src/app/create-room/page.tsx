@@ -1,11 +1,11 @@
 import { getCurrentUser } from "@/lib/auth";
-import FirstMeetingWindow from "./FirstMeetingWindow";
+import FirstMeetingWindowV2 from "./FirstMeetingWindowV2";
 
 export default async function UniversalCreateRoomPage() {
   const user = await getCurrentUser();
 
   return (
-    <FirstMeetingWindow
+    <FirstMeetingWindowV2
       customer={{
         id: user?.id || "",
         fullName: user?.fullName || "",
