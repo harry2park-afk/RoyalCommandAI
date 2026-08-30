@@ -127,7 +127,7 @@ export default function RoomConnectorPanel() {
   }
 
   function openPanel() {
-    setOpen(true); setCategory("ai"); setQuery(""); setSelected(new Set()); void load();
+    setOpen(true); setCategory("services"); setQuery(""); setSelected(new Set()); void load();
   }
 
   function toggle(key: string, blocked = false) {
@@ -200,7 +200,7 @@ export default function RoomConnectorPanel() {
       <div style={{ width: "min(900px,95vw)", maxHeight: "84vh", overflow: "hidden", border: "1px solid #d6ad31", borderRadius: 14, background: "#07111f", color: "#f3f5f7" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 16px", borderBottom: "1px solid rgba(214,173,49,.35)" }}><strong style={{ color: "#f6d76b", fontSize: 19 }}>{text.dialogTitle}</strong><button type="button" onClick={() => setOpen(false)} style={{ border: 0, background: "transparent", color: "#fff", cursor: "pointer" }}><X size={23}/></button></div>
         <div style={{ padding: 14, borderBottom: "1px solid rgba(255,255,255,.08)" }}>
-          <div style={{ display: "flex", gap: 9 }}>{cat("ai", text.ai, "#173b68", "#fff")}{cat("tools", text.tools, "#28633f", "#fff")}{cat("services", text.services, "#d3ad38", "#241900")}</div>
+          <div style={{ display: "flex", gap: 9 }}>{cat("services", "Professional Services", "#d3ad38", "#241900")}{cat("tools", "Business Systems", "#28633f", "#fff")}{cat("ai", "AI Intelligence", "#173b68", "#fff")}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, border: "1px solid #455267", borderRadius: 9, background: "#0c1624", padding: "0 10px", marginTop: 10 }}><Search size={16}/><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={text.searchPlaceholder} style={{ width: "100%", height: 38, border: 0, outline: 0, background: "transparent", color: "#fff" }}/></div>
           <div style={{ marginTop: 10, border: "1px solid rgba(214,173,49,.38)", borderRadius: 9, background: "rgba(214,173,49,.07)", padding: "9px 11px", fontSize: 11, lineHeight: 1.45, color: "#d8dfeb" }}>
             <strong style={{ color: "#f6d76b" }}>{text.trialPolicyTitle}</strong> · {text.trialPolicyBody}
