@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { loadRecordingPolicyRows } from "@/lib/communications/recordingPolicyStore";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 
@@ -72,7 +73,6 @@ function initialRecordingState(policy: SessionRecordingPolicy): SessionRecording
 }
 
 async function resolveRecordingPolicy(
-  supabase: Awaited<ReturnType<typeof createClient>>,
   countryCode: string | null,
   regionCode: string | null,
 ): Promise<{
@@ -88,32 +88,58 @@ async function resolveRecordingPolicy(
 
   const country = countryCode.toUpperCase();
   const region = regionCode?.toUpperCase() || null;
-  let row: { review_status?: string; recording_policy?: string; country_code?: string; region_code?: string | null } | null = null;
+  const policyRegion = country === "AU" ? null : region;
+  const { rows, error } = await loadRecordingPolicyRows(country);
 
-  // Australia uses one nationwide conservative policy. Region-specific rows must never
-  // override it because callers may travel between states/territories during use.
-  if (region && country !== "AU") {
-    const { data } = await supabase
-      .from("communication_recording_policies")
-      .select("country_code, region_code, review_status, recording_policy")
-      .eq("country_code", country)
-      .eq("region_code", region)
-      .maybeSingle();
-    row = data;
+  if (error) {
+    return {
+      policy: "prohibited",
+      status: "blocked",
+      reviewStatus: "policy_source_error",
+      countryCode: country,
+      regionCode: policyRegion,
+    };
   }
 
-  if (!row) {
-    const { data } = await supabase
-      .from("communication_recording_policies")
-      .select("country_code, region_code, review_status, recording_policy")
-      .eq("country_code", country)
-      .is("region_code", null)
-      .maybeSingle();
-    row = data;
+  const countryMatches = rows.filter((row) => !row.region_code);
+  const regionMatches = policyRegion
+    ? rows.filter((row) => row.region_code === policyRegion)
+    : [];
+  const matches = country === "AU"
+    ? countryMatches
+    : regionMatches.length > 0
+      ? regionMatches
+      : countryMatches;
+
+  if (matches.length === 0) {
+    return {
+      policy: "prohibited",
+      status: "blocked",
+      reviewStatus: "missing_policy",
+      countryCode: country,
+      regionCode: policyRegion,
+    };
   }
 
-  if (!row || row.review_status !== "approved") {
-    return { policy: "prohibited", status: "blocked", reviewStatus: row?.review_status || "missing_policy", countryCode: country, regionCode: country === "AU" ? null : region };
+  if (matches.length !== 1) {
+    return {
+      policy: "prohibited",
+      status: "blocked",
+      reviewStatus: "ambiguous_policy",
+      countryCode: country,
+      regionCode: policyRegion,
+    };
+  }
+
+  const row = matches[0];
+  if (row.review_status !== "approved") {
+    return {
+      policy: "prohibited",
+      status: "blocked",
+      reviewStatus: row.review_status || "missing_policy",
+      countryCode: country,
+      regionCode: policyRegion,
+    };
   }
 
   const mapped: SessionRecordingPolicy = row.recording_policy === "allowed"
@@ -129,7 +155,7 @@ async function resolveRecordingPolicy(
     status: initialRecordingState(mapped),
     reviewStatus: row.review_status,
     countryCode: country,
-    regionCode: country === "AU" ? null : region,
+    regionCode: policyRegion,
   };
 }
 
@@ -180,7 +206,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
   const voiceChannel = input.channel === "rc_voice" || input.channel === "rc_video" || input.channel === "phone";
   const policy = voiceChannel
-    ? await resolveRecordingPolicy(supabase, countryCode, input.regionCode || null)
+    ? await resolveRecordingPolicy(countryCode, input.regionCode || null)
     : { policy: "unknown" as SessionRecordingPolicy, status: "not_started" as SessionRecordingStatus, reviewStatus: "not_applicable", countryCode: countryCode?.toUpperCase() || null, regionCode: input.regionCode?.toUpperCase() || null };
 
   const { data, error } = await supabase
