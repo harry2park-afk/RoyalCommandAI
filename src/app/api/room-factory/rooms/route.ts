@@ -19,6 +19,7 @@ const factoryCreateSchema = z.object({
   websiteKit: z.boolean().default(false),
   selectedMaterials: z.array(z.string().min(1).max(100)).max(100).default([]),
   householdId: z.string().uuid().optional(),
+  encounterSessionId: z.string().uuid().optional(),
 });
 
 function localeDefaults(countryCode: string) {
@@ -107,8 +108,32 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-    let householdId = rawInput.householdId;
 
+    if (rawInput.encounterSessionId) {
+      const { data: existingManifest, error: existingManifestError } = await supabase
+        .from("room_factory_manifests")
+        .select("id, room_id, factory_version, template_id, country_code, language_tag, country_profile_status, created_at, manifest")
+        .eq("owner_id", user.id)
+        .contains("manifest", { encounterSessionId: rawInput.encounterSessionId })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingManifestError) return NextResponse.json({ error: existingManifestError.message }, { status: 500 });
+      if (existingManifest?.room_id) {
+        const { data: existingRoom, error: existingRoomError } = await supabase
+          .from("rooms")
+          .select("*")
+          .eq("id", existingManifest.room_id)
+          .eq("room_owner_id", user.id)
+          .maybeSingle();
+        if (existingRoomError) return NextResponse.json({ error: existingRoomError.message }, { status: 500 });
+        if (existingRoom) {
+          return NextResponse.json({ room: existingRoom, manifest: existingManifest, blueprint, reused: true }, { status: 200 });
+        }
+      }
+    }
+
+    let householdId = rawInput.householdId;
     if (!householdId) {
       const { data: existingMembership } = await supabase
         .from("household_members")
@@ -167,6 +192,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: roomMemberError.message }, { status: 500 });
     }
 
+    const storedManifest = rawInput.encounterSessionId
+      ? { ...blueprint, encounterSessionId: rawInput.encounterSessionId }
+      : blueprint;
+
     const { data: manifest, error: manifestError } = await supabase
       .from("room_factory_manifests")
       .insert({
@@ -177,7 +206,7 @@ export async function POST(request: Request) {
         country_code: blueprint.locale.countryCode,
         language_tag: blueprint.locale.languageTag,
         country_profile_status: blueprint.locale.countryProfileStatus,
-        manifest: blueprint,
+        manifest: storedManifest,
       })
       .select("id, room_id, factory_version, template_id, country_code, language_tag, country_profile_status, created_at")
       .single();
@@ -187,7 +216,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: manifestError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ room, manifest, blueprint }, { status: 201 });
+    return NextResponse.json({ room, manifest, blueprint, reused: false }, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

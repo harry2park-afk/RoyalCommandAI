@@ -1,18 +1,16 @@
 import { getCurrentUser } from "@/lib/auth";
-import CreateRoomExperience from "./CreateRoomExperience";
+import FirstMeetingWindowV2 from "./FirstMeetingWindowV2";
 
 export default async function UniversalCreateRoomPage() {
   const user = await getCurrentUser();
 
   return (
-    <CreateRoomExperience
+    <FirstMeetingWindowV2
       customer={{
         id: user?.id || "",
         fullName: user?.fullName || "",
-        email: user?.email || "",
         defaultLanguage: user?.defaultLanguage || "en",
-        phone: "",
-        address: "",
+        countryCode: user?.countryCode || "",
       }}
     />
   );
