@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import {
-  BASIC_ROOM_MONTHLY_AUD,
   BASIC_TRIAL_DAYS,
   CATALOG,
   CREATE_ROOM_FORM_VERSION,
@@ -10,6 +9,10 @@ import {
 } from "@/lib/rooms/universal-create-room-config";
 import { commercialMeta } from "@/lib/rooms/room-connection-commercial";
 import { EXPANDED_CATALOG } from "@/lib/rooms/room-connection-expanded-catalog";
+import {
+  BASE_ROOM_MONTHLY_USD,
+  calculateCreateRoomPricing,
+} from "@/lib/rooms/create-room-pricing";
 import {
   CREATE_ROOM_COUNTRIES,
   CREATE_ROOM_LANGUAGES,
@@ -77,10 +80,20 @@ function validCountry(value?: string) {
   return CREATE_ROOM_COUNTRIES.some((item) => item.code === value) ? value! : "AU";
 }
 
-function money(value: number) {
+function moneyAud(value: number) {
   return new Intl.NumberFormat("en-AU", {
     style: "currency",
     currency: "AUD",
+    currencyDisplay: "code",
+    minimumFractionDigits: value % 1 ? 2 : 0,
+  }).format(value);
+}
+
+function moneyUsd(value: number) {
+  return new Intl.NumberFormat("en-AU", {
+    style: "currency",
+    currency: "USD",
+    currencyDisplay: "code",
     minimumFractionDigits: value % 1 ? 2 : 0,
   }).format(value);
 }
@@ -140,11 +153,8 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
   const t = createRoomCopy(locale);
   const isKorean = locale === "ko";
   const selectedItems = useMemo(() => ALL_CATALOG.filter((item) => selected.includes(item.id)), [selected]);
-  const monthlyKnown = BASIC_ROOM_MONTHLY_AUD + selectedItems.reduce((sum, item) => sum + (item.billing === "monthly" ? item.priceAud || 0 : 0), 0);
-  const oneTimeKnown = selectedItems.reduce((sum, item) => sum + (item.billing === "one_time" ? item.priceAud || 0 : 0), 0);
-  const discount = promotion ? monthlyKnown * (PROMOTION_PERCENT / 100) : 0;
-  const monthlyTotal = Math.max(0, monthlyKnown - discount);
-  const unconfirmed = selectedItems.some((item) => item.priceAud == null && item.billing !== "included");
+  const pricing = calculateCreateRoomPricing(selectedItems, promotion, PROMOTION_PERCENT);
+  const unconfirmed = pricing.hasUnconfirmedPricing;
 
   const categories: ConnectionCategory[] = [
     "ai",
@@ -187,8 +197,8 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
     if (item.billing === "included") return item.priceLabel || "Included";
     if (item.priceLabel) return item.priceLabel;
     if (item.priceAud == null) return "Price to confirm";
-    if (item.billing === "monthly") return `${money(item.priceAud)}/month`;
-    return `From ${money(item.priceAud)}`;
+    if (item.billing === "monthly") return `${moneyAud(item.priceAud)}/month`;
+    return `From ${moneyAud(item.priceAud)}`;
   }
 
   function speakGuide() {
@@ -219,8 +229,8 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
             </div>
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 px-4 py-3 text-right">
               <div className="text-xs text-emerald-200">{BASIC_TRIAL_DAYS} Day Trial</div>
-              <div className="text-lg font-semibold">{money(0)} today</div>
-              <div className="text-xs text-[var(--muted)]">then {money(BASIC_ROOM_MONTHLY_AUD)}/month + selected services</div>
+              <div className="text-lg font-semibold">{moneyUsd(0)} today</div>
+              <div className="text-xs text-[var(--muted)]">then {moneyUsd(BASE_ROOM_MONTHLY_USD)}/month + selected services priced separately</div>
             </div>
           </div>
 
@@ -307,15 +317,18 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
             </div>
 
             <div className="mt-5 space-y-2 border-t border-white/10 pt-4 text-sm">
-              <div className="flex justify-between"><span>Basic RC Room</span><strong>{money(BASIC_ROOM_MONTHLY_AUD)}/mo</strong></div>
-              <div className="flex justify-between"><span>{isKorean ? "확정 월간 소계" : "Known monthly subtotal"}</span><strong>{money(monthlyKnown)}</strong></div>
-              <div className="flex justify-between"><span>Promotion {PROMOTION_PERCENT}%</span><strong className="text-emerald-300">−{money(discount)}</strong></div>
-              <div className="flex justify-between border-t border-white/10 pt-3 text-base"><span>{isKorean ? "월 예상 합계" : "Monthly total"}</span><strong className="text-xl text-[var(--gold-soft)]">{money(monthlyTotal)}</strong></div>
-              {oneTimeKnown > 0 ? <div className="flex justify-between"><span>{isKorean ? "일회성 작업" : "One-time work"}</span><strong>{money(oneTimeKnown)}</strong></div> : null}
+              <div className="flex justify-between"><span>Basic RC Room</span><strong>{moneyUsd(pricing.baseRoomMonthlyUsd)}/mo</strong></div>
+              <div className="rounded-xl border border-sky-400/25 bg-sky-400/5 p-3 text-xs leading-5 text-sky-100">
+                {isKorean ? "기본 Room 임대료는 USD로, 추가 서비스는 현재 AUD 가격표로 별도 표시합니다. 승인된 환율·정산 규칙이 없으므로 서로 다른 통화를 하나의 합계로 더하지 않습니다." : "Base Room rent is shown in USD. Selected services use the current AUD catalogue and are shown separately. Different currencies are never combined without an approved FX and settlement rule."}
+              </div>
+              <div className="flex justify-between"><span>{isKorean ? "확정 월간 추가 서비스 소계" : "Known monthly add-ons"}</span><strong>{moneyAud(pricing.monthlyAddOnsAud)}</strong></div>
+              <div className="flex justify-between"><span>Promotion {PROMOTION_PERCENT}%</span><strong className="text-emerald-300">−{moneyAud(pricing.promotionDiscountAud)}</strong></div>
+              <div className="flex justify-between border-t border-white/10 pt-3 text-base"><span>{isKorean ? "할인 후 월간 추가 서비스" : "Monthly add-ons after promotion"}</span><strong className="text-xl text-[var(--gold-soft)]">{moneyAud(pricing.monthlyAddOnsAfterPromotionAud)}</strong></div>
+              {pricing.oneTimeAddOnsAud > 0 ? <div className="flex justify-between"><span>{isKorean ? "일회성 추가 서비스" : "One-time add-ons"}</span><strong>{moneyAud(pricing.oneTimeAddOnsAud)}</strong></div> : null}
               {unconfirmed ? <div className="rounded-xl border border-amber-400/30 bg-amber-400/5 p-3 text-xs leading-5 text-amber-100">{isKorean ? "선택한 서비스 중 아직 가격이 확정되지 않은 항목이 있습니다. 국가별 파트너 가격·할인·RC 마진을 확인한 뒤 결제 전에 최종 금액을 보여줍니다." : "Some selected services have unconfirmed pricing. Country partner cost, customer discount and RC margin must be verified before the final amount is shown."}</div> : null}
             </div>
 
-            <label className="mt-4 flex items-center gap-2 text-xs text-[var(--muted)]"><input type="checkbox" checked={promotion} onChange={(event) => setPromotion(event.target.checked)} className="accent-emerald-500" /> Promotion {PROMOTION_PERCENT}%</label>
+            <label className="mt-4 flex items-center gap-2 text-xs text-[var(--muted)]"><input type="checkbox" checked={promotion} onChange={(event) => setPromotion(event.target.checked)} className="accent-emerald-500" /> Promotion {PROMOTION_PERCENT}% {isKorean ? "(AUD 추가 서비스)" : "(AUD add-ons)"}</label>
 
             <button type="button" disabled={!selectedItems.length} onClick={() => setPurchaseReview(true)} className="mt-5 min-h-12 w-full rounded-xl bg-[var(--gold)] px-4 py-3 font-bold text-black disabled:cursor-not-allowed disabled:opacity-35">
               {isKorean ? "선택 내용 확인" : "CONTINUE TO PURCHASE REVIEW"}
@@ -324,8 +337,8 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
             {purchaseReview ? (
               <div className="mt-4 rounded-2xl border border-white/10 bg-black/20 p-4">
                 <div className="font-semibold">{isKorean ? "연결 서비스 확인" : "Purchase Review"}</div>
-                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{isKorean ? "선택한 서비스, 소유 방식, 국가별 가격을 확인한 뒤 동의하면 결제 연결 단계로 이동합니다. 가격이 확정되지 않은 서비스는 결제되지 않습니다." : "Review selected services, ownership method and country pricing before proceeding. Services with unconfirmed pricing are not charged."}</p>
-                <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={agreement} onChange={(event) => setAgreement(event.target.checked)} className="mt-1 h-4 w-4 accent-emerald-500" /><span>{isKorean ? "선택한 서비스와 예상 금액을 확인했습니다." : "I reviewed my selected services and estimated charges."}</span></label>
+                <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{isKorean ? "선택한 서비스, 소유 방식, 국가별 가격을 확인한 뒤 동의하면 결제 연결 단계로 이동합니다. 가격이 확정되지 않은 서비스는 결제되지 않습니다. USD Room 임대료와 AUD 추가 서비스는 승인된 환산 규칙이 생기기 전까지 별도로 표시됩니다." : "Review selected services, ownership method and country pricing before proceeding. Services with unconfirmed pricing are not charged. USD Room rent and AUD add-ons remain separate until an approved conversion rule is available."}</p>
+                <label className="mt-3 flex items-start gap-2 text-sm"><input type="checkbox" checked={agreement} onChange={(event) => setAgreement(event.target.checked)} className="mt-1 h-4 w-4 accent-emerald-500" /><span>{isKorean ? "선택한 서비스와 통화별 예상 금액을 확인했습니다." : "I reviewed my selected services and the estimated charges shown by currency."}</span></label>
                 <button type="button" disabled={!agreement} className="mt-3 min-h-11 w-full rounded-xl border border-[var(--gold)]/50 px-3 py-2 font-semibold text-[var(--gold-soft)] disabled:opacity-35">Agreement & Payment</button>
               </div>
             ) : null}
