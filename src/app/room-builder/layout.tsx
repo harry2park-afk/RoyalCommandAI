@@ -13,7 +13,7 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
       <RoomGuideLiveInputMirror />
       <style>{`
         aside:has(img[src="/ai-helper-woman.svg"]) > div[class~="-mt-[84px]"] {
-          margin-top: 0 !important;
+          margin-top: -42px !important;
         }
 
         @media (min-width: 1024px) {
