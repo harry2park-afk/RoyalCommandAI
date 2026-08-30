@@ -16,7 +16,7 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
           margin-top: -32px !important;
         }
         aside:has(img[src="/ai-helper-woman.svg"]) img[src="/ai-helper-woman.svg"] {
-          transform: translateY(-5px);
+          transform: translateY(-10px);
         }
 
         @media (min-width: 1024px) {
