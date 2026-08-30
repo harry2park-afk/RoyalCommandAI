@@ -20,6 +20,8 @@ const AI_TITLES: Record<string, string> = {
 const TITLE_TO_ID = Object.fromEntries(Object.entries(AI_TITLES).map(([id, title]) => [title, id]));
 const RIGHT_KEY = "royalcommand:right-panel-apps";
 const LANG_KEY = "royalcommand:selected-language";
+const UI_LOCALE_KEY = "royalcommand:ui-locale";
+const COUNTRY_KEY = "royalcommand:country-code";
 const WIDTH_KEY = "royalcommand:chat-sidebar-width";
 const COLLAPSED_KEY = "royalcommand:chat-sidebar-collapsed";
 
@@ -101,6 +103,8 @@ export default function RoomPreferenceAuthority() {
         aiSlots: aiSlots.length ? aiSlots : safeArray(localStorage.getItem(slotsKey(id))),
         rightPanelApps: safeArray(localStorage.getItem(RIGHT_KEY)),
         language: languageSelect?.value || localStorage.getItem(LANG_KEY) || undefined,
+        uiLocale: localStorage.getItem(UI_LOCALE_KEY) || undefined,
+        countryCode: localStorage.getItem(COUNTRY_KEY) || undefined,
         chatSidebarWidth: Number.isFinite(width) && width > 0 ? width : undefined,
         chatSidebarCollapsed: localStorage.getItem(COLLAPSED_KEY) === "1",
       };
@@ -134,6 +138,7 @@ export default function RoomPreferenceAuthority() {
 
     async function restore() {
       let wantedSelected: string[] | null = null;
+      let localePreferenceChanged = false;
       try {
         const res = await fetch("/api/user/preferences", { cache: "no-store", credentials: "same-origin" });
         if (res.ok) {
@@ -146,11 +151,20 @@ export default function RoomPreferenceAuthority() {
           if (Array.isArray(prefs.aiSlots)) setArray(slotsKey(id), prefs.aiSlots);
           if (Array.isArray(prefs.rightPanelApps)) setArray(RIGHT_KEY, prefs.rightPanelApps);
           if (typeof prefs.language === "string" && prefs.language) localStorage.setItem(LANG_KEY, prefs.language);
+          if (typeof prefs.uiLocale === "string" && prefs.uiLocale) {
+            localStorage.setItem(UI_LOCALE_KEY, prefs.uiLocale);
+            localePreferenceChanged = true;
+          }
+          if (typeof prefs.countryCode === "string" && prefs.countryCode) {
+            localStorage.setItem(COUNTRY_KEY, prefs.countryCode);
+            localePreferenceChanged = true;
+          }
           if (typeof prefs.chatSidebarWidth === "number") localStorage.setItem(WIDTH_KEY, String(prefs.chatSidebarWidth));
           if (typeof prefs.chatSidebarCollapsed === "boolean") localStorage.setItem(COLLAPSED_KEY, prefs.chatSidebarCollapsed ? "1" : "0");
         }
       } catch {}
 
+      if (localePreferenceChanged) window.dispatchEvent(new Event("royalcommand:language-change"));
       if (cancelled) return;
       const target = wantedSelected ?? safeArray(localStorage.getItem(selectedKey(id)));
       requestAnimationFrame(() => reconcile(target));
