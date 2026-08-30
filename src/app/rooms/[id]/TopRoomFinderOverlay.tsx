@@ -162,19 +162,19 @@ export default function TopRoomFinderOverlay() {
           <>
             <div className="sticky top-0 z-10 mb-2 flex items-center justify-between bg-[#07111f]/96 py-1.5">
               <button type="button" onClick={() => { setCategoryId(null); setQuery(""); }} className="flex items-center gap-1 text-[10px] font-semibold text-[#f6d873]"><ArrowLeft size={12} /> Back to categories</button>
-              <span className="text-[9px] text-white/45">Step 2 · Choose a Room</span>
+              <span className="text-[11px] text-white/45">Step 2 · Choose a Room</span>
             </div>
             {selectedCategory && !clean ? (
               <div className="mb-3 border-b border-white/10 pb-2">
                 <div className="text-[11px] font-bold text-[#f6d873]">{selectedCategory[2]}</div>
-                <div className="mt-1 text-[9px] text-cyan-300">Advanced systems: {selectedCategory[4]}</div>
+                <div className="mt-1 text-[11px] text-cyan-300">Advanced systems: {selectedCategory[4]}</div>
               </div>
             ) : null}
             <div className="divide-y divide-white/8">
               {visibleRooms.map((room) => (
                 <button key={room.id} type="button" onClick={() => void chooseRoom(room)} className="flex w-full items-center gap-2 bg-transparent px-0 py-2 text-left hover:bg-white/[0.03]">
                   <span className="min-w-0 flex-1 truncate text-[10px] font-bold text-white">{room.label}</span>
-                  <span className="shrink-0 text-[9px] font-semibold text-[#f6d873]">Select ›</span>
+                  <span className="shrink-0 text-[11px] font-semibold text-[#f6d873]">Select ›</span>
                 </button>
               ))}
               {!visibleRooms.length ? <div className="px-2 py-5 text-center text-[10px] text-white/45">No matching Rooms found.</div> : null}
