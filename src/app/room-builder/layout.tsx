@@ -15,6 +15,9 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
         aside:has(img[src="/ai-helper-woman.svg"]) > div[class~="-mt-[84px]"] {
           margin-top: -32px !important;
         }
+        aside:has(img[src="/ai-helper-woman.svg"]) img[src="/ai-helper-woman.svg"] {
+          transform: translateY(-5px);
+        }
 
         @media (min-width: 1024px) {
           .rc-room-builder-workspace {
