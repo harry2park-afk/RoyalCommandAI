@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRoyalCommandLocale } from "./useRoyalCommandLocale";
 
 const MARKER = "data-rc-legal-wide";
 const EXIT_ID = "rc-legal-exit-to-room";
+const originalText = new WeakMap<Text, string>();
 
 function findLegalSection() {
   const byMarker = document.querySelector<HTMLElement>(`section[${MARKER}="1"]`);
@@ -29,8 +31,8 @@ function isVisible(element: HTMLElement) {
 
 function findLegalToolsButton() {
   return Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
-    const text = (button.textContent || "").replace(/\s+/g, " ").trim();
-    return text.includes("법률 도구") && text.includes("Legal tools");
+    const text = (button.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+    return (text.includes("법률 도구") && text.includes("legal tools")) || text.includes("legal tools");
   }) || null;
 }
 
@@ -51,11 +53,30 @@ function minimizeLegalSection(section: HTMLElement) {
   return false;
 }
 
-function applyWideLayout() {
+function localizeLegalSection(section: HTMLElement, locale: string) {
+  const english = !locale.toLowerCase().startsWith("ko");
+  const walker = document.createTreeWalker(section, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    const textNode = node as Text;
+    if (!originalText.has(textNode)) originalText.set(textNode, textNode.nodeValue || "");
+    const source = originalText.get(textNode) || "";
+    if (english && source.includes(" / ")) {
+      const parts = source.split(" / ");
+      textNode.nodeValue = parts[parts.length - 1];
+    } else {
+      textNode.nodeValue = source;
+    }
+    node = walker.nextNode();
+  }
+}
+
+function applyWideLayout(locale: string) {
   const section = findLegalSection();
   if (!section) return false;
 
   section.setAttribute(MARKER, "1");
+  localizeLegalSection(section, locale);
   forceStyle(section, "left", "8px");
   forceStyle(section, "right", "185px");
   forceStyle(section, "width", "auto");
@@ -70,7 +91,6 @@ function applyWideLayout() {
     exit = document.createElement("button");
     exit.id = EXIT_ID;
     exit.type = "button";
-    exit.textContent = "RCA 채팅룸으로 나가기 / Exit to RCA Room";
     Object.assign(exit.style, {
       position: "fixed",
       right: "205px",
@@ -93,11 +113,14 @@ function applyWideLayout() {
     };
     document.body.appendChild(exit);
   }
+  exit.textContent = locale.toLowerCase().startsWith("ko") ? "RCA 채팅룸으로 나가기 / Exit to RCA Room" : "Exit to RCA Room";
   exit.style.display = "block";
   return true;
 }
 
 export default function LegalRoomLayoutBridge() {
+  const locale = useRoyalCommandLocale();
+
   useEffect(() => {
     let interval = 0;
     let frame = 0;
@@ -109,8 +132,8 @@ export default function LegalRoomLayoutBridge() {
       const control = target.closest<HTMLElement>("button, [role='button'], a");
       if (!control) return;
 
-      const text = (control.textContent || "").replace(/\s+/g, " ").trim();
-      const isHarryLegalRoomButton = text.includes("Harry") && text.includes("법률");
+      const text = (control.textContent || "").replace(/\s+/g, " ").trim().toLowerCase();
+      const isHarryLegalRoomButton = text.includes("harry") && (text.includes("법률") || text.includes("legal"));
       if (!isHarryLegalRoomButton) return;
 
       const legalToolsButton = findLegalToolsButton();
@@ -139,7 +162,7 @@ export default function LegalRoomLayoutBridge() {
         }
 
         if (section && isVisible(section)) {
-          applyWideLayout();
+          applyWideLayout(locale);
         } else if (exit) {
           exit.style.display = "none";
         }
@@ -164,7 +187,7 @@ export default function LegalRoomLayoutBridge() {
       window.cancelAnimationFrame(frame);
       document.getElementById(EXIT_ID)?.remove();
     };
-  }, []);
+  }, [locale]);
 
   return null;
 }
