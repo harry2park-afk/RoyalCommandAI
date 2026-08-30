@@ -1,0 +1,23 @@
+{
+  "ai": [
+    "ChatGPT", "Claude", "Gemini", "Grok", "OpenAI Codex", "DeepSeek", "Perplexity", "Mistral", "Meta Llama", "Qwen",
+    "Cohere", "Kimi / Moonshot AI", "MiniMax", "Z.ai / GLM", "Microsoft Phi", "Amazon Nova", "NVIDIA Nemotron", "AI21", "Nous Research", "Writer",
+    "StepFun", "Inception Mercury", "Liquid AI", "Arcee AI", "01.AI / Yi", "Tencent Hunyuan", "IBM Granite", "Google Gemma", "Microsoft Copilot", "GitHub Copilot",
+    "Cursor AI", "Replit AI", "Tabnine", "Sourcegraph Cody", "Windsurf", "Poe", "You.com AI", "Character.AI", "Hugging Face", "Together AI",
+    "Fireworks AI", "Groq", "Cerebras", "SambaNova", "Databricks Mosaic AI", "Snowflake Cortex", "Anthropic Computer Use", "Adobe Firefly", "Canva Magic Studio", "Runway"
+  ],
+  "tools": [
+    "Gmail", "Microsoft Outlook", "Google Calendar", "Microsoft Calendar", "Google Drive", "Microsoft OneDrive", "Dropbox", "Box", "Slack", "Microsoft Teams",
+    "Zoom", "Google Meet", "Notion", "Trello", "Asana", "Monday.com", "ClickUp", "Jira", "Confluence", "GitHub",
+    "GitLab", "Bitbucket", "Vercel", "Supabase", "AWS", "Microsoft Azure", "Google Cloud", "Salesforce", "HubSpot", "Zoho CRM",
+    "Xero", "MYOB", "QuickBooks", "Stripe", "PayPal", "Square", "DocuSign", "Adobe Acrobat Sign", "Canva", "Shopify",
+    "WooCommerce", "WordPress", "Airtable", "Zapier", "Make", "Twilio", "Mailchimp", "Calendly", "Typeform", "Google Sheets"
+  ],
+  "services": [
+    "Legal Advice", "Accounting", "Tax & GST", "Bookkeeping", "Payroll", "Business Registration", "Company Secretarial", "Contract Review", "E-Signature Support", "Employment & HR",
+    "Immigration", "Intellectual Property", "Patent Support", "Trademark Support", "Insurance", "Banking Assistance", "Business Finance", "Loans & Lending", "Financial Planning", "Property Services",
+    "Real Estate", "Property Management", "Mortgage Assistance", "Valuation", "Conveyancing", "Phone & Telephony", "Virtual Reception", "SMS & Messaging", "Email Administration", "Document Management",
+    "File Storage", "Translation", "Interpreting", "Travel Booking", "Flights", "Hotels", "Car Rental", "Visa & Travel Documents", "Medical Administration", "Telehealth Coordination",
+    "Education & Training", "Recruitment", "Background Checks", "Marketing Services", "Advertising", "Social Media Management", "Video Production", "Music & Audio", "Sports Services", "Expert Marketplace"
+  ]
+}
