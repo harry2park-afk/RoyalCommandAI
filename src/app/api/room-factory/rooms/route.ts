@@ -1,23 +1,30 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { compileRoomFactoryBlueprint } from "@/lib/rooms/factory";
+import { compileRoomFactoryV2Blueprint } from "@/lib/rooms/factory";
+import { defaultRoomName, resolveDomainProfile } from "@/lib/rooms/factory-v2";
+import { DEFAULT_GLOBAL_ROOM_SETTINGS, GLOBAL_ROOM_PRESETS } from "@/lib/rooms/global";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 
 const factoryCreateSchema = z.object({
-  roomName: z.string().min(1).max(120),
+  roomName: z.string().min(1).max(120).optional(),
   templateId: z.string().min(1).max(80),
-  countryCode: z.string().min(1).max(8),
-  languageTag: z.string().min(1).max(35),
+  countryCode: z.string().min(1).max(8).optional(),
+  languageTag: z.string().min(1).max(35).optional(),
   languageTags: z.array(z.string().min(1).max(35)).max(10).optional(),
-  timeZone: z.string().min(1).max(80),
-  currencyCode: z.string().min(3).max(3),
+  timeZone: z.string().min(1).max(80).optional(),
+  currencyCode: z.string().min(3).max(3).optional(),
   approvalMode: z.enum(["safe", "approval", "autonomous"]).default("approval"),
   websiteKit: z.boolean().default(false),
   selectedMaterials: z.array(z.string().min(1).max(100)).max(100).default([]),
   householdId: z.string().uuid().optional(),
 });
+
+function localeDefaults(countryCode: string) {
+  const preset = GLOBAL_ROOM_PRESETS.find((item) => item.id === countryCode);
+  return preset || DEFAULT_GLOBAL_ROOM_SETTINGS;
+}
 
 export async function GET() {
   try {
@@ -74,14 +81,43 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Room Factory persistence requires the configured RCA database." }, { status: 503 });
     }
 
-    const input = factoryCreateSchema.parse(await request.json());
-    const blueprint = compileRoomFactoryBlueprint(input);
+    const rawInput = factoryCreateSchema.parse(await request.json());
+    const resolved = resolveDomainProfile(rawInput.templateId);
+    const countryCode = (rawInput.countryCode || user.countryCode || "GLOBAL").trim().toUpperCase().slice(0, 8) || "GLOBAL";
+    const defaults = localeDefaults(countryCode);
+    const languageTag = (rawInput.languageTag || user.defaultLanguage || defaults.languageTag || "en").trim().slice(0, 35) || "en";
+    const roomName = (rawInput.roomName || defaultRoomName(user.fullName, resolved.profile)).trim().slice(0, 120);
+
+    const input = {
+      roomName,
+      templateId: resolved.template.id,
+      countryCode,
+      languageTag,
+      languageTags: rawInput.languageTags,
+      timeZone: rawInput.timeZone || defaults.timeZone || DEFAULT_GLOBAL_ROOM_SETTINGS.timeZone,
+      currencyCode: rawInput.currencyCode || defaults.currencyCode || DEFAULT_GLOBAL_ROOM_SETTINGS.currencyCode,
+      approvalMode: rawInput.approvalMode,
+      websiteKit: rawInput.websiteKit,
+      selectedMaterials: rawInput.selectedMaterials,
+    };
+
+    const blueprint = compileRoomFactoryV2Blueprint(input);
     if (!blueprint.readiness.readyForSafeBuild) {
-      return NextResponse.json({ error: "Room Factory blueprint is blocked.", blueprint }, { status: 400 });
+      return NextResponse.json({ error: "Room Factory V2 blueprint is blocked.", blueprint }, { status: 400 });
     }
 
     const supabase = await createClient();
-    let householdId = input.householdId;
+    let householdId = rawInput.householdId;
+
+    if (!householdId) {
+      const { data: existingMembership } = await supabase
+        .from("household_members")
+        .select("household_id")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle();
+      householdId = existingMembership?.household_id || undefined;
+    }
 
     if (!householdId) {
       const { data: household, error: householdError } = await supabase

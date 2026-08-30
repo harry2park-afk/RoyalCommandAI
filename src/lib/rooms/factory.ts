@@ -1,6 +1,12 @@
 import { getConfiguredCountryCodes, hasCountryConfig } from "../../config/countryResolver";
 import { DEFAULT_GLOBAL_ROOM_SETTINGS, GLOBAL_ROOM_PRESETS, type GlobalRoomSettings } from "./global";
 import { ROOM_TEMPLATES } from "./templates";
+import {
+  CONVERSATION_RULES,
+  CONVERSATION_STATE_MACHINE,
+  ROOM_FACTORY_V2_SUCCESS_TARGET,
+  resolveDomainProfile,
+} from "./factory-v2";
 
 export type RoomFactoryApprovalMode = "safe" | "approval" | "autonomous";
 export type RoomFactoryCountryStatus = "registered" | "custom-profile-required";
@@ -69,6 +75,68 @@ export type RoomFactoryBlueprint = {
   };
 };
 
+export type RoomFactoryV2Blueprint = Omit<RoomFactoryBlueprint, "version" | "capabilities"> & {
+  version: "room-factory-v2";
+  domain: {
+    profileId: string;
+    roomLabel: string;
+    safetyTier: "standard" | "regulated" | "high-risk";
+    adviceBoundary?: string;
+    starterActions: string[];
+  };
+  capabilities: {
+    websiteKit: boolean;
+    selectedMaterials: string[];
+    includedOutcomes: string[];
+    bundles: string[];
+    connectorPolicy: "off-until-needed-and-approved";
+    optionalConnectors: Array<{
+      id: string;
+      label: string;
+      reason: string;
+      availability: string;
+      defaultEnabled: false;
+      approvalRequired: true;
+    }>;
+  };
+  conversation: {
+    stateMachine: typeof CONVERSATION_STATE_MACHINE;
+    rules: typeof CONVERSATION_RULES;
+  };
+  policyRuntime: {
+    checks: readonly ["country", "plan", "risk", "compliance", "permission", "cost"];
+    paidOrExternalRequiresHostApproval: true;
+    casualChatCannotApproveSpend: true;
+    connectorDefault: "off";
+  };
+  consentLedger: {
+    requiredForPaidOrExternal: true;
+    evidenceFields: readonly [
+      "subject",
+      "reason",
+      "price",
+      "billingType",
+      "alternativesShown",
+      "approvedBy",
+      "approvedAt",
+      "workId",
+      "result",
+      "cancelPathShown",
+    ];
+  };
+  outcomeMemory: {
+    structuredFields: readonly ["goals", "decisions", "notNeeded", "deferred", "approvals", "preferences", "frequentWork"];
+    piiMinimisationRequired: true;
+    resumeStateRequired: true;
+  };
+  evolution: {
+    promotionPath: readonly ["customer-patch", "verified-capability", "bundle-or-domain"];
+    promotionChecks: readonly ["repeat-use", "evidence", "pii-removed", "security", "regulatory", "maintenance-cost"];
+    regulatedDomainsNeverAutoPromoteGlobally: true;
+  };
+  successTarget: typeof ROOM_FACTORY_V2_SUCCESS_TARGET;
+};
+
 const DEFAULT_LANES: RoomFactoryLane[] = [
   {
     id: "core",
@@ -128,10 +196,7 @@ function presetFor(code: string) {
   return GLOBAL_ROOM_PRESETS.find((item) => item.id === code);
 }
 
-export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactoryBlueprint {
-  const roomName = input.roomName.trim().slice(0, 120);
-  const template = ROOM_TEMPLATES.find((item) => item.id === input.templateId)
-    || ROOM_TEMPLATES.find((item) => item.id === "custom")!;
+function buildLocale(input: RoomFactoryInput) {
   const countryCode = normaliseCountry(input.countryCode);
   const preset = presetFor(countryCode);
   const languageTag = normaliseLanguage(input.languageTag || preset?.languageTag || DEFAULT_GLOBAL_ROOM_SETTINGS.languageTag);
@@ -144,7 +209,6 @@ export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactor
   const blockers: string[] = [];
   const warnings: string[] = [];
 
-  if (!roomName) blockers.push("Room name is required.");
   if (!languageTag) blockers.push("Room language is required.");
   if (!timeZone) blockers.push("Time zone is required.");
   if (currencyCode.length !== 3) blockers.push("Currency must be a 3-letter code.");
@@ -166,6 +230,40 @@ export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactor
     countryProfileStatus: registeredCountry(countryCode) ? "registered" : "custom-profile-required",
   };
 
+  return { locale, blockers, warnings };
+}
+
+function baseExecution(input: RoomFactoryInput) {
+  return {
+    approvalMode: input.approvalMode || "approval",
+    productionWriteDefault: false as const,
+    singleWriteAuthority: true as const,
+    reviewerCanWrite: false as const,
+    evidenceBeforeSuccess: true as const,
+    rollbackRequired: true as const,
+    tenantIsolationRequired: true as const,
+    secretsStayHostOwned: true as const,
+  };
+}
+
+function clonePolicy() {
+  return {
+    mode: "structure-only" as const,
+    customerData: false as const,
+    memory: false as const,
+    credentials: false as const,
+    secrets: false as const,
+  };
+}
+
+export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactoryBlueprint {
+  const roomName = input.roomName.trim().slice(0, 120);
+  const template = ROOM_TEMPLATES.find((item) => item.id === input.templateId)
+    || ROOM_TEMPLATES.find((item) => item.id === "custom")!;
+  const { locale, blockers, warnings } = buildLocale(input);
+
+  if (!roomName) blockers.push("Room name is required.");
+
   return {
     version: "room-factory-v1",
     room: {
@@ -176,27 +274,102 @@ export function compileRoomFactoryBlueprint(input: RoomFactoryInput): RoomFactor
       suggestedAgents: [...template.suggestedAgents],
     },
     locale,
-    execution: {
-      approvalMode: input.approvalMode || "approval",
-      productionWriteDefault: false,
-      singleWriteAuthority: true,
-      reviewerCanWrite: false,
-      evidenceBeforeSuccess: true,
-      rollbackRequired: true,
-      tenantIsolationRequired: true,
-      secretsStayHostOwned: true,
-    },
-    clonePolicy: {
-      mode: "structure-only",
-      customerData: false,
-      memory: false,
-      credentials: false,
-      secrets: false,
-    },
+    execution: baseExecution(input),
+    clonePolicy: clonePolicy(),
     capabilities: {
       websiteKit: Boolean(input.websiteKit),
       selectedMaterials: Array.from(new Set(input.selectedMaterials || [])).filter(Boolean),
     },
+    lanes: DEFAULT_LANES.map((lane) => ({ ...lane })),
+    readiness: {
+      readyForSafeBuild: blockers.length === 0,
+      blockers,
+      warnings,
+    },
+  };
+}
+
+export function compileRoomFactoryV2Blueprint(input: RoomFactoryInput): RoomFactoryV2Blueprint {
+  const roomName = input.roomName.trim().slice(0, 120);
+  const resolved = resolveDomainProfile(input.templateId);
+  const { locale, blockers, warnings } = buildLocale(input);
+
+  if (!roomName) blockers.push("Room name is required.");
+  const selectedMaterials = Array.from(new Set([
+    ...resolved.defaultMaterialIds,
+    ...(input.selectedMaterials || []),
+  ])).filter(Boolean);
+
+  return {
+    version: "room-factory-v2",
+    room: {
+      name: roomName || "Untitled Room",
+      templateId: resolved.template.id,
+      templateName: resolved.template.name,
+      purpose: resolved.template.shortDescription,
+      suggestedAgents: [...resolved.template.suggestedAgents],
+    },
+    domain: {
+      profileId: resolved.profile.templateId,
+      roomLabel: resolved.profile.roomLabel,
+      safetyTier: resolved.profile.safetyTier,
+      adviceBoundary: resolved.profile.adviceBoundary,
+      starterActions: [...resolved.profile.starters],
+    },
+    locale,
+    execution: baseExecution(input),
+    clonePolicy: clonePolicy(),
+    capabilities: {
+      websiteKit: Boolean(input.websiteKit),
+      selectedMaterials,
+      includedOutcomes: Array.from(new Set(resolved.capabilities)),
+      bundles: [...resolved.profile.bundles],
+      connectorPolicy: "off-until-needed-and-approved",
+      optionalConnectors: resolved.connectors.map((connector) => ({
+        id: connector.id,
+        label: connector.label,
+        reason: connector.reason,
+        availability: connector.availability,
+        defaultEnabled: false as const,
+        approvalRequired: true as const,
+      })),
+    },
+    conversation: {
+      stateMachine: CONVERSATION_STATE_MACHINE,
+      rules: CONVERSATION_RULES,
+    },
+    policyRuntime: {
+      checks: ["country", "plan", "risk", "compliance", "permission", "cost"] as const,
+      paidOrExternalRequiresHostApproval: true,
+      casualChatCannotApproveSpend: true,
+      connectorDefault: "off",
+    },
+    consentLedger: {
+      requiredForPaidOrExternal: true,
+      evidenceFields: [
+        "subject",
+        "reason",
+        "price",
+        "billingType",
+        "alternativesShown",
+        "approvedBy",
+        "approvedAt",
+        "workId",
+        "result",
+        "cancelPathShown",
+      ] as const,
+    },
+    outcomeMemory: {
+      structuredFields: ["goals", "decisions", "notNeeded", "deferred", "approvals", "preferences", "frequentWork"] as const,
+      piiMinimisationRequired: true,
+      resumeStateRequired: true,
+    },
+    evolution: {
+      promotionPath: ["customer-patch", "verified-capability", "bundle-or-domain"] as const,
+      promotionChecks: ["repeat-use", "evidence", "pii-removed", "security", "regulatory", "maintenance-cost"] as const,
+      regulatedDomainsNeverAutoPromoteGlobally: true,
+    },
+    successTarget: ROOM_FACTORY_V2_SUCCESS_TARGET,
     lanes: DEFAULT_LANES.map((lane) => ({ ...lane })),
     readiness: {
       readyForSafeBuild: blockers.length === 0,
