@@ -23,8 +23,7 @@ export default function RoomBuilderLayout({ children }: { children: ReactNode })
           position: absolute;
           left: 27%;
           right: 27%;
-          bottom: 48px;
-          z-index: 20;
+          bottom: 13px;
           height: 2px;
           border-radius: 999px;
           background: linear-gradient(90deg, transparent, #d8b548 12%, #f1d66a 50%, #d8b548 88%, transparent);
