@@ -302,7 +302,7 @@ export default function RoomBuilderAIFormAssistant() {
   }
 
   function startWaveform(stream: MediaStream) {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const context: AudioContext = new AudioContextClass();
     audioContextRef.current = context;
@@ -380,8 +380,18 @@ export default function RoomBuilderAIFormAssistant() {
         setMicStatus("말씀하세요…");
       });
       dc.addEventListener("message", (event) => {
-        let message: any;
-        try { message = JSON.parse(String(event.data || "{}")); } catch { return; }
+        let message: {
+          type?: unknown;
+          item_id?: unknown;
+          item?: { id?: unknown };
+          delta?: unknown;
+          transcript?: unknown;
+        };
+        try {
+          message = JSON.parse(String(event.data || "{}")) as typeof message;
+        } catch {
+          return;
+        }
         const type = String(message?.type || "");
         const itemId = String(message?.item_id || message?.item?.id || "");
         if (type === "conversation.item.input_audio_transcription.delta" && itemId) {
