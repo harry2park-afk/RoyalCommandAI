@@ -141,7 +141,7 @@
       const payload = await response.json();
       const rooms = Array.isArray(payload?.rooms) ? payload.rooms : [];
 
-      if (currentRoomId && !rooms.some((room) => String(room?.id || "") === currentRoomId)) {
+      if (currentRoomId && currentRoomId !== "rca" && !rooms.some((room) => String(room?.id || "") === currentRoomId)) {
         window.location.replace("/dashboard");
         return;
       }
