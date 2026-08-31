@@ -125,6 +125,8 @@ begin
     raise exception using errcode = '22023', message = 'Invalid country profile status.';
   end if;
 
+  -- Serialize all Room Factory creation for one owner. This protects both the
+  -- encounter idempotency boundary and first-household bootstrap from races.
   perform pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended('room-factory-owner:' || v_user_id::text, 0)
   );
@@ -247,6 +249,10 @@ begin
 end;
 $$;
 
+-- The privileged implementation is intentionally not executable by any
+-- application role. The public wrapper below is the only supported entrypoint.
+-- Keep existing schema USAGE grants unchanged because other private functions
+-- may depend on them; function EXECUTE is the security boundary for this RPC.
 revoke all on function private.create_room_factory_room_atomic(
   uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb
 ) from public, anon, authenticated, service_role;
