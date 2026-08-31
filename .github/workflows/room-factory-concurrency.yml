@@ -1,0 +1,62 @@
+name: Room Factory Concurrency Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/app/api/room-factory/rooms/route.ts"
+      - "supabase/migrations/**"
+      - "scripts/room-factory-concurrency-evidence.mjs"
+      - ".github/workflows/room-factory-concurrency.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-room-factory-concurrency-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  concurrency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies reproducibly
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Start isolated Supabase stack
+        run: supabase start
+
+      - name: Prove same-owner same-encounter concurrency
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_CONCURRENCY_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_CONCURRENCY_ANON_KEY="$ANON_KEY"
+          export RC_CONCURRENCY_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_CONCURRENCY_TEST_EMAIL="rc-concurrency-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.test"
+          export RC_CONCURRENCY_TEST_PASSWORD="RC-Local-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
+          export RC_CONCURRENCY_ALLOW_LOCALHOST=1
+          node scripts/room-factory-concurrency-evidence.mjs
+
+      - name: Stop isolated Supabase stack
+        if: always()
+        run: supabase stop --no-backup
