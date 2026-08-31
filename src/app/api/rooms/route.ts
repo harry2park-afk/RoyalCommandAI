@@ -7,6 +7,10 @@ import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
+function isSystemCommandRoom(room: { name?: unknown }) {
+  return String(room?.name || "").trim().toLowerCase() === "command room";
+}
+
 export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -21,10 +25,10 @@ export async function GET() {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ rooms: data });
+    return NextResponse.json({ rooms: (data || []).filter((room) => !isSystemCommandRoom(room)) });
   }
 
-  return NextResponse.json({ rooms: localDb.listRooms() });
+  return NextResponse.json({ rooms: localDb.listRooms().filter((room) => !isSystemCommandRoom(room)) });
 }
 
 export async function POST(request: Request) {
