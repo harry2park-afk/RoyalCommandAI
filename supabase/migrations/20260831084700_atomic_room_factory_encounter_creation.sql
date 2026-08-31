@@ -18,7 +18,7 @@ begin
     select 1
     from public.room_factory_manifests
     where manifest ? 'encounterSessionId'
-      and coalesce(manifest->>'encounterSessionId', '') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'
+      and coalesce(manifest->>'encounterSessionId', '') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
   ) then
     raise exception 'Room Factory migration blocked: invalid encounterSessionId exists in a stored manifest.';
   end if;
