@@ -42,7 +42,7 @@ export default function HomePage() {
           </p>
 
           <Link
-            href="/login"
+            href="/login?next=/rooms/rca"
             className="block rounded-xl border border-[#d7b64d]/75 bg-[#0b0d12]/90 px-5 py-4 text-white transition hover:border-[#f3d36b] hover:bg-[#151923]"
           >
             <span className="block text-lg font-semibold">Existing Member</span>
