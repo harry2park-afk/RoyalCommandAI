@@ -15,12 +15,22 @@ function required(name) {
   return value;
 }
 
-function projectRefFromUrl(rawUrl) {
+function projectIdentityFromUrl(rawUrl) {
   const url = new URL(rawUrl);
   const hostname = url.hostname.toLowerCase();
-  const match = hostname.match(/^([a-z0-9-]+)\.supabase\.co$/);
-  if (!match) throw new Error(`Expected an isolated *.supabase.co URL, received ${hostname}`);
-  return match[1];
+  const hostedMatch = hostname.match(/^([a-z0-9-]+)\.supabase\.co$/);
+  if (hostedMatch) {
+    return { projectRef: hostedMatch[1], local: false };
+  }
+
+  if (hostname === "127.0.0.1" || hostname === "localhost") {
+    if (process.env.RC_CONCURRENCY_ALLOW_LOCALHOST !== "1") {
+      throw new Error("Local Supabase URL requires RC_CONCURRENCY_ALLOW_LOCALHOST=1");
+    }
+    return { projectRef: "local-ci", local: true };
+  }
+
+  throw new Error(`Expected an isolated *.supabase.co URL or explicitly enabled local Supabase URL, received ${hostname}`);
 }
 
 function adminClient(url, serviceRoleKey) {
@@ -58,7 +68,7 @@ async function main() {
   const email = required("RC_CONCURRENCY_TEST_EMAIL");
   const password = required("RC_CONCURRENCY_TEST_PASSWORD");
 
-  const projectRef = projectRefFromUrl(url);
+  const { projectRef, local } = projectIdentityFromUrl(url);
   if (projectRef === PRODUCTION_PROJECT_REF) {
     throw new Error("Refusing to run Room Factory concurrency evidence against the Production Supabase project.");
   }
@@ -66,6 +76,18 @@ async function main() {
   const admin = adminClient(url, serviceRoleKey);
   const callerA = userClient(url, anonKey);
   const callerB = userClient(url, anonKey);
+  let createdTestUserId = null;
+
+  if (local) {
+    const { data, error } = await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
+    if (error) throw new Error(`Local test-user creation failed: ${error.message}`);
+    assert.ok(data.user?.id, "Local test-user creation returned no user id");
+    createdTestUserId = data.user.id;
+  }
 
   const [ownerA, ownerB] = await Promise.all([
     signIn(callerA, email, password),
@@ -160,6 +182,7 @@ async function main() {
     console.log(JSON.stringify({
       ok: true,
       projectRef,
+      local,
       ownerId,
       encounterSessionId,
       roomId: createdRoomId,
@@ -188,6 +211,13 @@ async function main() {
         .eq("household_id", createdHouseholdId);
       if ((count ?? 0) === 0) {
         await admin.from("households").delete().eq("id", createdHouseholdId).eq("owner_id", ownerId);
+      }
+    }
+
+    if (createdTestUserId) {
+      const { error: deleteUserError } = await admin.auth.admin.deleteUser(createdTestUserId);
+      if (deleteUserError) {
+        console.warn(`Local test-user cleanup failed: ${deleteUserError.message}`);
       }
     }
   }
