@@ -61,6 +61,12 @@ function firstRpcRow(data) {
   return row;
 }
 
+async function exactCount(query, label) {
+  const { count, error } = await query;
+  if (error) throw new Error(`${label} count failed: ${error.message}`);
+  return count ?? 0;
+}
+
 async function main() {
   const url = required("RC_CONCURRENCY_SUPABASE_URL");
   const anonKey = required("RC_CONCURRENCY_ANON_KEY");
@@ -100,6 +106,7 @@ async function main() {
   const roomName = `RC concurrency ${encounterSessionId.slice(0, 8)}`;
   let createdRoomId = null;
   let createdHouseholdId = null;
+  let rollbackEvidence = null;
 
   const { data: preMembershipRows, error: preMembershipError } = await admin
     .from("household_members")
@@ -129,6 +136,67 @@ async function main() {
   };
 
   try {
+    // The CI fixture can install a local-only trigger that rejects a marked
+    // manifest *after* Household/Room/member inserts have occurred. The RPC is
+    // one database transaction, so the rejection must leave zero new residue.
+    if (process.env.RC_CONCURRENCY_FORCE_ROLLBACK_TEST === "1") {
+      const rollbackEncounterId = randomUUID();
+      const rollbackRoomName = `RC rollback ${rollbackEncounterId.slice(0, 8)}`;
+      const beforeHouseholds = await exactCount(
+        admin.from("households").select("id", { count: "exact", head: true }).eq("owner_id", ownerId),
+        "Pre-rollback Household",
+      );
+      const beforeMemberships = await exactCount(
+        admin.from("household_members").select("household_id", { count: "exact", head: true }).eq("user_id", ownerId),
+        "Pre-rollback Household membership",
+      );
+
+      const rollbackResult = await callerA.rpc("create_room_factory_room_atomic", {
+        ...args,
+        p_encounter_session_id: rollbackEncounterId,
+        p_room_name: rollbackRoomName,
+        p_manifest: {
+          encounterSessionId: rollbackEncounterId,
+          evidence: "forced-transaction-rollback",
+          forceRollback: true,
+          disposable: true,
+        },
+      });
+      assert.ok(rollbackResult.error, "Forced downstream manifest failure unexpectedly succeeded");
+
+      const afterManifests = await exactCount(
+        admin.from("room_factory_manifests").select("id", { count: "exact", head: true })
+          .eq("owner_id", ownerId).eq("encounter_session_id", rollbackEncounterId),
+        "Post-rollback manifest residue",
+      );
+      const afterRooms = await exactCount(
+        admin.from("rooms").select("id", { count: "exact", head: true })
+          .eq("room_owner_id", ownerId).eq("name", rollbackRoomName),
+        "Post-rollback Room residue",
+      );
+      const afterHouseholds = await exactCount(
+        admin.from("households").select("id", { count: "exact", head: true }).eq("owner_id", ownerId),
+        "Post-rollback Household",
+      );
+      const afterMemberships = await exactCount(
+        admin.from("household_members").select("household_id", { count: "exact", head: true }).eq("user_id", ownerId),
+        "Post-rollback Household membership",
+      );
+
+      assert.equal(afterManifests, 0, "Forced failure left a manifest residue");
+      assert.equal(afterRooms, 0, "Forced failure left a Room residue");
+      assert.equal(afterHouseholds, beforeHouseholds, "Forced failure changed Household count");
+      assert.equal(afterMemberships, beforeMemberships, "Forced failure changed Household membership count");
+
+      rollbackEvidence = {
+        forcedFailureObserved: true,
+        manifestResidue: afterManifests,
+        roomResidue: afterRooms,
+        householdDelta: afterHouseholds - beforeHouseholds,
+        householdMembershipDelta: afterMemberships - beforeMemberships,
+      };
+    }
+
     // Separate Supabase clients issue simultaneous HTTP RPC requests. Each RPC is
     // its own database transaction, exercising the advisory transaction lock and
     // authoritative owner/encounter uniqueness boundary under real overlap.
@@ -187,6 +255,7 @@ async function main() {
       encounterSessionId,
       roomId: createdRoomId,
       manifestId: manifests[0].id,
+      rollback: rollbackEvidence,
       callerResults: [
         { reused: rowA.reused, roomId: rowA.room_data.id, manifestId: rowA.manifest_data.id },
         { reused: rowB.reused, roomId: rowB.room_data.id, manifestId: rowB.manifest_data.id },
