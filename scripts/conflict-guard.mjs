@@ -2,6 +2,7 @@ import { execFileSync } from "node:child_process";
 
 const base = process.env.CONFLICT_GUARD_BASE || "HEAD^";
 const head = process.env.CONFLICT_GUARD_HEAD || "HEAD";
+const strict = process.env.CONFLICT_GUARD_STRICT === "1";
 
 function git(args) {
   return execFileSync("git", args, { encoding: "utf8" });
@@ -9,6 +10,10 @@ function git(args) {
 
 function warning(message) {
   console.log(`::warning title=Royal Command Conflict Guard::${message}`);
+}
+
+function failure(message) {
+  console.log(`::error title=Royal Command Conflict Guard::${message}`);
 }
 
 const rules = [
@@ -73,10 +78,24 @@ try {
     }
   }
 
-  console.log(`Conflict Guard v1 scanned ${names.length} changed file(s); ${count} warning(s).`);
-  console.log("Mode: WARNING ONLY — this check never blocks a merge.");
+  console.log(`Conflict Guard v2 scanned ${names.length} changed file(s); ${count} warning(s).`);
+
+  if (strict) {
+    console.log("Mode: ENFORCING — ownership conflicts block the PR check.");
+    if (count > 0) {
+      failure(`${count} ownership conflict warning(s) detected. Resolve the duplicate ownership or update the reviewed owner rule before merge.`);
+      process.exit(1);
+    }
+  } else {
+    console.log("Mode: WARNING ONLY — set CONFLICT_GUARD_STRICT=1 to enforce failures.");
+  }
 } catch (error) {
-  warning(`Scanner could not complete: ${error instanceof Error ? error.message : String(error)}. Warning-only mode leaves the PR unblocked.`);
+  const message = `Scanner could not complete: ${error instanceof Error ? error.message : String(error)}.`;
+  if (strict) {
+    failure(`${message} Enforcing mode fails closed.`);
+    process.exit(2);
+  }
+  warning(`${message} Warning-only mode leaves the PR unblocked.`);
 }
 
 process.exit(0);

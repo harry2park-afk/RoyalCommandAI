@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  warn-conflicts:
-    name: warning-only
+  conflict-guard:
+    name: conflict
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -17,13 +17,17 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prove fail-closed behavior
+        run: node scripts/conflict-guard-selftest.mjs
+
       - name: Scan for ownership conflicts
         env:
           CONFLICT_GUARD_BASE: ${{ github.event.pull_request.base.sha }}
           CONFLICT_GUARD_HEAD: ${{ github.event.pull_request.head.sha }}
+          CONFLICT_GUARD_STRICT: "1"
         run: node scripts/conflict-guard.mjs
 
-      - name: Confirm advisory mode
+      - name: Confirm enforcing mode
         run: |
-          echo "Conflict Guard v1 is WARNING ONLY."
-          echo "It does not block merges or modify application code."
+          echo "Conflict Guard v2 is ENFORCING."
+          echo "Detected duplicate ownership or scanner failure blocks this PR check."
