@@ -4,6 +4,7 @@ export default function LoginLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <style>{`
+        /* Login must escape the legacy desktop Room viewport lock. */
         @media (min-width: 901px) {
           html:has(body main form input[autocomplete="current-password"]) {
             height: auto !important;
