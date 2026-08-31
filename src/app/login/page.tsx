@@ -81,6 +81,7 @@ function LoginForm() {
   const restartTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocale(navigator.language || "en-AU");
     return () => {
       if (restartTimer.current) window.clearTimeout(restartTimer.current);
