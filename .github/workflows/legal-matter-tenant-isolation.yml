@@ -1,0 +1,217 @@
+name: Legal Matter Tenant Isolation Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260831225500_scope_matter_staff_access.sql"
+      - "scripts/legal-matter-tenant-isolation-evidence.mjs"
+      - ".github/workflows/legal-matter-tenant-isolation.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-legal-matter-isolation-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tenant-isolation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies reproducibly
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Prepare isolated Legal Matter fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Full repository migration replay is independently blocked by #592.
+          # This workflow therefore proves only the exact #446/#593 tenant-isolation
+          # candidate against a disposable local schema shaped from read-only
+          # Production evidence. It never uses hosted credentials or Production DDL.
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+          cp supabase/migrations-full/001_init.sql supabase/migrations/
+
+          cat > supabase/migrations/20260831225400_legal_matter_test_fixture.sql <<'SQL'
+          alter table public.profiles
+            add column if not exists role text not null default 'client';
+
+          create schema if not exists private;
+          revoke all on schema private from public, anon;
+          grant usage on schema private to authenticated, service_role;
+
+          create table public.matters (
+            id uuid primary key default gen_random_uuid(),
+            client_id uuid not null references public.profiles(id) on delete cascade,
+            service_line text not null check (service_line in ('legal', 'accounting')),
+            title text not null,
+            summary text not null default '',
+            status text not null default 'open'
+              check (status in ('draft', 'open', 'in_progress', 'waiting_client', 'waiting_staff', 'closed')),
+            assigned_staff_id uuid references public.profiles(id) on delete set null,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now()
+          );
+
+          create table public.matter_documents (
+            id uuid primary key default gen_random_uuid(),
+            matter_id uuid not null references public.matters(id) on delete cascade,
+            uploaded_by uuid not null references public.profiles(id) on delete cascade,
+            filename text not null,
+            mime_type text,
+            size_bytes bigint not null default 0,
+            category text not null default 'other'
+              check (category in ('identity', 'contract', 'tax', 'financial', 'correspondence', 'other')),
+            review_status text not null default 'pending'
+              check (review_status in ('pending', 'in_review', 'approved', 'needs_changes', 'rejected')),
+            review_note text,
+            storage_path text,
+            created_at timestamptz not null default now()
+          );
+
+          create table public.matter_messages (
+            id uuid primary key default gen_random_uuid(),
+            matter_id uuid not null references public.matters(id) on delete cascade,
+            author_id uuid not null references public.profiles(id) on delete cascade,
+            body text not null check (char_length(body) between 1 and 8000),
+            created_at timestamptz not null default now()
+          );
+
+          create table public.matter_chat_reads (
+            user_id uuid not null references public.profiles(id) on delete cascade,
+            matter_id uuid not null references public.matters(id) on delete cascade,
+            last_read_at timestamptz not null default now(),
+            primary key (user_id, matter_id)
+          );
+
+          alter table public.matters enable row level security;
+          alter table public.matter_documents enable row level security;
+          alter table public.matter_messages enable row level security;
+          alter table public.matter_chat_reads enable row level security;
+
+          grant select, insert, update, delete on public.matters to authenticated, service_role;
+          grant select, insert, update, delete on public.matter_documents to authenticated, service_role;
+          grant select, insert, update, delete on public.matter_messages to authenticated, service_role;
+          grant select, insert, update, delete on public.matter_chat_reads to authenticated, service_role;
+
+          create or replace function private.is_matter_client(m_id uuid)
+          returns boolean
+          language sql
+          stable
+          security definer
+          set search_path = public
+          as $$
+            select exists (
+              select 1 from public.matters
+              where id = m_id and client_id = auth.uid()
+            );
+          $$;
+
+          revoke all on function private.is_matter_client(uuid) from public, anon;
+          grant execute on function private.is_matter_client(uuid) to authenticated, service_role;
+
+          create policy matters_select_own_or_staff on public.matters
+            for select to authenticated using (client_id = auth.uid());
+          create policy matters_insert_own on public.matters
+            for insert to authenticated with check (client_id = auth.uid());
+          create policy matters_update_own_or_staff on public.matters
+            for update to authenticated using (client_id = auth.uid()) with check (client_id = auth.uid());
+
+          create policy matter_documents_select on public.matter_documents
+            for select to authenticated using (private.is_matter_client(matter_id));
+          create policy matter_documents_insert on public.matter_documents
+            for insert to authenticated with check (uploaded_by = auth.uid() and private.is_matter_client(matter_id));
+          create policy matter_documents_update_staff on public.matter_documents
+            for update to authenticated using (false) with check (false);
+
+          create policy matter_messages_select on public.matter_messages
+            for select to authenticated using (private.is_matter_client(matter_id));
+          create policy matter_messages_insert on public.matter_messages
+            for insert to authenticated with check (author_id = auth.uid() and private.is_matter_client(matter_id));
+
+          create policy matter_chat_reads_select on public.matter_chat_reads
+            for select to authenticated using (user_id = auth.uid());
+          create policy matter_chat_reads_insert on public.matter_chat_reads
+            for insert to authenticated with check (user_id = auth.uid() and private.is_matter_client(matter_id));
+          create policy matter_chat_reads_update on public.matter_chat_reads
+            for update to authenticated using (user_id = auth.uid()) with check (user_id = auth.uid());
+          SQL
+
+          cp supabase/migrations-full/20260831225500_scope_matter_staff_access.sql supabase/migrations/
+
+      - name: Start disposable Supabase stack
+        run: supabase start
+
+      - name: Prove RPC and protected-column privilege boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not has_function_privilege('authenticated', 'public.set_matter_staff_assignment(uuid,uuid)', 'EXECUTE') then
+              raise exception 'authenticated must be able to call public assignment wrapper';
+            end if;
+            if has_function_privilege('anon', 'public.set_matter_staff_assignment(uuid,uuid)', 'EXECUTE') then
+              raise exception 'anon must not execute assignment wrapper';
+            end if;
+            if has_function_privilege('service_role', 'public.set_matter_staff_assignment(uuid,uuid)', 'EXECUTE') then
+              raise exception 'service_role must not directly execute assignment wrapper';
+            end if;
+            if not has_function_privilege('authenticated', 'private.is_admin()', 'EXECUTE') then
+              raise exception 'authenticated RLS evaluation must execute private.is_admin';
+            end if;
+            if has_function_privilege('anon', 'private.is_admin()', 'EXECUTE') then
+              raise exception 'anon must not execute private.is_admin';
+            end if;
+            if has_table_privilege('authenticated', 'public.matters', 'UPDATE') then
+              raise exception 'authenticated must not retain whole-table UPDATE on matters';
+            end if;
+            if not has_column_privilege('authenticated', 'public.matters', 'title', 'UPDATE') then
+              raise exception 'authenticated must retain UPDATE on mutable title';
+            end if;
+            if has_column_privilege('authenticated', 'public.matters', 'client_id', 'UPDATE') then
+              raise exception 'authenticated must not UPDATE client_id';
+            end if;
+            if has_column_privilege('authenticated', 'public.matters', 'assigned_staff_id', 'UPDATE') then
+              raise exception 'authenticated must not UPDATE assigned_staff_id';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Run authenticated admin staff client isolation matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_LEGAL_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_LEGAL_ANON_KEY="$ANON_KEY"
+          export RC_LEGAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_LEGAL_ALLOW_LOCALHOST=1
+          node scripts/legal-matter-tenant-isolation-evidence.mjs
+
+      - name: Stop disposable Supabase stack
+        if: always()
+        run: supabase stop --no-backup
