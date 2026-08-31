@@ -120,7 +120,7 @@ function LoginForm() {
     stopListeningForTyping();
     setGateState("gate-opening");
     setTimeout(() => {
-      router.push(params.get("next") || "/dashboard");
+      router.push(params.get("next") || "/rooms/rca");
       router.refresh();
     }, 900);
   }
