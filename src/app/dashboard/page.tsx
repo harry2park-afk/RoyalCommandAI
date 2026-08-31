@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Landmark, Search, ShieldCheck, X } from "lucide-react";
+import { Check, Landmark, Search, ShieldCheck, Trash2, X } from "lucide-react";
 import { ROOM_TEMPLATES } from "@/lib/rooms/templates";
 
 type Room = { id: string; name: string; description?: string; status: string };
@@ -22,6 +22,9 @@ export default function DashboardPage() {
   const [stepIndex, setStepIndex] = useState(0);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [roomToDelete, setRoomToDelete] = useState<Room | null>(null);
+  const [deletingRoomId, setDeletingRoomId] = useState("");
+  const [deleteError, setDeleteError] = useState("");
   const textInputRef = useRef<HTMLInputElement | null>(null);
 
   const template = useMemo(
@@ -137,6 +140,31 @@ export default function DashboardPage() {
     void commitCurrent(answers[currentField.id] || "");
   }
 
+  function askToDeleteRoom(room: Room) {
+    setDeleteError("");
+    setRoomToDelete(room);
+  }
+
+  async function deleteRoom() {
+    if (!roomToDelete || deletingRoomId) return;
+    setDeleteError("");
+    setDeletingRoomId(roomToDelete.id);
+    try {
+      const response = await fetch(`/api/rooms/${roomToDelete.id}`, { method: "DELETE" });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        setDeleteError(typeof payload.error === "string" ? payload.error : "Could not delete this Room.");
+        return;
+      }
+      setRooms((current) => current.filter((room) => room.id !== roomToDelete.id));
+      setRoomToDelete(null);
+    } catch {
+      setDeleteError("Could not delete this Room. Please try again.");
+    } finally {
+      setDeletingRoomId("");
+    }
+  }
+
   async function logout() {
     await fetch("/api/auth/logout", { method: "POST" });
     router.push("/");
@@ -169,15 +197,25 @@ export default function DashboardPage() {
           <h2 className="text-2xl" style={{ fontFamily: "var(--font-display), serif" }}>Your Rooms</h2>
           <div className="mt-6 space-y-3">
             {rooms.map((room) => (
-              <Link key={room.id} href={`/rooms/${room.id}`} className="block rounded-2xl border-2 border-[var(--line)] bg-black/20 px-4 py-4 transition hover:border-[var(--gold)]">
+              <div key={room.id} className="rounded-2xl border-2 border-[var(--line)] bg-black/20 px-4 py-4 transition hover:border-[var(--gold)]">
                 <div className="flex items-center justify-between gap-3">
-                  <div>
+                  <Link href={`/rooms/${room.id}`} className="min-w-0 flex-1 rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]">
                     <div className="text-lg">{room.name}</div>
                     <div className="line-clamp-2 text-sm text-[var(--muted)]">{room.status}</div>
+                  </Link>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Link href={`/rooms/${room.id}`} className="rounded-lg px-2 py-2 text-[var(--gold-soft)] hover:bg-white/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--gold)]">Open →</Link>
+                    <button
+                      type="button"
+                      onClick={() => askToDeleteRoom(room)}
+                      className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-red-400/35 px-2.5 py-2 text-sm text-red-200 transition hover:border-red-300 hover:bg-red-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300"
+                      aria-label={`Delete ${room.name}`}
+                    >
+                      <Trash2 size={15} /> Delete
+                    </button>
                   </div>
-                  <span className="shrink-0 text-[var(--gold-soft)]">Open →</span>
                 </div>
-              </Link>
+              </div>
             ))}
             {rooms.length === 0 ? <p className="text-sm text-[var(--muted)]">No rooms yet.</p> : null}
           </div>
@@ -215,6 +253,58 @@ export default function DashboardPage() {
           </div>
         </section>
       </div>
+
+      {roomToDelete ? (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="delete-room-title">
+          <div className="w-full max-w-md rounded-3xl border-2 border-red-400/45 bg-[#0d1628] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.68)] md:p-7">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-red-300">Permanent deletion</p>
+                <h2 id="delete-room-title" className="mt-2 text-2xl font-semibold">Delete this Room?</h2>
+              </div>
+              <button
+                type="button"
+                onClick={() => !deletingRoomId && setRoomToDelete(null)}
+                className="rounded-full border border-white/15 p-2 hover:border-white/35 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60"
+                aria-label="Cancel deletion"
+                disabled={Boolean(deletingRoomId)}
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="mt-5 rounded-2xl border border-white/10 bg-black/25 p-4">
+              <div className="text-sm text-[var(--muted)]">Room to delete</div>
+              <div className="mt-1 break-words text-lg font-semibold text-white">{roomToDelete.name}</div>
+            </div>
+
+            <p className="mt-4 text-sm leading-6 text-[var(--muted)]">
+              This permanently removes this Room and its saved messages and documents. This action cannot be undone.
+            </p>
+
+            {deleteError ? <p className="mt-4 rounded-xl border border-red-400/30 bg-red-500/10 p-3 text-sm text-red-200">{deleteError}</p> : null}
+
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setRoomToDelete(null)}
+                className="rc-btn rc-btn-ghost min-h-11"
+                disabled={Boolean(deletingRoomId)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void deleteRoom()}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-red-300/60 bg-red-600/80 px-5 py-2.5 font-semibold text-white transition hover:bg-red-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-200 disabled:cursor-not-allowed disabled:opacity-60"
+                disabled={Boolean(deletingRoomId)}
+              >
+                <Trash2 size={17} /> {deletingRoomId ? "Deleting…" : "Delete permanently"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {builderOpen && currentField ? (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
