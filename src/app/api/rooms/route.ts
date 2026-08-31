@@ -11,7 +11,24 @@ function isSystemCommandRoom(room: { name?: unknown }) {
   return String(room?.name || "").trim().toLowerCase() === "command room";
 }
 
-export async function GET() {
+function isDashboardRequest(request: Request) {
+  try {
+    const referer = request.headers.get("referer");
+    if (!referer) return false;
+    const url = new URL(referer);
+    return url.pathname === "/dashboard" || url.pathname.startsWith("/dashboard/");
+  } catch {
+    return false;
+  }
+}
+
+function roomsForRequest<T extends { name?: unknown }>(request: Request, rooms: T[]) {
+  return isDashboardRequest(request)
+    ? rooms.filter((room) => !isSystemCommandRoom(room))
+    : rooms;
+}
+
+export async function GET(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -25,10 +42,10 @@ export async function GET() {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ rooms: (data || []).filter((room) => !isSystemCommandRoom(room)) });
+    return NextResponse.json({ rooms: roomsForRequest(request, data || []) });
   }
 
-  return NextResponse.json({ rooms: localDb.listRooms().filter((room) => !isSystemCommandRoom(room)) });
+  return NextResponse.json({ rooms: roomsForRequest(request, localDb.listRooms()) });
 }
 
 export async function POST(request: Request) {
