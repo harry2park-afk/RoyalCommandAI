@@ -7,28 +7,7 @@ import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { logger } from "@/lib/logger";
 
-function isSystemCommandRoom(room: { name?: unknown }) {
-  return String(room?.name || "").trim().toLowerCase() === "command room";
-}
-
-function isDashboardRequest(request: Request) {
-  try {
-    const referer = request.headers.get("referer");
-    if (!referer) return false;
-    const url = new URL(referer);
-    return url.pathname === "/dashboard" || url.pathname.startsWith("/dashboard/");
-  } catch {
-    return false;
-  }
-}
-
-function roomsForRequest<T extends { name?: unknown }>(request: Request, rooms: T[]) {
-  return isDashboardRequest(request)
-    ? rooms.filter((room) => !isSystemCommandRoom(room))
-    : rooms;
-}
-
-export async function GET(request: Request) {
+export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
@@ -42,10 +21,10 @@ export async function GET(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ rooms: roomsForRequest(request, data || []) });
+    return NextResponse.json({ rooms: data });
   }
 
-  return NextResponse.json({ rooms: roomsForRequest(request, localDb.listRooms()) });
+  return NextResponse.json({ rooms: localDb.listRooms() });
 }
 
 export async function POST(request: Request) {

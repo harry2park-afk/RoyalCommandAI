@@ -6,7 +6,7 @@ import RightMenuPasteFix from "./RightMenuPasteFix";
 import SpeakerTtsBridge from "./SpeakerTtsBridge";
 import NativeSynthesisButton from "./NativeSynthesisButton";
 
-const ROOM_UI_VERSION = "20260831-room-delete-sync";
+const ROOM_UI_VERSION = "20260829-legal-speaker-recovery";
 
 export default function RoomPage() {
   return (

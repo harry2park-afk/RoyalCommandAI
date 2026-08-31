@@ -6,7 +6,6 @@
   const COUNTRY_ID = "rc-country-shortcut";
   const FINDER_ID = "rc-room-finder-top";
   const currentRoomId = window.location.pathname.split("/").filter(Boolean).pop() || "";
-  let refreshInFlight = false;
 
   const isCountryRoom = (room) => {
     const name = String(room?.name || "").trim().toLowerCase();
@@ -133,36 +132,16 @@
   }
 
   async function load() {
-    if (refreshInFlight) return;
-    refreshInFlight = true;
     try {
       const response = await fetch("/api/rooms", { cache: "no-store" });
       if (!response.ok) return;
       const payload = await response.json();
       const rooms = Array.isArray(payload?.rooms) ? payload.rooms : [];
-
-      if (currentRoomId && currentRoomId !== "rca" && !rooms.some((room) => String(room?.id || "") === currentRoomId)) {
-        window.location.replace("/dashboard");
-        return;
-      }
-
       if (mount(rooms)) return;
       let tries = 0;
       const timer = setInterval(() => { tries += 1; if (mount(rooms) || tries >= 20) clearInterval(timer); }, 150);
-    } catch {
-      // Keep the last known switcher visible during a transient network error.
-    } finally {
-      refreshInFlight = false;
-    }
+    } catch {}
   }
-
-  const refreshWhenVisible = () => {
-    if (document.visibilityState === "visible") void load();
-  };
-
-  window.addEventListener("focus", load);
-  document.addEventListener("visibilitychange", refreshWhenVisible);
-  window.addEventListener("pageshow", load);
 
   void load();
 })();
