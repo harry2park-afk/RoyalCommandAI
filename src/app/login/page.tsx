@@ -81,6 +81,7 @@ function LoginForm() {
   const restartTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocale(navigator.language || "en-AU");
     return () => {
       if (restartTimer.current) window.clearTimeout(restartTimer.current);
@@ -337,7 +338,7 @@ function LoginForm() {
   const gateOpen = gateState === "gate-opening";
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-8 md:px-6">
+    <main className="relative min-h-screen overflow-x-hidden overflow-y-auto px-4 py-8 md:px-6">
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_38%)]" />
       <div className="relative mx-auto grid min-h-[90vh] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
         <section className="flex flex-col items-center text-center">
