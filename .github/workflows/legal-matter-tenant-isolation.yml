@@ -45,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           # Full repository migration replay is independently blocked by #592.
-          # This workflow therefore proves only the exact #446 tenant-isolation
+          # This workflow therefore proves only the exact #446/#593 tenant-isolation
           # candidate against a disposable local schema shaped from read-only
           # Production evidence. It never uses hosted credentials or Production DDL.
           mv supabase/migrations supabase/migrations-full

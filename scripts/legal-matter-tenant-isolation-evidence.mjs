@@ -92,6 +92,7 @@ try {
   const matterB = seeded.find((row) => row.client_id === clientB.id);
   assert(matterA && matterB, 'Failed to resolve seeded matters');
 
+  // Client tenant isolation before any staff assignment.
   const { data: clientARows, error: clientASelectError } = await clientA.client
     .from('matters').select('id,client_id').like('title', `${marker}%`);
   if (clientASelectError) throw clientASelectError;
@@ -107,6 +108,7 @@ try {
   if (staffBeforeError) throw staffBeforeError;
   assert(staffBefore.length === 0, 'unassigned staff must see zero tenant matters');
 
+  // Client can open an unassigned own matter, but cannot self-assign staff.
   const { data: clientCreated, error: clientCreateError } = await clientA.client
     .from('matters')
     .insert({ client_id: clientA.id, service_line: 'legal', title: `${marker}CLIENT_CREATE`, summary: 'self intake' })
@@ -128,6 +130,7 @@ try {
     'ordinary staff arbitrary client creation',
   );
 
+  // Only admin can assign and only a real staff profile may be assigned.
   const { data: assignResult, error: assignError } = await admin.client.rpc('set_matter_staff_assignment', {
     p_matter_id: matterA.id,
     p_staff_id: staffA.id,
@@ -149,6 +152,7 @@ try {
   if (staffBError) throw staffBError;
   assert(staffBRows.length === 0, 'unassigned staff B must see no tenant matter');
 
+  // Protected tenant fields must be immutable through ordinary direct UPDATE.
   const { error: clientTransferError } = await clientA.client
     .from('matters').update({ client_id: clientB.id }).eq('id', matterA.id);
   assert(clientTransferError, 'client direct client_id transfer must be denied at column privilege boundary');
@@ -171,6 +175,7 @@ try {
   if (crossUpdateError) throw crossUpdateError;
   assert(crossUpdate.length === 0, 'assigned staff must not update unrelated matter');
 
+  // Child tables inherit the parent tenant boundary.
   const { error: ownMessageError } = await staffA.client.from('matter_messages').insert({
     matter_id: matterA.id, author_id: staffA.id, body: 'allowed assigned-staff message',
   });
@@ -195,6 +200,7 @@ try {
     user_id: clientA.id, matter_id: matterB.id,
   }, 'client cross-tenant chat read');
 
+  // Admin sees both tenants, can unassign, and unassignment immediately removes staff access.
   const { data: adminRows, error: adminSelectError } = await admin.client
     .from('matters').select('id').like('title', `${marker}%`);
   if (adminSelectError) throw adminSelectError;
