@@ -28,6 +28,10 @@ function normaliseMessages(messages: unknown[]) {
   });
 }
 
+function isSystemCommandRoom(room: { name?: unknown } | null | undefined) {
+  return String(room?.name || "").trim().toLowerCase() === "command room";
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -142,20 +146,35 @@ export async function DELETE(
     const supabase = await createClient();
     const { data: ownedRoom, error: ownershipError } = await supabase
       .from("rooms")
-      .select("id")
+      .select("id, name")
       .eq("id", id)
       .eq("room_owner_id", user.id)
       .single();
     if (ownershipError || !ownedRoom) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+    if (isSystemCommandRoom(ownedRoom)) {
+      return NextResponse.json({ error: "Command Room is a protected system Room." }, { status: 403 });
+    }
 
     await supabase.from("messages").delete().eq("room_id", id);
     await supabase.from("documents").delete().eq("room_id", id);
     await supabase.from("room_members").delete().eq("room_id", id);
-    const { error } = await supabase.from("rooms").delete().eq("id", id).eq("room_owner_id", user.id);
+    const { data: deletedRoom, error } = await supabase
+      .from("rooms")
+      .delete()
+      .eq("id", id)
+      .eq("room_owner_id", user.id)
+      .select("id")
+      .maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!deletedRoom) return NextResponse.json({ error: "Room was not deleted" }, { status: 409 });
     return NextResponse.json({ ok: true });
   }
 
+  const existingRoom = localDb.getRoom(id);
+  if (!existingRoom) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+  if (isSystemCommandRoom(existingRoom)) {
+    return NextResponse.json({ error: "Command Room is a protected system Room." }, { status: 403 });
+  }
   const deleted = localDb.deleteRoom(id);
   return deleted
     ? NextResponse.json({ ok: true })
