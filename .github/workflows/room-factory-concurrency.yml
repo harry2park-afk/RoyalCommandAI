@@ -41,6 +41,78 @@ jobs:
         with:
           version: latest
 
+      - name: Bootstrap production-equivalent private helpers for isolated replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Production has these helpers from an older migration lineage that is
+          # not present in the checked-in clean-replay chain. This roles.sql is
+          # generated only on the disposable CI runner. It is never applied to a
+          # hosted project and is not a substitute for reconciling migration drift.
+          cat > supabase/roles.sql <<'SQL'
+          create schema if not exists private;
+
+          create or replace function private.is_room_member(r_id uuid)
+          returns boolean
+          language plpgsql
+          stable
+          security definer
+          set search_path = public
+          as $$
+          begin
+            return exists (
+              select 1 from public.room_members
+              where room_id = r_id and user_id = auth.uid()
+            );
+          end;
+          $$;
+
+          create or replace function private.is_household_member(h_id uuid)
+          returns boolean
+          language plpgsql
+          stable
+          security definer
+          set search_path = public
+          as $$
+          begin
+            return exists (
+              select 1 from public.household_members
+              where household_id = h_id and user_id = auth.uid()
+            );
+          end;
+          $$;
+
+          create or replace function private.is_matter_client(m_id uuid)
+          returns boolean
+          language plpgsql
+          stable
+          security definer
+          set search_path = public
+          as $$
+          begin
+            return exists (
+              select 1 from public.matters
+              where id = m_id and client_id = auth.uid()
+            );
+          end;
+          $$;
+
+          create or replace function private.is_staff_or_admin()
+          returns boolean
+          language plpgsql
+          stable
+          security definer
+          set search_path = public
+          as $$
+          begin
+            return exists (
+              select 1 from public.profiles
+              where id = auth.uid() and role in ('staff', 'admin')
+            );
+          end;
+          $$;
+          SQL
+
       - name: Start isolated Supabase stack
         run: supabase start
 
