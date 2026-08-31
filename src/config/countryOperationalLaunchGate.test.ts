@@ -6,6 +6,8 @@ import {
   type CountryOperationalEvidence,
 } from "./countryOperationalLaunchGate";
 
+const FIRST_WAVE_COUNTRY_CODES = ["AU", "CA", "GB", "JP", "KR", "US"] as const;
+
 const unverifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "NEEDS_REVIEW",
   authCallback: "NEEDS_REVIEW",
@@ -49,10 +51,14 @@ function makeCountryGateReady(config: CountryConfig): CountryConfig {
 }
 
 describe("country operational launch readiness gate", () => {
-  it("covers the six first-wave country configurations", () => {
-    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "GB", "JP", "KR", "US"]);
+  it("keeps all six first-wave countries configured and fails every configured country closed without operational evidence", () => {
+    const configuredCountryCodes = getConfiguredCountryCodes();
 
-    for (const countryCode of getConfiguredCountryCodes()) {
+    for (const countryCode of FIRST_WAVE_COUNTRY_CODES) {
+      expect(configuredCountryCodes, countryCode).toContain(countryCode);
+    }
+
+    for (const countryCode of configuredCountryCodes) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
 
