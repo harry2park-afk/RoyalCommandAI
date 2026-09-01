@@ -33,6 +33,15 @@ describe("professional room directory", () => {
       expect(resolved).not.toBeNull();
       expect(resolved?.productId).toBe(room.productId);
       expect(resolved?.vault).toBe(room.vault);
+      expect(resolved?.crossVaultStorageAllowed).toBe(false);
+    }
+  });
+
+  it("uses ShareGrant virtual view for bridge_la instead of cross-vault storage", () => {
+    for (const room of getProfessionalRoomsByProductId("bridge_la")) {
+      const resolved = resolveProfessionalRoomTemplate(room.id);
+      expect(resolved?.sharedDataMode).toBe("SHAREGRANT_VIRTUAL_VIEW");
+      expect(resolved?.crossVaultStorageAllowed).toBe(false);
     }
   });
 
