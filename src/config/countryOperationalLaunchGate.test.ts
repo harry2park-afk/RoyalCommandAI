@@ -13,6 +13,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   authCallback: "NEEDS_REVIEW",
   sessionCookies: "NEEDS_REVIEW",
   communicationsRules: "NEEDS_REVIEW",
+  recordingCompliance: "NEEDS_REVIEW",
   dataResidency: "NEEDS_REVIEW",
   tenantIsolation: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
@@ -28,6 +29,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   authCallback: "VERIFIED",
   sessionCookies: "VERIFIED",
   communicationsRules: "VERIFIED",
+  recordingCompliance: "VERIFIED",
   dataResidency: "VERIFIED",
   tenantIsolation: "VERIFIED",
   localization: "VERIFIED",
@@ -72,6 +74,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.launchable, countryCode).toBe(false);
       expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("RECORDING_COMPLIANCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("SERVICE_COUNTRY_TERMS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
@@ -94,6 +97,7 @@ describe("country operational launch readiness gate", () => {
     ["tenantIsolation", "TENANT_ISOLATION_NOT_VERIFIED"],
     ["serviceCountryTerms", "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"],
     ["paymentOperations", "PAYMENT_OPERATIONS_NOT_VERIFIED"],
+    ["recordingCompliance", "RECORDING_COMPLIANCE_NOT_VERIFIED"],
   ] as const)("fails closed when %s evidence is missing even when the static country gate is ready", (key, blocker) => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
