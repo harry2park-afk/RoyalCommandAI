@@ -179,8 +179,15 @@ export default function FirstMeetingWindowV2({ customer }: { customer: CustomerI
       const responseText = aiText.trim() || copy.fallback(clean);
       setCaption(`${responseText}\n\n${copy.ready}`);
       window.sessionStorage.setItem(`rc_first_meeting_${roomId}`, JSON.stringify({ encounterSessionId, user: clean, assistant: responseText }));
-      speak(responseText, () => window.setTimeout(() => router.push(`/rooms/${roomId}`), 700));
-      if (!voiceEnabled) window.setTimeout(() => router.push(`/rooms/${roomId}`), 1800);
+      const enterRoom = () => {
+        if (window.sessionStorage.getItem("rc_encounter_session_id") === encounterSessionId) {
+          window.sessionStorage.removeItem("rc_encounter_session_id");
+          encounterIdRef.current = "";
+        }
+        router.push(`/rooms/${roomId}`);
+      };
+      speak(responseText, () => window.setTimeout(enterRoom, 700));
+      if (!voiceEnabled) window.setTimeout(enterRoom, 1800);
     } catch {
       setStage("fallback"); setError(copy.voiceFail); setCaption(copy.fallback(clean));
     } finally { setBusy(false); }
