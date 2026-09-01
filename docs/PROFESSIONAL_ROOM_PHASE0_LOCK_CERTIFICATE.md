@@ -73,6 +73,10 @@ The repository contains an authenticated explicit Codex specialist route at `/ap
 
 Before the first HIGH-RISK implementation merge, live Codex code/security review is mandatory and must be recorded with Host-verifiable evidence. Any P0 finding blocks that merge until resolved.
 
+## Verification note
+
+PR #623 metadata was normalized to the repository Change Control contract before this evidence refresh so the exact-head governance workflows can rerun against the required PR sections.
+
 ## Production
 
 `PRODUCTION CHANGE = NONE`
