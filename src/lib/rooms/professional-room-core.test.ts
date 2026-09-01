@@ -52,18 +52,52 @@ describe("Professional capability fail-closed policy", () => {
       risk: "REGULATED",
       countryPackRequired: true,
       countryPackVerified: false,
-      jurisdictionReviewVerified: false,
+      jurisdictionReview: "LEGAL_REVIEW_REQUIRED",
     });
     expect(decision.defaultState).toBe("OFF");
     expect(decision.reasons).toContain("COUNTRY_PACK_NOT_VERIFIED");
-    expect(decision.reasons).toContain("JURISDICTION_REVIEW_NOT_VERIFIED");
+    expect(decision.reasons).toContain("JURISDICTION_LEGAL_REVIEW_REQUIRED");
   });
 
-  it("keeps every external side effect DEFAULT DENY", () => {
-    const decision = decideProfessionalCapability({ risk: "LOW", externalSideEffect: true });
+  it("demotes expired or blocked jurisdiction review to OFF", () => {
+    for (const jurisdictionReview of ["EXPIRED_REVIEW", "BLOCKED", "NOT_SUPPORTED"] as const) {
+      const decision = decideProfessionalCapability({
+        risk: "HIGH",
+        countryPackRequired: true,
+        countryPackVerified: true,
+        jurisdictionReview,
+      });
+      expect(decision.defaultState).toBe("OFF");
+    }
+  });
+
+  it("keeps every external side effect DEFAULT DENY even with a valid approval grant", () => {
+    const decision = decideProfessionalCapability({
+      risk: "LOW",
+      externalSideEffect: true,
+      approvalGrant: "VALID",
+    });
     expect(decision.defaultState).toBe("OFF");
     expect(decision.externalSideEffectAllowedByDefault).toBe(false);
     expect(decision.humanConfirmationRequired).toBe(true);
+  });
+
+  it("requires a formal valid ApprovalGrant for side effects", () => {
+    const missing = decideProfessionalCapability({
+      risk: "HIGH",
+      externalSideEffect: true,
+      approvalGrant: "MISSING",
+    });
+    expect(missing.reasons).toContain("APPROVAL_GRANT_MISSING");
+    expect(missing.reasons).toContain("APPROVAL_GRANT_REQUIRED_FOR_SIDE_EFFECT");
+  });
+
+  it("blocks expired or revoked delegation authority", () => {
+    for (const delegationGrant of ["EXPIRED", "REVOKED"] as const) {
+      const decision = decideProfessionalCapability({ risk: "MEDIUM", delegationGrant });
+      expect(decision.defaultState).toBe("OFF");
+      expect(decision.reasons.some((reason) => reason.startsWith("DELEGATION_GRANT_"))).toBe(true);
+    }
   });
 
   it("does not report a connector as connected before verification", () => {
