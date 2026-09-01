@@ -45,22 +45,19 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # The repository's complete migration chain currently has independent
-          # historical replay drift tracked in launch blocker #592. Do not hide
-          # that defect with fake unrelated tables. For #590 we instead create a
-          # runner-only fixture containing only the schema/RLS dependencies and
-          # the exact Room Factory migrations under test.
+          # Keep this targeted evidence fixture small. Full repository replay is
+          # independently enforced by Supabase Clean Replay Evidence.
           mv supabase/migrations supabase/migrations-full
           mkdir supabase/migrations
           cp supabase/migrations-full/001_init.sql supabase/migrations/
           cp supabase/migrations-full/002_rls.sql supabase/migrations/
           cp supabase/migrations-full/20260829211500_room_factory_manifests.sql supabase/migrations/
           cp supabase/migrations-full/20260831084700_atomic_room_factory_encounter_creation.sql supabase/migrations/
+          cp supabase/migrations-full/20260901022500_harden_room_factory_atomic_invoker.sql supabase/migrations/
 
-          # Production has private.is_room_member from an older migration lineage.
-          # Match that read-only verified helper only for this disposable runner so
-          # the manifest RLS policy has its real dependency. This file is never
-          # committed as a migration and never applied to a hosted project.
+          # Production has private.is_room_member from the canonical recovered
+          # lineage. Match that helper only for this focused disposable fixture;
+          # the full clean-replay workflow proves the repository recovery chain.
           cat > supabase/roles.sql <<'SQL'
           create schema if not exists private;
 
@@ -83,13 +80,15 @@ jobs:
       - name: Start isolated Supabase stack
         run: supabase start
 
-      - name: Prove atomic RPC privilege boundary
+      - name: Prove atomic RPC privilege and invoker boundary
         shell: bash
         run: |
           set -euo pipefail
           eval "$(supabase status -o env)"
           psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
           do $$
+          declare
+            v_public_security_definer boolean;
           begin
             if has_function_privilege('authenticated', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
               raise exception 'authenticated must not execute private Room Factory implementation';
@@ -100,14 +99,26 @@ jobs:
             if has_function_privilege('service_role', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
               raise exception 'service_role must not execute private Room Factory implementation directly';
             end if;
+
             if not has_function_privilege('authenticated', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
-              raise exception 'authenticated must execute public Room Factory wrapper';
+              raise exception 'authenticated must execute public Room Factory entrypoint';
             end if;
-            if not has_function_privilege('service_role', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
-              raise exception 'service_role must execute public Room Factory wrapper';
+            if has_function_privilege('service_role', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'service_role must not execute public Room Factory entrypoint';
             end if;
             if has_function_privilege('anon', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
-              raise exception 'anon must not execute public Room Factory wrapper';
+              raise exception 'anon must not execute public Room Factory entrypoint';
+            end if;
+
+            select p.prosecdef
+            into v_public_security_definer
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'public'
+              and p.oid = 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)'::regprocedure;
+
+            if v_public_security_definer is distinct from false then
+              raise exception 'public Room Factory entrypoint must be SECURITY INVOKER';
             end if;
           end;
           $$;
@@ -136,7 +147,7 @@ jobs:
           for each row execute function public.rc_test_force_room_factory_manifest_failure();
           SQL
 
-      - name: Prove rollback and same-owner same-encounter concurrency
+      - name: Prove RLS-bound rollback and same-owner same-encounter concurrency
         shell: bash
         run: |
           set -euo pipefail
