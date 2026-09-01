@@ -11,12 +11,14 @@ const FIRST_WAVE_COUNTRY_CODES = ["AU", "CA", "GB", "JP", "KR", "US"] as const;
 const unverifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "NEEDS_REVIEW",
   authCallback: "NEEDS_REVIEW",
+  authRecovery: "NEEDS_REVIEW",
   sessionCookies: "NEEDS_REVIEW",
   communicationsRules: "NEEDS_REVIEW",
   recordingCompliance: "NEEDS_REVIEW",
   dataResidency: "NEEDS_REVIEW",
   tenantIsolation: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
+  roomFactoryPersistence: "NEEDS_REVIEW",
   requiredIntegrations: "NEEDS_REVIEW",
   serviceCountryTerms: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
@@ -27,12 +29,14 @@ const unverifiedEvidence: CountryOperationalEvidence = {
 const verifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
   authCallback: "VERIFIED",
+  authRecovery: "VERIFIED",
   sessionCookies: "VERIFIED",
   communicationsRules: "VERIFIED",
   recordingCompliance: "VERIFIED",
   dataResidency: "VERIFIED",
   tenantIsolation: "VERIFIED",
   localization: "VERIFIED",
+  roomFactoryPersistence: "VERIFIED",
   requiredIntegrations: "VERIFIED",
   serviceCountryTerms: "VERIFIED",
   paymentOperations: "VERIFIED",
@@ -74,8 +78,10 @@ describe("country operational launch readiness gate", () => {
       expect(gate.launchable, countryCode).toBe(false);
       expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("AUTH_RECOVERY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("RECORDING_COMPLIANCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("SERVICE_COUNTRY_TERMS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
@@ -94,7 +100,9 @@ describe("country operational launch readiness gate", () => {
   });
 
   it.each([
+    ["authRecovery", "AUTH_RECOVERY_NOT_VERIFIED"],
     ["tenantIsolation", "TENANT_ISOLATION_NOT_VERIFIED"],
+    ["roomFactoryPersistence", "ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED"],
     ["serviceCountryTerms", "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"],
     ["paymentOperations", "PAYMENT_OPERATIONS_NOT_VERIFIED"],
     ["recordingCompliance", "RECORDING_COMPLIANCE_NOT_VERIFIED"],
