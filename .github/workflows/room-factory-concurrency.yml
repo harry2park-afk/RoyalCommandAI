@@ -1,0 +1,155 @@
+name: Room Factory Concurrency Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/app/api/room-factory/rooms/route.ts"
+      - "supabase/migrations/**"
+      - "scripts/room-factory-concurrency-evidence.mjs"
+      - ".github/workflows/room-factory-concurrency.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-room-factory-concurrency-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  concurrency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies reproducibly
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Prepare minimal Room Factory migration fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The repository's complete migration chain currently has independent
+          # historical replay drift tracked in launch blocker #592. Do not hide
+          # that defect with fake unrelated tables. For #590 we instead create a
+          # runner-only fixture containing only the schema/RLS dependencies and
+          # the exact Room Factory migrations under test.
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+          cp supabase/migrations-full/001_init.sql supabase/migrations/
+          cp supabase/migrations-full/002_rls.sql supabase/migrations/
+          cp supabase/migrations-full/20260829211500_room_factory_manifests.sql supabase/migrations/
+          cp supabase/migrations-full/20260831084700_atomic_room_factory_encounter_creation.sql supabase/migrations/
+
+          # Production has private.is_room_member from an older migration lineage.
+          # Match that read-only verified helper only for this disposable runner so
+          # the manifest RLS policy has its real dependency. This file is never
+          # committed as a migration and never applied to a hosted project.
+          cat > supabase/roles.sql <<'SQL'
+          create schema if not exists private;
+
+          create or replace function private.is_room_member(r_id uuid)
+          returns boolean
+          language plpgsql
+          stable
+          security definer
+          set search_path = public
+          as $$
+          begin
+            return exists (
+              select 1 from public.room_members
+              where room_id = r_id and user_id = auth.uid()
+            );
+          end;
+          $$;
+          SQL
+
+      - name: Start isolated Supabase stack
+        run: supabase start
+
+      - name: Prove atomic RPC privilege boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if has_function_privilege('authenticated', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'authenticated must not execute private Room Factory implementation';
+            end if;
+            if has_function_privilege('anon', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'anon must not execute private Room Factory implementation';
+            end if;
+            if has_function_privilege('service_role', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'service_role must not execute private Room Factory implementation directly';
+            end if;
+            if not has_function_privilege('authenticated', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'authenticated must execute public Room Factory wrapper';
+            end if;
+            if not has_function_privilege('service_role', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'service_role must execute public Room Factory wrapper';
+            end if;
+            if has_function_privilege('anon', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'anon must not execute public Room Factory wrapper';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Install local-only rollback fault injection
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          create or replace function public.rc_test_force_room_factory_manifest_failure()
+          returns trigger
+          language plpgsql
+          as $$
+          begin
+            if coalesce(new.manifest->>'forceRollback', 'false') = 'true' then
+              raise exception 'RC_TEST_FORCED_MANIFEST_FAILURE';
+            end if;
+            return new;
+          end;
+          $$;
+
+          create trigger rc_test_force_room_factory_manifest_failure
+          before insert on public.room_factory_manifests
+          for each row execute function public.rc_test_force_room_factory_manifest_failure();
+          SQL
+
+      - name: Prove rollback and same-owner same-encounter concurrency
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_CONCURRENCY_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_CONCURRENCY_ANON_KEY="$ANON_KEY"
+          export RC_CONCURRENCY_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_CONCURRENCY_TEST_EMAIL="rc-concurrency-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.test"
+          export RC_CONCURRENCY_TEST_PASSWORD="RC-Local-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
+          export RC_CONCURRENCY_ALLOW_LOCALHOST=1
+          export RC_CONCURRENCY_FORCE_ROLLBACK_TEST=1
+          node scripts/room-factory-concurrency-evidence.mjs
+
+      - name: Stop isolated Supabase stack
+        if: always()
+        run: supabase stop --no-backup
