@@ -3,9 +3,9 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Mic, Send, Volume2 } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { firstMeetingLocaleFrom, firstMeetingSpeechLanguage, type FirstMeetingLocaleKey } from "@/lib/locale/firstMeetingLocale";
 
 type CustomerInfo = { id: string; fullName: string; defaultLanguage: string; countryCode: string };
-type LocaleKey = "en" | "ko" | "ja" | "zh" | "vi" | "id" | "th" | "hi";
 type Stage = "idle" | "listening" | "thinking" | "speaking" | "fallback";
 type Copy = {
   headline: string; greeting: string; start: string; listening: string; speaking: string; thinking: string; paused: string;
@@ -13,8 +13,9 @@ type Copy = {
   starters: [string, string, string]; fallback: (input: string) => string;
 };
 
-const COPY: Record<LocaleKey, Copy> = {
+const COPY: Record<FirstMeetingLocaleKey, Copy> = {
   en: { headline: "Speak. We move for you.", greeting: "Welcome. I’m Royal Command AI. You are in command here. No need to learn anything—just speak. I’m listening.", start: "Start AI", listening: "Listening", speaking: "Speaking", thinking: "Understanding", paused: "Ready when you are", placeholder: "Or tell me here…", sound: "Hear AI", micFail: "The microphone isn’t ready. That’s fine—tell me below in writing.", voiceFail: "I couldn’t speak aloud, but I’m still here. We can continue in text.", preparing: "I’m preparing your basic Room while we talk…", ready: "Your Room is ready. I’ll continue with you there.", starters: ["What can you do for me?", "Recommend what I need", "Just help me get started"], fallback: (input) => `I heard you: “${input}”. I’ve prepared a basic Room so we can start with the most useful next step and improve it as we go.` },
+  fr: { headline: "Parlez. Nous agissons pour vous.", greeting: "Bienvenue. Je suis Royal Command AI. Ici, vous êtes aux commandes. Rien de compliqué à apprendre — parlez simplement. Je vous écoute.", start: "Démarrer l’IA", listening: "Je vous écoute", speaking: "Je vous réponds", thinking: "Je comprends", paused: "Parlez quand vous êtes prêt", placeholder: "Ou écrivez-moi ici…", sound: "Écouter l’IA", micFail: "Le microphone n’est pas encore prêt. Ce n’est pas grave — écrivez-moi ci-dessous.", voiceFail: "Je n’ai pas pu parler à voix haute, mais je suis toujours là. Nous pouvons continuer par écrit.", preparing: "Je prépare votre Room de base pendant que nous parlons…", ready: "Votre Room est prête. Je vais continuer avec vous là-bas.", starters: ["Que pouvez-vous faire pour moi ?", "Recommandez-moi ce dont j’ai besoin", "Aidez-moi simplement à commencer"], fallback: (input) => `Je vous ai entendu dire : « ${input} ». J’ai préparé une Room de base afin que nous puissions commencer par l’étape la plus utile et l’améliorer au fur et à mesure.` },
   ko: { headline: "말씀하세요. 당신을 위해 움직입니다.", greeting: "환영합니다. 저는 Royal Command AI입니다. 이곳에서는 고객님이 주인입니다. 배우실 필요 없습니다. 편하게 말씀해 주세요. 제가 듣겠습니다.", start: "AI 시작하기", listening: "듣고 있어요", speaking: "말씀드리는 중", thinking: "이해하고 있어요", paused: "편하게 말씀해 주세요", placeholder: "또는 여기에 말씀해 주세요…", sound: "AI 소리 듣기", micFail: "마이크가 아직 준비되지 않았네요. 괜찮습니다. 아래에 글로 말씀해 주세요.", voiceFail: "소리가 나오지 않아도 괜찮습니다. 글로 그대로 이어서 도와드릴게요.", preparing: "말씀하시는 동안 기본 Room을 준비하고 있습니다…", ready: "Room을 준비했습니다. 그 안에서도 같은 대화를 계속하겠습니다.", starters: ["무엇을 할 수 있나요?", "제가 필요한 걸 추천해 주세요", "그냥 시작해 주세요"], fallback: (input) => `“${input}”라고 말씀하셨군요. 바로 시작할 수 있는 기본 Room을 준비했습니다. 가장 필요한 일부터 하나씩 같이 해결하겠습니다.` },
   ja: { headline: "話してください。あなたのために動きます。", greeting: "ようこそ。Royal Command AIです。ここではあなたが主役です。難しいことを覚える必要はありません。気軽に話してください。聞いています。", start: "AIを始める", listening: "聞いています", speaking: "話しています", thinking: "理解しています", paused: "いつでも話してください", placeholder: "または、ここに入力してください…", sound: "AIの音声を聞く", micFail: "マイクがまだ使えません。大丈夫です。下に文字で入力してください。", voiceFail: "音声が出なくても大丈夫です。文字でそのまま続けられます。", preparing: "お話を聞きながら基本のRoomを準備しています…", ready: "Roomの準備ができました。このまま会話を続けます。", starters: ["何ができますか？", "必要なものを提案して", "まず始めてください"], fallback: (input) => `「${input}」とお聞きしました。すぐ始められる基本のRoomを準備しました。` },
   zh: { headline: "请说。我们为你行动。", greeting: "欢迎。我是 Royal Command AI。在这里你做主。不需要学习复杂操作，直接告诉我就好。我在听。", start: "启动 AI", listening: "正在倾听", speaking: "正在说话", thinking: "正在理解", paused: "随时告诉我", placeholder: "也可以在这里输入…", sound: "听听 AI", micFail: "麦克风还没准备好。没关系，请在下面输入告诉我。", voiceFail: "即使没有声音也没关系，我们可以继续用文字交流。", preparing: "我正在一边听你说，一边准备基础 Room…", ready: "Room 已准备好。进去后我们会继续同一段对话。", starters: ["你能为我做什么？", "请推荐我需要的功能", "先帮我开始吧"], fallback: (input) => `我听到你说：“${input}”。我已经准备好一个基础 Room。` },
@@ -23,22 +24,6 @@ const COPY: Record<LocaleKey, Copy> = {
   th: { headline: "พูดได้เลย เราจะลงมือเพื่อคุณ", greeting: "ยินดีต้อนรับ ฉันคือ Royal Command AI ที่นี่คุณเป็นผู้ตัดสินใจ ไม่ต้องเรียนรู้ขั้นตอนยุ่งยาก แค่พูดได้เลย ฉันกำลังฟังอยู่", start: "เริ่ม AI", listening: "กำลังฟัง", speaking: "กำลังพูด", thinking: "กำลังทำความเข้าใจ", paused: "พูดได้เมื่อพร้อม", placeholder: "หรือพิมพ์บอกฉันที่นี่…", sound: "ฟังเสียง AI", micFail: "ไมโครโฟนยังไม่พร้อม ไม่เป็นไร พิมพ์บอกฉันด้านล่างได้เลย", voiceFail: "ถ้ายังไม่ได้ยินเสียงก็ไม่เป็นไร เราคุยต่อด้วยข้อความได้", preparing: "ฉันกำลังเตรียม Room พื้นฐานระหว่างที่ฟังคุณ…", ready: "Room พร้อมแล้ว เราจะคุยต่อกันที่นั่น", starters: ["คุณช่วยอะไรฉันได้บ้าง?", "แนะนำสิ่งที่ฉันต้องการ", "ช่วยฉันเริ่มเลย"], fallback: (input) => `ฉันได้ยินคุณว่า “${input}” ฉันเตรียม Room พื้นฐานแล้ว` },
   hi: { headline: "बोलिए। हम आपके लिए काम करेंगे।", greeting: "स्वागत है। मैं Royal Command AI हूँ। यहाँ नियंत्रण आपके हाथ में है। कुछ सीखने की ज़रूरत नहीं—बस बोलिए। मैं सुन रहा हूँ।", start: "AI शुरू करें", listening: "सुन रहा हूँ", speaking: "बोल रहा हूँ", thinking: "समझ रहा हूँ", paused: "जब चाहें बोलिए", placeholder: "या यहाँ लिखकर बताइए…", sound: "AI की आवाज़ सुनें", micFail: "माइक्रोफ़ोन अभी तैयार नहीं है। कोई बात नहीं, नीचे लिखकर बताइए।", voiceFail: "आवाज़ न आए तो भी ठीक है। हम टेक्स्ट में आगे बढ़ सकते हैं।", preparing: "आपकी बात सुनते हुए मैं आपका बेसिक Room तैयार कर रहा हूँ…", ready: "आपका Room तैयार है। वहीं इसी बातचीत को जारी रखूँगा।", starters: ["आप मेरे लिए क्या कर सकते हैं?", "मुझे क्या चाहिए, सुझाइए", "बस शुरू करने में मदद करें"], fallback: (input) => `मैंने सुना: “${input}”। मैंने एक बेसिक Room तैयार कर दिया है।` },
 };
-
-function localeFrom(value: string): LocaleKey {
-  const v = value.toLowerCase();
-  if (v.startsWith("ko")) return "ko";
-  if (v.startsWith("ja")) return "ja";
-  if (v.startsWith("zh")) return "zh";
-  if (v.startsWith("vi")) return "vi";
-  if (v.startsWith("id")) return "id";
-  if (v.startsWith("th")) return "th";
-  if (v.startsWith("hi")) return "hi";
-  return "en";
-}
-
-function speechLanguage(locale: LocaleKey) {
-  return ({ en: "en-AU", ko: "ko-KR", ja: "ja-JP", zh: "zh-CN", vi: "vi-VN", id: "id-ID", th: "th-TH", hi: "hi-IN" } as const)[locale];
-}
 
 type RecognitionEventLike = { results: ArrayLike<{ 0: { transcript: string } }> };
 type RecognitionLike = { lang: string; interimResults: boolean; continuous: boolean; start: () => void; stop: () => void; onresult: ((event: RecognitionEventLike) => void) | null; onerror: (() => void) | null; onend: (() => void) | null };
@@ -71,7 +56,7 @@ function extractAiText(payload: unknown): string {
 
 export default function FirstMeetingWindowV2({ customer }: { customer: CustomerInfo }) {
   const router = useRouter();
-  const locale = useMemo(() => localeFrom(customer.defaultLanguage || "en"), [customer.defaultLanguage]);
+  const locale = useMemo(() => firstMeetingLocaleFrom(customer.defaultLanguage || "en", customer.countryCode), [customer.defaultLanguage, customer.countryCode]);
   const copy = COPY[locale];
   const [stage, setStage] = useState<Stage>("idle");
   const [text, setText] = useState("");
@@ -101,7 +86,7 @@ export default function FirstMeetingWindowV2({ customer }: { customer: CustomerI
     if (!voiceEnabled || typeof window === "undefined" || !("speechSynthesis" in window)) { onEnd?.(); return; }
     window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(message);
-    utterance.lang = speechLanguage(locale);
+    utterance.lang = firstMeetingSpeechLanguage(locale, customer.countryCode);
     utterance.rate = 0.98;
     utterance.volume = 1;
     utterance.onstart = () => setStage("speaking");
@@ -124,7 +109,7 @@ export default function FirstMeetingWindowV2({ customer }: { customer: CustomerI
     if (!Recognition) { setStage("fallback"); setError(copy.micFail); return; }
     try {
       const recognition = new Recognition();
-      recognition.lang = speechLanguage(locale);
+      recognition.lang = firstMeetingSpeechLanguage(locale, customer.countryCode);
       recognition.interimResults = false;
       recognition.continuous = false;
       recognition.onresult = (event) => {
@@ -179,8 +164,15 @@ export default function FirstMeetingWindowV2({ customer }: { customer: CustomerI
       const responseText = aiText.trim() || copy.fallback(clean);
       setCaption(`${responseText}\n\n${copy.ready}`);
       window.sessionStorage.setItem(`rc_first_meeting_${roomId}`, JSON.stringify({ encounterSessionId, user: clean, assistant: responseText }));
-      speak(responseText, () => window.setTimeout(() => router.push(`/rooms/${roomId}`), 700));
-      if (!voiceEnabled) window.setTimeout(() => router.push(`/rooms/${roomId}`), 1800);
+      const enterRoom = () => {
+        if (window.sessionStorage.getItem("rc_encounter_session_id") === encounterSessionId) {
+          window.sessionStorage.removeItem("rc_encounter_session_id");
+          encounterIdRef.current = "";
+        }
+        router.push(`/rooms/${roomId}`);
+      };
+      speak(responseText, () => window.setTimeout(enterRoom, 700));
+      if (!voiceEnabled) window.setTimeout(enterRoom, 1800);
     } catch {
       setStage("fallback"); setError(copy.voiceFail); setCaption(copy.fallback(clean));
     } finally { setBusy(false); }
