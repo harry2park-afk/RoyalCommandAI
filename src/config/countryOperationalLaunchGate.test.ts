@@ -22,6 +22,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   tenantIsolation: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
   roomFactoryPersistence: "NEEDS_REVIEW",
+  schemaMigrationParity: "NEEDS_REVIEW",
   requiredIntegrations: "NEEDS_REVIEW",
   serviceCountryTerms: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
@@ -44,6 +45,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   tenantIsolation: "VERIFIED",
   localization: "VERIFIED",
   roomFactoryPersistence: "VERIFIED",
+  schemaMigrationParity: "VERIFIED",
   requiredIntegrations: "VERIFIED",
   serviceCountryTerms: "VERIFIED",
   paymentOperations: "VERIFIED",
@@ -93,6 +95,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("RECORDING_COMPLIANCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("SCHEMA_MIGRATION_PARITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("SERVICE_COUNTRY_TERMS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
@@ -118,6 +121,7 @@ describe("country operational launch readiness gate", () => {
     ["authRecovery", "AUTH_RECOVERY_NOT_VERIFIED"],
     ["tenantIsolation", "TENANT_ISOLATION_NOT_VERIFIED"],
     ["roomFactoryPersistence", "ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED"],
+    ["schemaMigrationParity", "SCHEMA_MIGRATION_PARITY_NOT_VERIFIED"],
     ["serviceCountryTerms", "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"],
     ["paymentOperations", "PAYMENT_OPERATIONS_NOT_VERIFIED"],
     ["recordingCompliance", "RECORDING_COMPLIANCE_NOT_VERIFIED"],
