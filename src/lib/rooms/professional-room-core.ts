@@ -2,6 +2,8 @@ export type ProfessionalDomain = "legal" | "accounting";
 export type VaultDomain = "legal" | "accounting" | "virtual_bridge";
 export type ProfessionalRisk = "LOW" | "MEDIUM" | "HIGH" | "REGULATED";
 export type CapabilityDefaultState = "ON" | "CANDIDATE" | "OFF";
+export type GrantState = "NOT_REQUIRED" | "VALID" | "MISSING" | "EXPIRED" | "REVOKED";
+export type ReviewState = "NOT_REQUIRED" | "VERIFIED_ACTIVE" | "VERIFIED_WITH_CONDITIONS" | "LEGAL_REVIEW_REQUIRED" | "EXPIRED_REVIEW" | "BLOCKED" | "NOT_SUPPORTED";
 
 export type ProfessionalRoomDefinition = {
   catalogId: string;
@@ -17,9 +19,11 @@ export type CapabilityPolicyInput = {
   externalSideEffect?: boolean;
   countryPackRequired?: boolean;
   countryPackVerified?: boolean;
-  jurisdictionReviewVerified?: boolean;
+  jurisdictionReview?: ReviewState;
   connectorRequired?: boolean;
   connectorVerified?: boolean;
+  approvalGrant?: GrantState;
+  delegationGrant?: GrantState;
 };
 
 export type CapabilityPolicyDecision = {
@@ -87,6 +91,16 @@ export const PROFESSIONAL_ROOM_CATALOG = [
   ...ACCOUNTING_PROFESSIONAL_ROOMS,
 ] as const;
 
+function grantBlocks(state: GrantState | undefined, reason: string, reasons: string[]) {
+  if (!state || state === "NOT_REQUIRED" || state === "VALID") return;
+  reasons.push(`${reason}_${state}`);
+}
+
+function reviewBlocks(state: ReviewState | undefined, reasons: string[]) {
+  if (!state || state === "NOT_REQUIRED" || state === "VERIFIED_ACTIVE" || state === "VERIFIED_WITH_CONDITIONS") return;
+  reasons.push(`JURISDICTION_${state}`);
+}
+
 export function decideProfessionalCapability(input: CapabilityPolicyInput): CapabilityPolicyDecision {
   const reasons: string[] = [];
   const highRisk = input.risk === "HIGH" || input.risk === "REGULATED";
@@ -94,14 +108,17 @@ export function decideProfessionalCapability(input: CapabilityPolicyInput): Capa
   if (input.countryPackRequired && !input.countryPackVerified) {
     reasons.push("COUNTRY_PACK_NOT_VERIFIED");
   }
-  if (input.countryPackRequired && !input.jurisdictionReviewVerified) {
-    reasons.push("JURISDICTION_REVIEW_NOT_VERIFIED");
-  }
+  if (input.countryPackRequired) reviewBlocks(input.jurisdictionReview, reasons);
   if (input.connectorRequired && !input.connectorVerified) {
     reasons.push("CONNECTOR_NOT_VERIFIED");
   }
+
+  grantBlocks(input.approvalGrant, "APPROVAL_GRANT", reasons);
+  grantBlocks(input.delegationGrant, "DELEGATION_GRANT", reasons);
+
   if (input.externalSideEffect) {
     reasons.push("EXTERNAL_SIDE_EFFECT_DEFAULT_DENY");
+    if (input.approvalGrant !== "VALID") reasons.push("APPROVAL_GRANT_REQUIRED_FOR_SIDE_EFFECT");
   }
 
   const blocked = reasons.length > 0;
