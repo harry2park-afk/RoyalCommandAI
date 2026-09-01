@@ -18,6 +18,7 @@ export type CountryOperationalEvidence = {
   serviceCountryTerms: OperationalEvidenceStatus;
   paymentOperations: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
+  deploymentProtection: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
 };
 
@@ -36,6 +37,7 @@ export type CountryOperationalBlockerCode =
   | "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
+  | "DEPLOYMENT_PROTECTION_NOT_VERIFIED"
   | "ROLLBACK_PATH_NOT_VERIFIED";
 
 export type CountryOperationalLaunchGate = {
@@ -62,6 +64,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "serviceCountryTerms", blocker: "SERVICE_COUNTRY_TERMS_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
+  { key: "deploymentProtection", blocker: "DEPLOYMENT_PROTECTION_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
 ] as const;
 
@@ -72,10 +75,10 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * This gate adds runtime operational evidence required by the 100-country
  * onboarding contract without changing any existing production routing or
  * activation. Auth recovery, tenant isolation, atomic Room Factory persistence,
- * country-specific commercial terms, payment lifecycle, and recording compliance
- * are explicit requirements so static CONNECTED/READY flags cannot substitute for
- * tested runtime evidence. Every item fails closed until evidence is explicitly
- * VERIFIED.
+ * country-specific commercial terms, payment lifecycle, recording compliance,
+ * and protected release controls are explicit requirements so static
+ * CONNECTED/READY flags cannot substitute for tested runtime evidence. Every
+ * item fails closed until evidence is explicitly VERIFIED.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
