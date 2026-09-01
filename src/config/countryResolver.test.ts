@@ -8,6 +8,17 @@ import {
   hasCountryConfig,
 } from "./countryResolver";
 
+const FIRST_WAVE_COUNTRIES = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
+
+const FIRST_WAVE_CURRENCIES: Record<(typeof FIRST_WAVE_COUNTRIES)[number], string> = {
+  AU: "AUD",
+  US: "USD",
+  CA: "CAD",
+  KR: "KRW",
+  JP: "JPY",
+  GB: "GBP",
+};
+
 describe("country domain routing", () => {
   it("routes the Australian public domain to AU settings", () => {
     expect(getCountryConfigByDomain("atyourcommandai.com.au")?.countryCode).toBe("AU");
@@ -41,17 +52,16 @@ describe("country domain routing", () => {
     expect(getCountryConfigByDomain("example.invalid")).toBeNull();
   });
 
-  it("registers the first six launch-country configs without activating unverified domains", () => {
-    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "GB", "JP", "KR", "US"]);
-    expect(hasCountryConfig("au")).toBe(true);
-    expect(hasCountryConfig("JP")).toBe(true);
-    expect(hasCountryConfig("KR")).toBe(true);
-    expect(hasCountryConfig("GB")).toBe(true);
+  it("keeps every first-wave launch-country config registered without blocking later safe expansion", () => {
+    const configured = new Set(getConfiguredCountryCodes());
 
-    expect(getCountryConfigByCountryCode("US")?.currency).toBe("USD");
-    expect(getCountryConfigByCountryCode("GB")?.currency).toBe("GBP");
-    expect(getCountryConfigByCountryCode("JP")?.currency).toBe("JPY");
-    expect(getCountryConfigByCountryCode("KR")?.currency).toBe("KRW");
+    for (const countryCode of FIRST_WAVE_COUNTRIES) {
+      expect(configured.has(countryCode), countryCode).toBe(true);
+      expect(hasCountryConfig(countryCode.toLowerCase()), countryCode).toBe(true);
+      expect(getCountryConfigByCountryCode(countryCode)?.currency, countryCode).toBe(
+        FIRST_WAVE_CURRENCIES[countryCode],
+      );
+    }
 
     // Configuration is not activation. Country domains remain unbound until
     // ownership, hosting, auth callbacks and launch gates are verified.
@@ -60,7 +70,7 @@ describe("country domain routing", () => {
     expect(getCountryCodeByDomain("royalcommand.example.kr")).toBeNull();
   });
 
-  it("requires explicit tax-structure review metadata for every first-wave country", () => {
+  it("requires explicit tax-structure review metadata for every configured country", () => {
     for (const countryCode of getConfiguredCountryCodes()) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
