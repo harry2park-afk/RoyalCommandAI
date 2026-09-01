@@ -17,6 +17,7 @@ export type CountryOperationalEvidence = {
   tenantIsolation: OperationalEvidenceStatus;
   localization: OperationalEvidenceStatus;
   roomFactoryPersistence: OperationalEvidenceStatus;
+  schemaMigrationParity: OperationalEvidenceStatus;
   requiredIntegrations: OperationalEvidenceStatus;
   serviceCountryTerms: OperationalEvidenceStatus;
   paymentOperations: OperationalEvidenceStatus;
@@ -39,6 +40,7 @@ export type CountryOperationalBlockerCode =
   | "TENANT_ISOLATION_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
   | "ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED"
+  | "SCHEMA_MIGRATION_PARITY_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
@@ -69,6 +71,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
   { key: "localization", blocker: "LOCALIZATION_NOT_VERIFIED" },
   { key: "roomFactoryPersistence", blocker: "ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED" },
+  { key: "schemaMigrationParity", blocker: "SCHEMA_MIGRATION_PARITY_NOT_VERIFIED" },
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
   { key: "serviceCountryTerms", blocker: "SERVICE_COUNTRY_TERMS_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
@@ -85,11 +88,11 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * onboarding contract without changing any existing production routing or
  * activation. Legal, tax, and privacy compliance evidence remain independent
  * from their static READY flags, while Auth recovery, tenant isolation, atomic
- * Room Factory persistence, country-specific commercial terms, payment
- * lifecycle, recording compliance, and protected release controls are also
- * explicit requirements. Static READY/CONNECTED flags cannot substitute for
- * reviewed operational evidence. Every item fails closed until evidence is
- * explicitly VERIFIED.
+ * Room Factory persistence, source/hosted schema migration parity,
+ * country-specific commercial terms, payment lifecycle, recording compliance,
+ * and protected release controls are also explicit requirements. Static
+ * READY/CONNECTED flags cannot substitute for reviewed operational evidence.
+ * Every item fails closed until evidence is explicitly VERIFIED.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
