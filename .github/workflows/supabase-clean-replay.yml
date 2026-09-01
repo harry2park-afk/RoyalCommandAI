@@ -1,0 +1,148 @@
+name: Supabase Clean Replay Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/**"
+      - "supabase/recovery/**"
+      - "scripts/legal-matter-tenant-isolation-evidence.mjs"
+      - ".github/workflows/supabase-clean-replay.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-supabase-clean-replay-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  clean-replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies reproducibly
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Assemble disposable recovery replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Never rewrite checked-in historical migrations and never use hosted
+          # credentials. Recovery prerequisites are deliberately outside the
+          # normal migration directory; only this disposable runner inserts them
+          # after the repository's 001/002 foundations and before later history.
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+
+          cp supabase/migrations-full/001_init.sql supabase/migrations/001_init.sql
+          cp supabase/migrations-full/002_rls.sql supabase/migrations/002_rls.sql
+          cp supabase/recovery/20260901_prelaunch_baseline.sql \
+             supabase/migrations/003_recovery_prelaunch_baseline.sql
+          cp supabase/recovery/20260901_communications_foundation.sql \
+             supabase/migrations/004_recovery_communications_foundation.sql
+
+          find supabase/migrations-full -maxdepth 1 -type f -name '*.sql' \
+            ! -name '001_init.sql' \
+            ! -name '002_rls.sql' \
+            -print0 | sort -z | xargs -0 -I{} cp '{}' supabase/migrations/
+
+          echo "Disposable replay order:"
+          find supabase/migrations -maxdepth 1 -type f -name '*.sql' -printf '%f\n' | sort
+
+      - name: Start blank Supabase and replay full repository chain
+        run: supabase start
+
+      - name: Verify recovered schema and security prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if to_regclass('public.matters') is null
+              or to_regclass('public.matter_messages') is null
+              or to_regclass('public.matter_chat_reads') is null
+              or to_regclass('public.matter_documents') is null then
+              raise exception 'Matter foundation did not replay';
+            end if;
+
+            if to_regclass('public.room_factory_manifests') is null then
+              raise exception 'Room Factory manifest table did not replay';
+            end if;
+
+            if to_regclass('public.communication_recording_policies') is null then
+              raise exception 'Communication recording-policy foundation did not replay';
+            end if;
+
+            if to_regprocedure('private.is_room_member(uuid)') is null
+              or to_regprocedure('private.is_household_member(uuid)') is null
+              or to_regprocedure('private.is_matter_client(uuid)') is null
+              or to_regprocedure('private.is_admin()') is null
+              or to_regprocedure('private.is_assigned_matter_staff(uuid)') is null then
+              raise exception 'Required private helper function is missing';
+            end if;
+
+            if has_function_privilege('anon', 'private.is_room_member(uuid)', 'EXECUTE') then
+              raise exception 'anon must not execute private.is_room_member';
+            end if;
+            if has_function_privilege('anon', 'private.is_matter_client(uuid)', 'EXECUTE') then
+              raise exception 'anon must not execute private.is_matter_client';
+            end if;
+            if has_function_privilege('anon', 'private.is_admin()', 'EXECUTE') then
+              raise exception 'anon must not execute private.is_admin';
+            end if;
+            if not has_function_privilege('authenticated', 'private.is_room_member(uuid)', 'EXECUTE') then
+              raise exception 'authenticated RLS evaluation requires private.is_room_member';
+            end if;
+            if not has_function_privilege('authenticated', 'private.is_matter_client(uuid)', 'EXECUTE') then
+              raise exception 'authenticated RLS evaluation requires private.is_matter_client';
+            end if;
+
+            if not has_function_privilege('authenticated', 'public.set_matter_staff_assignment(uuid,uuid)', 'EXECUTE') then
+              raise exception 'Legal assignment wrapper did not replay';
+            end if;
+            if has_function_privilege('anon', 'public.set_matter_staff_assignment(uuid,uuid)', 'EXECUTE') then
+              raise exception 'anon must not execute Legal assignment wrapper';
+            end if;
+
+            if has_table_privilege('anon', 'public.communication_recording_policies', 'SELECT')
+              or has_table_privilege('authenticated', 'public.communication_recording_policies', 'SELECT') then
+              raise exception 'Communication recording-policy table must remain server-only';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Run representative authenticated RLS matrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_LEGAL_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_LEGAL_ANON_KEY="$ANON_KEY"
+          export RC_LEGAL_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_LEGAL_ALLOW_LOCALHOST=1
+          node scripts/legal-matter-tenant-isolation-evidence.mjs
+
+      - name: Stop disposable Supabase stack
+        if: always()
+        run: supabase stop --no-backup
