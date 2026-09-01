@@ -46,9 +46,9 @@ jobs:
         run: |
           set -euo pipefail
           # Never rewrite checked-in historical migrations and never use hosted
-          # credentials. The recovery baseline is deliberately outside the normal
-          # migration directory; only this disposable runner inserts it after the
-          # repository's 001/002 foundations and before later historical files.
+          # credentials. Recovery prerequisites are deliberately outside the
+          # normal migration directory; only this disposable runner inserts them
+          # after the repository's 001/002 foundations and before later history.
           mv supabase/migrations supabase/migrations-full
           mkdir supabase/migrations
 
@@ -56,6 +56,8 @@ jobs:
           cp supabase/migrations-full/002_rls.sql supabase/migrations/002_rls.sql
           cp supabase/recovery/20260901_prelaunch_baseline.sql \
              supabase/migrations/003_recovery_prelaunch_baseline.sql
+          cp supabase/recovery/20260901_communications_foundation.sql \
+             supabase/migrations/004_recovery_communications_foundation.sql
 
           find supabase/migrations-full -maxdepth 1 -type f -name '*.sql' \
             ! -name '001_init.sql' \
@@ -87,6 +89,10 @@ jobs:
               raise exception 'Room Factory manifest table did not replay';
             end if;
 
+            if to_regclass('public.communication_recording_policies') is null then
+              raise exception 'Communication recording-policy foundation did not replay';
+            end if;
+
             if to_regprocedure('private.is_room_member(uuid)') is null
               or to_regprocedure('private.is_household_member(uuid)') is null
               or to_regprocedure('private.is_matter_client(uuid)') is null
@@ -116,6 +122,11 @@ jobs:
             end if;
             if has_function_privilege('anon', 'public.set_matter_staff_assignment(uuid,uuid)', 'EXECUTE') then
               raise exception 'anon must not execute Legal assignment wrapper';
+            end if;
+
+            if has_table_privilege('anon', 'public.communication_recording_policies', 'SELECT')
+              or has_table_privilege('authenticated', 'public.communication_recording_policies', 'SELECT') then
+              raise exception 'Communication recording-policy table must remain server-only';
             end if;
           end;
           $$;
