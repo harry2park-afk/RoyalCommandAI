@@ -13,6 +13,9 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   authCallback: "NEEDS_REVIEW",
   authRecovery: "NEEDS_REVIEW",
   sessionCookies: "NEEDS_REVIEW",
+  legalCompliance: "NEEDS_REVIEW",
+  taxCompliance: "NEEDS_REVIEW",
+  privacyCompliance: "NEEDS_REVIEW",
   communicationsRules: "NEEDS_REVIEW",
   recordingCompliance: "NEEDS_REVIEW",
   dataResidency: "NEEDS_REVIEW",
@@ -32,6 +35,9 @@ const verifiedEvidence: CountryOperationalEvidence = {
   authCallback: "VERIFIED",
   authRecovery: "VERIFIED",
   sessionCookies: "VERIFIED",
+  legalCompliance: "VERIFIED",
+  taxCompliance: "VERIFIED",
+  privacyCompliance: "VERIFIED",
   communicationsRules: "VERIFIED",
   recordingCompliance: "VERIFIED",
   dataResidency: "VERIFIED",
@@ -81,6 +87,9 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_RECOVERY_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("LEGAL_COMPLIANCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("TAX_COMPLIANCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PRIVACY_COMPLIANCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("RECORDING_COMPLIANCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED");
@@ -103,6 +112,9 @@ describe("country operational launch readiness gate", () => {
   });
 
   it.each([
+    ["legalCompliance", "LEGAL_COMPLIANCE_NOT_VERIFIED"],
+    ["taxCompliance", "TAX_COMPLIANCE_NOT_VERIFIED"],
+    ["privacyCompliance", "PRIVACY_COMPLIANCE_NOT_VERIFIED"],
     ["authRecovery", "AUTH_RECOVERY_NOT_VERIFIED"],
     ["tenantIsolation", "TENANT_ISOLATION_NOT_VERIFIED"],
     ["roomFactoryPersistence", "ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED"],
