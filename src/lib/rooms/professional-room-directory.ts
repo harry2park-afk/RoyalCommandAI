@@ -57,5 +57,7 @@ export function resolveProfessionalRoomTemplate(catalogId: string) {
     productId: room.productId,
     vault: room.vault,
     domain: room.domain,
+    crossVaultStorageAllowed: false,
+    sharedDataMode: room.productId === "bridge_la" ? "SHAREGRANT_VIRTUAL_VIEW" : "NONE",
   } as const;
 }
