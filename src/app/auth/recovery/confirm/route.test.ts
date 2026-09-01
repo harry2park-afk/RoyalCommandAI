@@ -43,10 +43,11 @@ describe("password recovery callback capture", () => {
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
 
     const setCookie = response.headers.get("set-cookie") ?? "";
+    const normalizedCookie = setCookie.toLowerCase();
     expect(setCookie).toContain(`${PASSWORD_RECOVERY_COOKIE}=${tokenHash}`);
-    expect(setCookie).toContain("HttpOnly");
-    expect(setCookie).toContain("Secure");
-    expect(setCookie).toContain("SameSite=Lax");
+    expect(normalizedCookie).toContain("httponly");
+    expect(normalizedCookie).toContain("secure");
+    expect(normalizedCookie).toContain("samesite=lax");
     expect(setCookie).toContain(`Path=${PASSWORD_RECOVERY_COOKIE_PATH}`);
   });
 
