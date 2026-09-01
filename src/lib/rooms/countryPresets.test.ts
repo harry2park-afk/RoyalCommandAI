@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getCountryConfigByCountryCode } from "../../config/countryResolver";
 import { COUNTRY_ROOM_PRESETS } from "./countryPresets";
 
 const FIRST_WAVE_COUNTRIES = ["AU", "US", "CA", "KR", "JP", "GB"];
@@ -18,6 +19,19 @@ describe("Room Factory country preset registry", () => {
   it("keeps every first-wave launch country in the locale preset registry", () => {
     const ids = new Set(COUNTRY_ROOM_PRESETS.map((preset) => preset.id));
     for (const id of FIRST_WAVE_COUNTRIES) expect(ids.has(id)).toBe(true);
+  });
+
+  it("keeps first-wave Room Factory defaults aligned with CountryConfig", () => {
+    for (const countryCode of FIRST_WAVE_COUNTRIES) {
+      const preset = COUNTRY_ROOM_PRESETS.find((item) => item.id === countryCode);
+      const config = getCountryConfigByCountryCode(countryCode);
+
+      expect(preset, `${countryCode} Room Factory preset`).toBeDefined();
+      expect(config, `${countryCode} CountryConfig`).not.toBeNull();
+      expect(preset?.languageTag).toBe(config?.locale);
+      expect(preset?.currencyCode).toBe(config?.currency);
+      expect(config?.timezone.supportedExamples).toContain(preset?.timeZone);
+    }
   });
 
   it("keeps expansion locale presets separate from launch approval", () => {
