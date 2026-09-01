@@ -209,3 +209,69 @@ create table if not exists public.room_factory_manifests (
   updated_at timestamptz not null default now(),
   check (jsonb_typeof(manifest) = 'object')
 );
+
+-- Production also contains the service-catalog foundation from a hosted
+-- migration that is missing from this repository. Later checked-in migrations
+-- reference these tables before any checked-in CREATE TABLE for them.
+create table if not exists public.rc_service_catalog (
+  service_key text primary key,
+  category text not null,
+  name_ko text not null,
+  name_en text not null,
+  summary_ko text not null,
+  summary_en text not null,
+  details_ko text,
+  details_en text,
+  pricing_type text not null
+    check (pricing_type in ('free', 'monthly', 'one_time', 'usage', 'custom')),
+  currency text not null default 'AUD',
+  price_minor bigint,
+  price_status text not null default 'tbd'
+    check (price_status in ('fixed', 'tbd', 'quote')),
+  parent_service_key text references public.rc_service_catalog(service_key) on delete cascade,
+  tier_rank integer not null default 0,
+  default_included boolean not null default false,
+  customer_selectable boolean not null default true,
+  sort_order integer not null default 100,
+  active boolean not null default true,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+alter table public.rc_service_catalog enable row level security;
+drop policy if exists rc_service_catalog_read_active on public.rc_service_catalog;
+create policy rc_service_catalog_read_active
+on public.rc_service_catalog
+for select
+to authenticated
+using (active = true);
+
+grant select on public.rc_service_catalog to authenticated, service_role;
+grant insert, update, delete on public.rc_service_catalog to service_role;
+
+create table if not exists public.rc_room_service_selections (
+  room_id uuid not null references public.rooms(id) on delete cascade,
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  service_key text not null references public.rc_service_catalog(service_key) on delete restrict,
+  selection_status text not null default 'selected'
+    check (selection_status in ('selected', 'pending_payment', 'active', 'paused', 'cancelled')),
+  selected_at timestamptz not null default now(),
+  activated_at timestamptz,
+  cancelled_at timestamptz,
+  notes text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  primary key (room_id, service_key)
+);
+
+alter table public.rc_room_service_selections enable row level security;
+drop policy if exists rc_room_service_selections_owner_all on public.rc_room_service_selections;
+create policy rc_room_service_selections_owner_all
+on public.rc_room_service_selections
+for all
+to authenticated
+using (owner_id = auth.uid())
+with check (owner_id = auth.uid());
+
+grant select, insert, update, delete on public.rc_room_service_selections
+to authenticated, service_role;
