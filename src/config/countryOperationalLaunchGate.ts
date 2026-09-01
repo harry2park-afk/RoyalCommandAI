@@ -6,12 +6,14 @@ export type OperationalEvidenceStatus = "VERIFIED" | "NEEDS_REVIEW" | "BLOCKED";
 export type CountryOperationalEvidence = {
   domainBinding: OperationalEvidenceStatus;
   authCallback: OperationalEvidenceStatus;
+  authRecovery: OperationalEvidenceStatus;
   sessionCookies: OperationalEvidenceStatus;
   communicationsRules: OperationalEvidenceStatus;
   recordingCompliance: OperationalEvidenceStatus;
   dataResidency: OperationalEvidenceStatus;
   tenantIsolation: OperationalEvidenceStatus;
   localization: OperationalEvidenceStatus;
+  roomFactoryPersistence: OperationalEvidenceStatus;
   requiredIntegrations: OperationalEvidenceStatus;
   serviceCountryTerms: OperationalEvidenceStatus;
   paymentOperations: OperationalEvidenceStatus;
@@ -22,12 +24,14 @@ export type CountryOperationalEvidence = {
 export type CountryOperationalBlockerCode =
   | "DOMAIN_BINDING_NOT_VERIFIED"
   | "AUTH_CALLBACK_NOT_VERIFIED"
+  | "AUTH_RECOVERY_NOT_VERIFIED"
   | "SESSION_COOKIES_NOT_VERIFIED"
   | "COMMUNICATIONS_RULES_NOT_VERIFIED"
   | "RECORDING_COMPLIANCE_NOT_VERIFIED"
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "TENANT_ISOLATION_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
+  | "ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
@@ -46,12 +50,14 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
 }> = [
   { key: "domainBinding", blocker: "DOMAIN_BINDING_NOT_VERIFIED" },
   { key: "authCallback", blocker: "AUTH_CALLBACK_NOT_VERIFIED" },
+  { key: "authRecovery", blocker: "AUTH_RECOVERY_NOT_VERIFIED" },
   { key: "sessionCookies", blocker: "SESSION_COOKIES_NOT_VERIFIED" },
   { key: "communicationsRules", blocker: "COMMUNICATIONS_RULES_NOT_VERIFIED" },
   { key: "recordingCompliance", blocker: "RECORDING_COMPLIANCE_NOT_VERIFIED" },
   { key: "dataResidency", blocker: "DATA_RESIDENCY_NOT_VERIFIED" },
   { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
   { key: "localization", blocker: "LOCALIZATION_NOT_VERIFIED" },
+  { key: "roomFactoryPersistence", blocker: "ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED" },
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
   { key: "serviceCountryTerms", blocker: "SERVICE_COUNTRY_TERMS_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
@@ -65,10 +71,11 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * The existing country launch gate covers static legal/tax/payment readiness.
  * This gate adds runtime operational evidence required by the 100-country
  * onboarding contract without changing any existing production routing or
- * activation. Tenant isolation, country-specific commercial terms, payment
- * lifecycle, and recording compliance are explicit requirements so static
- * CONNECTED/READY flags cannot substitute for tested runtime evidence. Every
- * item fails closed until evidence is explicitly VERIFIED.
+ * activation. Auth recovery, tenant isolation, atomic Room Factory persistence,
+ * country-specific commercial terms, payment lifecycle, and recording compliance
+ * are explicit requirements so static CONNECTED/READY flags cannot substitute for
+ * tested runtime evidence. Every item fails closed until evidence is explicitly
+ * VERIFIED.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
