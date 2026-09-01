@@ -80,7 +80,7 @@ jobs:
       - name: Start isolated Supabase stack
         run: supabase start
 
-      - name: Prove atomic RPC privilege and invoker boundary
+      - name: Prove public invoker and internal privilege boundary
         shell: bash
         run: |
           set -euo pipefail
@@ -89,15 +89,36 @@ jobs:
           do $$
           declare
             v_public_security_definer boolean;
+            v_internal_security_definer boolean;
           begin
             if has_function_privilege('authenticated', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
-              raise exception 'authenticated must not execute private Room Factory implementation';
+              raise exception 'authenticated must not execute original private Room Factory implementation';
             end if;
             if has_function_privilege('anon', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
-              raise exception 'anon must not execute private Room Factory implementation';
+              raise exception 'anon must not execute original private Room Factory implementation';
             end if;
             if has_function_privilege('service_role', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
-              raise exception 'service_role must not execute private Room Factory implementation directly';
+              raise exception 'service_role must not execute original private Room Factory implementation directly';
+            end if;
+
+            if not has_schema_privilege('authenticated', 'room_factory_internal', 'USAGE') then
+              raise exception 'authenticated must have USAGE only on dedicated Room Factory internal schema';
+            end if;
+            if has_schema_privilege('anon', 'room_factory_internal', 'USAGE') then
+              raise exception 'anon must not have USAGE on Room Factory internal schema';
+            end if;
+            if has_schema_privilege('service_role', 'room_factory_internal', 'USAGE') then
+              raise exception 'service_role must not have USAGE on Room Factory internal schema';
+            end if;
+
+            if not has_function_privilege('authenticated', 'room_factory_internal.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'authenticated must execute the dedicated internal bridge through the public wrapper';
+            end if;
+            if has_function_privilege('anon', 'room_factory_internal.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'anon must not execute Room Factory internal bridge';
+            end if;
+            if has_function_privilege('service_role', 'room_factory_internal.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'service_role must not execute Room Factory internal bridge';
             end if;
 
             if not has_function_privilege('authenticated', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
@@ -117,12 +138,42 @@ jobs:
             where n.nspname = 'public'
               and p.oid = 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)'::regprocedure;
 
+            select p.prosecdef
+            into v_internal_security_definer
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'room_factory_internal'
+              and p.oid = 'room_factory_internal.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)'::regprocedure;
+
             if v_public_security_definer is distinct from false then
               raise exception 'public Room Factory entrypoint must be SECURITY INVOKER';
+            end if;
+            if v_internal_security_definer is distinct from true then
+              raise exception 'internal Room Factory bridge must be SECURITY DEFINER';
             end if;
           end;
           $$;
           SQL
+
+      - name: Prove internal schema is not exposed by Data API
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          status="$(curl -sS -o /tmp/rc-internal-schema-probe.txt -w '%{http_code}' \
+            -H "apikey: $ANON_KEY" \
+            -H "Authorization: Bearer $ANON_KEY" \
+            -H "Accept-Profile: room_factory_internal" \
+            "http://127.0.0.1:54321/rest/v1/")"
+          cat /tmp/rc-internal-schema-probe.txt
+          if [ "$status" = "200" ]; then
+            echo "::error::room_factory_internal unexpectedly exposed through PostgREST"
+            exit 1
+          fi
+          if ! grep -Eqi 'schema|profile' /tmp/rc-internal-schema-probe.txt; then
+            echo "::error::PostgREST rejection did not identify a schema/profile boundary"
+            exit 1
+          fi
 
       - name: Install local-only rollback fault injection
         shell: bash
@@ -147,7 +198,7 @@ jobs:
           for each row execute function public.rc_test_force_room_factory_manifest_failure();
           SQL
 
-      - name: Prove RLS-bound rollback and same-owner same-encounter concurrency
+      - name: Prove rollback and same-owner same-encounter concurrency
         shell: bash
         run: |
           set -euo pipefail
