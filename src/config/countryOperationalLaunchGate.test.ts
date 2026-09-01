@@ -23,6 +23,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   serviceCountryTerms: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
   previewSmokeTest: "NEEDS_REVIEW",
+  deploymentProtection: "NEEDS_REVIEW",
   rollbackPath: "NEEDS_REVIEW",
 };
 
@@ -41,6 +42,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   serviceCountryTerms: "VERIFIED",
   paymentOperations: "VERIFIED",
   previewSmokeTest: "VERIFIED",
+  deploymentProtection: "VERIFIED",
   rollbackPath: "VERIFIED",
 };
 
@@ -85,6 +87,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("SERVICE_COUNTRY_TERMS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("DEPLOYMENT_PROTECTION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROLLBACK_PATH_NOT_VERIFIED");
     }
   });
@@ -106,6 +109,7 @@ describe("country operational launch readiness gate", () => {
     ["serviceCountryTerms", "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"],
     ["paymentOperations", "PAYMENT_OPERATIONS_NOT_VERIFIED"],
     ["recordingCompliance", "RECORDING_COMPLIANCE_NOT_VERIFIED"],
+    ["deploymentProtection", "DEPLOYMENT_PROTECTION_NOT_VERIFIED"],
   ] as const)("fails closed when %s evidence is missing even when the static country gate is ready", (key, blocker) => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
