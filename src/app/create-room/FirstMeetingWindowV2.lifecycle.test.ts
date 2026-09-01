@@ -25,13 +25,14 @@ describe("FirstMeetingWindowV2 encounter lifecycle contract", () => {
     expect(transition).toContain("router.push(`/rooms/${roomId}`);");
   });
 
-  it("does not clear the encounter on the failure path", () => {
-    const catchStart = source.indexOf("} catch {", source.indexOf("async function handleUserInput"));
-    const finallyStart = source.indexOf("} finally", catchStart);
+  it("does not clear the encounter on the outer failure path", () => {
+    const finallyStart = source.indexOf("} finally", source.indexOf("async function handleUserInput"));
+    const catchStart = source.lastIndexOf("} catch {", finallyStart);
     expect(catchStart).toBeGreaterThan(-1);
     expect(finallyStart).toBeGreaterThan(catchStart);
 
     const failurePath = source.slice(catchStart, finallyStart);
+    expect(failurePath).toContain('setStage("fallback"); setError(copy.voiceFail);');
     expect(failurePath).not.toContain('removeItem("rc_encounter_session_id")');
   });
 });
