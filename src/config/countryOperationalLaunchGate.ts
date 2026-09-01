@@ -8,6 +8,9 @@ export type CountryOperationalEvidence = {
   authCallback: OperationalEvidenceStatus;
   authRecovery: OperationalEvidenceStatus;
   sessionCookies: OperationalEvidenceStatus;
+  legalCompliance: OperationalEvidenceStatus;
+  taxCompliance: OperationalEvidenceStatus;
+  privacyCompliance: OperationalEvidenceStatus;
   communicationsRules: OperationalEvidenceStatus;
   recordingCompliance: OperationalEvidenceStatus;
   dataResidency: OperationalEvidenceStatus;
@@ -27,6 +30,9 @@ export type CountryOperationalBlockerCode =
   | "AUTH_CALLBACK_NOT_VERIFIED"
   | "AUTH_RECOVERY_NOT_VERIFIED"
   | "SESSION_COOKIES_NOT_VERIFIED"
+  | "LEGAL_COMPLIANCE_NOT_VERIFIED"
+  | "TAX_COMPLIANCE_NOT_VERIFIED"
+  | "PRIVACY_COMPLIANCE_NOT_VERIFIED"
   | "COMMUNICATIONS_RULES_NOT_VERIFIED"
   | "RECORDING_COMPLIANCE_NOT_VERIFIED"
   | "DATA_RESIDENCY_NOT_VERIFIED"
@@ -54,6 +60,9 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "authCallback", blocker: "AUTH_CALLBACK_NOT_VERIFIED" },
   { key: "authRecovery", blocker: "AUTH_RECOVERY_NOT_VERIFIED" },
   { key: "sessionCookies", blocker: "SESSION_COOKIES_NOT_VERIFIED" },
+  { key: "legalCompliance", blocker: "LEGAL_COMPLIANCE_NOT_VERIFIED" },
+  { key: "taxCompliance", blocker: "TAX_COMPLIANCE_NOT_VERIFIED" },
+  { key: "privacyCompliance", blocker: "PRIVACY_COMPLIANCE_NOT_VERIFIED" },
   { key: "communicationsRules", blocker: "COMMUNICATIONS_RULES_NOT_VERIFIED" },
   { key: "recordingCompliance", blocker: "RECORDING_COMPLIANCE_NOT_VERIFIED" },
   { key: "dataResidency", blocker: "DATA_RESIDENCY_NOT_VERIFIED" },
@@ -74,11 +83,13 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * The existing country launch gate covers static legal/tax/payment readiness.
  * This gate adds runtime operational evidence required by the 100-country
  * onboarding contract without changing any existing production routing or
- * activation. Auth recovery, tenant isolation, atomic Room Factory persistence,
- * country-specific commercial terms, payment lifecycle, recording compliance,
- * and protected release controls are explicit requirements so static
- * CONNECTED/READY flags cannot substitute for tested runtime evidence. Every
- * item fails closed until evidence is explicitly VERIFIED.
+ * activation. Legal, tax, and privacy compliance evidence remain independent
+ * from their static READY flags, while Auth recovery, tenant isolation, atomic
+ * Room Factory persistence, country-specific commercial terms, payment
+ * lifecycle, recording compliance, and protected release controls are also
+ * explicit requirements. Static READY/CONNECTED flags cannot substitute for
+ * reviewed operational evidence. Every item fails closed until evidence is
+ * explicitly VERIFIED.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
