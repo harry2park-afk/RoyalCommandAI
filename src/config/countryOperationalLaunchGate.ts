@@ -9,8 +9,11 @@ export type CountryOperationalEvidence = {
   sessionCookies: OperationalEvidenceStatus;
   communicationsRules: OperationalEvidenceStatus;
   dataResidency: OperationalEvidenceStatus;
+  tenantIsolation: OperationalEvidenceStatus;
   localization: OperationalEvidenceStatus;
   requiredIntegrations: OperationalEvidenceStatus;
+  serviceCountryTerms: OperationalEvidenceStatus;
+  paymentOperations: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
 };
@@ -21,8 +24,11 @@ export type CountryOperationalBlockerCode =
   | "SESSION_COOKIES_NOT_VERIFIED"
   | "COMMUNICATIONS_RULES_NOT_VERIFIED"
   | "DATA_RESIDENCY_NOT_VERIFIED"
+  | "TENANT_ISOLATION_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
+  | "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"
+  | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
   | "ROLLBACK_PATH_NOT_VERIFIED";
 
@@ -41,8 +47,11 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "sessionCookies", blocker: "SESSION_COOKIES_NOT_VERIFIED" },
   { key: "communicationsRules", blocker: "COMMUNICATIONS_RULES_NOT_VERIFIED" },
   { key: "dataResidency", blocker: "DATA_RESIDENCY_NOT_VERIFIED" },
+  { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
   { key: "localization", blocker: "LOCALIZATION_NOT_VERIFIED" },
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
+  { key: "serviceCountryTerms", blocker: "SERVICE_COUNTRY_TERMS_NOT_VERIFIED" },
+  { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
 ] as const;
@@ -50,10 +59,13 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
 /**
  * Second-stage country activation gate.
  *
- * The existing country launch gate covers legal/tax/payment readiness. This
- * gate adds the operational evidence required by the 100-country onboarding
- * contract without changing any existing production routing or activation.
- * Every item fails closed until evidence is explicitly VERIFIED.
+ * The existing country launch gate covers static legal/tax/payment readiness.
+ * This gate adds runtime operational evidence required by the 100-country
+ * onboarding contract without changing any existing production routing or
+ * activation. Tenant isolation, country-specific commercial terms, and the
+ * payment lifecycle are explicit requirements so a static CONNECTED flag
+ * cannot substitute for tested runtime evidence. Every item fails closed
+ * until evidence is explicitly VERIFIED.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
