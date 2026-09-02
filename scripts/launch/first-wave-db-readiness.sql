@@ -78,6 +78,98 @@ checks as (
   union all
 
   select
+    'auth.critical_rls_enabled',
+    case
+      when (
+        select count(*)
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname = 'public'
+          and c.relname in (
+            'matters',
+            'rooms',
+            'room_members',
+            'room_factory_manifests',
+            'rc_service_connection_orders'
+          )
+          and c.relrowsecurity
+      ) = 5 then 'PASS'
+      else 'BLOCKED'
+    end,
+    'rls_enabled=' || (
+      select count(*)::text
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public'
+        and c.relname in (
+          'matters',
+          'rooms',
+          'room_members',
+          'room_factory_manifests',
+          'rc_service_connection_orders'
+        )
+        and c.relrowsecurity
+    ) || '/5'
+
+  union all
+
+  select
+    'auth.room_scope_policy_shape',
+    case
+      when exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'rooms'
+          and cmd = 'SELECT'
+          and coalesce(qual, '') ~* '(is_room_member|room_owner_id|is_household_member)'
+      )
+      and exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'room_members'
+          and cmd = 'SELECT'
+          and coalesce(qual, '') ~* '(is_room_member|user_id)'
+      )
+      and exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'room_factory_manifests'
+          and cmd = 'SELECT'
+          and coalesce(qual, '') ~* 'is_room_member'
+      ) then 'PASS'
+      else 'BLOCKED'
+    end,
+    'rooms_select_scoped=' || exists (
+      select 1
+      from pg_policies
+      where schemaname = 'public'
+        and tablename = 'rooms'
+        and cmd = 'SELECT'
+        and coalesce(qual, '') ~* '(is_room_member|room_owner_id|is_household_member)'
+    )::text
+      || ', room_members_select_scoped=' || exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'room_members'
+          and cmd = 'SELECT'
+          and coalesce(qual, '') ~* '(is_room_member|user_id)'
+      )::text
+      || ', manifests_select_member=' || exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'room_factory_manifests'
+          and cmd = 'SELECT'
+          and coalesce(qual, '') ~* 'is_room_member'
+      )::text
+
+  union all
+
+  select
     'room_factory.manifest_integrity',
     case
       when (
@@ -198,6 +290,46 @@ checks as (
       ),
       'none'
     )
+
+  union all
+
+  select
+    'payments.order_owner_isolation_policy',
+    case
+      when exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'rc_service_connection_orders'
+          and cmd = 'SELECT'
+          and coalesce(qual, '') ~* 'owner_id.*auth\.uid'
+      )
+      and exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'rc_service_connection_orders'
+          and cmd = 'INSERT'
+          and coalesce(with_check, '') ~* 'owner_id.*auth\.uid'
+      ) then 'PASS'
+      else 'BLOCKED'
+    end,
+    'owner_select=' || exists (
+      select 1
+      from pg_policies
+      where schemaname = 'public'
+        and tablename = 'rc_service_connection_orders'
+        and cmd = 'SELECT'
+        and coalesce(qual, '') ~* 'owner_id.*auth\.uid'
+    )::text
+      || ', owner_insert=' || exists (
+        select 1
+        from pg_policies
+        where schemaname = 'public'
+          and tablename = 'rc_service_connection_orders'
+          and cmd = 'INSERT'
+          and coalesce(with_check, '') ~* 'owner_id.*auth\.uid'
+      )::text
 
   union all
 
