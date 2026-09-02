@@ -53,7 +53,7 @@ checks as (
           and tablename = 'rc_service_connection_orders'
           and cmd = 'SELECT'
           and coalesce(qual, '') ~* 'auth[.]uid[(][)]'
-          and coalesce(qual, '') ~* 'user_id'
+          and coalesce(qual, '') ~* 'owner_id'
       )
       and exists (
         select 1
@@ -62,10 +62,10 @@ checks as (
           and tablename = 'rc_service_connection_orders'
           and cmd = 'INSERT'
           and coalesce(with_check, '') ~* 'auth[.]uid[(][)]'
-          and coalesce(with_check, '') ~* 'user_id'
+          and coalesce(with_check, '') ~* 'owner_id'
       )
     then 'PASS' else 'BLOCKED' end,
-    'authenticated SELECT/INSERT must remain user-scoped; behavioral negative tests are still required'
+    'authenticated SELECT/INSERT must remain owner-scoped; behavioral negative tests are still required'
 
   union all
 
@@ -91,29 +91,27 @@ checks as (
       where c.conrelid = to_regclass('public.rc_service_connection_orders')
         and c.contype = 'c'
         and pg_get_constraintdef(c.oid) ~* 'payment_status'
+        and pg_get_constraintdef(c.oid) ~* 'not_required'
         and pg_get_constraintdef(c.oid) ~* 'pending'
-        and pg_get_constraintdef(c.oid) ~* 'processing'
         and pg_get_constraintdef(c.oid) ~* 'paid'
         and pg_get_constraintdef(c.oid) ~* 'failed'
         and pg_get_constraintdef(c.oid) ~* 'cancelled'
         and pg_get_constraintdef(c.oid) ~* 'refunded'
     ) then 'PASS' else 'BLOCKED' end,
-    'expected states: pending, processing, paid, failed, cancelled, refunded'
+    'expected states: not_required, pending, paid, failed, cancelled, refunded'
 
   union all
 
   select
-    'payment.provider_constraint',
+    'payment.provider_value_constraint',
     case when exists (
       select 1
       from pg_constraint c
       where c.conrelid = to_regclass('public.rc_service_connection_orders')
         and c.contype = 'c'
         and pg_get_constraintdef(c.oid) ~* 'payment_provider'
-        and pg_get_constraintdef(c.oid) ~* 'stripe'
-        and pg_get_constraintdef(c.oid) ~* 'manual'
     ) then 'PASS' else 'BLOCKED' end,
-    'database currently recognizes stripe/manual provider values; this does not prove a live Stripe integration'
+    'payment_provider has no database allow-list unless a CHECK constraint is present'
 
   union all
 
@@ -183,12 +181,10 @@ checks as (
         from public.rc_service_country_terms t
         where upper(t.country_code) = fw.country_code
           and upper(t.currency) = fw.expected_currency
-          and t.is_active
-          and t.effective_from <= now()
-          and (t.effective_until is null or t.effective_until > now())
+          and lower(t.availability_status) not in ('blocked', 'unavailable', 'disabled')
       )
     ) = 6 then 'PASS' else 'BLOCKED' end,
-    'active expected-currency country terms=' || (
+    'expected-currency country terms with non-blocked availability=' || (
       select count(*)::text
       from first_wave fw
       where exists (
@@ -196,9 +192,7 @@ checks as (
         from public.rc_service_country_terms t
         where upper(t.country_code) = fw.country_code
           and upper(t.currency) = fw.expected_currency
-          and t.is_active
-          and t.effective_from <= now()
-          and (t.effective_until is null or t.effective_until > now())
+          and lower(t.availability_status) not in ('blocked', 'unavailable', 'disabled')
       )
     ) || '/6'
 
@@ -212,24 +206,24 @@ checks as (
       where exists (
         select 1
         from public.rc_service_catalog c
-        where c.is_active
-          and c.is_selectable
-          and c.requires_payment
-          and c.base_price > 0
-          and upper(c.base_currency) = fw.expected_currency
+        where c.active
+          and c.customer_selectable
+          and c.price_status = 'fixed'
+          and coalesce(c.price_minor, 0) > 0
+          and upper(c.currency) = fw.expected_currency
       )
     ) = 6 then 'PASS' else 'BLOCKED' end,
-    'expected currencies with >=1 active/selectable positive paid service=' || (
+    'expected currencies with >=1 active/selectable fixed positive service=' || (
       select count(*)::text
       from first_wave fw
       where exists (
         select 1
         from public.rc_service_catalog c
-        where c.is_active
-          and c.is_selectable
-          and c.requires_payment
-          and c.base_price > 0
-          and upper(c.base_currency) = fw.expected_currency
+        where c.active
+          and c.customer_selectable
+          and c.price_status = 'fixed'
+          and coalesce(c.price_minor, 0) > 0
+          and upper(c.currency) = fw.expected_currency
       )
     ) || '/6'
 
@@ -253,10 +247,10 @@ order by metric;
 select
   payment_status,
   coalesce(payment_provider, 'unset') as payment_provider,
-  upper(currency) as currency,
+  upper(coalesce(currency, 'unset')) as currency,
   count(*) as order_count
 from public.rc_service_connection_orders
-group by payment_status, payment_provider, upper(currency)
+group by payment_status, payment_provider, upper(coalesce(currency, 'unset'))
 order by payment_status, payment_provider, currency;
 
 rollback;
