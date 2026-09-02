@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
-import { sanitizeRecoveryPath } from "@/lib/auth/recovery";
+import {
+  RECOVERY_COOKIE,
+  RECOVERY_COOKIE_MAX_AGE_SECONDS,
+  sanitizeRecoveryPath,
+} from "@/lib/auth/recovery";
 import { createClient } from "@/lib/supabase/server";
-
-export const RECOVERY_COOKIE = "rc_password_recovery";
 
 function recoveryFailureUrl(origin: string) {
   return new URL("/forgot-password?recovery=invalid", origin);
@@ -35,7 +37,7 @@ export async function GET(request: Request) {
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
-    maxAge: 10 * 60,
+    maxAge: RECOVERY_COOKIE_MAX_AGE_SECONDS,
   });
   return response;
 }
