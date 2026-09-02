@@ -27,7 +27,18 @@ create table if not exists public.country_compliance_evidence (
   constraint country_compliance_evidence_subdivision_code_check
     check (subdivision_code is null or subdivision_code ~ '^[A-Z0-9]{1,6}$'),
   constraint country_compliance_evidence_kind_check
-    check (evidence_kind in ('legal', 'tax', 'privacy', 'data_residency')),
+    check (
+      evidence_kind in (
+        'legal',
+        'tax',
+        'tax_structure',
+        'medical',
+        'investment',
+        'privacy',
+        'data_residency',
+        'regulatory_license'
+      )
+    ),
   constraint country_compliance_evidence_review_status_check
     check (review_status in ('NEEDS_REVIEW', 'VERIFIED', 'BLOCKED')),
   constraint country_compliance_evidence_version_check
@@ -88,7 +99,7 @@ revoke all on table public.country_compliance_evidence from authenticated;
 grant all on table public.country_compliance_evidence to service_role;
 
 comment on table public.country_compliance_evidence is
-  'Versioned server-owned legal/tax/privacy/data-residency launch evidence. No row means not verified.';
+  'Versioned server-owned country launch evidence for compliance gates. No row means not verified.';
 comment on column public.country_compliance_evidence.evidence_ref is
   'Pointer to the reviewed source or approval record; do not store legal documents here.';
 comment on column public.country_compliance_evidence.evidence_sha256 is
