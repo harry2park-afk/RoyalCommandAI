@@ -72,15 +72,60 @@ checks as (
   union all
 
   select
-    'room_factory.manifest_null_encounter',
+    'room_factory.manifest_integrity',
     case
       when (
         select count(*)
-        from public.room_factory_manifests
-        where encounter_session_id is null
+        from public.room_factory_manifests m
+        left join public.rooms r on r.id = m.room_id
+        where r.id is null
+      ) = 0
+      and (
+        select count(*)
+        from public.room_factory_manifests m
+        join public.rooms r on r.id = m.room_id
+        where r.room_owner_id is distinct from m.owner_id
+      ) = 0
+      and (
+        select count(*)
+        from public.room_factory_manifests m
+        where not exists (
+          select 1
+          from public.room_members rm
+          where rm.room_id = m.room_id
+            and rm.user_id = m.owner_id
+            and rm.role = 'owner'
+        )
       ) = 0 then 'PASS'
       else 'BLOCKED'
     end,
+    'orphans=' || (
+      select count(*)::text
+      from public.room_factory_manifests m
+      left join public.rooms r on r.id = m.room_id
+      where r.id is null
+    ) || ', owner_mismatch=' || (
+      select count(*)::text
+      from public.room_factory_manifests m
+      join public.rooms r on r.id = m.room_id
+      where r.room_owner_id is distinct from m.owner_id
+    ) || ', missing_owner_membership=' || (
+      select count(*)::text
+      from public.room_factory_manifests m
+      where not exists (
+        select 1
+        from public.room_members rm
+        where rm.room_id = m.room_id
+          and rm.user_id = m.owner_id
+          and rm.role = 'owner'
+      )
+    )
+
+  union all
+
+  select
+    'room_factory.null_encounter_inventory',
+    'INFO',
     'null_encounter=' || (
       select count(*)::text
       from public.room_factory_manifests
@@ -88,7 +133,7 @@ checks as (
     ) || ', total=' || (
       select count(*)::text
       from public.room_factory_manifests
-    )
+    ) || ', null encounter IDs are valid for non-encounter creation after migration 20260901025800'
 
   union all
 
