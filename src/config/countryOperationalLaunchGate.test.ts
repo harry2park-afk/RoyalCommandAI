@@ -65,6 +65,7 @@ const OPTIONAL_CRITICAL_REQUIREMENTS = [
   ["legalCompliance", "LEGAL_COMPLIANCE_NOT_VERIFIED"],
   ["taxCompliance", "TAX_COMPLIANCE_NOT_VERIFIED"],
   ["privacyCompliance", "PRIVACY_COMPLIANCE_NOT_VERIFIED"],
+  ["recordingCompliance", "RECORDING_COMPLIANCE_NOT_VERIFIED"],
   ["tenantIsolation", "TENANT_ISOLATION_NOT_VERIFIED"],
   ["consentCapture", "CONSENT_CAPTURE_NOT_VERIFIED"],
   ["roomFactoryPersistence", "ROOM_FACTORY_PERSISTENCE_NOT_VERIFIED"],
@@ -72,7 +73,6 @@ const OPTIONAL_CRITICAL_REQUIREMENTS = [
   ["serviceCountryTerms", "SERVICE_COUNTRY_TERMS_NOT_VERIFIED"],
   ["paymentOperations", "PAYMENT_OPERATIONS_NOT_VERIFIED"],
   ["paymentLifecycle", "PAYMENT_LIFECYCLE_NOT_VERIFIED"],
-  ["recordingCompliance", "RECORDING_COMPLIANCE_NOT_VERIFIED"],
   ["deploymentProtection", "DEPLOYMENT_PROTECTION_NOT_VERIFIED"],
   ["securityRegression", "SECURITY_REGRESSION_NOT_VERIFIED"],
 ] as const;
