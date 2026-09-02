@@ -3,7 +3,7 @@ import { sanitizeRecoveryPath } from "@/lib/auth/recovery";
 import { createClient } from "@/lib/supabase/server";
 
 function recoveryFailureUrl(origin: string) {
-  return new URL("/login?recovery=invalid", origin);
+  return new URL("/forgot-password?recovery=invalid", origin);
 }
 
 export async function GET(request: Request) {
