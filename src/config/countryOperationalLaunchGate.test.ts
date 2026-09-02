@@ -18,6 +18,12 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   requiredIntegrations: "NEEDS_REVIEW",
   previewSmokeTest: "NEEDS_REVIEW",
   rollbackPath: "NEEDS_REVIEW",
+  authRecovery: "NEEDS_REVIEW",
+  tenantIsolation: "NEEDS_REVIEW",
+  consentCapture: "NEEDS_REVIEW",
+  paymentLifecycle: "NEEDS_REVIEW",
+  recordingCompliance: "NEEDS_REVIEW",
+  securityRegression: "NEEDS_REVIEW",
 };
 
 const verifiedEvidence: CountryOperationalEvidence = {
@@ -30,6 +36,12 @@ const verifiedEvidence: CountryOperationalEvidence = {
   requiredIntegrations: "VERIFIED",
   previewSmokeTest: "VERIFIED",
   rollbackPath: "VERIFIED",
+  authRecovery: "VERIFIED",
+  tenantIsolation: "VERIFIED",
+  consentCapture: "VERIFIED",
+  paymentLifecycle: "VERIFIED",
+  recordingCompliance: "VERIFIED",
+  securityRegression: "VERIFIED",
 };
 
 function makeCountryGateReady(config: CountryConfig): CountryConfig {
@@ -68,6 +80,12 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROLLBACK_PATH_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("AUTH_RECOVERY_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("CONSENT_CAPTURE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_LIFECYCLE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("RECORDING_COMPLIANCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("SECURITY_REGRESSION_NOT_VERIFIED");
     }
   });
 
@@ -96,7 +114,38 @@ describe("country operational launch readiness gate", () => {
     expect(gate.operationalBlockers).toEqual(["DATA_RESIDENCY_NOT_VERIFIED"]);
   });
 
-  it("only becomes launchable when both country and operational evidence are verified", () => {
+  it("treats omitted launch-critical hardening evidence as blocked for backward-compatible callers", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const legacyEvidence: CountryOperationalEvidence = {
+      domainBinding: "VERIFIED",
+      authCallback: "VERIFIED",
+      sessionCookies: "VERIFIED",
+      communicationsRules: "VERIFIED",
+      dataResidency: "VERIFIED",
+      localization: "VERIFIED",
+      requiredIntegrations: "VERIFIED",
+      previewSmokeTest: "VERIFIED",
+      rollbackPath: "VERIFIED",
+    };
+
+    expect(evaluateCountryOperationalLaunch(ready, legacyEvidence)).toEqual({
+      launchable: false,
+      countryGate: { launchable: true, blockers: [] },
+      operationalBlockers: [
+        "AUTH_RECOVERY_NOT_VERIFIED",
+        "TENANT_ISOLATION_NOT_VERIFIED",
+        "CONSENT_CAPTURE_NOT_VERIFIED",
+        "PAYMENT_LIFECYCLE_NOT_VERIFIED",
+        "RECORDING_COMPLIANCE_NOT_VERIFIED",
+        "SECURITY_REGRESSION_NOT_VERIFIED",
+      ],
+    });
+  });
+
+  it("only becomes launchable when both country and every operational evidence item are verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const ready = makeCountryGateReady(base!);
