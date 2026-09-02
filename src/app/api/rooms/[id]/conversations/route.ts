@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { resolveRoomRouteId } from "@/lib/rcaV2/roomAlias";
 
 function normaliseTitle(value: unknown) {
   if (typeof value !== "string") return "New Chat";
@@ -20,12 +21,15 @@ export async function GET(
     return NextResponse.json({ conversations: [] });
   }
 
-  const { id: roomId } = await context.params;
+  const { id } = await context.params;
+  const resolved = await resolveRoomRouteId(id);
+  if (!resolved) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("conversations")
     .select("id, room_id, title, status, created_at, updated_at, last_message_at")
-    .eq("room_id", roomId)
+    .eq("room_id", resolved.roomId)
     .eq("created_by", user.id)
     .order("last_message_at", { ascending: false });
 
@@ -47,7 +51,10 @@ export async function POST(
     );
   }
 
-  const { id: roomId } = await context.params;
+  const { id } = await context.params;
+  const resolved = await resolveRoomRouteId(id);
+  if (!resolved) return NextResponse.json({ error: "Room not found" }, { status: 404 });
+
   const body = await request.json().catch(() => ({}));
   const title = normaliseTitle(body?.title);
   const now = new Date().toISOString();
@@ -56,7 +63,7 @@ export async function POST(
   const { data, error } = await supabase
     .from("conversations")
     .insert({
-      room_id: roomId,
+      room_id: resolved.roomId,
       created_by: user.id,
       title,
       status: "active",
