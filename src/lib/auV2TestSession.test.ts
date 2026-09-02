@@ -5,6 +5,7 @@ import {
   verifyAuV2SessionToken,
 } from "./auV2TestSession";
 
+// Security invariant: host allowlisting never substitutes for route-level auth/tenant checks.
 const originalEnv = { ...process.env };
 
 afterEach(() => {
