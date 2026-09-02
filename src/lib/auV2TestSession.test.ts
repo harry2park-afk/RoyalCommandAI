@@ -13,11 +13,16 @@ afterEach(() => {
 });
 
 describe("RCA V2 session security", () => {
-  it("allows approved Royal Command production hosts", () => {
+  it("allows only approved RCA production hosts", () => {
     process.env.VERCEL_ENV = "production";
-    expect(isAustraliaV2Host(new Request("https://royalcommand.ai/api/au-v2/session"))).toBe(true);
-    expect(isAustraliaV2Host(new Request("https://www.royalcommand.ai/api/au-v2/session"))).toBe(true);
     expect(isAustraliaV2Host(new Request("https://atyourcommandai.com.au/api/au-v2/session"))).toBe(true);
+    expect(isAustraliaV2Host(new Request("https://www.atyourcommandai.com.au/api/au-v2/session"))).toBe(true);
+  });
+
+  it("rejects Royal Command production hosts for RCA session access", () => {
+    process.env.VERCEL_ENV = "production";
+    expect(isAustraliaV2Host(new Request("https://royalcommand.ai/api/au-v2/session"))).toBe(false);
+    expect(isAustraliaV2Host(new Request("https://www.royalcommand.ai/api/au-v2/session"))).toBe(false);
   });
 
   it("fails closed for an unapproved production host", () => {
