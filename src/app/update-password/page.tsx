@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 export default function UpdatePasswordPage() {
   const [password, setPassword] = useState("");
@@ -18,10 +17,12 @@ export default function UpdatePasswordPage() {
 
     void (async () => {
       try {
-        const supabase = createClient();
-        const { data, error: userError } = await supabase.auth.getUser();
+        const response = await fetch("/api/auth/recovery-password", {
+          method: "GET",
+          cache: "no-store",
+        });
         if (!active) return;
-        setAuthorized(Boolean(data.user) && !userError);
+        setAuthorized(response.ok);
       } catch {
         if (active) setAuthorized(false);
       } finally {
@@ -38,8 +39,8 @@ export default function UpdatePasswordPage() {
     event.preventDefault();
     setError("");
 
-    if (password.length < 8) {
-      setError("Use at least 8 characters for the new password.");
+    if (password.length < 8 || password.length > 128) {
+      setError("Use between 8 and 128 characters for the new password.");
       return;
     }
     if (password !== confirmPassword) {
@@ -49,14 +50,18 @@ export default function UpdatePasswordPage() {
 
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { error: updateError } = await supabase.auth.updateUser({ password });
-      if (updateError) {
-        setError("The password could not be updated. Request a new recovery link and try again.");
+      const response = await fetch("/api/auth/recovery-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      const data = (await response.json()) as { updated?: boolean; error?: string };
+      if (!response.ok || !data.updated) {
+        setError(data.error || "The password could not be updated. Request a new recovery link and try again.");
+        if (response.status === 401) setAuthorized(false);
         return;
       }
 
-      await supabase.auth.signOut();
       setComplete(true);
       setPassword("");
       setConfirmPassword("");
@@ -93,6 +98,7 @@ export default function UpdatePasswordPage() {
               onChange={(event) => setPassword(event.target.value)}
               placeholder="New password"
               minLength={8}
+              maxLength={128}
               required
             />
             <input
@@ -103,6 +109,7 @@ export default function UpdatePasswordPage() {
               onChange={(event) => setConfirmPassword(event.target.value)}
               placeholder="Confirm new password"
               minLength={8}
+              maxLength={128}
               required
             />
             {error ? <p className="text-sm text-[var(--danger)]" role="alert">{error}</p> : null}
