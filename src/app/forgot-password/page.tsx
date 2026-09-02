@@ -30,20 +30,11 @@ export default function ForgotPasswordPage() {
     try {
       const supabase = createClient();
       const redirectTo = `${window.location.origin}/auth/callback?next=/update-password`;
-      const { error: recoveryError } = await supabase.auth.resetPasswordForEmail(
-        email.trim(),
-        { redirectTo },
-      );
-
-      if (recoveryError) {
-        setError("Recovery email could not be sent right now. Please try again later.");
-        return;
-      }
-
-      setSent(true);
+      await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo });
     } catch {
-      setError("Recovery email could not be sent right now. Please try again later.");
+      // Keep the browser response account-neutral. Delivery is verified separately by launch E2E.
     } finally {
+      setSent(true);
       setLoading(false);
     }
   }
@@ -61,7 +52,7 @@ export default function ForgotPasswordPage() {
         {sent ? (
           <div className="mt-7" aria-live="polite">
             <p className="text-sm leading-6 text-[var(--gold-soft)]">
-              If an account exists for that email, a secure recovery link has been requested. Check your inbox and follow the link to set a new password.
+              If an account exists for that email and recovery delivery is available, a secure recovery link has been requested. Check your inbox and follow the link to set a new password.
             </p>
             <Link href="/login" className="rc-btn rc-btn-primary mt-6 w-full">Return to sign in</Link>
           </div>
