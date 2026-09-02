@@ -148,4 +148,92 @@ SELECT
 FROM migration_state
 CROSS JOIN object_state;
 
+-- ---------------------------------------------------------------------------
+-- 4) Post-cutover policy + protected-column posture
+--
+-- Source presence is not deployment evidence. After the migration is applied,
+-- ordinary-staff policy expressions must use the assignment helper rather than
+-- the legacy global staff/admin helper, and authenticated users must not retain
+-- UPDATE privilege on tenant ownership / assignment columns.
+-- ---------------------------------------------------------------------------
+WITH migration_state AS (
+  SELECT exists (
+    SELECT 1
+    FROM supabase_migrations.schema_migrations sm
+    WHERE sm.version = '20260831225500'
+  ) AS migration_present
+),
+policy_state AS (
+  SELECT
+    count(*) FILTER (
+      WHERE (coalesce(qual, '') || ' ' || coalesce(with_check, '')) ILIKE '%is_staff_or_admin%'
+    )::int AS global_staff_policy_count,
+    count(*) FILTER (
+      WHERE (coalesce(qual, '') || ' ' || coalesce(with_check, '')) ILIKE '%is_assigned_matter_staff%'
+    )::int AS assignment_scoped_policy_count
+  FROM pg_policies
+  WHERE schemaname = 'public'
+    AND tablename IN (
+      'matters',
+      'matter_documents',
+      'matter_messages',
+      'matter_chat_reads'
+    )
+),
+privilege_state AS (
+  SELECT
+    has_column_privilege(
+      'authenticated', 'public.matters', 'client_id', 'UPDATE'
+    ) AS authenticated_can_update_client_id,
+    has_column_privilege(
+      'authenticated', 'public.matters', 'assigned_staff_id', 'UPDATE'
+    ) AS authenticated_can_update_assigned_staff_id
+),
+execute_state AS (
+  SELECT
+    CASE
+      WHEN to_regprocedure('public.set_matter_staff_assignment(uuid,uuid)') IS NULL
+        THEN false
+      ELSE has_function_privilege(
+        'authenticated',
+        'public.set_matter_staff_assignment(uuid,uuid)',
+        'EXECUTE'
+      )
+    END AS authenticated_can_execute_assignment_rpc,
+    CASE
+      WHEN to_regprocedure('private.is_assigned_matter_staff(uuid)') IS NULL
+        THEN false
+      ELSE has_function_privilege(
+        'authenticated',
+        'private.is_assigned_matter_staff(uuid)',
+        'EXECUTE'
+      )
+    END AS authenticated_can_execute_assignment_helper
+)
+SELECT
+  'matter_cutover.policy_privilege_posture' AS check_name,
+  CASE
+    WHEN NOT migration_present THEN 'BLOCKED_SCHEMA_NOT_CUT_OVER'
+    WHEN global_staff_policy_count > 0 THEN 'BLOCKED_GLOBAL_STAFF_POLICY_REMAINS'
+    WHEN assignment_scoped_policy_count < 8 THEN 'BLOCKED_ASSIGNMENT_POLICIES_INCOMPLETE'
+    WHEN authenticated_can_update_client_id
+      OR authenticated_can_update_assigned_staff_id
+      THEN 'BLOCKED_SENSITIVE_COLUMN_UPDATE'
+    WHEN NOT authenticated_can_execute_assignment_rpc
+      OR NOT authenticated_can_execute_assignment_helper
+      THEN 'BLOCKED_EXECUTE_BOUNDARY'
+    ELSE 'PASS'
+  END AS status,
+  migration_present,
+  global_staff_policy_count,
+  assignment_scoped_policy_count,
+  authenticated_can_update_client_id,
+  authenticated_can_update_assigned_staff_id,
+  authenticated_can_execute_assignment_rpc,
+  authenticated_can_execute_assignment_helper
+FROM migration_state
+CROSS JOIN policy_state
+CROSS JOIN privilege_state
+CROSS JOIN execute_state;
+
 ROLLBACK;
