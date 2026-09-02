@@ -2,7 +2,7 @@
 
 Date: 2026-09-02 Australia/Sydney
 Risk: HIGH-RISK / GLOBAL CORE / SECURITY / BILLING
-Status: DESIGN GATE — all current and future Rooms must conform before Production activation
+Status: DESIGN CANDIDATE — MULTI-AI REVIEW REQUIRED BEFORE LOCK
 Authority: subordinate to `ROYAL_COMMAND_LAW.md`; stricter controls here apply only to the risks declared below.
 
 ## 1. Purpose
@@ -320,7 +320,19 @@ At minimum automated policy tests must prove:
 
 Domain-specific tests are added on top of this baseline.
 
-## 22. Change and Review Path
+## 22. Multi-AI Design Review Gate
+
+This contract MUST NOT be marked LOCKED until the following role reviews are completed with attributable evidence:
+
+- **Claude / Architecture Reviewer**: boundaries, coupling, extensibility, policy-vs-code separation, failure domains, migration path to 100+ Rooms.
+- **Gemini / Global & Country Reviewer**: country profiles, tax/payment separation, localization independence, jurisdiction review lifecycle, data residency and global scaling concerns.
+- **Grok / Red-Team Reviewer**: bypass paths, confused-deputy risks, replay/race attacks, cross-tenant leakage, payment/entitlement abuse, AI/tool escalation and operational failure scenarios.
+- **Codex / Code & Security Reviewer**: repository-grounded implementation feasibility, auth/RLS/server-gate placement, secret exposure, test/live separation, webhook verification, idempotency and unsafe code paths.
+- **ChatGPT / Controller-Integrator**: reconcile conflicts, preserve Royal Command Law, define P0/P1/P2 dispositions and produce final lock recommendation.
+
+No AI self-report may be treated as Host evidence. If a reviewer is technically unavailable, record `REVIEWER_UNAVAILABLE` and do not fabricate a result. For HIGH-RISK lock, unavailable required perspectives remain an explicit unresolved gate unless Royal Command Law permits a documented substitute with equivalent independent evidence.
+
+## 23. Change and Review Path
 
 Changes to shared security, auth, tenant isolation, billing, payments, entitlement, Country Compliance, Vault boundaries, provider execution authority or Production infrastructure are HIGH-RISK.
 
@@ -336,17 +348,20 @@ Required path under Royal Command Law:
 - known rollback point;
 - Preview/sandbox evidence before Production.
 
-## 23. Current Rollout Order
+## 24. Current Rollout Order
 
-1. Lock this Global Contract.
-2. Map Legal 10 + Accounting 8 to the Universal Room Policy Contract.
-3. Implement central server-side Security/Entitlement Gate.
-4. Implement persistent billing ledger/entitlement with RLS and tenant isolation.
-5. Implement Stripe signed-webhook + LIVE/TEST hard separation.
-6. Implement Country Compliance integration.
-7. Apply the same template to future 100+ Rooms.
-8. Production activation only after required independent review and evidence.
+1. Complete this design candidate.
+2. Execute role-separated Multi-AI review and record findings.
+3. Resolve all P0 and required P1 findings in design only.
+4. Lock Global Contract only after review gate is satisfied.
+5. Map Legal 10 + Accounting 8 to the Universal Room Policy Contract.
+6. Implement central server-side Security/Entitlement Gate.
+7. Implement persistent billing ledger/entitlement with RLS and tenant isolation.
+8. Implement Stripe signed-webhook + LIVE/TEST hard separation.
+9. Implement Country Compliance integration.
+10. Apply the same template to future 100+ Rooms.
+11. Production activation only after required independent review and evidence.
 
-## 24. Non-Goals of This Contract
+## 25. Non-Goals of This Contract
 
 This document does not set actual customer prices, tax registrations, country legal conclusions, provider credentials, or Production secrets. Those require their own approved records and applicable external review.
