@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { sanitizeRecoveryPath } from "@/lib/auth/recovery";
 import { createClient } from "@/lib/supabase/server";
 
+export const RECOVERY_COOKIE = "rc_password_recovery";
+
 function recoveryFailureUrl(origin: string) {
   return new URL("/forgot-password?recovery=invalid", origin);
 }
@@ -27,5 +29,13 @@ export async function GET(request: Request) {
     return NextResponse.redirect(recoveryFailureUrl(requestUrl.origin));
   }
 
-  return NextResponse.redirect(new URL(next, requestUrl.origin));
+  const response = NextResponse.redirect(new URL(next, requestUrl.origin));
+  response.cookies.set(RECOVERY_COOKIE, "1", {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    path: "/",
+    maxAge: 10 * 60,
+  });
+  return response;
 }
