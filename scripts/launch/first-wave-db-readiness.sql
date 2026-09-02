@@ -4,8 +4,14 @@
 -- PASS means only that the individual database evidence below is present.
 -- A country is not launch-ready until the independent GitHub/deployment/Auth/legal/payment gates also pass.
 
-with first_wave(country_code) as (
-  values ('AU'), ('US'), ('CA'), ('KR'), ('JP'), ('GB')
+with first_wave(country_code, expected_currency) as (
+  values
+    ('AU', 'AUD'),
+    ('US', 'USD'),
+    ('CA', 'CAD'),
+    ('KR', 'KRW'),
+    ('JP', 'JPY'),
+    ('GB', 'GBP')
 ),
 checks as (
   select
@@ -205,6 +211,33 @@ checks as (
 )
 select metric, status, detail
 from checks
+
+union all
+
+select
+  'payments.terms.' || fw.country_code,
+  case
+    when exists (
+      select 1
+      from public.rc_service_country_terms t
+      where t.country_code = fw.country_code
+        and t.currency = fw.expected_currency
+    ) then 'PASS'
+    else 'BLOCKED'
+  end,
+  'expected_currency=' || fw.expected_currency
+    || ', matching_terms=' || (
+      select count(*)::text
+      from public.rc_service_country_terms t
+      where t.country_code = fw.country_code
+        and t.currency = fw.expected_currency
+    )
+    || ', any_terms=' || (
+      select count(*)::text
+      from public.rc_service_country_terms t
+      where t.country_code = fw.country_code
+    )
+from first_wave fw
 
 union all
 
