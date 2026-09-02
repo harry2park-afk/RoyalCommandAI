@@ -6,8 +6,6 @@ const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 const PRODUCTION_RCA_HOSTS = new Set([
   "atyourcommandai.com.au",
   "www.atyourcommandai.com.au",
-  "royalcommand.ai",
-  "www.royalcommand.ai",
 ]);
 
 function getSecret() {
