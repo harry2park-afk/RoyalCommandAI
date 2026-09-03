@@ -5,7 +5,9 @@
 --   * existing service-order insert/runtime behaviour is not changed;
 --   * order idempotency remains nullable until the runtime path is verified to supply it;
 --   * webhook/event payloads are represented by a SHA-256 digest, not raw payload data;
---   * provider registry and event ledger are not directly accessible to anon/authenticated.
+--   * provider registry and event ledger are not directly accessible to anon/authenticated;
+--   * production_ready cannot be declared without webhook/refund/cancellation capability;
+--   * webhook events cannot enter processing/processed state until signature verification is recorded.
 --
 -- This migration is source-only until separately approved for a controlled Hosted cutover.
 
@@ -29,6 +31,11 @@ create table if not exists public.rc_payment_provider_registry (
     check (
       status = 'disabled'
       or (reviewed_by is not null and reviewed_at is not null)
+    ),
+  constraint rc_payment_provider_registry_production_capabilities
+    check (
+      status <> 'production_ready'
+      or (supports_webhooks and supports_refunds and supports_cancellations)
     )
 );
 
@@ -38,7 +45,7 @@ revoke all on table public.rc_payment_provider_registry from public, anon, authe
 comment on table public.rc_payment_provider_registry is
   'Fail-closed payment-provider readiness registry. No providers are seeded by the launch safeguard migration.';
 comment on column public.rc_payment_provider_registry.status is
-  'disabled by default; sandbox_ready/production_ready require reviewer provenance.';
+  'disabled by default; sandbox_ready/production_ready require reviewer provenance, and production_ready also requires webhook/refund/cancellation capability.';
 
 create table if not exists public.rc_payment_provider_events (
   id uuid primary key default gen_random_uuid(),
@@ -65,6 +72,11 @@ create table if not exists public.rc_payment_provider_events (
     check (length(btrim(event_type)) between 1 and 128),
   constraint rc_payment_provider_events_payload_sha256
     check (payload_sha256 ~ '^[0-9a-f]{64}$'),
+  constraint rc_payment_provider_events_processing_requires_verified_signature
+    check (
+      processing_status not in ('processing', 'processed')
+      or signature_verified
+    ),
   constraint rc_payment_provider_events_processed_timestamp
     check (
       processing_status not in ('processed', 'ignored')
@@ -85,7 +97,7 @@ create index if not exists rc_payment_provider_events_status_received_idx
   where processing_status in ('received', 'processing', 'failed');
 
 comment on table public.rc_payment_provider_events is
-  'Private payment webhook/event ledger with provider-event uniqueness. Store payload digest only; never raw webhook payloads.';
+  'Private payment webhook/event ledger with provider-event uniqueness. Store payload digest only; never raw webhook payloads. Processing requires recorded signature verification.';
 
 alter table public.rc_service_connection_orders
   add column if not exists idempotency_key text;
