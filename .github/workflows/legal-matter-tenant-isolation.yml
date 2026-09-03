@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "supabase/migrations/20260831225500_scope_matter_staff_access.sql"
+      - "supabase/migrations/20260903155500_optimize_launch_matter_rls.sql"
       - "scripts/legal-matter-tenant-isolation-evidence.mjs"
       - ".github/workflows/legal-matter-tenant-isolation.yml"
   workflow_dispatch:
@@ -44,9 +45,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          # Full repository migration replay is independently blocked by #592.
-          # This workflow therefore proves only the exact #446/#593 tenant-isolation
-          # candidate against a disposable local schema shaped from read-only
+          # Full repository migration replay is independently covered by the clean-replay gate.
+          # This workflow proves the exact tenant-isolation baseline plus the launch RLS
+          # performance follow-up against a disposable local schema shaped from read-only
           # Production evidence. It never uses hosted credentials or Production DDL.
           mv supabase/migrations supabase/migrations-full
           mkdir supabase/migrations
@@ -158,6 +159,7 @@ jobs:
           SQL
 
           cp supabase/migrations-full/20260831225500_scope_matter_staff_access.sql supabase/migrations/
+          cp supabase/migrations-full/20260903155500_optimize_launch_matter_rls.sql supabase/migrations/
 
       - name: Start disposable Supabase stack
         run: supabase start
