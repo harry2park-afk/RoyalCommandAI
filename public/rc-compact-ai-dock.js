@@ -135,6 +135,8 @@
     button.style.display = show ? "inline-flex" : "none";
     if (!show) return;
 
+    const active = isActive(button);
+
     button.style.flex = "0 0 auto";
     button.style.width = "auto";
     button.style.minWidth = "0";
@@ -142,6 +144,8 @@
     button.style.padding = "2px 6px";
     button.style.gap = "5px";
     button.style.border = "0";
+    button.style.outline = active ? "1px solid #22c55e" : "0";
+    button.style.outlineOffset = active ? "-1px" : "0";
     button.style.borderRadius = "0";
     button.style.background = "transparent";
     button.style.boxShadow = "none";
@@ -172,7 +176,7 @@
       label.style.textOverflow = "clip";
     }
 
-    ensureTick(button, isActive(button));
+    ensureTick(button, active);
   }
 
   function styleDock() {
