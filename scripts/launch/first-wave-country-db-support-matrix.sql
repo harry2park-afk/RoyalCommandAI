@@ -108,46 +108,44 @@ global_evidence as (
         and pg_get_constraintdef(c.oid) ~* 'refunded'
     ) as payment_lifecycle_constraint,
 
-    -- Provider allow-listing is registry/FK/trigger based in the reviewed
-    -- payment-safeguards candidate, not a CHECK constraint on payment_provider.
+    -- Payment safeguards below are aligned to the reviewed additive candidate
+    -- contract in PR #658. They verify schema/constraint presence only; actual
+    -- provider activation, signed webhook delivery, refund/cancel behavior and
+    -- reconciliation remain independent operational launch gates.
     to_regclass('public.rc_payment_provider_registry') is not null
       as payment_provider_registry,
+
+    (
+      select count(*)
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'rc_payment_provider_registry'
+        and column_name in (
+          'provider_key', 'environment', 'status',
+          'supports_webhooks', 'supports_refunds', 'supports_cancellations',
+          'reviewed_by', 'reviewed_at'
+        )
+    ) = 8 as payment_provider_registry_shape,
 
     exists (
       select 1
       from pg_constraint c
-      where c.conrelid = to_regclass('public.rc_service_connection_orders')
-        and c.contype = 'f'
-        and pg_get_constraintdef(c.oid) ~* 'payment_provider'
-        and pg_get_constraintdef(c.oid) ~* 'rc_payment_provider_registry'
-    ) as payment_provider_registry_fk,
+      where c.conrelid = to_regclass('public.rc_payment_provider_registry')
+        and c.contype = 'c'
+        and pg_get_constraintdef(c.oid) ~* 'production_ready'
+        and pg_get_constraintdef(c.oid) ~* 'supports_webhooks'
+        and pg_get_constraintdef(c.oid) ~* 'supports_refunds'
+        and pg_get_constraintdef(c.oid) ~* 'supports_cancellations'
+    ) as payment_provider_production_capability_constraint,
 
     exists (
       select 1
-      from pg_trigger t
-      where t.tgrelid = to_regclass('public.rc_service_connection_orders')
-        and t.tgname = 'rc_service_connection_orders_provider_enabled'
-        and not t.tgisinternal
-        and t.tgenabled <> 'D'
-    ) as payment_provider_enabled_trigger,
-
-    exists (
-      select 1
-      from pg_indexes
-      where schemaname = 'public'
-        and tablename = 'rc_service_connection_orders'
-        and indexdef ~* 'unique'
-        and indexdef ~* 'external_checkout_id'
-    ) as payment_checkout_unique,
-
-    exists (
-      select 1
-      from pg_indexes
-      where schemaname = 'public'
-        and tablename = 'rc_service_connection_orders'
-        and indexdef ~* 'unique'
-        and indexdef ~* 'external_payment_id'
-    ) as payment_id_unique,
+      from pg_constraint c
+      where c.conrelid = to_regclass('public.rc_payment_provider_registry')
+        and c.contype = 'c'
+        and pg_get_constraintdef(c.oid) ~* 'reviewed_by'
+        and pg_get_constraintdef(c.oid) ~* 'reviewed_at'
+    ) as payment_provider_review_provenance_constraint,
 
     exists (
       select 1
@@ -157,17 +155,26 @@ global_evidence as (
         and column_name = 'idempotency_key'
     ) as payment_idempotency_key,
 
-    to_regclass('public.rc_payment_provider_events') is not null
-      as payment_webhook_ledger,
-
     exists (
       select 1
-      from pg_constraint c
-      where c.conrelid = to_regclass('public.rc_payment_provider_events')
-        and c.contype = 'u'
-        and pg_get_constraintdef(c.oid) ~* 'provider_key'
-        and pg_get_constraintdef(c.oid) ~* 'provider_event_id'
-    ) as payment_webhook_replay_boundary,
+      from pg_indexes
+      where schemaname = 'public'
+        and tablename = 'rc_service_connection_orders'
+        and indexdef ~* 'unique'
+        and indexdef ~* 'owner_id'
+        and indexdef ~* 'idempotency_key'
+    ) as payment_owner_idempotency_unique,
+
+    -- Do not infer runtime idempotency readiness from column/index presence.
+    -- This aggregate emits no customer/order identifiers.
+    (
+      select count(*)
+      from public.rc_service_connection_orders o
+      where nullif(btrim(to_jsonb(o) ->> 'idempotency_key'), '') is not null
+    ) > 0 as payment_runtime_idempotency_evidence,
+
+    to_regclass('public.rc_payment_provider_events') is not null
+      as payment_webhook_ledger,
 
     (
       select count(*)
@@ -175,12 +182,47 @@ global_evidence as (
       where table_schema = 'public'
         and table_name = 'rc_payment_provider_events'
         and column_name in (
-          'provider_event_id',
-          'payload_sha256',
-          'signature_verified_at',
-          'processing_status'
+          'provider_key', 'environment', 'external_event_id', 'event_type',
+          'payload_sha256', 'signature_verified', 'processing_status',
+          'received_at', 'processed_at'
         )
-    ) = 4 as payment_webhook_verification_metadata
+    ) = 9 as payment_webhook_ledger_shape,
+
+    exists (
+      select 1
+      from pg_constraint c
+      where c.conrelid = to_regclass('public.rc_payment_provider_events')
+        and c.contype = 'u'
+        and pg_get_constraintdef(c.oid) ~* 'provider_key'
+        and pg_get_constraintdef(c.oid) ~* 'environment'
+        and pg_get_constraintdef(c.oid) ~* 'external_event_id'
+    ) as payment_webhook_replay_boundary,
+
+    exists (
+      select 1
+      from pg_constraint c
+      where c.conrelid = to_regclass('public.rc_payment_provider_events')
+        and c.contype = 'c'
+        and pg_get_constraintdef(c.oid) ~* 'signature_verified'
+        and pg_get_constraintdef(c.oid) ~* 'processing'
+        and pg_get_constraintdef(c.oid) ~* 'processed'
+    ) as payment_signature_before_processing_constraint,
+
+    exists (
+      select 1
+      from pg_constraint c
+      where c.conrelid = to_regclass('public.rc_payment_provider_events')
+        and c.contype = 'c'
+        and pg_get_constraintdef(c.oid) ~* 'payload_sha256'
+    ) as payment_payload_digest_constraint,
+
+    exists (
+      select 1
+      from pg_constraint c
+      where c.conrelid = to_regclass('public.rc_payment_provider_events')
+        and c.contype = 'c'
+        and pg_get_constraintdef(c.oid) ~* 'processed_at'
+    ) as payment_processed_timestamp_constraint
 ),
 evaluated as (
   select
@@ -205,6 +247,8 @@ evaluated as (
         and coalesce(c.price_minor, 0) > 0
     ) as fixed_positive_pricing_ok,
 
+    -- A label alone is insufficient. Country recording evidence must be
+    -- approved, non-blocked, reviewer-proven, timestamped and have a legal basis.
     exists (
       select 1
       from public.communication_recording_policies p
@@ -212,6 +256,9 @@ evaluated as (
         and p.region_code is null
         and p.review_status = 'approved'
         and p.recording_policy <> 'blocked'
+        and p.reviewed_by is not null
+        and p.reviewed_at is not null
+        and length(btrim(coalesce(p.legal_basis, ''))) > 0
     ) as recording_policy_ok,
 
     ge.matter_cutover_migration
@@ -228,14 +275,18 @@ evaluated as (
     ge.payment_required_columns
       and ge.payment_lifecycle_constraint
       and ge.payment_provider_registry
-      and ge.payment_provider_registry_fk
-      and ge.payment_provider_enabled_trigger
+      and ge.payment_provider_registry_shape
+      and ge.payment_provider_production_capability_constraint
+      and ge.payment_provider_review_provenance_constraint
       and ge.payment_idempotency_key
-      and ge.payment_checkout_unique
-      and ge.payment_id_unique
+      and ge.payment_owner_idempotency_unique
+      and ge.payment_runtime_idempotency_evidence
       and ge.payment_webhook_ledger
+      and ge.payment_webhook_ledger_shape
       and ge.payment_webhook_replay_boundary
-      and ge.payment_webhook_verification_metadata
+      and ge.payment_signature_before_processing_constraint
+      and ge.payment_payload_digest_constraint
+      and ge.payment_processed_timestamp_constraint
       as payment_operational_safeguards_ok
   from first_wave fw
   cross join global_evidence ge
@@ -245,7 +296,7 @@ select
   expected_currency,
   case when country_terms_ok then 'PASS' else 'BLOCKED' end as country_terms,
   case when fixed_positive_pricing_ok then 'PASS' else 'BLOCKED' end as fixed_positive_pricing,
-  case when recording_policy_ok then 'PASS' else 'BLOCKED' end as recording_policy,
+  case when recording_policy_ok then 'PASS' else 'BLOCKED' end as reviewer_proven_recording,
   case when matter_isolation_schema_ok then 'PASS' else 'BLOCKED' end as matter_isolation_schema,
   case when room_factory_schema_ok then 'PASS' else 'BLOCKED' end as room_factory_schema,
   case when consent_capture_evidence_ok then 'PASS' else 'BLOCKED' end as consent_capture_evidence,
