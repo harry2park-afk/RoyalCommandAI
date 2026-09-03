@@ -3,6 +3,8 @@
 -- PASS means only that the individual database evidence below is present.
 -- Static policy-shape checks do not replace authenticated cross-tenant negative tests or legal review.
 
+begin transaction read only;
+
 with legal_tables(table_name) as (
   values
     ('legal_cases'),
@@ -185,3 +187,5 @@ select
 from legal_tables lt
 
 order by metric;
+
+rollback;
