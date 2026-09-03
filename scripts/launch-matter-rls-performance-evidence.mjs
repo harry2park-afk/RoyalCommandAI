@@ -6,6 +6,7 @@ const candidatePath = 'supabase/migrations/20260903155500_optimize_launch_matter
 
 const baseline = readFileSync(baselinePath, 'utf8');
 const candidate = readFileSync(candidatePath, 'utf8');
+const candidateCode = candidate.replace(/--.*$/gm, '');
 
 function gitBlobSha(content) {
   const body = Buffer.from(content, 'utf8');
@@ -41,18 +42,21 @@ for (const forbidden of [
   /delete\s+from/i,
   /update\s+public\./i,
 ]) {
-  if (forbidden.test(candidate)) {
+  if (forbidden.test(candidateCode)) {
     throw new Error(`Candidate exceeds policy/index-only scope: ${forbidden}`);
   }
 }
 
-if (/private\.is_staff_or_admin\s*\(/i.test(candidate)) {
+if (/private\.is_staff_or_admin\s*\(/i.test(candidateCode)) {
   throw new Error('Candidate must not restore broad staff/admin Matter access');
 }
 
-// Every caller-identity read in the follow-up must use the advisor-recommended
-// SELECT wrapper. Strip the accepted form and reject any remaining auth.uid().
-const withoutWrappedUid = candidate.replace(/\(\s*select\s+auth\.uid\(\)\s*\)/gi, 'WRAPPED_AUTH_UID');
+// Every caller-identity read in executable SQL must use the advisor-recommended
+// SELECT wrapper. Strip accepted forms and reject any remaining auth.uid().
+const withoutWrappedUid = candidateCode.replace(
+  /\(\s*select\s+auth\.uid\(\)\s*\)/gi,
+  'WRAPPED_AUTH_UID',
+);
 if (/auth\.uid\(\)/i.test(withoutWrappedUid)) {
   throw new Error('Found unwrapped auth.uid() in launch Matter RLS candidate');
 }
@@ -68,7 +72,7 @@ const requiredPolicyPredicates = [
   ['parent Matter client boundary', /private\.is_matter_client\s*\(/i],
 ];
 for (const [label, pattern] of requiredPolicyPredicates) {
-  requireMatch(candidate, pattern, label);
+  requireMatch(candidateCode, pattern, label);
 }
 
 for (const policy of [
@@ -81,7 +85,7 @@ for (const policy of [
   'matter_chat_reads_insert',
   'matter_chat_reads_update',
 ]) {
-  requireMatch(candidate, new RegExp(`create\\s+policy\\s+${policy}\\b`, 'i'), `policy ${policy}`);
+  requireMatch(candidateCode, new RegExp(`create\\s+policy\\s+${policy}\\b`, 'i'), `policy ${policy}`);
 }
 
 for (const indexName of [
@@ -90,7 +94,7 @@ for (const indexName of [
   'matter_messages_author_id_idx',
 ]) {
   requireMatch(
-    candidate,
+    candidateCode,
     new RegExp(`create\\s+index\\s+if\\s+not\\s+exists\\s+${indexName}\\b`, 'i'),
     `covering index ${indexName}`,
   );
