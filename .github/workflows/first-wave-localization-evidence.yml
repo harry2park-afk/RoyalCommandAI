@@ -1,0 +1,38 @@
+name: First Wave Localization Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/app/create-room/FirstMeetingWindowV2.tsx"
+      - "src/app/create-room/FirstMeetingWindowV2.lifecycle.test.ts"
+      - "src/lib/locale/firstMeetingLocale.ts"
+      - "src/lib/locale/firstMeetingLocale.test.ts"
+      - ".github/workflows/first-wave-localization-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  first-wave-localization-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Verify six-country locale and encounter lifecycle contracts
+        run: npm test -- src/lib/locale/firstMeetingLocale.test.ts src/app/create-room/FirstMeetingWindowV2.lifecycle.test.ts
+
+      - name: Typecheck candidate
+        run: npm run typecheck
