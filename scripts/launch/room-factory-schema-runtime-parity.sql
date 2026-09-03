@@ -7,6 +7,8 @@
 -- encounters before that runtime can be deployed. Checking only the migration
 -- version is not sufficient evidence because function drift is also possible.
 
+begin transaction read only;
+
 with target_function as (
   select
     p.oid,
@@ -96,3 +98,5 @@ select
 from facts
 
 order by metric;
+
+rollback;
