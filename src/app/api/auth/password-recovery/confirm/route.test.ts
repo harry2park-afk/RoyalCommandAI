@@ -61,6 +61,7 @@ describe("password recovery confirmation boundary", () => {
     const setCookie = response.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain(`${PASSWORD_RECOVERY_COOKIE}=`);
     expect(setCookie).toContain("Max-Age=0");
+    expect(setCookie).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain(`Path=${PASSWORD_RECOVERY_COOKIE_PATH}`);
     expect(response.headers.get("referrer-policy")).toBe("no-referrer");
@@ -94,5 +95,6 @@ describe("password recovery confirmation boundary", () => {
     expect(mocks.verifyOtp).toHaveBeenCalledTimes(1);
     const setCookie = response.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("Max-Age=0");
+    expect(setCookie).toContain("Expires=Thu, 01 Jan 1970 00:00:00 GMT");
   });
 });
