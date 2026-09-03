@@ -23,6 +23,7 @@ function secureRedirect(baseUrl: string, pathname: string, status?: string) {
     sameSite: "lax",
     path: PASSWORD_RECOVERY_COOKIE_PATH,
     maxAge: 0,
+    expires: new Date(0),
   });
   return response;
 }
