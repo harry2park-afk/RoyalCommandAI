@@ -4,6 +4,8 @@
 -- PASS means only that the individual database evidence below is present.
 -- A country is not launch-ready until the independent GitHub/deployment/Auth/legal/payment gates also pass.
 
+begin transaction read only;
+
 with first_wave(country_code, expected_currency) as (
   values
     ('AU', 'AUD'),
@@ -42,38 +44,70 @@ checks as (
 
   union all
 
+  -- The reviewed Matter cutover design uses matters.assigned_staff_id plus an
+  -- admin-controlled assignment RPC/helper. A separate assignment table is not
+  -- part of the current source contract.
   select
-    'auth.matter_assignment_table',
+    'auth.matter_assignment_objects',
     case
-      when to_regclass('public.matter_staff_assignments') is not null then 'PASS'
+      when exists (
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'matters'
+          and column_name = 'assigned_staff_id'
+      )
+      and to_regprocedure('public.set_matter_staff_assignment(uuid,uuid)') is not null
+      and to_regprocedure('private.is_assigned_matter_staff(uuid)') is not null
+      then 'PASS'
       else 'BLOCKED'
     end,
-    coalesce(to_regclass('public.matter_staff_assignments')::text, 'missing')
+    'assigned_staff_id=' || exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'matters'
+        and column_name = 'assigned_staff_id'
+    )::text
+      || ', assignment_rpc=' || (to_regprocedure('public.set_matter_staff_assignment(uuid,uuid)') is not null)::text
+      || ', assignment_helper=' || (to_regprocedure('private.is_assigned_matter_staff(uuid)') is not null)::text
 
   union all
 
   select
     'auth.matter_staff_scope_policy',
     case
-      when exists (
+      when not exists (
         select 1
-        from pg_policies
-        where schemaname = 'public'
-          and tablename = 'matters'
-          and coalesce(qual, '') ~* '(matter_staff_assignments|assigned_staff)'
-      ) then 'PASS'
+        from pg_policies p
+        where p.schemaname = 'public'
+          and p.tablename in ('matters','matter_documents','matter_messages','matter_chat_reads')
+          and (coalesce(p.qual, '') || ' ' || coalesce(p.with_check, '')) ilike '%is_staff_or_admin%'
+      )
+      and (
+        select count(*)
+        from pg_policies p
+        where p.schemaname = 'public'
+          and p.tablename in ('matters','matter_documents','matter_messages','matter_chat_reads')
+          and (coalesce(p.qual, '') || ' ' || coalesce(p.with_check, '')) ilike '%is_assigned_matter_staff%'
+      ) >= 8
+      then 'PASS'
       else 'BLOCKED'
     end,
-    coalesce(
-      (
-        select string_agg(policyname || ': ' || coalesce(qual, ''), ' | ' order by policyname)
-        from pg_policies
-        where schemaname = 'public'
-          and tablename = 'matters'
-          and cmd = 'SELECT'
-      ),
-      'no SELECT policy'
+    'legacy_global_staff_policies=' || (
+      select count(*)::text
+      from pg_policies p
+      where p.schemaname = 'public'
+        and p.tablename in ('matters','matter_documents','matter_messages','matter_chat_reads')
+        and (coalesce(p.qual, '') || ' ' || coalesce(p.with_check, '')) ilike '%is_staff_or_admin%'
     )
+      || ', assignment_scoped_policies=' || (
+        select count(*)::text
+        from pg_policies p
+        where p.schemaname = 'public'
+          and p.tablename in ('matters','matter_documents','matter_messages','matter_chat_reads')
+          and (coalesce(p.qual, '') || ' ' || coalesce(p.with_check, '')) ilike '%is_assigned_matter_staff%'
+      )
 
   union all
 
@@ -239,57 +273,63 @@ checks as (
     'payments.first_wave_country_terms',
     case
       when (
-        select count(distinct country_code)
-        from public.rc_service_country_terms
-        where country_code in ('AU', 'US', 'CA', 'KR', 'JP', 'GB')
+        select count(*)
+        from first_wave fw
+        where exists (
+          select 1
+          from public.rc_service_country_terms t
+          where upper(t.country_code) = fw.country_code
+            and upper(t.currency) = fw.expected_currency
+            and lower(t.availability_status) not in ('blocked','unavailable','disabled')
+        )
       ) = 6 then 'PASS'
       else 'BLOCKED'
     end,
-    'countries_present=' || coalesce(
-      (
-        select string_agg(distinct country_code, ',' order by country_code)
-        from public.rc_service_country_terms
-        where country_code in ('AU', 'US', 'CA', 'KR', 'JP', 'GB')
-      ),
-      'none'
-    )
+    'expected-country/currency nonblocked terms=' || (
+      select count(*)::text
+      from first_wave fw
+      where exists (
+        select 1
+        from public.rc_service_country_terms t
+        where upper(t.country_code) = fw.country_code
+          and upper(t.currency) = fw.expected_currency
+          and lower(t.availability_status) not in ('blocked','unavailable','disabled')
+      )
+    ) || '/6'
 
   union all
 
   select
-    'payments.confirmed_catalog_prices',
+    'payments.fixed_positive_catalog_prices',
     case
       when (
         select count(*)
-        from public.rc_service_catalog
-        where active
-          and customer_selectable
-          and price_minor > 0
-          and price_status = 'confirmed'
-      ) > 0 then 'PASS'
+        from first_wave fw
+        where exists (
+          select 1
+          from public.rc_service_catalog c
+          where c.active
+            and c.customer_selectable
+            and c.price_status = 'fixed'
+            and coalesce(c.price_minor, 0) > 0
+            and upper(c.currency) = fw.expected_currency
+        )
+      ) = 6 then 'PASS'
       else 'BLOCKED'
     end,
-    'confirmed_positive=' || (
+    'expected currencies with >=1 active/selectable fixed positive service=' || (
       select count(*)::text
-      from public.rc_service_catalog
-      where active
-        and customer_selectable
-        and price_minor > 0
-        and price_status = 'confirmed'
-    ) || ', active_selectable=' || (
-      select count(*)::text
-      from public.rc_service_catalog
-      where active and customer_selectable
-    ) || ', currencies=' || coalesce(
-      (
-        select string_agg(distinct currency, ',' order by currency)
-        from public.rc_service_catalog
-        where active
-          and customer_selectable
-          and currency is not null
-      ),
-      'none'
-    )
+      from first_wave fw
+      where exists (
+        select 1
+        from public.rc_service_catalog c
+        where c.active
+          and c.customer_selectable
+          and c.price_status = 'fixed'
+          and coalesce(c.price_minor, 0) > 0
+          and upper(c.currency) = fw.expected_currency
+      )
+    ) || '/6'
 
   union all
 
@@ -302,7 +342,7 @@ checks as (
         where schemaname = 'public'
           and tablename = 'rc_service_connection_orders'
           and cmd = 'SELECT'
-          and coalesce(qual, '') ~* 'owner_id.*auth\.uid'
+          and coalesce(qual, '') ~* '(owner_id.*auth[.]uid|auth[.]uid.*owner_id)'
       )
       and exists (
         select 1
@@ -310,7 +350,7 @@ checks as (
         where schemaname = 'public'
           and tablename = 'rc_service_connection_orders'
           and cmd = 'INSERT'
-          and coalesce(with_check, '') ~* 'owner_id.*auth\.uid'
+          and coalesce(with_check, '') ~* '(owner_id.*auth[.]uid|auth[.]uid.*owner_id)'
       ) then 'PASS'
       else 'BLOCKED'
     end,
@@ -320,7 +360,7 @@ checks as (
       where schemaname = 'public'
         and tablename = 'rc_service_connection_orders'
         and cmd = 'SELECT'
-        and coalesce(qual, '') ~* 'owner_id.*auth\.uid'
+        and coalesce(qual, '') ~* '(owner_id.*auth[.]uid|auth[.]uid.*owner_id)'
     )::text
       || ', owner_insert=' || exists (
         select 1
@@ -328,7 +368,7 @@ checks as (
         where schemaname = 'public'
           and tablename = 'rc_service_connection_orders'
           and cmd = 'INSERT'
-          and coalesce(with_check, '') ~* 'owner_id.*auth\.uid'
+          and coalesce(with_check, '') ~* '(owner_id.*auth[.]uid|auth[.]uid.*owner_id)'
       )::text
 
   union all
@@ -352,22 +392,24 @@ select
     when exists (
       select 1
       from public.rc_service_country_terms t
-      where t.country_code = fw.country_code
-        and t.currency = fw.expected_currency
+      where upper(t.country_code) = fw.country_code
+        and upper(t.currency) = fw.expected_currency
+        and lower(t.availability_status) not in ('blocked','unavailable','disabled')
     ) then 'PASS'
     else 'BLOCKED'
   end,
   'expected_currency=' || fw.expected_currency
-    || ', matching_terms=' || (
+    || ', matching_nonblocked_terms=' || (
       select count(*)::text
       from public.rc_service_country_terms t
-      where t.country_code = fw.country_code
-        and t.currency = fw.expected_currency
+      where upper(t.country_code) = fw.country_code
+        and upper(t.currency) = fw.expected_currency
+        and lower(t.availability_status) not in ('blocked','unavailable','disabled')
     )
     || ', any_terms=' || (
       select count(*)::text
       from public.rc_service_country_terms t
-      where t.country_code = fw.country_code
+      where upper(t.country_code) = fw.country_code
     )
 from first_wave fw
 
@@ -377,16 +419,25 @@ select
   'recording.' || fw.country_code,
   case
     when p.review_status = 'approved'
-      and p.recording_policy <> 'blocked' then 'PASS'
+      and p.recording_policy <> 'blocked'
+      and p.reviewed_by is not null
+      and p.reviewed_at is not null
+      and length(btrim(coalesce(p.legal_basis, ''))) > 0
+      then 'PASS'
     else 'BLOCKED'
   end,
   'review=' || coalesce(p.review_status, 'missing')
     || ', policy=' || coalesce(p.recording_policy, 'missing')
+    || ', reviewer_present=' || (p.reviewed_by is not null)::text
+    || ', reviewed_at_present=' || (p.reviewed_at is not null)::text
+    || ', legal_basis_present=' || (length(btrim(coalesce(p.legal_basis, ''))) > 0)::text
     || ', consent=' || coalesce(p.consent_required::text, 'missing')
     || ', notice=' || coalesce(p.notice_required::text, 'missing')
 from first_wave fw
 left join public.communication_recording_policies p
-  on p.country_code = fw.country_code
+  on upper(p.country_code) = fw.country_code
  and p.region_code is null
 
 order by metric;
+
+rollback;
