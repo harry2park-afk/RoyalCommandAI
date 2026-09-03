@@ -36,7 +36,7 @@ function splitSetCookie(value) {
 
 function responseCookies(response) {
   if (typeof response.headers.getSetCookie === 'function') {
-    return response.headers.getSetCookie();
+    return response.headers.getSetCookie().flatMap(splitSetCookie);
   }
   return splitSetCookie(response.headers.get('set-cookie'));
 }
