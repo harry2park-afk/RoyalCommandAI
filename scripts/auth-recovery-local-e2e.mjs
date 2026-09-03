@@ -41,17 +41,49 @@ function responseCookies(response) {
   return splitSetCookie(response.headers.get('set-cookie'));
 }
 
+function parseCookieMetadata(raw) {
+  const first = raw.split(';', 1)[0];
+  const separator = first.indexOf('=');
+  if (separator <= 0) return null;
+  const name = first.slice(0, separator).trim();
+  const value = first.slice(separator + 1).trim();
+  const maxAgeZero = /max-age\s*=\s*0(?:\D|$)/i.test(raw);
+  const expired = /expires\s*=\s*(?:thu,\s*)?0?1\s+jan(?:uary)?\s+1970/i.test(raw);
+  const pathMatch = raw.match(/(?:^|;)\s*path\s*=\s*([^;]+)/i);
+  return {
+    name,
+    valueEmpty: value.length === 0,
+    maxAgeZero,
+    expired,
+    path: pathMatch?.[1]?.trim() ?? null,
+    clears: maxAgeZero || expired,
+  };
+}
+
+function safeCookieMetadata(response) {
+  return responseCookies(response)
+    .map(parseCookieMetadata)
+    .filter(Boolean)
+    .map(({ name, valueEmpty, maxAgeZero, expired, path, clears }) => ({
+      name,
+      valueEmpty,
+      maxAgeZero,
+      expired,
+      path,
+      clears,
+    }));
+}
+
 function absorbCookies(jar, response) {
   for (const raw of responseCookies(response)) {
+    const metadata = parseCookieMetadata(raw);
+    if (!metadata) continue;
     const first = raw.split(';', 1)[0];
-    const separator = first.indexOf('=');
-    if (separator <= 0) continue;
-    const name = first.slice(0, separator).trim();
-    const value = first.slice(separator + 1).trim();
-    if (/Max-Age=0/i.test(raw) || /Expires=Thu, 01 Jan 1970/i.test(raw)) {
-      jar.delete(name);
+    const value = first.slice(first.indexOf('=') + 1).trim();
+    if (metadata.clears) {
+      jar.delete(metadata.name);
     } else {
-      jar.set(name, value);
+      jar.set(metadata.name, value);
     }
   }
 }
@@ -161,7 +193,16 @@ try {
   });
   assert(confirm.status === 303, `Recovery confirmation POST returned ${confirm.status}`);
   assert(locationPath(confirm) === '/account/update-password', 'Valid recovery confirmation did not establish update-password path.');
-  assert(!recoveryJar.has('rc_password_recovery'), 'Recovery capture cookie was not cleared after POST consumption.');
+  const confirmCookieMetadata = safeCookieMetadata(confirm);
+  const captureCookieMetadata = confirmCookieMetadata.find(({ name }) => name === 'rc_password_recovery');
+  assert(
+    captureCookieMetadata?.clears === true,
+    `Recovery POST did not emit an explicit capture-cookie deletion: ${JSON.stringify(confirmCookieMetadata)}`,
+  );
+  assert(
+    !recoveryJar.has('rc_password_recovery'),
+    `Recovery capture cookie remained after a verified deletion header: ${JSON.stringify(confirmCookieMetadata)}`,
+  );
 
   const sessionClient = createServerClient(supabaseUrl, anonKey, {
     cookies: {
