@@ -129,7 +129,7 @@
     tick.style.textShadow = active ? "0 0 7px rgba(34,197,94,.55)" : "none";
   }
 
-  function styleButton(button, visibleNames) {
+  function styleButton(button, visibleNames, standardWidth) {
     const name = shortName(button);
     const show = visibleNames.includes(name);
     button.style.display = show ? "inline-flex" : "none";
@@ -137,16 +137,17 @@
 
     const active = isActive(button);
 
-    button.style.flex = "0 0 auto";
-    button.style.width = "auto";
-    button.style.minWidth = "0";
-    button.style.height = "30px";
+    button.style.flex = `0 0 ${standardWidth}px`;
+    button.style.width = `${standardWidth}px`;
+    button.style.minWidth = `${standardWidth}px`;
+    button.style.maxWidth = `${standardWidth}px`;
+    button.style.height = "58px";
     button.style.padding = "2px 6px";
     button.style.gap = "5px";
     button.style.border = "0";
     button.style.outline = active ? "1px solid #22c55e" : "0";
     button.style.outlineOffset = active ? "-1px" : "0";
-    button.style.borderRadius = "0";
+    button.style.borderRadius = "8px";
     button.style.background = "transparent";
     button.style.boxShadow = "none";
     button.style.color = "#f4f0e7";
@@ -185,22 +186,28 @@
     const buttons = aiButtons();
     if (!buttons.length) return;
 
+    const chatGptButton = buttons.find((button) => shortName(button) === "ChatGPT");
+    const measuredChatGptWidth = chatGptButton instanceof HTMLButtonElement
+      ? Math.max(1, Math.round(chatGptButton.getBoundingClientRect().width))
+      : 0;
+    const standardWidth = measuredChatGptWidth || 78;
+
     const bar = dock.parentElement;
     if (bar instanceof HTMLElement) {
       bar.style.height = "92px";
       const topRow = bar.firstElementChild;
       if (topRow instanceof HTMLElement && topRow !== dock) {
-        topRow.style.height = "57px";
-        topRow.style.minHeight = "57px";
-        topRow.style.maxHeight = "57px";
+        topRow.style.height = "34px";
+        topRow.style.minHeight = "34px";
+        topRow.style.maxHeight = "34px";
       }
     }
 
-    dock.style.height = "35px";
-    dock.style.minHeight = "35px";
-    dock.style.maxHeight = "35px";
-    dock.style.paddingTop = "2px";
-    dock.style.paddingBottom = "2px";
+    dock.style.height = "58px";
+    dock.style.minHeight = "58px";
+    dock.style.maxHeight = "58px";
+    dock.style.paddingTop = "0";
+    dock.style.paddingBottom = "0";
 
     seedVisible(buttons);
     let visibleNames = readVisible();
@@ -214,7 +221,7 @@
       if (match) pendingWarehouseName = "";
     }
 
-    dock.style.gap = "10px";
+    dock.style.gap = "2px";
     if (window.location.pathname === "/rooms/rca") {
       dock.style.setProperty("overflow", "visible", "important");
     } else {
@@ -223,25 +230,26 @@
     }
     dock.style.whiteSpace = "nowrap";
     dock.style.justifyContent = "flex-start";
-    dock.style.paddingLeft = "10px";
-    dock.style.paddingRight = "10px";
+    dock.style.paddingLeft = "2px";
+    dock.style.paddingRight = "2px";
 
     const warehouse = warehouseButton(dock);
     if (warehouse instanceof HTMLButtonElement) {
       warehouse.style.order = "-1";
       warehouse.style.marginLeft = "0";
       warehouse.style.marginRight = "0";
-      warehouse.style.height = "30px";
+      warehouse.style.height = "58px";
       warehouse.style.minWidth = "116px";
       warehouse.style.padding = "2px 8px";
       warehouse.style.borderWidth = "1px";
+      warehouse.style.borderRadius = "8px";
       warehouse.style.flex = "0 0 auto";
 
       const council = document.getElementById(COUNCIL_ID);
       if (council instanceof HTMLButtonElement) council.style.order = "0";
     }
 
-    buttons.forEach((button) => styleButton(button, visibleNames));
+    buttons.forEach((button) => styleButton(button, visibleNames, standardWidth));
   }
 
   function warehouseChoiceName(button) {
