@@ -26,7 +26,7 @@ describe("Room Factory country preset registry", () => {
     for (const id of NEXT_PRIORITY_COUNTRIES) expect(ids.has(id), id).toBe(true);
   });
 
-  it("keeps first-wave Room Factory locale and currency aligned with country configuration", () => {
+  it("keeps first-wave Room Factory locale, currency and timezone aligned with country configuration", () => {
     const presetsById = new Map(COUNTRY_ROOM_PRESETS.map((preset) => [preset.id, preset]));
 
     for (const countryCode of FIRST_WAVE_COUNTRIES) {
@@ -37,6 +37,7 @@ describe("Room Factory country preset registry", () => {
       expect(config, `${countryCode} country config`).not.toBeNull();
       expect(preset?.languageTag, `${countryCode} locale`).toBe(config?.locale);
       expect(preset?.currencyCode, `${countryCode} currency`).toBe(config?.currency);
+      expect(config?.timezone.supportedExamples, `${countryCode} timezone`).toContain(preset?.timeZone);
     }
   });
 
