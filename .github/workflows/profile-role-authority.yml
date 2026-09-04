@@ -1,0 +1,61 @@
+name: Profile Role Authority Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260904105500_harden_profile_role_authority.sql"
+      - "scripts/profile-role-authority-evidence.mjs"
+      - ".github/workflows/profile-role-authority.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-profile-role-authority-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  profile-role-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies reproducibly
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Start disposable Supabase with full migration chain
+        run: supabase start
+
+      - name: Prove role authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_PROFILE_ROLE_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_PROFILE_ROLE_ANON_KEY="$ANON_KEY"
+          export RC_PROFILE_ROLE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_PROFILE_ROLE_TEST_SUFFIX="${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          export RC_PROFILE_ROLE_TEST_PASSWORD="RC-Role-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
+          export RC_PROFILE_ROLE_ALLOW_LOCALHOST=1
+          node scripts/profile-role-authority-evidence.mjs
+
+      - name: Stop disposable Supabase
+        if: always()
+        run: supabase stop --no-backup
