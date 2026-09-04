@@ -1,5 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 
 export const LAYOUT_EDITOR_SESSION_MINUTES = 20;
@@ -50,8 +50,17 @@ export function newOpaqueToken(bytes = 32) {
 export async function requireLayoutAdmin(): Promise<LayoutAdmin> {
   const user = await getCurrentUser();
   if (!user?.id || !user.email) throw new Error("UNAUTHENTICATED");
-  const admin = createAdminClient();
-  const { data, error } = await admin.from("profiles").select("role").eq("id", user.id).single();
+
+  // Authorize against the same authenticated Supabase session that identified
+  // the user. profiles_select_own permits this user to read only their own
+  // profile, avoiding a separate service-role lookup for the admin decision.
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
   if (error || data?.role !== "admin") throw new Error("FORBIDDEN");
   return user as LayoutAdmin;
 }
