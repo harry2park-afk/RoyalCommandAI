@@ -101,9 +101,14 @@
     overlay.style.cssText = "position:fixed;inset:0;z-index:1000002;display:flex;align-items:flex-start;justify-content:center;padding-top:70px;background:rgba(0,0,0,.55);";
     overlay.addEventListener("click", (event) => { if (event.target === overlay) closeManager(); });
     const panel = document.createElement("div"); panel.style.cssText = "width:min(680px,92vw);max-height:76vh;overflow:auto;border:1px solid #bcae8d;border-radius:12px;background:#17231f;padding:12px;box-shadow:0 18px 50px rgba(0,0,0,.5);font-family:'Times New Roman',Times,serif;";
-    const top = document.createElement("div"); top.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;";
+    const top = document.createElement("div"); top.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:10px;";
     const title = document.createElement("div"); title.textContent = "Room 관리"; title.style.cssText = "font:700 18px/1.2 'Times New Roman',Times,serif;color:#fffaf0;";
-    top.append(title, rowButton("닫기", closeManager)); panel.appendChild(top);
+    const topActions = document.createElement("div"); topActions.style.cssText = "display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;";
+    topActions.append(
+      rowButton("보안 · Passkey / 기기 관리", () => window.location.assign("/layout-editor")),
+      rowButton("닫기", closeManager),
+    );
+    top.append(title, topActions); panel.appendChild(top);
 
     for (const room of specialistRooms()) {
       const row = document.createElement("div"); row.style.cssText = "display:grid;grid-template-columns:minmax(160px,1fr) auto;gap:10px;align-items:center;padding:8px 4px;border-top:1px solid rgba(214,200,166,.18);";
