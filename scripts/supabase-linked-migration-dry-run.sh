@@ -83,7 +83,15 @@ set -e
 # stage migration. Later candidates must override EXPECTED_APPLY_MIGRATIONS
 # deliberately with a comma-separated list; an empty or unrecognizable apply set
 # is never treated as safe.
-IFS=',' read -r -a expected_apply <<< "$EXPECTED_APPLY_MIGRATIONS"
+IFS=',' read -r -a expected_apply_raw <<< "$EXPECTED_APPLY_MIGRATIONS"
+expected_apply=()
+for migration in "${expected_apply_raw[@]}"; do
+  migration="${migration#"${migration%%[![:space:]]*}"}"
+  migration="${migration%"${migration##*[![:space:]]}"}"
+  [[ -n "$migration" ]] || fail "EXPECTED_APPLY_MIGRATIONS contains an empty entry"
+  expected_apply+=("$migration")
+done
+
 set +e
 node scripts/supabase-dry-run-apply-set.mjs \
   "$EVIDENCE_DIR/db-push-dry-run.txt" \
