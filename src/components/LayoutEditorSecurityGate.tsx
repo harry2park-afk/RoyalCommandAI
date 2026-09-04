@@ -3,8 +3,16 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
-type Device = { id: string; device_name: string; created_at: string; last_used_at: string | null };
+type Device = {
+  id: string;
+  passkey_id: string;
+  device_name: string;
+  created_at: string;
+  last_used_at: string | null;
+};
+
 type Status = {
   admin: boolean;
   trusted: boolean;
@@ -13,20 +21,6 @@ type Status = {
   devices: Device[];
   sessionMinutes: number;
 };
-
-function toBuffer(value: string) {
-  const normal = value.replace(/-/g, "+").replace(/_/g, "/");
-  const padded = normal + "=".repeat((4 - (normal.length % 4)) % 4);
-  const binary = atob(padded);
-  return Uint8Array.from(binary, (char) => char.charCodeAt(0));
-}
-
-function toBase64url(value: ArrayBuffer | Uint8Array) {
-  const bytes = value instanceof Uint8Array ? value : new Uint8Array(value);
-  let binary = "";
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
 
 async function api(body: Record<string, unknown>) {
   const response = await fetch("/api/layout-editor/security", {
@@ -67,51 +61,32 @@ export default function LayoutEditorSecurityGate() {
   const needsEnrollmentCode = useMemo(() => Boolean(status?.devices?.length), [status]);
 
   async function registerDevice() {
-    if (!window.PublicKeyCredential || !navigator.credentials) {
-      setMessage("This browser does not support secure passkey registration.");
-      return;
-    }
     if (!password) { setMessage("Enter your administrator password first."); return; }
     if (!deviceName.trim()) { setMessage("Enter a device name, for example Harry Tablet or New Laptop."); return; }
     if (needsEnrollmentCode && !enrollmentCode.trim()) {
       setMessage("Enter the one-time code generated on an already trusted device.");
       return;
     }
+
     setBusy(true);
-    setMessage("Verifying password…");
+    setMessage("Verifying administrator password…");
     try {
       await api({ action: "reauth", password });
-      const options = await api({ action: "register-options" });
-      setMessage("Use this device's fingerprint, face, Windows Hello, or screen lock now…");
-      const publicKey: PublicKeyCredentialCreationOptions = {
-        ...options,
-        challenge: toBuffer(options.challenge),
-        user: { ...options.user, id: toBuffer(options.user.id) },
-      };
-      const credential = await navigator.credentials.create({ publicKey }) as PublicKeyCredential | null;
-      if (!credential) throw new Error("Passkey registration was cancelled.");
-      const response = credential.response as AuthenticatorAttestationResponse & {
-        getAuthenticatorData?: () => ArrayBuffer;
-        getPublicKey?: () => ArrayBuffer | null;
-        getPublicKeyAlgorithm?: () => number;
-        getTransports?: () => string[];
-      };
-      const authenticatorData = response.getAuthenticatorData?.();
-      const publicKeySpki = response.getPublicKey?.();
-      const algorithm = response.getPublicKeyAlgorithm?.();
-      if (!authenticatorData || !publicKeySpki || typeof algorithm !== "number") {
-        throw new Error("This browser cannot provide a device-bound public key. Use current Chrome/Edge on the tablet or laptop.");
+      const supabase = createClient();
+      setMessage("Now verify with this device's fingerprint, face, Windows Hello, or device PIN…");
+      const { data: passkey, error: passkeyError } = await supabase.auth.registerPasskey();
+      if (passkeyError || !passkey?.id) {
+        throw new Error(passkeyError?.message || "Passkey registration was cancelled or could not be verified.");
       }
+
+      const friendlyName = `RC Layout — ${deviceName.trim()}`.slice(0, 120);
+      await supabase.auth.passkey.update({ passkeyId: passkey.id, friendlyName });
+
       await api({
-        action: "register-verify",
+        action: "bind-passkey",
+        passkeyId: passkey.id,
         deviceName: deviceName.trim(),
         enrollmentCode: enrollmentCode.trim().toUpperCase(),
-        credentialId: toBase64url(credential.rawId),
-        clientDataJSON: toBase64url(response.clientDataJSON),
-        authenticatorData: toBase64url(authenticatorData),
-        publicKeySpki: toBase64url(publicKeySpki),
-        algorithm,
-        transports: response.getTransports?.() || [],
       });
       setPassword("");
       setEnrollmentCode("");
@@ -126,27 +101,12 @@ export default function LayoutEditorSecurityGate() {
 
   async function unlock() {
     setBusy(true);
-    setMessage("Waiting for biometric/passkey verification…");
+    setMessage("Use the passkey registered to this device now…");
     try {
-      const options = await api({ action: "assert-options" });
-      const publicKey: PublicKeyCredentialRequestOptions = {
-        ...options,
-        challenge: toBuffer(options.challenge),
-        allowCredentials: options.allowCredentials.map((item: { id: string; type: "public-key"; transports?: AuthenticatorTransport[] }) => ({
-          ...item,
-          id: toBuffer(item.id),
-        })),
-      };
-      const credential = await navigator.credentials.get({ publicKey }) as PublicKeyCredential | null;
-      if (!credential) throw new Error("Passkey verification was cancelled.");
-      const response = credential.response as AuthenticatorAssertionResponse;
-      await api({
-        action: "assert-verify",
-        credentialId: toBase64url(credential.rawId),
-        clientDataJSON: toBase64url(response.clientDataJSON),
-        authenticatorData: toBase64url(response.authenticatorData),
-        signature: toBase64url(response.signature),
-      });
+      const supabase = createClient();
+      const { error } = await supabase.auth.signInWithPasskey();
+      if (error) throw new Error(error.message || "Passkey verification failed.");
+      await api({ action: "confirm-passkey" });
       setMessage("Verified. Layout Editor is unlocked.");
       await load();
     } catch (error) {
@@ -170,8 +130,10 @@ export default function LayoutEditorSecurityGate() {
   async function revoke(deviceId: string) {
     setBusy(true);
     try {
-      await api({ action: "revoke", deviceId });
-      setMessage("Trusted device revoked.");
+      const data = await api({ action: "revoke", deviceId });
+      setMessage(data.passkeyDeleted === false
+        ? "Layout Editor access was revoked. The passkey could not be deleted from Auth, so review it in account security."
+        : "Trusted device and its Layout Editor passkey were revoked.");
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not revoke device.");
@@ -196,8 +158,8 @@ export default function LayoutEditorSecurityGate() {
           <h2 className="text-xl font-semibold text-[var(--gold-soft)]">Register this trusted device</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
             {status.devices.length === 0
-              ? "First setup: verify your administrator password, then register this tablet or laptop with its biometric/passkey."
-              : "This browser is not trusted. Use a 10-minute enrollment code created on your already trusted tablet or laptop, then verify your password and this device's passkey."}
+              ? "First setup: verify your administrator password, then Supabase Auth will verify this tablet or laptop passkey."
+              : "This browser is not trusted. Use a 10-minute enrollment code from your already trusted tablet or laptop, then verify your password and register this device passkey."}
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
             <input value={deviceName} onChange={(e) => setDeviceName(e.target.value)} className="rc-input" placeholder="Device name — e.g. Harry Tablet" autoComplete="off" />
@@ -208,8 +170,8 @@ export default function LayoutEditorSecurityGate() {
         </section>
       ) : !status.unlocked ? (
         <section className="rounded-2xl border border-[var(--gold)]/35 bg-black/25 p-5">
-          <h2 className="text-xl font-semibold text-[var(--gold-soft)]">Trusted device verified</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">Use this device&apos;s fingerprint, face, Windows Hello, or device PIN to unlock Layout Editor.</p>
+          <h2 className="text-xl font-semibold text-[var(--gold-soft)]">Trusted device registered</h2>
+          <p className="mt-2 text-sm text-[var(--muted)]">Use the Layout Editor passkey registered to this device. Supabase Auth verifies the WebAuthn ceremony; Royal Command does not store biometric data.</p>
           <button type="button" onClick={() => void unlock()} disabled={busy} className="rc-btn rc-btn-primary mt-4 text-sm disabled:opacity-50">Unlock with Passkey / Biometrics</button>
         </section>
       ) : (
