@@ -38,7 +38,7 @@ export default function LayoutEditorPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--gold-soft)]">Royal Command · Admin Tools</p>
         <h1 className="mt-2 text-4xl" style={{ fontFamily: "var(--font-display), serif" }}>Protected UI Layout Editor</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-[var(--muted)]">
-          {name}, Layout Editor is restricted to your registered tablet and laptop. The first device registration requires your administrator password and this device's platform passkey/biometric verification. Replacement laptops require a one-time code from an already trusted device.
+          {name}, Layout Editor is restricted to your registered tablet and laptop. The first device registration requires your administrator password and this device&apos;s platform passkey/biometric verification. Replacement laptops require a one-time code from an already trusted device.
         </p>
 
         <div className="mt-7">
