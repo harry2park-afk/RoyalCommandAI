@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
@@ -56,7 +57,12 @@ export default function LayoutEditorSecurityGate() {
     setStatus(data as Status);
   }, [router]);
 
-  useEffect(() => { void load().catch((error) => setMessage(error instanceof Error ? error.message : "Security status unavailable.")); }, [load]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void load().catch((error) => setMessage(error instanceof Error ? error.message : "Security status unavailable."));
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load]);
 
   const needsEnrollmentCode = useMemo(() => Boolean(status?.devices?.length), [status]);
 
@@ -203,7 +209,7 @@ export default function LayoutEditorSecurityGate() {
       ) : !status.unlocked ? (
         <section className="rounded-2xl border border-[var(--gold)]/35 bg-black/25 p-5">
           <h2 className="text-xl font-semibold text-[var(--gold-soft)]">Trusted device verified</h2>
-          <p className="mt-2 text-sm text-[var(--muted)]">Use this device's fingerprint, face, Windows Hello, or device PIN to unlock Layout Editor.</p>
+          <p className="mt-2 text-sm text-[var(--muted)]">Use this device&apos;s fingerprint, face, Windows Hello, or device PIN to unlock Layout Editor.</p>
           <button type="button" onClick={() => void unlock()} disabled={busy} className="rc-btn rc-btn-primary mt-4 text-sm disabled:opacity-50">Unlock with Passkey / Biometrics</button>
         </section>
       ) : (
@@ -211,7 +217,7 @@ export default function LayoutEditorSecurityGate() {
           <h2 className="text-xl font-semibold text-emerald-200">Layout Editor unlocked</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">This trusted device is authorized for {status.sessionMinutes} minutes. Finish & Lock should be used when editing is complete.</p>
           <div className="mt-4 flex flex-wrap gap-3">
-            <a href="/rooms/rca?layoutEdit=1" className="rc-btn rc-btn-primary text-sm">Open RCA Layout Editor</a>
+            <Link href="/rooms/rca?layoutEdit=1" className="rc-btn rc-btn-primary text-sm">Open RCA Layout Editor</Link>
             <button type="button" onClick={() => void createEnrollmentCode()} disabled={busy} className="rc-btn rc-btn-ghost text-sm">Add / Replace Laptop</button>
             <button type="button" onClick={() => void lock()} disabled={busy} className="rc-btn rc-btn-ghost text-sm">Lock Now</button>
           </div>
