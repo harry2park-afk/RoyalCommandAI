@@ -104,6 +104,10 @@
     const top = document.createElement("div"); top.style.cssText = "display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;";
     const title = document.createElement("div"); title.textContent = "Room 관리"; title.style.cssText = "font:700 18px/1.2 'Times New Roman',Times,serif;color:#fffaf0;";
     top.append(title, rowButton("닫기", closeManager)); panel.appendChild(top);
+    const closeButton = top.querySelector("button");
+    if (closeButton instanceof HTMLElement) {
+      closeButton.insertAdjacentElement("beforebegin", rowButton("보안 · Passkey / 기기 관리", () => window.location.assign("/layout-editor")));
+    }
 
     for (const room of specialistRooms()) {
       const row = document.createElement("div"); row.style.cssText = "display:grid;grid-template-columns:minmax(160px,1fr) auto;gap:10px;align-items:center;padding:8px 4px;border-top:1px solid rgba(214,200,166,.18);";
