@@ -4,6 +4,8 @@
   const MANAGER_ID = "rc-room-shortcut-manager";
   const MODAL_ID = "rc-room-manager-modal";
   const STORAGE_KEY = "royalcommand:hidden-room-ids";
+  const RC_HEADQUARTERS_HOSTS = new Set(["royalcommand.ai", "www.royalcommand.ai"]);
+  const isRcHeadquarters = RC_HEADQUARTERS_HOSTS.has(String(window.location.hostname || "").toLowerCase());
   const currentRoomId = window.location.pathname.split("/").filter(Boolean).pop() || "";
   let rooms = [];
   let hiddenIds = new Set();
@@ -105,7 +107,7 @@
     const title = document.createElement("div"); title.textContent = "Room 관리"; title.style.cssText = "font:700 18px/1.2 'Times New Roman',Times,serif;color:#fffaf0;";
     top.append(title, rowButton("닫기", closeManager)); panel.appendChild(top);
     const closeButton = top.querySelector("button");
-    if (closeButton instanceof HTMLElement) {
+    if (isRcHeadquarters && closeButton instanceof HTMLElement) {
       closeButton.insertAdjacentElement("beforebegin", rowButton("보안 · Passkey / 기기 관리", () => window.location.assign("/layout-editor")));
     }
 
