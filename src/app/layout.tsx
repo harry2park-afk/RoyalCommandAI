@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
-import ProtectedLayoutEditor from "@/components/ProtectedLayoutEditor";
+import SecureProtectedLayoutEditor from "@/components/SecureProtectedLayoutEditor";
 import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
 import RoomPreferenceAuthority from "@/components/RoomPreferenceAuthority";
 import "./globals.css";
@@ -25,7 +25,7 @@ export default function RootLayout({
         {children}
         <RetellRoomVoiceBridge />
         <RoomPreferenceAuthority />
-        <ProtectedLayoutEditor />
+        <SecureProtectedLayoutEditor />
       </body>
     </html>
   );

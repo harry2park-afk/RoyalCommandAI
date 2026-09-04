@@ -1,8 +1,11 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { RoomHeaderLayoutConfig, sanitiseRoomHeaderLayoutConfig } from "@/lib/layout-editor";
+import { LAYOUT_EDITOR_DEVICE_COOKIE, LAYOUT_EDITOR_SESSION_COOKIE, sha256Hex } from "@/lib/layout-editor-security";
 
 type ImportantConversation = {
   id: string;
@@ -133,6 +136,35 @@ export async function GET() {
   return NextResponse.json({ preferences, layoutEditorAllowed });
 }
 
+async function hasUnlockedTrustedLayoutSession(userId: string) {
+  try {
+    const cookieStore = await cookies();
+    const deviceToken = cookieStore.get(LAYOUT_EDITOR_DEVICE_COOKIE)?.value;
+    const sessionToken = cookieStore.get(LAYOUT_EDITOR_SESSION_COOKIE)?.value;
+    if (!deviceToken || !sessionToken) return false;
+    const admin = createAdminClient();
+    const { data: device } = await admin
+      .from("layout_editor_trusted_devices")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("device_cookie_hash", sha256Hex(deviceToken))
+      .is("revoked_at", null)
+      .maybeSingle();
+    if (!device?.id) return false;
+    const { data: session } = await admin
+      .from("layout_editor_sessions")
+      .select("token_hash")
+      .eq("token_hash", sha256Hex(sessionToken))
+      .eq("user_id", userId)
+      .eq("device_id", device.id)
+      .gt("expires_at", new Date().toISOString())
+      .maybeSingle();
+    return Boolean(session);
+  } catch {
+    return false;
+  }
+}
+
 export async function PATCH(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -152,8 +184,13 @@ export async function PATCH(request: Request) {
     .eq("id", user.id)
     .single();
   if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
-  if (incoming.layoutRoomHeaderV1 && current?.role !== "admin") {
-    return NextResponse.json({ error: "Layout Editor requires administrator access." }, { status: 403 });
+  if (incoming.layoutRoomHeaderV1) {
+    if (current?.role !== "admin") {
+      return NextResponse.json({ error: "Layout Editor requires administrator access." }, { status: 403 });
+    }
+    if (!(await hasUnlockedTrustedLayoutSession(user.id))) {
+      return NextResponse.json({ error: "Unlock Layout Editor with a trusted device passkey first." }, { status: 403 });
+    }
   }
 
   const existing = sanitise(current?.ui_preferences);
@@ -162,7 +199,6 @@ export async function PATCH(request: Request) {
     ui_preferences: merged,
     updated_at: new Date().toISOString(),
   };
-  // Legacy compatibility only. uiLocale and countryCode never overwrite default_language.
   if (incoming.language) update.default_language = incoming.language;
 
   const { error } = await supabase.from("profiles").update(update).eq("id", user.id);
