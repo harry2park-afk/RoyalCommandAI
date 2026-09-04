@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { base64url, fromBase64url, safeDeviceName } from "./layout-editor-security";
+import { safeDeviceName, sha256Hex } from "./layout-editor-security";
 
 describe("layout editor security primitives", () => {
-  it("round-trips base64url without padding", () => {
-    const raw = Buffer.from("royal-command-layout-editor");
-    expect(fromBase64url(base64url(raw))).toEqual(raw);
+  it("hashes opaque device tokens deterministically", () => {
+    expect(sha256Hex("trusted-device-token")).toBe(sha256Hex("trusted-device-token"));
+    expect(sha256Hex("trusted-device-token")).not.toBe(sha256Hex("other-token"));
   });
 
   it("sanitises trusted device labels", () => {
