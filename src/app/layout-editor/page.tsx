@@ -17,6 +17,12 @@ export default function LayoutEditorPage() {
           return;
         }
         const data = await response.json();
+        const accessResponse = await fetch("/api/user/preferences", { cache: "no-store" });
+        const access = accessResponse.ok ? await accessResponse.json() : null;
+        if (!access?.layoutEditorAllowed) {
+          router.replace("/dashboard");
+          return;
+        }
         if (data?.user?.fullName) setName(data.user.fullName);
         setReady(true);
       })
@@ -45,9 +51,11 @@ export default function LayoutEditorPage() {
             <h2 className="text-lg font-semibold">Safety Rules</h2>
             <ul className="mt-3 space-y-2 text-sm leading-5 text-[var(--muted)]">
               <li>• Exactly one button can be edited at a time.</li>
+              <li>• Save or Cancel the current button before selecting another.</li>
               <li>• The protected Room Header zone is 92px high.</li>
               <li>• Overlap or out-of-zone positions cannot be saved.</li>
               <li>• Cancel restores the last saved state; Reset restores the Core layout for that button.</li>
+              <li>• The language control keeps its dedicated owner and is not edited by v1.</li>
               <li>• Finish & Lock turns all movement controls off.</li>
             </ul>
           </section>
