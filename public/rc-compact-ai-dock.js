@@ -86,6 +86,14 @@
     return Array.from(dock.querySelectorAll(":scope > button")).filter((button) => button !== warehouse && button.id !== COUNCIL_ID);
   }
 
+  function saveReferenceButton() {
+    const aside = document.querySelector(".royal-room-layout > aside:first-child") || document.querySelector("aside");
+    if (!(aside instanceof HTMLElement)) return null;
+    return Array.from(aside.querySelectorAll("button")).find((button) =>
+      (button.textContent || "").trim().toUpperCase().includes("SAVE"),
+    ) || null;
+  }
+
   function shortName(button) {
     const spans = Array.from(button.querySelectorAll("span"));
     const textSpan = spans.find((span) => {
@@ -129,29 +137,41 @@
     tick.style.textShadow = active ? "0 0 7px rgba(34,197,94,.55)" : "none";
   }
 
-  function styleButton(button, visibleNames) {
+  function styleButton(button, visibleNames, saveButton) {
     const name = shortName(button);
     const show = visibleNames.includes(name);
     button.style.display = show ? "inline-flex" : "none";
     if (!show) return;
 
     const active = isActive(button);
+    const saveStyle = saveButton instanceof HTMLButtonElement ? getComputedStyle(saveButton) : null;
+    const saveRect = saveButton instanceof HTMLButtonElement ? saveButton.getBoundingClientRect() : null;
 
     button.style.flex = "0 0 auto";
-    button.style.width = "auto";
-    button.style.minWidth = "0";
-    button.style.height = "30px";
-    button.style.padding = "2px 6px";
-    button.style.gap = "5px";
-    button.style.border = "0";
-    button.style.outline = active ? "1px solid #22c55e" : "0";
-    button.style.outlineOffset = active ? "-1px" : "0";
-    button.style.borderRadius = "0";
+    if (saveRect && saveRect.width > 0) {
+      const width = `${Math.round(saveRect.width)}px`;
+      button.style.width = width;
+      button.style.minWidth = width;
+      button.style.maxWidth = width;
+    }
+    button.style.height = saveStyle?.height || "25px";
+    button.style.minHeight = saveStyle?.minHeight || "25px";
+    button.style.paddingTop = saveStyle?.paddingTop || "0px";
+    button.style.paddingBottom = saveStyle?.paddingBottom || "0px";
+    button.style.paddingLeft = saveStyle?.paddingLeft || "6px";
+    button.style.paddingRight = saveStyle?.paddingRight || "6px";
+    button.style.gap = saveStyle?.gap || "4px";
+    button.style.borderStyle = "solid";
+    button.style.borderWidth = saveStyle?.borderTopWidth || "3px";
+    button.style.borderColor = active ? "#00e85a" : "rgba(215,182,77,.45)";
+    button.style.outline = "0";
+    button.style.borderRadius = saveStyle?.borderRadius || "6px";
     button.style.background = "transparent";
-    button.style.boxShadow = "none";
+    button.style.boxShadow = active ? (saveStyle?.boxShadow || "0 0 7px rgba(0,232,90,.60)") : "none";
     button.style.color = "#f4f0e7";
     button.style.whiteSpace = "nowrap";
     button.style.opacity = button.disabled ? ".38" : "1";
+    button.style.justifyContent = "center";
 
     const logoWrap = button.querySelector("span.relative");
     if (logoWrap instanceof HTMLElement) {
@@ -214,7 +234,7 @@
       if (match) pendingWarehouseName = "";
     }
 
-    dock.style.gap = "10px";
+    dock.style.gap = "2px";
     if (window.location.pathname === "/rooms/rca") {
       dock.style.setProperty("overflow", "visible", "important");
     } else {
@@ -230,7 +250,7 @@
     if (warehouse instanceof HTMLButtonElement) {
       warehouse.style.order = "-1";
       warehouse.style.marginLeft = "0";
-      warehouse.style.marginRight = "0";
+      warehouse.style.marginRight = "8px";
       warehouse.style.height = "30px";
       warehouse.style.minWidth = "116px";
       warehouse.style.padding = "2px 8px";
@@ -241,7 +261,8 @@
       if (council instanceof HTMLButtonElement) council.style.order = "0";
     }
 
-    buttons.forEach((button) => styleButton(button, visibleNames));
+    const saveButton = saveReferenceButton();
+    buttons.forEach((button) => styleButton(button, visibleNames, saveButton));
   }
 
   function warehouseChoiceName(button) {

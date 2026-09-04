@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   conflict-guard:
-    name: conflict
+    name: Royal Command Conflict Guard
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
