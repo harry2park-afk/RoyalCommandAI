@@ -31,7 +31,7 @@ export default function FirstRoomWelcome() {
             : [];
 
         const createdRooms = rooms.filter((room) => {
-          if (!room?.id || room.id === roomId) return false;
+          if (!room?.id) return false;
           const label = `${room.name || ""} ${room.title || ""} ${room.room_type || ""} ${room.type || ""}`.toLowerCase();
           return !label.includes("command room");
         });
