@@ -1,4 +1,5 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentUser } from "@/lib/auth";
 
@@ -8,7 +9,40 @@ export const LAYOUT_EDITOR_DEVICE_COOKIE = "rc_layout_device";
 export const LAYOUT_EDITOR_SESSION_COOKIE = "rc_layout_session";
 export const LAYOUT_EDITOR_REAUTH_COOKIE = "rc_layout_reauth";
 
+const DEFAULT_RC_HEADQUARTERS_HOSTS = ["royalcommand.ai", "www.royalcommand.ai"];
+
 export type LayoutAdmin = Awaited<ReturnType<typeof getCurrentUser>> & { id: string; email: string };
+
+function normalizeHostname(value: string | null) {
+  return String(value || "")
+    .split(",")[0]
+    .trim()
+    .toLowerCase()
+    .replace(/^https?:\/\//, "")
+    .split("/")[0]
+    .split(":")[0];
+}
+
+function headquartersHosts() {
+  const configured = String(process.env.RC_HEADQUARTERS_HOSTS || "")
+    .split(",")
+    .map((value) => normalizeHostname(value))
+    .filter(Boolean);
+  return configured.length ? configured : DEFAULT_RC_HEADQUARTERS_HOSTS;
+}
+
+export async function requireRcHeadquartersHost() {
+  const requestHeaders = await headers();
+  const hostname = normalizeHostname(
+    requestHeaders.get("x-forwarded-host") || requestHeaders.get("host"),
+  );
+
+  // Preview deployments need the protected route for exact-head verification,
+  // but production customer/country domains must never become HQ admin surfaces.
+  if (process.env.VERCEL_ENV !== "production" && hostname.endsWith(".vercel.app")) return;
+
+  if (!headquartersHosts().includes(hostname)) throw new Error("FORBIDDEN");
+}
 
 export function sha256Hex(value: string) {
   return createHash("sha256").update(value).digest("hex");
@@ -48,6 +82,8 @@ export function newOpaqueToken(bytes = 32) {
 }
 
 export async function requireLayoutAdmin(): Promise<LayoutAdmin> {
+  await requireRcHeadquartersHost();
+
   const user = await getCurrentUser();
   if (!user?.id || !user.email) throw new Error("UNAUTHENTICATED");
 
