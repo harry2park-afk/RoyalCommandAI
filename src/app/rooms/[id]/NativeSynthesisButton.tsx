@@ -148,7 +148,7 @@ export default function NativeSynthesisButton() {
       if (!(node instanceof HTMLElement)) {
         node = document.createElement("div");
         node.id = "rc-native-synthesis-host";
-        node.style.cssText = "order:-2;flex:0 0 auto;display:flex;align-items:center;height:30px;min-width:116px;position:relative;z-index:20;";
+        node.style.cssText = "order:-2;flex:0 0 auto;display:flex;align-items:center;height:25px;min-width:116px;position:relative;z-index:20;";
         dock.insertBefore(node, warehouse);
       }
       wrapper = node;
@@ -280,7 +280,7 @@ export default function NativeSynthesisButton() {
         type="button"
         onClick={openChooser}
         disabled={running}
-        className="flex h-8 min-w-[116px] shrink-0 items-center justify-center gap-1 rounded-md border-[2px] border-[#FFD700]/80 bg-[#0b1524] px-3 text-[10px] font-semibold text-[#f4d66c] disabled:opacity-60"
+        className="flex h-[25px] min-w-[116px] shrink-0 items-center justify-center gap-1 rounded-md border-[2px] border-[#FFD700]/80 bg-[#0b1524] px-3 text-[10px] font-semibold text-[#f4d66c] disabled:opacity-60"
         title="Integrated Answer"
         data-rc-native-synthesis-button="true"
       >
