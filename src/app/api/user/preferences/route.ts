@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
+import { RoomHeaderLayoutConfig, sanitiseRoomHeaderLayoutConfig } from "@/lib/layout-editor";
 
 type ImportantConversation = {
   id: string;
@@ -24,6 +25,7 @@ type UiPreferences = {
   chatSidebarCollapsed?: boolean;
   chatHistoryTitles?: Record<string, string>;
   importantConversations?: ImportantConversation[];
+  layoutRoomHeaderV1?: RoomHeaderLayoutConfig;
 };
 
 function sanitiseStringArray(value: unknown, maxItems: number) {
@@ -106,6 +108,9 @@ function sanitise(value: unknown): UiPreferences {
 
   const importantConversations = sanitiseImportantConversations(input.importantConversations);
   if (importantConversations) result.importantConversations = importantConversations;
+
+  const layoutRoomHeaderV1 = sanitiseRoomHeaderLayoutConfig(input.layoutRoomHeaderV1);
+  if (layoutRoomHeaderV1) result.layoutRoomHeaderV1 = layoutRoomHeaderV1;
 
   return result;
 }
