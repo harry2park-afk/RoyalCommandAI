@@ -38,6 +38,52 @@ select jsonb_build_object(
     )
     from public.matters
   ),
+  'matter_isolation', jsonb_build_object(
+    'client_id_updateable_by_authenticated',
+      has_column_privilege('authenticated', 'public.matters', 'client_id', 'UPDATE'),
+    'assigned_staff_id_updateable_by_authenticated',
+      has_column_privilege('authenticated', 'public.matters', 'assigned_staff_id', 'UPDATE'),
+    'private_is_admin_present', (
+      select exists(
+        select 1
+        from pg_proc function
+        join pg_namespace namespace on namespace.oid = function.pronamespace
+        where namespace.nspname = 'private'
+          and function.proname = 'is_admin'
+      )
+    ),
+    'private_is_assigned_matter_staff_present', (
+      select exists(
+        select 1
+        from pg_proc function
+        join pg_namespace namespace on namespace.oid = function.pronamespace
+        where namespace.nspname = 'private'
+          and function.proname = 'is_assigned_matter_staff'
+      )
+    ),
+    'set_matter_staff_assignment_present', (
+      select exists(
+        select 1
+        from pg_proc function
+        join pg_namespace namespace on namespace.oid = function.pronamespace
+        where function.proname = 'set_matter_staff_assignment'
+      )
+    ),
+    'policies_using_broad_staff_helper', (
+      select count(*)::int
+      from pg_policies
+      where schemaname = 'public'
+        and tablename = 'matters'
+        and (coalesce(qual, '') || ' ' || coalesce(with_check, '')) ilike '%is_staff_or_admin%'
+    ),
+    'policies_using_assignment_helper', (
+      select count(*)::int
+      from pg_policies
+      where schemaname = 'public'
+        and tablename = 'matters'
+        and (coalesce(qual, '') || ' ' || coalesce(with_check, '')) ilike '%is_assigned_matter_staff%'
+    )
+  ),
   'auth_consents', (
     select count(*)::int
     from public.auth_consents
@@ -45,6 +91,27 @@ select jsonb_build_object(
   'room_factory_manifests', (
     select count(*)::int
     from public.room_factory_manifests
+  ),
+  'room_factory_hosted_semantics', jsonb_build_object(
+    'private_atomic_function_present', (
+      select exists(
+        select 1
+        from pg_proc function
+        join pg_namespace namespace on namespace.oid = function.pronamespace
+        where namespace.nspname = 'private'
+          and function.proname = 'create_room_factory_room_atomic'
+      )
+    ),
+    'rejects_null_encounter_session', (
+      select coalesce(
+        bool_or(pg_get_functiondef(function.oid) ilike '%encounterSessionId is required%'),
+        false
+      )
+      from pg_proc function
+      join pg_namespace namespace on namespace.oid = function.pronamespace
+      where namespace.nspname = 'private'
+        and function.proname = 'create_room_factory_room_atomic'
+    )
   ),
   'service_connection_orders', (
     select count(*)::int
