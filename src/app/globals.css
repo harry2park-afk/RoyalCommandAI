@@ -50,19 +50,19 @@ main section.rc-card>form>div[class~="overflow-x-auto"]::-webkit-scrollbar{displ
 .royal-room-layout>aside:last-child>div:last-child::-webkit-scrollbar-thumb{background:rgba(255,255,255,.28);border-radius:8px}
 .royal-room-layout>aside:last-child>div:last-child::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.42)}
 @media(min-width:901px){
- html{height:100%;overflow:hidden!important}
- body{position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;overflow:hidden!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col{height:calc(100dvh - 34px)!important;min-height:0!important;overflow:hidden!important;padding-top:4px!important;padding-bottom:2px!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col>header{height:42px!important;min-height:42px!important;flex:0 0 42px!important;margin:0 0 5px!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col>header+button+div.grid{height:calc(100dvh - 85px)!important;min-height:0!important;overflow:hidden!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card{height:100%!important;min-height:0!important;overflow:hidden!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>div.flex-1{min-height:0!important;overflow-y:auto!important;padding:5px!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>div.flex-1::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form{flex:0 0 auto!important;padding:2px 5px!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>textarea{min-height:72px!important;height:72px!important;max-height:72px!important;resize:none!important;padding:7px 10px!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>textarea::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>div.mb-1,
- main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>div.mt-1{min-height:20px!important;height:20px!important;margin:1px 0!important;padding:0 2px!important}
+ html:has(.royal-room-main){height:100%;overflow:hidden!important}
+ body:has(.royal-room-main){position:fixed!important;inset:0!important;width:100%!important;height:100dvh!important;overflow:hidden!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col{height:calc(100dvh - 34px)!important;min-height:0!important;overflow:hidden!important;padding-top:4px!important;padding-bottom:2px!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col>header{height:42px!important;min-height:42px!important;flex:0 0 42px!important;margin:0 0 5px!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col>header+button+div.grid{height:calc(100dvh - 85px)!important;min-height:0!important;overflow:hidden!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card{height:100%!important;min-height:0!important;overflow:hidden!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>div.flex-1{min-height:0!important;overflow-y:auto!important;padding:5px!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>div.flex-1::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form{flex:0 0 auto!important;padding:2px 5px!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>textarea{min-height:72px!important;height:72px!important;max-height:72px!important;resize:none!important;padding:7px 10px!important;scrollbar-width:none!important;-ms-overflow-style:none!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>textarea::-webkit-scrollbar{display:none!important;width:0!important;height:0!important}
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>div.mb-1,
+ .royal-room-main main.flex.min-h-screen.w-full.max-w-none.flex-col section.rc-card>form>div.mt-1{min-height:20px!important;height:20px!important;margin:1px 0!important;padding:0 2px!important}
 }
 .rc-lang-picker>button{width:158px!important;min-width:158px!important;max-width:158px!important;height:29px!important;min-height:29px!important;max-height:29px!important;box-shadow:inset 0 0 0 2px #1d4ed8,inset 0 0 0 3px #c81e1e!important}
 @media(min-width:1201px){
