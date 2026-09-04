@@ -1,4 +1,5 @@
 import {
+  createHash,
   createHmac,
   createPublicKey,
   createVerify,
@@ -26,7 +27,7 @@ export function fromBase64url(input: string) {
 }
 
 export function sha256Hex(value: string) {
-  return require("node:crypto").createHash("sha256").update(value).digest("hex") as string;
+  return createHash("sha256").update(value).digest("hex");
 }
 
 function signingKey() {
@@ -111,7 +112,7 @@ export function verifyClientData(
 export function verifyAuthenticatorData(authenticatorData: string, rpId: string) {
   const raw = fromBase64url(authenticatorData);
   if (raw.length < 37) throw new Error("Invalid authenticator data.");
-  const expectedRpHash = require("node:crypto").createHash("sha256").update(rpId).digest() as Buffer;
+  const expectedRpHash = createHash("sha256").update(rpId).digest();
   const actualRpHash = raw.subarray(0, 32);
   if (!timingSafeEqual(expectedRpHash, actualRpHash)) throw new Error("Authenticator RP ID mismatch.");
   const flags = raw[32];
@@ -126,7 +127,7 @@ export function verifyAssertionSignature(args: {
   clientDataRaw: Buffer;
   signature: string;
 }) {
-  const clientHash = require("node:crypto").createHash("sha256").update(args.clientDataRaw).digest() as Buffer;
+  const clientHash = createHash("sha256").update(args.clientDataRaw).digest();
   const signed = Buffer.concat([args.authenticatorData, clientHash]);
   const key = createPublicKey({ key: fromBase64url(args.publicKeySpki), format: "der", type: "spki" });
   const signature = fromBase64url(args.signature);
