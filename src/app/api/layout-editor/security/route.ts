@@ -3,42 +3,40 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
-  LAYOUT_EDITOR_CHALLENGE_COOKIE,
   LAYOUT_EDITOR_DEVICE_COOKIE,
+  LAYOUT_EDITOR_REAUTH_COOKIE,
   LAYOUT_EDITOR_SESSION_COOKIE,
   LAYOUT_EDITOR_SESSION_MINUTES,
-  base64url,
-  expectedOrigin,
-  expectedRpId,
-  fromBase64url,
-  newChallenge,
   newOpaqueToken,
-  readChallenge,
+  readReauthProof,
   requireLayoutAdmin,
   safeDeviceName,
   sha256Hex,
-  signChallenge,
-  verifyAssertionSignature,
-  verifyAuthenticatorData,
-  verifyClientData,
+  signReauthProof,
 } from "@/lib/layout-editor-security";
 
-const REAUTH_COOKIE = "rc_layout_reauth";
 const COOKIE_BASE = { httpOnly: true, secure: true, sameSite: "strict" as const, path: "/" };
+const PASSKEY_RECENT_MS = 2 * 60 * 1000;
+const PASSKEY_NEW_MS = 10 * 60 * 1000;
 
 type DeviceRow = {
   id: string;
   user_id: string;
-  credential_id: string;
-  public_key_spki: string;
-  algorithm: number;
-  sign_count: number;
+  passkey_id: string;
   device_name: string;
   device_cookie_hash: string;
-  transports: string[] | null;
+  user_agent: string | null;
   created_at: string;
   last_used_at: string | null;
   revoked_at: string | null;
+};
+
+type PasskeyMeta = {
+  id: string;
+  friendly_name?: string | null;
+  created_at?: string | null;
+  last_used_at?: string | null;
+  lastUsedAt?: string | null;
 };
 
 async function currentDevice(userId: string) {
@@ -83,8 +81,41 @@ async function audit(userId: string, eventType: string, deviceId?: string | null
   });
 }
 
+async function listUserPasskeys(userId: string): Promise<PasskeyMeta[]> {
+  const admin = createAdminClient();
+  const { data, error } = await admin.auth.admin.passkey.listPasskeys({ userId });
+  if (error) throw error;
+  const raw = data as unknown;
+  if (Array.isArray(raw)) return raw as PasskeyMeta[];
+  if (raw && typeof raw === "object") {
+    const passkeys = (raw as { passkeys?: unknown }).passkeys;
+    if (Array.isArray(passkeys)) return passkeys as PasskeyMeta[];
+  }
+  return [];
+}
+
+function passkeyLastUsed(passkey: PasskeyMeta) {
+  const value = passkey.last_used_at || passkey.lastUsedAt || null;
+  return value ? Date.parse(value) : Number.NaN;
+}
+
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
+}
+
+async function createEditorSession(userId: string, deviceId: string) {
+  const admin = createAdminClient();
+  const sessionToken = newOpaqueToken();
+  const expiresAt = new Date(Date.now() + LAYOUT_EDITOR_SESSION_MINUTES * 60_000).toISOString();
+  await admin.from("layout_editor_sessions").delete().eq("user_id", userId).eq("device_id", deviceId);
+  const { error } = await admin.from("layout_editor_sessions").insert({
+    token_hash: sha256Hex(sessionToken),
+    user_id: userId,
+    device_id: deviceId,
+    expires_at: expiresAt,
+  });
+  if (error) throw error;
+  return sessionToken;
 }
 
 export async function GET() {
@@ -93,7 +124,7 @@ export async function GET() {
     const admin = createAdminClient();
     const { data: devices, error } = await admin
       .from("layout_editor_trusted_devices")
-      .select("id,device_name,created_at,last_used_at,revoked_at")
+      .select("id,passkey_id,device_name,created_at,last_used_at,revoked_at")
       .eq("user_id", user.id)
       .is("revoked_at", null)
       .order("created_at", { ascending: true });
@@ -133,7 +164,7 @@ export async function POST(request: Request) {
         return jsonError("Password verification failed.", 401);
       }
       const response = NextResponse.json({ ok: true });
-      response.cookies.set(REAUTH_COOKIE, signChallenge({ challenge: newOpaqueToken(), purpose: "register", issuedAt: Date.now() }), {
+      response.cookies.set(LAYOUT_EDITOR_REAUTH_COOKIE, signReauthProof(user.id), {
         ...COOKIE_BASE,
         maxAge: 300,
       });
@@ -141,35 +172,21 @@ export async function POST(request: Request) {
       return response;
     }
 
-    if (action === "register-options") {
-      const challenge = newChallenge();
-      const rpId = expectedRpId(request);
-      const response = NextResponse.json({
-        challenge,
-        rp: { id: rpId, name: "Royal Command" },
-        user: { id: base64url(Buffer.from(user.id, "utf8")), name: user.email, displayName: user.email },
-        pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
-        timeout: 60000,
-        attestation: "none",
-        authenticatorSelection: {
-          authenticatorAttachment: "platform",
-          residentKey: "discouraged",
-          userVerification: "required",
-        },
-      });
-      response.cookies.set(LAYOUT_EDITOR_CHALLENGE_COOKIE, signChallenge({ challenge, purpose: "register", issuedAt: Date.now() }), {
-        ...COOKIE_BASE,
-        maxAge: 300,
-      });
-      return response;
-    }
-
-    if (action === "register-verify") {
+    if (action === "bind-passkey") {
       const cookieStore = await cookies();
-      const reauth = readChallenge(cookieStore.get(REAUTH_COOKIE)?.value, "register");
-      if (!reauth) return jsonError("Re-enter your administrator password before registering a device.", 401);
-      const challenge = readChallenge(cookieStore.get(LAYOUT_EDITOR_CHALLENGE_COOKIE)?.value, "register");
-      if (!challenge) return jsonError("Registration challenge expired. Start again.", 400);
+      if (!readReauthProof(cookieStore.get(LAYOUT_EDITOR_REAUTH_COOKIE)?.value, user.id)) {
+        return jsonError("Re-enter your administrator password before registering a device.", 401);
+      }
+
+      const passkeyId = typeof body.passkeyId === "string" ? body.passkeyId : "";
+      if (!passkeyId) return jsonError("A verified passkey is required.", 400);
+      const passkeys = await listUserPasskeys(user.id);
+      const passkey = passkeys.find((item) => item.id === passkeyId);
+      if (!passkey) return jsonError("Supabase Auth did not verify this passkey for your account.", 403);
+      const createdAt = passkey.created_at ? Date.parse(passkey.created_at) : Number.NaN;
+      if (!Number.isFinite(createdAt) || Date.now() - createdAt > PASSKEY_NEW_MS) {
+        return jsonError("Register a new passkey from this Layout Editor screen before trusting the device.", 403);
+      }
 
       const { count } = await admin
         .from("layout_editor_trusted_devices")
@@ -193,33 +210,24 @@ export async function POST(request: Request) {
         if (!codeRow) return jsonError("The enrollment code is invalid or expired.", 403);
       }
 
-      const credentialId = typeof body.credentialId === "string" ? body.credentialId : "";
-      const clientDataJSON = typeof body.clientDataJSON === "string" ? body.clientDataJSON : "";
-      const authenticatorData = typeof body.authenticatorData === "string" ? body.authenticatorData : "";
-      const publicKeySpki = typeof body.publicKeySpki === "string" ? body.publicKeySpki : "";
-      const algorithm = typeof body.algorithm === "number" ? body.algorithm : 0;
-      if (!credentialId || !clientDataJSON || !authenticatorData || !publicKeySpki || ![-7, -257].includes(algorithm)) {
-        return jsonError("This browser did not provide a supported device-bound passkey.", 400);
-      }
-      verifyClientData(clientDataJSON, challenge, expectedOrigin(request), "webauthn.create");
-      verifyAuthenticatorData(authenticatorData, expectedRpId(request));
+      const { data: existing } = await admin
+        .from("layout_editor_trusted_devices")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("passkey_id", passkeyId)
+        .is("revoked_at", null)
+        .maybeSingle();
+      if (existing) return jsonError("This passkey is already bound to a trusted Layout Editor device.", 409);
 
       const deviceToken = newOpaqueToken();
       const deviceName = safeDeviceName(body.deviceName);
-      const transports = Array.isArray(body.transports)
-        ? body.transports.filter((value): value is string => typeof value === "string").slice(0, 8)
-        : [];
       const { data: device, error } = await admin
         .from("layout_editor_trusted_devices")
         .insert({
           user_id: user.id,
-          credential_id: credentialId,
-          public_key_spki: publicKeySpki,
-          algorithm,
-          sign_count: 0,
+          passkey_id: passkeyId,
           device_name: deviceName,
           device_cookie_hash: sha256Hex(deviceToken),
-          transports,
           user_agent: request.headers.get("user-agent")?.slice(0, 500) || null,
         })
         .select("id")
@@ -228,79 +236,34 @@ export async function POST(request: Request) {
       if (enrollmentCodeHash) {
         await admin.from("layout_editor_enrollment_codes").update({ used_at: new Date().toISOString() }).eq("code_hash", enrollmentCodeHash);
       }
-      const sessionToken = newOpaqueToken();
-      const expires = new Date(Date.now() + LAYOUT_EDITOR_SESSION_MINUTES * 60_000).toISOString();
-      await admin.from("layout_editor_sessions").insert({
-        token_hash: sha256Hex(sessionToken), user_id: user.id, device_id: device.id, expires_at: expires,
-      });
-      await audit(user.id, "trusted_device_registered", device.id, { deviceName });
+      const sessionToken = await createEditorSession(user.id, device.id);
+      await audit(user.id, "trusted_device_registered", device.id, { deviceName, passkeyId });
       const response = NextResponse.json({ ok: true, deviceId: device.id });
       response.cookies.set(LAYOUT_EDITOR_DEVICE_COOKIE, deviceToken, { ...COOKIE_BASE, maxAge: 60 * 60 * 24 * 365 });
       response.cookies.set(LAYOUT_EDITOR_SESSION_COOKIE, sessionToken, { ...COOKIE_BASE, maxAge: LAYOUT_EDITOR_SESSION_MINUTES * 60 });
-      response.cookies.set(REAUTH_COOKIE, "", { ...COOKIE_BASE, maxAge: 0 });
-      response.cookies.set(LAYOUT_EDITOR_CHALLENGE_COOKIE, "", { ...COOKIE_BASE, maxAge: 0 });
+      response.cookies.set(LAYOUT_EDITOR_REAUTH_COOKIE, "", { ...COOKIE_BASE, maxAge: 0 });
       return response;
     }
 
-    if (action === "assert-options") {
+    if (action === "confirm-passkey") {
       const device = await currentDevice(user.id);
       if (!device) return jsonError("This browser is not a trusted Layout Editor device.", 403);
-      const challenge = newChallenge();
-      const response = NextResponse.json({
-        challenge,
-        rpId: expectedRpId(request),
-        timeout: 60000,
-        userVerification: "required",
-        allowCredentials: [{ type: "public-key", id: device.credential_id, transports: device.transports || [] }],
-      });
-      response.cookies.set(LAYOUT_EDITOR_CHALLENGE_COOKIE, signChallenge({ challenge, purpose: "assert", issuedAt: Date.now() }), {
-        ...COOKIE_BASE,
-        maxAge: 300,
-      });
-      return response;
-    }
-
-    if (action === "assert-verify") {
-      const cookieStore = await cookies();
-      const challenge = readChallenge(cookieStore.get(LAYOUT_EDITOR_CHALLENGE_COOKIE)?.value, "assert");
-      if (!challenge) return jsonError("Verification challenge expired. Try again.", 400);
-      const device = await currentDevice(user.id);
-      if (!device) return jsonError("This browser is not trusted.", 403);
-      const credentialId = typeof body.credentialId === "string" ? body.credentialId : "";
-      if (credentialId !== device.credential_id) return jsonError("This passkey does not belong to the registered device.", 403);
-      const clientDataJSON = typeof body.clientDataJSON === "string" ? body.clientDataJSON : "";
-      const authenticatorData = typeof body.authenticatorData === "string" ? body.authenticatorData : "";
-      const signature = typeof body.signature === "string" ? body.signature : "";
-      const clientRaw = verifyClientData(clientDataJSON, challenge, expectedOrigin(request), "webauthn.get");
-      const auth = verifyAuthenticatorData(authenticatorData, expectedRpId(request));
-      const valid = verifyAssertionSignature({
-        publicKeySpki: device.public_key_spki,
-        algorithm: device.algorithm,
-        authenticatorData: auth.raw,
-        clientDataRaw: clientRaw,
-        signature,
-      });
-      if (!valid) {
-        await audit(user.id, "editor_passkey_failed", device.id);
-        return jsonError("Biometric/passkey verification failed.", 401);
+      const passkeys = await listUserPasskeys(user.id);
+      const passkey = passkeys.find((item) => item.id === device.passkey_id);
+      if (!passkey) {
+        await audit(user.id, "editor_passkey_missing", device.id);
+        return jsonError("The passkey bound to this trusted device no longer exists.", 403);
       }
-      if (device.sign_count > 0 && auth.signCount > 0 && auth.signCount <= device.sign_count) {
-        await audit(user.id, "editor_counter_replay_blocked", device.id);
-        return jsonError("Authenticator replay protection blocked this request.", 401);
+      const lastUsed = passkeyLastUsed(passkey);
+      if (!Number.isFinite(lastUsed) || Date.now() - lastUsed > PASSKEY_RECENT_MS) {
+        await audit(user.id, "editor_passkey_not_fresh", device.id);
+        return jsonError("Use the passkey bound to this device now, then try again.", 401);
       }
-      const sessionToken = newOpaqueToken();
-      const expiresAt = new Date(Date.now() + LAYOUT_EDITOR_SESSION_MINUTES * 60_000).toISOString();
-      await admin.from("layout_editor_sessions").delete().eq("user_id", user.id).eq("device_id", device.id);
-      await admin.from("layout_editor_sessions").insert({
-        token_hash: sha256Hex(sessionToken), user_id: user.id, device_id: device.id, expires_at: expiresAt,
-      });
-      await admin.from("layout_editor_trusted_devices").update({
-        sign_count: Math.max(device.sign_count || 0, auth.signCount), last_used_at: new Date().toISOString(),
-      }).eq("id", device.id);
-      await audit(user.id, "editor_unlocked", device.id);
+      const sessionToken = await createEditorSession(user.id, device.id);
+      await admin.from("layout_editor_trusted_devices").update({ last_used_at: new Date().toISOString() }).eq("id", device.id);
+      await audit(user.id, "editor_unlocked", device.id, { passkeyId: device.passkey_id });
       const response = NextResponse.json({ ok: true });
       response.cookies.set(LAYOUT_EDITOR_SESSION_COOKIE, sessionToken, { ...COOKIE_BASE, maxAge: LAYOUT_EDITOR_SESSION_MINUTES * 60 });
-      response.cookies.set(LAYOUT_EDITOR_CHALLENGE_COOKIE, "", { ...COOKIE_BASE, maxAge: 0 });
       return response;
     }
 
@@ -308,9 +271,13 @@ export async function POST(request: Request) {
       const device = await currentDevice(user.id);
       const session = await activeEditorSession(user.id, device);
       if (!device || !session) return jsonError("Unlock Layout Editor on a trusted device first.", 403);
-      const code = `${newOpaqueToken(5).replace(/[-_]/g, "").slice(0, 8)}`.toUpperCase();
+      const code = newOpaqueToken(6).replace(/[-_]/g, "").slice(0, 8).toUpperCase();
       const expiresAt = new Date(Date.now() + 10 * 60_000).toISOString();
-      await admin.from("layout_editor_enrollment_codes").insert({ code_hash: sha256Hex(code), created_by: user.id, expires_at: expiresAt });
+      await admin.from("layout_editor_enrollment_codes").delete().eq("created_by", user.id).is("used_at", null);
+      const { error } = await admin.from("layout_editor_enrollment_codes").insert({
+        code_hash: sha256Hex(code), created_by: user.id, expires_at: expiresAt,
+      });
+      if (error) throw error;
       await audit(user.id, "enrollment_code_created", device.id);
       return NextResponse.json({ code, expiresAt });
     }
@@ -321,12 +288,27 @@ export async function POST(request: Request) {
       if (!device || !session) return jsonError("Unlock Layout Editor first.", 403);
       const deviceId = typeof body.deviceId === "string" ? body.deviceId : "";
       if (!deviceId) return jsonError("Device id is required.", 400);
-      const { data: target } = await admin.from("layout_editor_trusted_devices").select("id,device_name").eq("id", deviceId).eq("user_id", user.id).is("revoked_at", null).maybeSingle();
+      const { data: target } = await admin
+        .from("layout_editor_trusted_devices")
+        .select("id,device_name,passkey_id")
+        .eq("id", deviceId)
+        .eq("user_id", user.id)
+        .is("revoked_at", null)
+        .maybeSingle();
       if (!target) return jsonError("Trusted device not found.", 404);
+
+      const { error: passkeyDeleteError } = await admin.auth.admin.passkey.deletePasskey({
+        userId: user.id,
+        passkeyId: target.passkey_id,
+      });
       await admin.from("layout_editor_trusted_devices").update({ revoked_at: new Date().toISOString() }).eq("id", deviceId);
       await admin.from("layout_editor_sessions").delete().eq("device_id", deviceId);
-      await audit(user.id, "trusted_device_revoked", device.id, { revokedDeviceId: deviceId, revokedDeviceName: target.device_name });
-      const response = NextResponse.json({ ok: true });
+      await audit(user.id, "trusted_device_revoked", device.id, {
+        revokedDeviceId: deviceId,
+        revokedDeviceName: target.device_name,
+        passkeyDeleted: !passkeyDeleteError,
+      });
+      const response = NextResponse.json({ ok: true, passkeyDeleted: !passkeyDeleteError });
       if (deviceId === device.id) {
         response.cookies.set(LAYOUT_EDITOR_DEVICE_COOKIE, "", { ...COOKIE_BASE, maxAge: 0 });
         response.cookies.set(LAYOUT_EDITOR_SESSION_COOKIE, "", { ...COOKIE_BASE, maxAge: 0 });
@@ -350,7 +332,6 @@ export async function POST(request: Request) {
     const code = error instanceof Error ? error.message : "";
     if (code === "UNAUTHENTICATED") return jsonError("Sign in first.", 401);
     if (code === "FORBIDDEN") return jsonError("Administrator access required.", 403);
-    if (code === "UNSUPPORTED_ORIGIN") return jsonError("Layout Editor passkeys are restricted to royalcommand.ai.", 403);
     console.error("Layout Editor security error", error);
     return jsonError("Layout Editor security operation failed closed.", 500);
   }
