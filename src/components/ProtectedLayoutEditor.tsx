@@ -48,8 +48,7 @@ const HEADER_TOP = 0;
 const HEADER_BOTTOM = 92;
 const SNAP = 2;
 
-// V1 deliberately excludes the language picker. It has dedicated owner scripts and must
-// never gain a second layout owner through the generic editor.
+// V1 deliberately excludes the language control. Its dedicated owner remains authoritative.
 const REGISTRY: RegistryItem[] = [
   { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", minWidth: 80, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
   { id: "integrated-answer", label: "Integrated Answer", selector: "[data-rc-native-synthesis-button='true']", minWidth: 90, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
@@ -76,16 +75,6 @@ function snap(value: number) {
 
 function cloneConfig(config: RoomHeaderLayoutConfig): RoomHeaderLayoutConfig {
   return JSON.parse(JSON.stringify(config)) as RoomHeaderLayoutConfig;
-}
-
-function loadLocalConfig() {
-  if (typeof window === "undefined") return emptyRoomHeaderLayoutConfig();
-  try {
-    return sanitiseRoomHeaderLayoutConfig(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"))
-      || emptyRoomHeaderLayoutConfig();
-  } catch {
-    return emptyRoomHeaderLayoutConfig();
-  }
 }
 
 function resolveItem(item: RegistryItem | null) {
@@ -127,23 +116,27 @@ function restoreOriginal(item: RegistryItem) {
 }
 
 function applyPatch(item: RegistryItem, patch: RoomHeaderLayoutPatch | undefined) {
+  if (!patch) {
+    if (ORIGINALS.has(item.id)) restoreOriginal(item);
+    return;
+  }
   const element = resolveItem(item);
   if (!element) return;
   captureOriginal(item, element);
   const original = ORIGINALS.get(item.id);
   if (!original) return;
   const target = directLabelTarget(element, item);
-  const x = patch?.offsetX ?? 0;
-  const y = patch?.offsetY ?? 0;
+  const x = patch.offsetX ?? 0;
+  const y = patch.offsetY ?? 0;
   element.style.setProperty("translate", `${x}px ${y}px`, "important");
-  if (patch?.width !== undefined) element.style.setProperty("width", `${patch.width}px`, "important");
+  if (patch.width !== undefined) element.style.setProperty("width", `${patch.width}px`, "important");
   else element.style.width = original.width;
-  if (patch?.height !== undefined) element.style.setProperty("height", `${patch.height}px`, "important");
+  if (patch.height !== undefined) element.style.setProperty("height", `${patch.height}px`, "important");
   else element.style.height = original.height;
-  if (item.fontEditable && patch?.fontSize !== undefined) target.style.setProperty("font-size", `${patch.fontSize}px`, "important");
+  if (item.fontEditable && patch.fontSize !== undefined) target.style.setProperty("font-size", `${patch.fontSize}px`, "important");
   else if (item.fontEditable) target.style.fontSize = original.fontSize;
   if (item.textEditable) {
-    const wanted = patch?.label || original.text;
+    const wanted = patch.label || original.text;
     if (wanted !== null && wanted !== undefined && target.textContent !== wanted) target.textContent = wanted;
   }
 }
@@ -167,8 +160,8 @@ export default function ProtectedLayoutEditor() {
   const roomPage = /^\/rooms\/[^/]+\/?$/.test(pathname || "");
   const [editMode, setEditMode] = useState(false);
   const [selectedId, setSelectedId] = useState<RoomHeaderLayoutElementId | null>(null);
-  const [config, setConfig] = useState<RoomHeaderLayoutConfig>(loadLocalConfig);
-  const [draft, setDraft] = useState<RoomHeaderLayoutConfig>(loadLocalConfig);
+  const [config, setConfig] = useState<RoomHeaderLayoutConfig>(emptyRoomHeaderLayoutConfig);
+  const [draft, setDraft] = useState<RoomHeaderLayoutConfig>(emptyRoomHeaderLayoutConfig);
   const [rect, setRect] = useState<RectState | null>(null);
   const [visibleIds, setVisibleIds] = useState<RoomHeaderLayoutElementId[]>([]);
   const [message, setMessage] = useState("");
@@ -182,37 +175,37 @@ export default function ProtectedLayoutEditor() {
   const refreshUi = useCallback(() => {
     const element = resolveItem(selected);
     setRect(element ? elementRect(element) : null);
-    const nextVisible = REGISTRY
+    setVisibleIds(REGISTRY
       .filter((item) => Boolean(resolveItem(item)?.getClientRects().length))
-      .map((item) => item.id);
-    setVisibleIds(nextVisible);
+      .map((item) => item.id));
   }, [selected]);
 
   useEffect(() => {
     if (!roomPage) return;
-    const local = loadLocalConfig();
-    applyConfig(local);
-    queueMicrotask(() => {
-      setConfig(local);
-      setDraft(cloneConfig(local));
-      setEditMode(new URLSearchParams(window.location.search).get("layoutEdit") === "1");
-      refreshUi();
-    });
-
     let cancelled = false;
+    const editRequested = new URLSearchParams(window.location.search).get("layoutEdit") === "1";
+
     void fetch("/api/user/preferences", { cache: "no-store" })
       .then(async (response) => response.ok ? response.json() : null)
       .then((data) => {
         if (cancelled) return;
-        const remote = sanitiseRoomHeaderLayoutConfig(data?.preferences?.layoutRoomHeaderV1);
-        if (!remote) return;
-        setConfig(remote);
-        setDraft(cloneConfig(remote));
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(remote)); } catch {}
-        applyConfig(remote);
+        const allowed = data?.layoutEditorAllowed === true;
+        const remote = allowed
+          ? sanitiseRoomHeaderLayoutConfig(data?.preferences?.layoutRoomHeaderV1)
+          : undefined;
+        const next = remote || emptyRoomHeaderLayoutConfig();
+        setConfig(next);
+        setDraft(cloneConfig(next));
+        setEditMode(allowed && editRequested);
+        applyConfig(next);
+        if (remote) {
+          try { localStorage.setItem(STORAGE_KEY, JSON.stringify(remote)); } catch {}
+        }
         requestAnimationFrame(refreshUi);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setEditMode(false);
+      });
 
     return () => { cancelled = true; };
   }, [roomPage, refreshUi]);
@@ -245,6 +238,10 @@ export default function ProtectedLayoutEditor() {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
+        if (selectedId && selectedId !== item.id) {
+          setMessage("Save or Cancel the current button before selecting another button.");
+          return;
+        }
         setSelectedId(item.id);
         setHistory([]);
         setMessage(`${item.label} selected. Only this button can be edited now.`);
@@ -254,7 +251,7 @@ export default function ProtectedLayoutEditor() {
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [roomPage, editMode, refreshUi]);
+  }, [roomPage, editMode, selectedId, refreshUi]);
 
   useEffect(() => {
     if (!pointerSession || !selectedId || !selected) return;
@@ -424,6 +421,10 @@ export default function ProtectedLayoutEditor() {
   }
 
   function selectFromPanel(id: RoomHeaderLayoutElementId, label: string) {
+    if (selectedId && selectedId !== id) {
+      setMessage("Save or Cancel the current button before selecting another button.");
+      return;
+    }
     setSelectedId(id);
     setHistory([]);
     setMessage(`${label} selected.`);
@@ -556,7 +557,7 @@ export default function ProtectedLayoutEditor() {
         ) : null}
 
         {message ? <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] leading-4 text-white/75">{message}</div> : null}
-        <div className="mt-3 text-[10px] leading-4 text-white/40">Saved layout is user-scoped. Core DOM order is not rewritten. Dragging uses visual offsets inside the protected 92px Room Header zone.</div>
+        <div className="mt-3 text-[10px] leading-4 text-white/40">Server-verified admin access is required. Core DOM order is not rewritten. Dragging stays inside the protected 92px Room Header zone.</div>
       </aside>
     </>
   );
