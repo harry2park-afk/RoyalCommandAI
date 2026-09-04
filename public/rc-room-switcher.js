@@ -51,7 +51,12 @@
       #${SWITCHER_ID} .rc-room-legal { border-color:#6f9ddd !important; background:linear-gradient(135deg,#173b70 0%,#245ca5 52%,#102f5b 100%) !important; }
       #${SWITCHER_ID} .rc-room-tone-2 { border-color:#a98ed6 !important; background:linear-gradient(135deg,#3c245f 0%,#65439a 52%,#2b1948 100%) !important; }
       #${SWITCHER_ID} .rc-room-switcher-real[aria-current="page"] { outline:2px solid rgba(255,225,120,.85) !important; outline-offset:1px !important; }
-      #${FINDER_ID} { flex:0 0 112px !important; width:112px !important; height:30px !important; margin-left:auto !important; margin-right:64px !important; border:1px solid #d9b44a !important; border-radius:6px !important; background:#7A0C2E !important; color:#fff4c2 !important; font:700 11px/28px "Times New Roman",Times,serif !important; text-align:center !important; white-space:nowrap !important; cursor:pointer !important; }
+      #${FINDER_ID} {
+        position:absolute !important; right:182px !important; top:calc(100% + 25px) !important; z-index:30 !important;
+        flex:0 0 112px !important; width:112px !important; height:30px !important; margin:0 !important;
+        border:1px solid #d9b44a !important; border-radius:6px !important; background:#7A0C2E !important; color:#fff4c2 !important;
+        font:700 11px/28px "Times New Roman",Times,serif !important; text-align:center !important; white-space:nowrap !important; cursor:pointer !important;
+      }
       .royal-room-main main > div.fixed:first-of-type > div:first-child > a[href="/dashboard"] { display:none !important; }
       @media (max-width:1200px) {
         #${COUNTRY_ID} { flex-basis:120px !important; width:120px !important; min-width:120px !important; max-width:120px !important; height:30px !important; font-size:12px !important; line-height:28px !important; margin-left:4px !important; padding:0 6px !important; }
