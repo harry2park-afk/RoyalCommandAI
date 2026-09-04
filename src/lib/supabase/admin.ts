@@ -5,6 +5,10 @@ export function createAdminClient() {
   const serviceRole = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !serviceRole) throw new Error("Supabase admin credentials are not configured.");
   return createClient(url, serviceRole, {
-    auth: { persistSession: false, autoRefreshToken: false },
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      experimental: { passkey: true },
+    },
   });
 }
