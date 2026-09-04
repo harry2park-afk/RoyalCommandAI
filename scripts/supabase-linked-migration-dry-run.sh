@@ -8,6 +8,7 @@ set -euo pipefail
 
 EXPECTED_PROJECT_REF="aygawkavujjmybekswrg"
 EVIDENCE_DIR="${1:-artifacts/supabase-linked-dry-run}"
+EXPECTED_APPLY_MIGRATIONS="${EXPECTED_APPLY_MIGRATIONS:-20260901025800_room_factory_atomic_non_encounter.sql}"
 
 fail() {
   printf 'BLOCKED: %s\n' "$*" >&2
@@ -15,10 +16,12 @@ fail() {
 }
 
 command -v git >/dev/null 2>&1 || fail "git is required"
+command -v node >/dev/null 2>&1 || fail "node is required"
 command -v supabase >/dev/null 2>&1 || fail "Supabase CLI is required"
 
 [[ -n "${SUPABASE_ACCESS_TOKEN:-}" ]] || fail "SUPABASE_ACCESS_TOKEN is not set"
 [[ -n "${SUPABASE_DB_PASSWORD:-}" ]] || fail "SUPABASE_DB_PASSWORD is not set"
+[[ -n "$EXPECTED_APPLY_MIGRATIONS" ]] || fail "EXPECTED_APPLY_MIGRATIONS must not be empty"
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "run from a Git checkout"
 cd "$repo_root"
@@ -38,6 +41,7 @@ cli_version="$(supabase --version)"
   printf 'git_head=%s\n' "$head_sha"
   printf 'git_branch=%s\n' "$branch_name"
   printf 'expected_project_ref=%s\n' "$EXPECTED_PROJECT_REF"
+  printf 'expected_apply_migrations=%s\n' "$EXPECTED_APPLY_MIGRATIONS"
   printf 'supabase_cli=%s\n' "$cli_version"
   printf 'generated_at_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } | tee "$EVIDENCE_DIR/metadata.txt"
@@ -74,7 +78,23 @@ dry_run_status=${PIPESTATUS[0]}
 set -e
 [[ $dry_run_status -eq 0 ]] || fail "supabase db push --linked --dry-run failed"
 
+# Fail closed unless the dry-run exposes exactly the explicitly allow-listed local
+# migration versions. The default allow-list is the current Room Factory schema-
+# stage migration. Later candidates must override EXPECTED_APPLY_MIGRATIONS
+# deliberately with a comma-separated list; an empty or unrecognizable apply set
+# is never treated as safe.
+IFS=',' read -r -a expected_apply <<< "$EXPECTED_APPLY_MIGRATIONS"
+set +e
+node scripts/supabase-dry-run-apply-set.mjs \
+  "$EVIDENCE_DIR/db-push-dry-run.txt" \
+  "supabase/migrations" \
+  "${expected_apply[@]}" \
+  2>&1 | tee "$EVIDENCE_DIR/apply-set-verification.txt"
+apply_set_status=${PIPESTATUS[0]}
+set -e
+[[ $apply_set_status -eq 0 ]] || fail "dry-run apply set does not exactly match the allow-list"
+
 printf 'VERIFIED_EVIDENCE_CAPTURED git_head=%s project_ref=%s\n' \
   "$head_sha" "$linked_ref"
-printf 'Review %s/migration-list.txt and %s/db-push-dry-run.txt before any Hosted staging.\n' \
-  "$EVIDENCE_DIR" "$EVIDENCE_DIR"
+printf 'Review %s/migration-list.txt, %s/db-push-dry-run.txt and %s/apply-set-verification.txt before any Hosted staging.\n' \
+  "$EVIDENCE_DIR" "$EVIDENCE_DIR" "$EVIDENCE_DIR"
