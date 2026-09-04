@@ -14,7 +14,6 @@ export const ROOM_HEADER_LAYOUT_ELEMENT_IDS = [
   "ai-mistral",
   "ai-llama",
   "ai-qwen",
-  "language-picker",
   "profile-button",
 ] as const;
 
