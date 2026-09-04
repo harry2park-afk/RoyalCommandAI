@@ -12,6 +12,7 @@ permissions:
 
 jobs:
   control:
+    name: Royal Command Change Control
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     timeout-minutes: 5
