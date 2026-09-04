@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import {
   emptyRoomHeaderLayoutConfig,
   RoomHeaderLayoutConfig,
@@ -47,25 +48,27 @@ const HEADER_TOP = 0;
 const HEADER_BOTTOM = 92;
 const SNAP = 2;
 
+// V1 deliberately excludes the language picker. It has dedicated owner scripts and must
+// never gain a second layout owner through the generic editor.
 const REGISTRY: RegistryItem[] = [
   { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", minWidth: 80, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
   { id: "integrated-answer", label: "Integrated Answer", selector: "[data-rc-native-synthesis-button='true']", minWidth: 90, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
   { id: "ai-warehouse", label: "AI Warehouse", selector: "button[title^='AI Warehouse']", minWidth: 90, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-chatgpt", label: "ChatGPT", selector: "button[title^='ChatGPT']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-claude", label: "Claude", selector: "button[title^='Claude']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-gemini", label: "Gemini", selector: "button[title^='Gemini']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-grok", label: "Grok", selector: "button[title^='Grok']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-codex", label: "Codex", selector: "button[title^='OpenAI Codex']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-deepseek", label: "DeepSeek", selector: "button[title^='DeepSeek']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-perplexity", label: "Perplexity", selector: "button[title^='Perplexity']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-mistral", label: "Mistral", selector: "button[title^='Mistral']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-llama", label: "Llama", selector: "button[title^='Meta Llama']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "ai-qwen", label: "Qwen", selector: "button[title^='Qwen']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
-  { id: "language-picker", label: "Language", selector: ".rc-lang-picker > button", minWidth: 100, maxWidth: 260, minHeight: 26, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: false },
+  { id: "ai-chatgpt", label: "ChatGPT", selector: "button[title^='ChatGPT']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-claude", label: "Claude", selector: "button[title^='Claude']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-gemini", label: "Gemini", selector: "button[title^='Gemini']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-grok", label: "Grok", selector: "button[title^='Grok']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-codex", label: "Codex", selector: "button[title^='OpenAI Codex']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-deepseek", label: "DeepSeek", selector: "button[title^='DeepSeek']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-perplexity", label: "Perplexity", selector: "button[title^='Perplexity']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-mistral", label: "Mistral", selector: "button[title^='Mistral']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-llama", label: "Llama", selector: "button[title^='Meta Llama']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
+  { id: "ai-qwen", label: "Qwen", selector: "button[title^='Qwen']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
   { id: "profile-button", label: "Profile", selector: "button[aria-label*='profile'],button[aria-label*='프로필'],button[title='My Profile'],button[title='내 프로필']", minWidth: 28, maxWidth: 64, minHeight: 28, maxHeight: 64, movable: true, resizable: true, textEditable: false, fontEditable: false },
 ];
 
 const BY_ID = new Map(REGISTRY.map((item) => [item.id, item]));
+const ORIGINALS = new Map<RoomHeaderLayoutElementId, OriginalState>();
 
 function snap(value: number) {
   return Math.round(value / SNAP) * SNAP;
@@ -75,12 +78,78 @@ function cloneConfig(config: RoomHeaderLayoutConfig): RoomHeaderLayoutConfig {
   return JSON.parse(JSON.stringify(config)) as RoomHeaderLayoutConfig;
 }
 
+function loadLocalConfig() {
+  if (typeof window === "undefined") return emptyRoomHeaderLayoutConfig();
+  try {
+    return sanitiseRoomHeaderLayoutConfig(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"))
+      || emptyRoomHeaderLayoutConfig();
+  } catch {
+    return emptyRoomHeaderLayoutConfig();
+  }
+}
+
+function resolveItem(item: RegistryItem | null) {
+  if (!item || typeof document === "undefined") return null;
+  const node = document.querySelector(item.selector);
+  return node instanceof HTMLElement ? node : null;
+}
+
 function directLabelTarget(element: HTMLElement, item: RegistryItem) {
   if (!item.textEditable && !item.fontEditable) return element;
   if (item.id === "build-your-room") return element;
   const spans = Array.from(element.children).filter((child): child is HTMLSpanElement => child instanceof HTMLSpanElement);
   const candidates = spans.filter((span) => !span.dataset.rcAiTick && (span.textContent || "").trim().length > 1);
   return candidates[candidates.length - 1] || element;
+}
+
+function captureOriginal(item: RegistryItem, element: HTMLElement) {
+  if (ORIGINALS.has(item.id)) return;
+  const target = directLabelTarget(element, item);
+  ORIGINALS.set(item.id, {
+    translate: element.style.translate,
+    width: element.style.width,
+    height: element.style.height,
+    fontSize: target.style.fontSize,
+    text: item.textEditable ? target.textContent : null,
+  });
+}
+
+function restoreOriginal(item: RegistryItem) {
+  const element = resolveItem(item);
+  const original = ORIGINALS.get(item.id);
+  if (!element || !original) return;
+  const target = directLabelTarget(element, item);
+  element.style.translate = original.translate;
+  element.style.width = original.width;
+  element.style.height = original.height;
+  target.style.fontSize = original.fontSize;
+  if (item.textEditable && original.text !== null && target.textContent !== original.text) target.textContent = original.text;
+}
+
+function applyPatch(item: RegistryItem, patch: RoomHeaderLayoutPatch | undefined) {
+  const element = resolveItem(item);
+  if (!element) return;
+  captureOriginal(item, element);
+  const original = ORIGINALS.get(item.id);
+  if (!original) return;
+  const target = directLabelTarget(element, item);
+  const x = patch?.offsetX ?? 0;
+  const y = patch?.offsetY ?? 0;
+  element.style.setProperty("translate", `${x}px ${y}px`, "important");
+  if (patch?.width !== undefined) element.style.setProperty("width", `${patch.width}px`, "important");
+  else element.style.width = original.width;
+  if (patch?.height !== undefined) element.style.setProperty("height", `${patch.height}px`, "important");
+  else element.style.height = original.height;
+  if (item.fontEditable && patch?.fontSize !== undefined) target.style.setProperty("font-size", `${patch.fontSize}px`, "important");
+  else if (item.fontEditable) target.style.fontSize = original.fontSize;
+  if (item.textEditable) {
+    const wanted = patch?.label || original.text;
+    if (wanted !== null && wanted !== undefined && target.textContent !== wanted) target.textContent = wanted;
+  }
+}
+
+function applyConfig(config: RoomHeaderLayoutConfig) {
+  for (const item of REGISTRY) applyPatch(item, config.elements[item.id]);
 }
 
 function elementRect(element: HTMLElement): RectState {
@@ -94,100 +163,41 @@ function overlap(a: DOMRect, b: DOMRect) {
 }
 
 export default function ProtectedLayoutEditor() {
-  const [roomPage, setRoomPage] = useState(false);
+  const pathname = usePathname();
+  const roomPage = /^\/rooms\/[^/]+\/?$/.test(pathname || "");
   const [editMode, setEditMode] = useState(false);
   const [selectedId, setSelectedId] = useState<RoomHeaderLayoutElementId | null>(null);
-  const [config, setConfig] = useState<RoomHeaderLayoutConfig>(() => emptyRoomHeaderLayoutConfig());
-  const [draft, setDraft] = useState<RoomHeaderLayoutConfig>(() => emptyRoomHeaderLayoutConfig());
+  const [config, setConfig] = useState<RoomHeaderLayoutConfig>(loadLocalConfig);
+  const [draft, setDraft] = useState<RoomHeaderLayoutConfig>(loadLocalConfig);
   const [rect, setRect] = useState<RectState | null>(null);
+  const [visibleIds, setVisibleIds] = useState<RoomHeaderLayoutElementId[]>([]);
   const [message, setMessage] = useState("");
   const [saving, setSaving] = useState(false);
-  const pointerSession = useRef<PointerSession | null>(null);
-  const originals = useRef(new Map<RoomHeaderLayoutElementId, OriginalState>());
-  const history = useRef<RoomHeaderLayoutPatch[]>([]);
+  const [history, setHistory] = useState<RoomHeaderLayoutPatch[]>([]);
+  const [pointerSession, setPointerSession] = useState<PointerSession | null>(null);
 
   const selected = selectedId ? BY_ID.get(selectedId) || null : null;
   const selectedPatch = selectedId ? draft.elements[selectedId] || {} : {};
 
-  const visibleItems = useMemo(() => REGISTRY.map((item) => ({
-    ...item,
-    visible: typeof document !== "undefined" ? Boolean(document.querySelector(item.selector)?.getClientRects().length) : false,
-  })), [rect, roomPage, editMode]);
-
-  function resolve(item: RegistryItem | null) {
-    if (!item || typeof document === "undefined") return null;
-    const node = document.querySelector(item.selector);
-    return node instanceof HTMLElement ? node : null;
-  }
-
-  function captureOriginal(item: RegistryItem, element: HTMLElement) {
-    if (originals.current.has(item.id)) return;
-    const target = directLabelTarget(element, item);
-    originals.current.set(item.id, {
-      translate: element.style.translate,
-      width: element.style.width,
-      height: element.style.height,
-      fontSize: target.style.fontSize,
-      text: item.textEditable ? target.textContent : null,
-    });
-  }
-
-  function restoreOriginal(item: RegistryItem) {
-    const element = resolve(item);
-    const original = originals.current.get(item.id);
-    if (!element || !original) return;
-    const target = directLabelTarget(element, item);
-    element.style.translate = original.translate;
-    element.style.width = original.width;
-    element.style.height = original.height;
-    target.style.fontSize = original.fontSize;
-    if (item.textEditable && original.text !== null) target.textContent = original.text;
-  }
-
-  function applyPatch(item: RegistryItem, patch: RoomHeaderLayoutPatch | undefined) {
-    const element = resolve(item);
-    if (!element) return;
-    captureOriginal(item, element);
-    const original = originals.current.get(item.id)!;
-    const target = directLabelTarget(element, item);
-    const x = patch?.offsetX ?? 0;
-    const y = patch?.offsetY ?? 0;
-    element.style.setProperty("translate", `${x}px ${y}px`, "important");
-    if (patch?.width !== undefined) element.style.setProperty("width", `${patch.width}px`, "important");
-    else element.style.width = original.width;
-    if (patch?.height !== undefined) element.style.setProperty("height", `${patch.height}px`, "important");
-    else element.style.height = original.height;
-    if (item.fontEditable && patch?.fontSize !== undefined) target.style.setProperty("font-size", `${patch.fontSize}px`, "important");
-    else if (item.fontEditable) target.style.fontSize = original.fontSize;
-    if (item.textEditable && patch?.label) target.textContent = patch.label;
-    else if (item.textEditable && original.text !== null) target.textContent = original.text;
-  }
-
-  function applyConfig(next: RoomHeaderLayoutConfig) {
-    for (const item of REGISTRY) applyPatch(item, next.elements[item.id]);
-  }
-
-  function refreshRect() {
-    const element = resolve(selected);
+  const refreshUi = useCallback(() => {
+    const element = resolveItem(selected);
     setRect(element ? elementRect(element) : null);
-  }
+    const nextVisible = REGISTRY
+      .filter((item) => Boolean(resolveItem(item)?.getClientRects().length))
+      .map((item) => item.id);
+    setVisibleIds(nextVisible);
+  }, [selected]);
 
   useEffect(() => {
-    const isRoom = /^\/rooms\/[^/]+\/?$/.test(window.location.pathname);
-    setRoomPage(isRoom);
-    if (!isRoom) return;
-
-    let local = emptyRoomHeaderLayoutConfig();
-    try {
-      const parsed = sanitiseRoomHeaderLayoutConfig(JSON.parse(localStorage.getItem(STORAGE_KEY) || "null"));
-      if (parsed) local = parsed;
-    } catch {}
-    setConfig(local);
-    setDraft(cloneConfig(local));
+    if (!roomPage) return;
+    const local = loadLocalConfig();
     applyConfig(local);
-
-    const params = new URLSearchParams(window.location.search);
-    setEditMode(params.get("layoutEdit") === "1");
+    queueMicrotask(() => {
+      setConfig(local);
+      setDraft(cloneConfig(local));
+      setEditMode(new URLSearchParams(window.location.search).get("layoutEdit") === "1");
+      refreshUi();
+    });
 
     let cancelled = false;
     void fetch("/api/user/preferences", { cache: "no-store" })
@@ -200,32 +210,28 @@ export default function ProtectedLayoutEditor() {
         setDraft(cloneConfig(remote));
         try { localStorage.setItem(STORAGE_KEY, JSON.stringify(remote)); } catch {}
         applyConfig(remote);
+        requestAnimationFrame(refreshUi);
       })
       .catch(() => undefined);
 
-    const observer = new MutationObserver(() => {
-      applyConfig(editMode ? draft : local);
-      requestAnimationFrame(refreshRect);
-    });
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    const onResize = () => requestAnimationFrame(refreshRect);
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      cancelled = true;
-      observer.disconnect();
-      window.removeEventListener("resize", onResize);
-    };
-    // Initial room-page mount only. Runtime updates are applied by dedicated effects below.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    return () => { cancelled = true; };
+  }, [roomPage, refreshUi]);
 
   useEffect(() => {
     if (!roomPage) return;
-    applyConfig(editMode ? draft : config);
-    requestAnimationFrame(refreshRect);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, config, editMode, selectedId, roomPage]);
+    const render = () => {
+      applyConfig(editMode ? draft : config);
+      requestAnimationFrame(refreshUi);
+    };
+    render();
+    const observer = new MutationObserver(render);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
+    window.addEventListener("resize", render);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", render);
+    };
+  }, [roomPage, editMode, draft, config, refreshUi]);
 
   useEffect(() => {
     if (!roomPage || !editMode) return;
@@ -234,72 +240,64 @@ export default function ProtectedLayoutEditor() {
       if (!(target instanceof Element)) return;
       if (target.closest("[data-rc-layout-editor-ui='true']")) return;
       for (const item of REGISTRY) {
-        const element = resolve(item);
+        const element = resolveItem(item);
         if (!element || !element.contains(target)) continue;
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
         setSelectedId(item.id);
+        setHistory([]);
         setMessage(`${item.label} selected. Only this button can be edited now.`);
-        history.current = [];
-        requestAnimationFrame(refreshRect);
+        requestAnimationFrame(refreshUi);
         return;
       }
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [roomPage, editMode]);
+  }, [roomPage, editMode, refreshUi]);
 
   useEffect(() => {
+    if (!pointerSession || !selectedId || !selected) return;
     const onMove = (event: PointerEvent) => {
-      const session = pointerSession.current;
-      if (!session || !selectedId || !selected) return;
       event.preventDefault();
-      const dx = event.clientX - session.startX;
-      const dy = event.clientY - session.startY;
-      const base = session.startPatch;
+      const dx = event.clientX - pointerSession.startX;
+      const dy = event.clientY - pointerSession.startY;
+      const base = pointerSession.startPatch;
       const viewportWidth = window.innerWidth;
-      let next: RoomHeaderLayoutPatch = { ...base };
+      const next: RoomHeaderLayoutPatch = { ...base };
 
-      if (session.mode === "move") {
-        const proposedLeft = Math.max(0, Math.min(viewportWidth - session.startRect.width, session.startRect.left + dx));
-        const proposedTop = Math.max(HEADER_TOP, Math.min(HEADER_BOTTOM - session.startRect.height, session.startRect.top + dy));
-        next.offsetX = snap((base.offsetX || 0) + proposedLeft - session.startRect.left);
-        next.offsetY = snap((base.offsetY || 0) + proposedTop - session.startRect.top);
+      if (pointerSession.mode === "move") {
+        const proposedLeft = Math.max(0, Math.min(viewportWidth - pointerSession.startRect.width, pointerSession.startRect.left + dx));
+        const proposedTop = Math.max(HEADER_TOP, Math.min(HEADER_BOTTOM - pointerSession.startRect.height, pointerSession.startRect.top + dy));
+        next.offsetX = snap((base.offsetX || 0) + proposedLeft - pointerSession.startRect.left);
+        next.offsetY = snap((base.offsetY || 0) + proposedTop - pointerSession.startRect.top);
       } else {
-        const dir = session.direction || "se";
-        let width = session.startRect.width;
-        let height = session.startRect.height;
+        const dir = pointerSession.direction || "se";
+        let width = pointerSession.startRect.width;
+        let height = pointerSession.startRect.height;
         let offsetX = base.offsetX || 0;
         let offsetY = base.offsetY || 0;
 
-        if (dir.includes("e")) width = session.startRect.width + dx;
-        if (dir.includes("s")) height = session.startRect.height + dy;
-        if (dir.includes("w")) {
-          width = session.startRect.width - dx;
-          offsetX += dx;
-        }
-        if (dir.includes("n")) {
-          height = session.startRect.height - dy;
-          offsetY += dy;
-        }
+        if (dir.includes("e")) width = pointerSession.startRect.width + dx;
+        if (dir.includes("s")) height = pointerSession.startRect.height + dy;
+        if (dir.includes("w")) { width = pointerSession.startRect.width - dx; offsetX += dx; }
+        if (dir.includes("n")) { height = pointerSession.startRect.height - dy; offsetY += dy; }
 
         width = snap(Math.max(selected.minWidth, Math.min(selected.maxWidth, width)));
         height = snap(Math.max(selected.minHeight, Math.min(selected.maxHeight, height)));
         const maxX = Math.max(0, viewportWidth - width);
         const maxY = Math.max(HEADER_TOP, HEADER_BOTTOM - height);
-        const nextLeft = Math.max(0, Math.min(maxX, session.startRect.left + (offsetX - (base.offsetX || 0))));
-        const nextTop = Math.max(HEADER_TOP, Math.min(maxY, session.startRect.top + (offsetY - (base.offsetY || 0))));
+        const nextLeft = Math.max(0, Math.min(maxX, pointerSession.startRect.left + (offsetX - (base.offsetX || 0))));
+        const nextTop = Math.max(HEADER_TOP, Math.min(maxY, pointerSession.startRect.top + (offsetY - (base.offsetY || 0))));
         next.width = width;
         next.height = height;
-        next.offsetX = snap((base.offsetX || 0) + nextLeft - session.startRect.left);
-        next.offsetY = snap((base.offsetY || 0) + nextTop - session.startRect.top);
+        next.offsetX = snap((base.offsetX || 0) + nextLeft - pointerSession.startRect.left);
+        next.offsetY = snap((base.offsetY || 0) + nextTop - pointerSession.startRect.top);
       }
 
       setDraft((current) => ({ ...current, elements: { ...current.elements, [selectedId]: next } }));
     };
-
-    const onUp = () => { pointerSession.current = null; };
+    const onUp = () => setPointerSession(null);
     window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onUp);
@@ -308,29 +306,34 @@ export default function ProtectedLayoutEditor() {
       window.removeEventListener("pointerup", onUp);
       window.removeEventListener("pointercancel", onUp);
     };
-  }, [selectedId, selected]);
+  }, [pointerSession, selectedId, selected]);
+
+  function rememberCurrent() {
+    if (!selectedId) return;
+    const patch = { ...(draft.elements[selectedId] || {}) };
+    setHistory((current) => [...current, patch]);
+  }
 
   function beginPointer(event: React.PointerEvent, mode: "move" | "resize", direction?: string) {
     if (!selectedId || !selected) return;
-    const element = resolve(selected);
+    const element = resolveItem(selected);
     if (!element) return;
     event.preventDefault();
     event.stopPropagation();
     const patch = { ...(draft.elements[selectedId] || {}) };
-    history.current.push(patch);
-    pointerSession.current = {
+    setHistory((current) => [...current, patch]);
+    setPointerSession({
       mode,
       direction,
       startX: event.clientX,
       startY: event.clientY,
       startRect: element.getBoundingClientRect(),
       startPatch: patch,
-    };
+    });
   }
 
-  function updateSelected(patch: Partial<RoomHeaderLayoutPatch>, remember = false) {
+  function updateSelected(patch: Partial<RoomHeaderLayoutPatch>) {
     if (!selectedId) return;
-    if (remember) history.current.push({ ...(draft.elements[selectedId] || {}) });
     setDraft((current) => ({
       ...current,
       elements: {
@@ -342,7 +345,7 @@ export default function ProtectedLayoutEditor() {
 
   function validateSelected() {
     if (!selectedId || !selected) return "Select one button first.";
-    const element = resolve(selected);
+    const element = resolveItem(selected);
     if (!element) return `${selected.label} is not currently visible.`;
     const current = element.getBoundingClientRect();
     if (current.left < -0.5 || current.right > window.innerWidth + 0.5 || current.top < HEADER_TOP - 0.5 || current.bottom > HEADER_BOTTOM + 0.5) {
@@ -350,7 +353,7 @@ export default function ProtectedLayoutEditor() {
     }
     for (const item of REGISTRY) {
       if (item.id === selectedId) continue;
-      const other = resolve(item);
+      const other = resolveItem(item);
       if (!other || other.getClientRects().length === 0) continue;
       if (overlap(current, other.getBoundingClientRect())) return `Overlap detected with ${item.label}. Move or resize before saving.`;
     }
@@ -380,7 +383,7 @@ export default function ProtectedLayoutEditor() {
       setDraft(cloneConfig(next));
       setSelectedId(null);
       setRect(null);
-      history.current = [];
+      setHistory([]);
       setMessage("Saved and locked. Select another button, or Finish & Lock.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Layout save failed. The button remains in Edit Mode.");
@@ -396,13 +399,13 @@ export default function ProtectedLayoutEditor() {
     applyConfig(next);
     setSelectedId(null);
     setRect(null);
-    history.current = [];
+    setHistory([]);
     setMessage("Current button changes cancelled.");
   }
 
   function resetSelected() {
     if (!selectedId || !selected) return;
-    history.current.push({ ...(draft.elements[selectedId] || {}) });
+    rememberCurrent();
     restoreOriginal(selected);
     setDraft((current) => {
       const elements = { ...current.elements };
@@ -413,10 +416,18 @@ export default function ProtectedLayoutEditor() {
   }
 
   function undoSelected() {
-    if (!selectedId || !history.current.length) return;
-    const previous = history.current.pop()!;
+    if (!selectedId || history.length === 0) return;
+    const previous = history[history.length - 1];
+    setHistory((current) => current.slice(0, -1));
     setDraft((current) => ({ ...current, elements: { ...current.elements, [selectedId]: previous } }));
     setMessage("Undid the last change for this button.");
+  }
+
+  function selectFromPanel(id: RoomHeaderLayoutElementId, label: string) {
+    setSelectedId(id);
+    setHistory([]);
+    setMessage(`${label} selected.`);
+    requestAnimationFrame(refreshUi);
   }
 
   function finishAndLock() {
@@ -431,8 +442,7 @@ export default function ProtectedLayoutEditor() {
     setMessage("");
   }
 
-  if (!roomPage) return null;
-  if (!editMode) return null;
+  if (!roomPage || !editMode) return null;
 
   const handles = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
   const handleClass: Record<string, string> = {
@@ -464,7 +474,7 @@ export default function ProtectedLayoutEditor() {
             data-rc-layout-editor-ui="true"
             className="fixed z-[999] border-2 border-amber-300 bg-amber-300/5 shadow-[0_0_0_2px_rgba(15,23,42,.8),0_0_22px_rgba(251,191,36,.35)]"
             style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height, touchAction: "none" }}
-            onPointerDown={(event) => selected.movable && beginPointer(event, "move")}
+            onPointerDown={(event) => { if (selected.movable) beginPointer(event, "move"); }}
           >
             {selected.resizable ? handles.map((direction) => (
               <button
@@ -489,12 +499,12 @@ export default function ProtectedLayoutEditor() {
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-1">
-          {visibleItems.map((item) => (
+          {REGISTRY.map((item) => (
             <button
               key={item.id}
               type="button"
-              disabled={!item.visible}
-              onClick={() => { setSelectedId(item.id); history.current = []; setMessage(`${item.label} selected.`); requestAnimationFrame(refreshRect); }}
+              disabled={!visibleIds.includes(item.id)}
+              onClick={() => selectFromPanel(item.id, item.label)}
               className={`rounded-md border px-2 py-1.5 text-[10px] ${selectedId === item.id ? "border-amber-300 bg-amber-300/15 text-amber-100" : "border-white/10 bg-white/[0.03] text-white/70"} disabled:cursor-not-allowed disabled:opacity-25`}
             >
               {item.label}
@@ -502,40 +512,44 @@ export default function ProtectedLayoutEditor() {
           ))}
         </div>
 
+        <div className="mt-2 rounded-md border border-sky-400/20 bg-sky-500/5 px-2 py-1.5 text-[10px] leading-4 text-sky-100/70">
+          Language control is protected by its dedicated owner and is intentionally not editable in v1.
+        </div>
+
         {selected ? (
           <div className="mt-4 border-t border-white/10 pt-3">
             <div className="mb-2 font-semibold text-amber-100">Editing: {selected.label}</div>
             <div className="grid grid-cols-2 gap-2">
               <label className="text-[11px] text-white/60">X offset
-                <input type="number" value={selectedPatch.offsetX ?? 0} onFocus={() => history.current.push({ ...selectedPatch })} onChange={(event) => updateSelected({ offsetX: Number(event.target.value) || 0 })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
+                <input type="number" value={selectedPatch.offsetX ?? 0} onFocus={rememberCurrent} onChange={(event) => updateSelected({ offsetX: Number(event.target.value) || 0 })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
               </label>
               <label className="text-[11px] text-white/60">Y offset
-                <input type="number" value={selectedPatch.offsetY ?? 0} onFocus={() => history.current.push({ ...selectedPatch })} onChange={(event) => updateSelected({ offsetY: Number(event.target.value) || 0 })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
+                <input type="number" value={selectedPatch.offsetY ?? 0} onFocus={rememberCurrent} onChange={(event) => updateSelected({ offsetY: Number(event.target.value) || 0 })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
               </label>
               <label className="text-[11px] text-white/60">Width px
-                <input type="number" min={selected.minWidth} max={selected.maxWidth} value={Math.round(selectedPatch.width ?? rect?.width ?? 0)} disabled={!selected.resizable} onFocus={() => history.current.push({ ...selectedPatch })} onChange={(event) => updateSelected({ width: Math.max(selected.minWidth, Math.min(selected.maxWidth, Number(event.target.value) || selected.minWidth)) })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white disabled:opacity-35" />
+                <input type="number" min={selected.minWidth} max={selected.maxWidth} value={Math.round(selectedPatch.width ?? rect?.width ?? 0)} disabled={!selected.resizable} onFocus={rememberCurrent} onChange={(event) => updateSelected({ width: Math.max(selected.minWidth, Math.min(selected.maxWidth, Number(event.target.value) || selected.minWidth)) })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white disabled:opacity-35" />
               </label>
               <label className="text-[11px] text-white/60">Height px
-                <input type="number" min={selected.minHeight} max={selected.maxHeight} value={Math.round(selectedPatch.height ?? rect?.height ?? 0)} disabled={!selected.resizable} onFocus={() => history.current.push({ ...selectedPatch })} onChange={(event) => updateSelected({ height: Math.max(selected.minHeight, Math.min(selected.maxHeight, Number(event.target.value) || selected.minHeight)) })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white disabled:opacity-35" />
+                <input type="number" min={selected.minHeight} max={selected.maxHeight} value={Math.round(selectedPatch.height ?? rect?.height ?? 0)} disabled={!selected.resizable} onFocus={rememberCurrent} onChange={(event) => updateSelected({ height: Math.max(selected.minHeight, Math.min(selected.maxHeight, Number(event.target.value) || selected.minHeight)) })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white disabled:opacity-35" />
               </label>
             </div>
 
             {selected.fontEditable ? (
               <label className="mt-2 block text-[11px] text-white/60">Font size px
-                <input type="number" min={8} max={32} value={selectedPatch.fontSize ?? 12} onFocus={() => history.current.push({ ...selectedPatch })} onChange={(event) => updateSelected({ fontSize: Math.max(8, Math.min(32, Number(event.target.value) || 12)) })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
+                <input type="number" min={8} max={32} value={selectedPatch.fontSize ?? 12} onFocus={rememberCurrent} onChange={(event) => updateSelected({ fontSize: Math.max(8, Math.min(32, Number(event.target.value) || 12)) })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
               </label>
             ) : null}
 
             {selected.textEditable ? (
               <label className="mt-2 block text-[11px] text-white/60">Button text
-                <input type="text" maxLength={80} value={selectedPatch.label ?? ""} placeholder="Leave blank to use Core label" onFocus={() => history.current.push({ ...selectedPatch })} onChange={(event) => updateSelected({ label: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
+                <input type="text" maxLength={80} value={selectedPatch.label ?? ""} placeholder="Leave blank to use Core label" onFocus={rememberCurrent} onChange={(event) => updateSelected({ label: event.target.value })} onKeyDown={(event) => { if (event.key === "Enter") void saveSelected(); }} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
               </label>
             ) : null}
 
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" onClick={() => void saveSelected()} disabled={saving} className="rounded-lg border border-emerald-400/60 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Save This Button</button>
               <button type="button" onClick={cancelSelected} className="rounded-lg border border-white/20 bg-white/[0.04] px-3 py-2 text-xs">Cancel This Button</button>
-              <button type="button" onClick={undoSelected} disabled={!history.current.length} className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-200 disabled:opacity-35">Undo</button>
+              <button type="button" onClick={undoSelected} disabled={history.length === 0} className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-200 disabled:opacity-35">Undo</button>
               <button type="button" onClick={resetSelected} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">Reset This Button</button>
             </div>
           </div>
