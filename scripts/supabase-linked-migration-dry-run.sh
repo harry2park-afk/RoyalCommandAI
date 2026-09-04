@@ -8,7 +8,7 @@ set -euo pipefail
 
 EXPECTED_PROJECT_REF="aygawkavujjmybekswrg"
 EVIDENCE_DIR="${1:-artifacts/supabase-linked-dry-run}"
-EXPECTED_APPLY_MIGRATIONS="${EXPECTED_APPLY_MIGRATIONS:-20260901025800_room_factory_atomic_non_encounter.sql}"
+EXPECTED_APPLY_MIGRATIONS="${EXPECTED_APPLY_MIGRATIONS:-}"
 
 fail() {
   printf 'BLOCKED: %s\n' "$*" >&2
@@ -21,7 +21,7 @@ command -v supabase >/dev/null 2>&1 || fail "Supabase CLI is required"
 
 [[ -n "${SUPABASE_ACCESS_TOKEN:-}" ]] || fail "SUPABASE_ACCESS_TOKEN is not set"
 [[ -n "${SUPABASE_DB_PASSWORD:-}" ]] || fail "SUPABASE_DB_PASSWORD is not set"
-[[ -n "$EXPECTED_APPLY_MIGRATIONS" ]] || fail "EXPECTED_APPLY_MIGRATIONS must not be empty"
+[[ -n "$EXPECTED_APPLY_MIGRATIONS" ]] || fail "EXPECTED_APPLY_MIGRATIONS must explicitly name the only migration(s) allowed by this dry-run"
 
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "run from a Git checkout"
 cd "$repo_root"
@@ -79,10 +79,10 @@ set -e
 [[ $dry_run_status -eq 0 ]] || fail "supabase db push --linked --dry-run failed"
 
 # Fail closed unless the dry-run exposes exactly the explicitly allow-listed local
-# migration versions. The default allow-list is the current Room Factory schema-
-# stage migration. Later candidates must override EXPECTED_APPLY_MIGRATIONS
-# deliberately with a comma-separated list; an empty or unrecognizable apply set
-# is never treated as safe.
+# migration versions. The allow-list is deliberately mandatory rather than
+# inferred from branch names or release intent. A later candidate must state the
+# exact comma-separated migration basename(s) it permits; an empty,
+# unrecognizable, or expanded apply set is never treated as safe.
 IFS=',' read -r -a expected_apply_raw <<< "$EXPECTED_APPLY_MIGRATIONS"
 expected_apply=()
 for migration in "${expected_apply_raw[@]}"; do
