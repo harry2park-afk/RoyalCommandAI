@@ -10,9 +10,9 @@ export default function SecureProtectedLayoutEditor() {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    if (!roomPage) { setAllowed(false); return; }
+    if (!roomPage) return;
     const requested = new URLSearchParams(window.location.search).get("layoutEdit") === "1";
-    if (!requested) { setAllowed(false); return; }
+    if (!requested) return;
 
     let cancelled = false;
     void fetch("/api/layout-editor/security", { cache: "no-store" })
@@ -45,6 +45,6 @@ export default function SecureProtectedLayoutEditor() {
     };
   }, [roomPage, pathname]);
 
-  if (!allowed) return null;
+  if (!roomPage || !allowed) return null;
   return <ProtectedLayoutEditor />;
 }
