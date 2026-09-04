@@ -85,13 +85,9 @@ function sanitise(value: unknown): UiPreferences {
   const hiddenRoomIds = sanitiseStringArray(input.hiddenRoomIds, 100);
   if (hiddenRoomIds) result.hiddenRoomIds = hiddenRoomIds;
 
-  if (typeof input.language === "string" && input.language.length <= 32) {
-    result.language = input.language;
-  }
+  if (typeof input.language === "string" && input.language.length <= 32) result.language = input.language;
   if (typeof input.uiLocale === "string" && input.uiLocale.length <= 32) {
-    try {
-      result.uiLocale = Intl.getCanonicalLocales(input.uiLocale)[0];
-    } catch {}
+    try { result.uiLocale = Intl.getCanonicalLocales(input.uiLocale)[0]; } catch {}
   }
   if (typeof input.countryCode === "string" && /^[a-z]{2}$/i.test(input.countryCode.trim())) {
     result.countryCode = input.countryCode.trim().toUpperCase();
@@ -99,16 +95,12 @@ function sanitise(value: unknown): UiPreferences {
   if (typeof input.chatSidebarWidth === "number" && Number.isFinite(input.chatSidebarWidth)) {
     result.chatSidebarWidth = Math.max(12, Math.min(420, Math.round(input.chatSidebarWidth)));
   }
-  if (typeof input.chatSidebarCollapsed === "boolean") {
-    result.chatSidebarCollapsed = input.chatSidebarCollapsed;
-  }
+  if (typeof input.chatSidebarCollapsed === "boolean") result.chatSidebarCollapsed = input.chatSidebarCollapsed;
 
   const chatHistoryTitles = sanitiseTitleMap(input.chatHistoryTitles);
   if (chatHistoryTitles) result.chatHistoryTitles = chatHistoryTitles;
-
   const importantConversations = sanitiseImportantConversations(input.importantConversations);
   if (importantConversations) result.importantConversations = importantConversations;
-
   const layoutRoomHeaderV1 = sanitiseRoomHeaderLayoutConfig(input.layoutRoomHeaderV1);
   if (layoutRoomHeaderV1) result.layoutRoomHeaderV1 = layoutRoomHeaderV1;
 
@@ -119,25 +111,26 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   if (!isSupabaseConfigured()) {
-    return NextResponse.json({ preferences: user.countryCode ? { countryCode: user.countryCode } : {} });
+    return NextResponse.json({
+      preferences: user.countryCode ? { countryCode: user.countryCode } : {},
+      layoutEditorAllowed: false,
+    });
   }
 
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("ui_preferences, default_language")
+    .select("ui_preferences, default_language, role")
     .eq("id", user.id)
     .single();
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  const layoutEditorAllowed = data?.role === "admin";
   const preferences = sanitise(data?.ui_preferences);
-  if (!preferences.language && typeof data?.default_language === "string") {
-    preferences.language = data.default_language;
-  }
-  if (!preferences.countryCode && user.countryCode) {
-    preferences.countryCode = user.countryCode.toUpperCase();
-  }
-  return NextResponse.json({ preferences });
+  if (!layoutEditorAllowed) delete preferences.layoutRoomHeaderV1;
+  if (!preferences.language && typeof data?.default_language === "string") preferences.language = data.default_language;
+  if (!preferences.countryCode && user.countryCode) preferences.countryCode = user.countryCode.toUpperCase();
+  return NextResponse.json({ preferences, layoutEditorAllowed });
 }
 
 export async function PATCH(request: Request) {
@@ -155,10 +148,13 @@ export async function PATCH(request: Request) {
   const supabase = await createClient();
   const { data: current, error: readError } = await supabase
     .from("profiles")
-    .select("ui_preferences")
+    .select("ui_preferences, role")
     .eq("id", user.id)
     .single();
   if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
+  if (incoming.layoutRoomHeaderV1 && current?.role !== "admin") {
+    return NextResponse.json({ error: "Layout Editor requires administrator access." }, { status: 403 });
+  }
 
   const existing = sanitise(current?.ui_preferences);
   const merged = { ...existing, ...incoming };
