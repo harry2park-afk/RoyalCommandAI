@@ -1,8 +1,10 @@
 "use client";
 
 import { MouseEvent, PointerEvent, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
 export default function CommandRoomReturnButton() {
+  const router = useRouter();
   const [returnRoom, setReturnRoom] = useState("");
 
   useEffect(() => {
@@ -19,9 +21,7 @@ export default function CommandRoomReturnButton() {
   function goToCommandRoom(event: MouseEvent<HTMLButtonElement>) {
     stopEvent(event);
     const targetPath = returnRoom ? `/rooms/${encodeURIComponent(returnRoom)}` : "/dashboard";
-    const targetUrl = new URL(targetPath, window.location.origin);
-    if (targetUrl.origin !== window.location.origin) return;
-    window.location.assign(targetUrl.toString());
+    router.replace(targetPath);
   }
 
   return (
