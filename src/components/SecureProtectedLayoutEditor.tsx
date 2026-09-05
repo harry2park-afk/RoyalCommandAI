@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import ProtectedLayoutEditor from "@/components/ProtectedLayoutEditor";
-import LayoutEditorQuickActions from "@/components/LayoutEditorQuickActions";
 
 export default function SecureProtectedLayoutEditor() {
   const pathname = usePathname();
@@ -47,10 +46,5 @@ export default function SecureProtectedLayoutEditor() {
   }, [roomPage, pathname]);
 
   if (!roomPage || !allowed) return null;
-  return (
-    <>
-      <LayoutEditorQuickActions />
-      <ProtectedLayoutEditor />
-    </>
-  );
+  return <ProtectedLayoutEditor />;
 }

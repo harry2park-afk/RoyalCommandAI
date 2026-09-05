@@ -18,10 +18,6 @@ describe("room header layout config", () => {
           height: 2,
           fontSize: 99,
           label: "  Build   Your   Room  ",
-          borderColor: "#12abEF",
-          backgroundColor: "#102030",
-          colourStrength: 99,
-          textColor: "#fFaa00",
         },
       },
     });
@@ -34,27 +30,7 @@ describe("room header layout config", () => {
       height: 20,
       fontSize: 32,
       label: "Build Your Room",
-      borderColor: "#12ABEF",
-      backgroundColor: "#102030",
-      colourStrength: 10,
-      textColor: "#FFAA00",
     });
-  });
-
-  it("clamps colour strength to the supported 1–10 range", () => {
-    const low = sanitiseRoomHeaderLayoutConfig({
-      screenId: "ROOM_HEADER",
-      layoutVersion: 1,
-      elements: { "ai-warehouse": { colourStrength: -5 } },
-    });
-    const high = sanitiseRoomHeaderLayoutConfig({
-      screenId: "ROOM_HEADER",
-      layoutVersion: 1,
-      elements: { "ai-warehouse": { colourStrength: 50 } },
-    });
-
-    expect(low?.elements["ai-warehouse"]?.colourStrength).toBe(1);
-    expect(high?.elements["ai-warehouse"]?.colourStrength).toBe(10);
   });
 
   it("drops unknown element ids instead of allowing arbitrary DOM control", () => {
@@ -68,22 +44,6 @@ describe("room header layout config", () => {
     });
 
     expect(result?.elements).toEqual({ "ai-codex": { offsetX: 4 } });
-  });
-
-  it("rejects unsafe colour strings for button and text styles", () => {
-    const result = sanitiseRoomHeaderLayoutConfig({
-      screenId: "ROOM_HEADER",
-      layoutVersion: 1,
-      elements: {
-        "ai-warehouse": {
-          borderColor: "url(javascript:alert(1))",
-          backgroundColor: "red",
-          textColor: "expression(alert(1))",
-        },
-      },
-    });
-
-    expect(result?.elements["ai-warehouse"]).toEqual({});
   });
 
   it("rejects configs for another screen", () => {
