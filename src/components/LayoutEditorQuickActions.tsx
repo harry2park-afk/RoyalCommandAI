@@ -16,7 +16,7 @@ type QuickItem = {
   fontEditable: boolean;
 };
 
-type Mode = "move" | "resize" | "text" | "colour" | null;
+type Mode = "move" | "resize" | "style" | null;
 
 const REGISTRY: QuickItem[] = [
   { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", textEditable: true, fontEditable: true },
@@ -96,7 +96,7 @@ export default function LayoutEditorQuickActions() {
   const [fontSize, setFontSize] = useState(12);
   const [textColor, setTextColor] = useState("#FFFFFF");
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("Double-click a button, then choose what you want to change.");
+  const [message, setMessage] = useState("Double-click a button, then choose Move, Resize, or Style.");
 
   const selected = useMemo(() => REGISTRY.find((item) => item.id === selectedId) || null, [selectedId]);
 
@@ -141,7 +141,7 @@ export default function LayoutEditorQuickActions() {
         setFontSize(Math.max(8, Math.min(32, Math.round(patch?.fontSize ?? Number.parseFloat(labelComputed.fontSize) || 12))));
         setTextColor(patch?.textColor || rgbToHex(labelComputed.color, "#FFFFFF"));
       }
-      setMessage(`${item.label} selected. Choose Move, Resize, Text, or Colours.`);
+      setMessage(`${item.label} selected. Choose Move, Resize, or Style.`);
       window.setTimeout(() => selectInProtectedPanel(item), 0);
     };
 
@@ -157,24 +157,18 @@ export default function LayoutEditorQuickActions() {
   }, []);
 
   useEffect(() => {
-    if (!selected || mode !== "colour") return;
-    const element = resolveItem(selected);
-    if (!element) return;
-    element.style.setProperty("border-color", hexWithStrength(borderColor, colourStrength), "important");
-    element.style.setProperty("background-color", hexWithStrength(backgroundColor, colourStrength), "important");
-  }, [selected, mode, borderColor, backgroundColor, colourStrength]);
-
-  useEffect(() => {
-    if (!selected || mode !== "text") return;
+    if (!selected || mode !== "style") return;
     const element = resolveItem(selected);
     if (!element) return;
     const target = directLabelTarget(element, selected);
+    element.style.setProperty("border-color", hexWithStrength(borderColor, colourStrength), "important");
+    element.style.setProperty("background-color", hexWithStrength(backgroundColor, colourStrength), "important");
     if (selected.textEditable && textValue.trim()) target.textContent = textValue;
     if (selected.fontEditable) {
       target.style.setProperty("font-size", `${fontSize}px`, "important");
       target.style.setProperty("color", textColor, "important");
     }
-  }, [selected, mode, textValue, fontSize, textColor]);
+  }, [selected, mode, borderColor, backgroundColor, colourStrength, textValue, fontSize, textColor]);
 
   function chooseMode(next: Exclude<Mode, null>) {
     if (!selected) return;
@@ -182,19 +176,40 @@ export default function LayoutEditorQuickActions() {
     selectInProtectedPanel(selected);
     if (next === "move") setMessage("Move selected: drag the yellow box to the new position.");
     if (next === "resize") setMessage("Resize selected: drag any yellow round handle.");
-    if (next === "text") setMessage(selected.textEditable ? "Text selected: change text, size, and colour here, then save." : "Text style selected: this Core label cannot be renamed, but size and colour can be changed.");
-    if (next === "colour") setMessage("Colours selected: choose colours and strength 1–10, then save.");
+    if (next === "style") setMessage("Style selected: edit button colours, strength, text, text size, and text colour together.");
   }
 
-  async function savePatch(update: (patch: NonNullable<RoomHeaderLayoutConfig["elements"][RoomHeaderLayoutElementId]>) => void, success: string) {
+  async function saveStyle(useCoreStyle = false) {
     if (!selected) return;
+    if (selected.textEditable && !textValue.trim()) {
+      setMessage("Button text cannot be empty.");
+      return;
+    }
     setSaving(true);
+    setMessage(useCoreStyle ? "Restoring Core style…" : "Saving button style…");
     try {
       const read = await fetch("/api/user/preferences", { cache: "no-store" });
       const data = read.ok ? await read.json() : null;
       const config = sanitiseRoomHeaderLayoutConfig(data?.preferences?.layoutRoomHeaderV1) || emptyRoomHeaderLayoutConfig();
       const patch = { ...(config.elements[selected.id] || {}) };
-      update(patch);
+
+      if (selected.textEditable) patch.label = textValue.trim().replace(/\s+/g, " ").slice(0, 80);
+      if (useCoreStyle) {
+        delete patch.borderColor;
+        delete patch.backgroundColor;
+        delete patch.colourStrength;
+        delete patch.fontSize;
+        delete patch.textColor;
+      } else {
+        patch.borderColor = borderColor;
+        patch.backgroundColor = backgroundColor;
+        patch.colourStrength = colourStrength;
+        if (selected.fontEditable) {
+          patch.fontSize = Math.max(8, Math.min(32, Math.round(fontSize)));
+          patch.textColor = textColor;
+        }
+      }
+
       const next: RoomHeaderLayoutConfig = {
         ...config,
         layoutVersion: config.layoutVersion + 1,
@@ -206,47 +221,13 @@ export default function LayoutEditorQuickActions() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ layoutRoomHeaderV1: next }),
       });
-      if (!response.ok) throw new Error("Server rejected the save.");
-      setMessage(`${success} Reloading editor…`);
+      if (!response.ok) throw new Error("Server rejected the style save.");
+      setMessage(useCoreStyle ? "Core style restored. Reloading editor…" : "Button style saved. Reloading editor…");
       window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Save failed.");
+      setMessage(error instanceof Error ? error.message : "Style save failed.");
       setSaving(false);
     }
-  }
-
-  async function saveColours(useCore = false) {
-    setMessage("Saving colours…");
-    await savePatch((patch) => {
-      if (useCore) {
-        delete patch.borderColor;
-        delete patch.backgroundColor;
-        delete patch.colourStrength;
-      } else {
-        patch.borderColor = borderColor;
-        patch.backgroundColor = backgroundColor;
-        patch.colourStrength = colourStrength;
-      }
-    }, useCore ? "Core colours restored." : "Colours and strength saved.");
-  }
-
-  async function saveText(useCoreStyle = false) {
-    if (!selected) return;
-    if (selected.textEditable && !textValue.trim()) {
-      setMessage("Button text cannot be empty.");
-      return;
-    }
-    setMessage("Saving text settings…");
-    await savePatch((patch) => {
-      if (selected.textEditable) patch.label = textValue.trim().replace(/\s+/g, " ").slice(0, 80);
-      if (useCoreStyle) {
-        delete patch.fontSize;
-        delete patch.textColor;
-      } else if (selected.fontEditable) {
-        patch.fontSize = Math.max(8, Math.min(32, Math.round(fontSize)));
-        patch.textColor = textColor;
-      }
-    }, useCoreStyle ? "Core text size and colour restored." : "Text settings saved.");
   }
 
   if (!selected) {
@@ -259,7 +240,7 @@ export default function LayoutEditorQuickActions() {
   }
 
   return (
-    <div data-rc-layout-editor-ui="true" className="fixed right-[360px] top-[104px] z-[1002] w-[360px] rounded-xl border border-amber-300/60 bg-[#07101d]/98 p-3 text-xs text-white shadow-2xl">
+    <div data-rc-layout-editor-ui="true" className="fixed right-[360px] top-[104px] z-[1002] w-[380px] max-h-[calc(100vh-130px)] overflow-y-auto rounded-xl border border-amber-300/60 bg-[#07101d]/98 p-3 text-xs text-white shadow-2xl">
       <div className="flex items-center justify-between gap-2">
         <div>
           <div className="font-semibold text-amber-200">Quick Edit · {selected.label}</div>
@@ -268,21 +249,44 @@ export default function LayoutEditorQuickActions() {
         <button type="button" onClick={() => { setSelectedId(null); setMode(null); }} className="rounded border border-white/15 px-2 py-1 text-white/70">×</button>
       </div>
 
-      <div className="mt-3 grid grid-cols-4 gap-1.5">
+      <div className="mt-3 grid grid-cols-3 gap-1.5">
         <button type="button" onClick={() => chooseMode("move")} className={`rounded-md border px-2 py-2 ${mode === "move" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Move</button>
         <button type="button" onClick={() => chooseMode("resize")} className={`rounded-md border px-2 py-2 ${mode === "resize" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Resize</button>
-        <button type="button" disabled={!selected.textEditable && !selected.fontEditable} onClick={() => chooseMode("text")} className={`rounded-md border px-2 py-2 disabled:opacity-30 ${mode === "text" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Text</button>
-        <button type="button" onClick={() => chooseMode("colour")} className={`rounded-md border px-2 py-2 ${mode === "colour" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Colours</button>
+        <button type="button" onClick={() => chooseMode("style")} className={`rounded-md border px-2 py-2 ${mode === "style" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Style</button>
       </div>
 
-      {mode === "text" ? (
+      {mode === "style" ? (
         <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-2.5">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-amber-200/80">Button</div>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-[11px] text-white/65">Border colour
+              <div className="mt-1 flex items-center gap-2">
+                <input type="color" value={borderColor} onChange={(event) => setBorderColor(event.target.value.toUpperCase())} className="h-9 w-12 cursor-pointer rounded border border-white/15 bg-transparent p-0" />
+                <span className="font-mono text-[10px] text-white/55">{borderColor}</span>
+              </div>
+            </label>
+            <label className="text-[11px] text-white/65">Background colour
+              <div className="mt-1 flex items-center gap-2">
+                <input type="color" value={backgroundColor} onChange={(event) => setBackgroundColor(event.target.value.toUpperCase())} className="h-9 w-12 cursor-pointer rounded border border-white/15 bg-transparent p-0" />
+                <span className="font-mono text-[10px] text-white/55">{backgroundColor}</span>
+              </div>
+            </label>
+          </div>
+
+          <label className="mt-3 block text-[11px] text-white/70">Colour strength: <strong className="text-amber-200">{colourStrength}</strong> / 10
+            <input type="range" min={1} max={10} step={1} value={colourStrength} onChange={(event) => setColourStrength(Number(event.target.value))} className="mt-2 w-full accent-amber-300" />
+            <div className="mt-1 flex justify-between text-[9px] text-white/45"><span>1 · Very light</span><span>10 · Strong</span></div>
+          </label>
+
+          <div className="my-3 border-t border-white/10" />
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-amber-200/80">Text</div>
+
           {selected.textEditable ? (
             <label className="block text-[11px] text-white/65">Button text
               <input type="text" maxLength={80} value={textValue} onChange={(event) => setTextValue(event.target.value)} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-2 text-white" />
             </label>
           ) : (
-            <div className="text-[10px] text-white/45">Button name is Core-protected. Size and colour are editable.</div>
+            <div className="text-[10px] text-white/45">Button name is Core-protected. Text size and colour can still be changed.</div>
           )}
 
           {selected.fontEditable ? (
@@ -300,39 +304,9 @@ export default function LayoutEditorQuickActions() {
             </>
           ) : null}
 
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button type="button" disabled={saving} onClick={() => void saveText(false)} className="rounded-md border border-emerald-400/50 bg-emerald-500/10 px-2 py-2 font-semibold text-emerald-200 disabled:opacity-40">Save Text</button>
-            <button type="button" disabled={saving || !selected.fontEditable} onClick={() => void saveText(true)} className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-2 disabled:opacity-40">Core Text Style</button>
-          </div>
-        </div>
-      ) : null}
-
-      {mode === "colour" ? (
-        <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-2.5">
-          <div className="grid grid-cols-2 gap-3">
-            <label className="text-[11px] text-white/65">Border colour
-              <div className="mt-1 flex items-center gap-2">
-                <input type="color" value={borderColor} onChange={(event) => setBorderColor(event.target.value.toUpperCase())} className="h-9 w-12 cursor-pointer rounded border border-white/15 bg-transparent p-0" />
-                <span className="font-mono text-[10px] text-white/55">{borderColor}</span>
-              </div>
-            </label>
-            <label className="text-[11px] text-white/65">Background colour
-              <div className="mt-1 flex items-center gap-2">
-                <input type="color" value={backgroundColor} onChange={(event) => setBackgroundColor(event.target.value.toUpperCase())} className="h-9 w-12 cursor-pointer rounded border border-white/15 bg-transparent p-0" />
-                <span className="font-mono text-[10px] text-white/55">{backgroundColor}</span>
-              </div>
-            </label>
-          </div>
-
-          <label className="mt-3 block text-[11px] text-white/70">
-            Colour strength: <strong className="text-amber-200">{colourStrength}</strong> / 10
-            <input type="range" min={1} max={10} step={1} value={colourStrength} onChange={(event) => setColourStrength(Number(event.target.value))} className="mt-2 w-full accent-amber-300" />
-            <div className="mt-1 flex justify-between text-[9px] text-white/45"><span>1 · Very light</span><span>10 · Strong</span></div>
-          </label>
-
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <button type="button" disabled={saving} onClick={() => void saveColours(false)} className="rounded-md border border-emerald-400/50 bg-emerald-500/10 px-2 py-2 font-semibold text-emerald-200 disabled:opacity-40">Save Colours</button>
-            <button type="button" disabled={saving} onClick={() => void saveColours(true)} className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-2 disabled:opacity-40">Use Core Colours</button>
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button type="button" disabled={saving} onClick={() => void saveStyle(false)} className="rounded-md border border-emerald-400/50 bg-emerald-500/10 px-2 py-2 font-semibold text-emerald-200 disabled:opacity-40">Save Style</button>
+            <button type="button" disabled={saving} onClick={() => void saveStyle(true)} className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-2 disabled:opacity-40">Use Core Style</button>
           </div>
         </div>
       ) : null}
