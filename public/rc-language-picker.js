@@ -43,7 +43,7 @@
     const search=document.createElement("input");search.type="text";search.placeholder="Search country or language…";search.style.cssText="flex:1;min-width:0;padding:8px 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#070b14;color:#fff;font-size:12px;outline:none";
     const hiddenToggle=document.createElement("button");hiddenToggle.type="button";hiddenToggle.style.cssText="border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#111827;color:#fff;padding:0 10px;font-size:11px;cursor:pointer;white-space:nowrap";
     tools.append(search,hiddenToggle);
-    const list=document.createElement("div");list.style.cssText="flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 7px;scroll-behavior:auto";
+    const list=document.createElement("div");list.style.cssText="flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 7px;scroll-behavior:auto;overscroll-behavior:contain";
 
     const selectValue=select.value==="ko"?"ko-KR":select.value==="en"?"en-AU":select.value;
     const remembered=localStorage.getItem(SELECTED_KEY);
@@ -58,6 +58,55 @@
     function positionMenu(){const rect=button.getBoundingClientRect();const top=Math.max(4,rect.bottom+4);const right=Math.max(8,window.innerWidth-rect.right);const available=Math.max(220,window.innerHeight-top-8);menu.style.top=`${top}px`;menu.style.right=`${right}px`;menu.style.height=`${available}px`;menu.style.maxHeight=`${available}px`;}
     function moveTo(dragValue,targetValue,after=false){if(!dragValue||!targetValue||dragValue===targetValue)return;const next=order.filter(v=>v!==dragValue);let i=next.indexOf(targetValue);if(i<0)i=next.length;if(after)i+=1;next.splice(i,0,dragValue);order=next;saveOrder(order);}
 
+    let isDragging=false;
+    let pointerY=null;
+    let rafId=null;
+    let lastFrameTime=null;
+    const MAX_SPEED=1400;
+    const FRAME_DELTA_CAP=50;
+
+    function stopAutoScroll(){
+      isDragging=false;
+      pointerY=null;
+      lastFrameTime=null;
+      if(rafId!==null){cancelAnimationFrame(rafId);rafId=null;}
+    }
+
+    function autoScrollFrame(timestamp){
+      if(!isDragging||pointerY===null||menu.style.display!=="flex"){stopAutoScroll();return;}
+      if(lastFrameTime===null)lastFrameTime=timestamp;
+      const dt=Math.min(timestamp-lastFrameTime,FRAME_DELTA_CAP)/1000;
+      lastFrameTime=timestamp;
+      const rect=list.getBoundingClientRect();
+      const zone=Math.max(72,Math.min(160,rect.height*0.22));
+      const topDistance=pointerY-rect.top;
+      const bottomDistance=rect.bottom-pointerY;
+      let velocity=0;
+      if(topDistance<zone){
+        const n=Math.max(0,Math.min(1,(zone-topDistance)/zone));
+        velocity=-MAX_SPEED*n*n;
+      }else if(bottomDistance<zone){
+        const n=Math.max(0,Math.min(1,(zone-bottomDistance)/zone));
+        velocity=MAX_SPEED*n*n;
+      }
+      if(velocity!==0&&list.scrollHeight>list.clientHeight){
+        const maxScroll=Math.max(0,list.scrollHeight-list.clientHeight);
+        list.scrollTop=Math.max(0,Math.min(maxScroll,list.scrollTop+velocity*dt));
+      }
+      rafId=requestAnimationFrame(autoScrollFrame);
+    }
+
+    function startAutoScroll(clientY){
+      isDragging=true;
+      if(Number.isFinite(clientY))pointerY=clientY;
+      if(rafId===null){lastFrameTime=null;rafId=requestAnimationFrame(autoScrollFrame);}
+    }
+
+    function updateDragPointer(e){
+      if(!isDragging)return;
+      pointerY=e.clientY;
+    }
+
     function renderList(query=""){
       list.innerHTML="";
       hiddenToggle.textContent=showHidden?`Visible list`:`Hidden (${hidden.size})`;
@@ -69,24 +118,27 @@
         const actionDisabled=!showHidden&&x[0]===current[0];
         row.innerHTML=`<span style="width:14px;color:#7f8c9d">${showHidden?"":"↕"}</span><img src="${flagUrl(x[2])}" width="24" height="16" style="width:24px;height:16px;object-fit:cover;border-radius:2px"><strong style="width:30px;color:var(--gold-soft)">${x[1]}</strong><span class="rc-lang-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${x[3]}</span><button type="button" data-hide ${actionDisabled?"disabled":""} style="border:1px solid rgba(255,255,255,.12);background:${actionDisabled?"#1a1f2a":"#111827"};color:${actionDisabled?"#657080":"#fff"};border-radius:6px;min-width:52px;height:26px;padding:0 8px;cursor:${actionDisabled?"not-allowed":"pointer"};font-size:10px">${actionLabel}</button>${x[0]===current[0]?'<span style="font-size:9px;color:var(--gold-soft);width:52px">SELECTED</span>':'<span style="width:52px"></span>'}`;
         row.querySelector("[data-hide]").onclick=e=>{e.stopPropagation();if(actionDisabled)return;if(showHidden)hidden.delete(x[0]);else hidden.add(x[0]);saveHidden(hidden);renderList(search.value);};
-        row.querySelector(".rc-lang-name").onclick=()=>{current=x;hidden.delete(x[0]);saveHidden(hidden);localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
-        row.ondragstart=e=>{if(!row.draggable)return;e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",x[0]);row.style.opacity=".45";};
-        row.ondragend=()=>{row.style.opacity="1";};
-        row.ondragover=e=>{if(!row.draggable)return;e.preventDefault();e.dataTransfer.dropEffect="move";row.style.outline="0 0 0 1px #d4af37 inset";};
+        row.querySelector(".rc-lang-name").onclick=()=>{current=x;hidden.delete(x[0]);saveHidden(hidden);localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";stopAutoScroll();};
+        row.ondragstart=e=>{if(!row.draggable)return;e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",x[0]);row.style.opacity=".45";startAutoScroll(e.clientY);};
+        row.ondragend=()=>{row.style.opacity="1";stopAutoScroll();};
+        row.ondragover=e=>{if(!row.draggable)return;e.preventDefault();e.dataTransfer.dropEffect="move";updateDragPointer(e);row.style.outline="0 0 0 1px #d4af37 inset";};
         row.ondragleave=()=>{row.style.outline="none";};
-        row.ondrop=e=>{if(!row.draggable)return;e.preventDefault();row.style.outline="none";const r=row.getBoundingClientRect();moveTo(e.dataTransfer.getData("text/plain"),x[0],e.clientY>r.top+r.height/2);renderList();};
-        row.onclick=e=>{if(e.target.closest("button"))return;current=x;hidden.delete(x[0]);saveHidden(hidden);localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
+        row.ondrop=e=>{if(!row.draggable)return;e.preventDefault();row.style.outline="none";const r=row.getBoundingClientRect();moveTo(e.dataTransfer.getData("text/plain"),x[0],e.clientY>r.top+r.height/2);stopAutoScroll();renderList();};
+        row.onclick=e=>{if(e.target.closest("button"))return;current=x;hidden.delete(x[0]);saveHidden(hidden);localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";stopAutoScroll();};
         list.appendChild(row);
       });
     }
 
-    list.addEventListener("dragover",e=>{if(search.value||showHidden)return;e.preventDefault();const r=list.getBoundingClientRect();const edge=Math.min(220,r.height*.45);const minSpeed=10;const maxSpeed=140;const topDistance=e.clientY-r.top;const bottomDistance=r.bottom-e.clientY;if(topDistance<edge){const intensity=Math.max(0,Math.min(1,(edge-topDistance)/edge));list.scrollTop-=Math.round(minSpeed+(maxSpeed-minSpeed)*intensity*intensity);}else if(bottomDistance<edge){const intensity=Math.max(0,Math.min(1,(edge-bottomDistance)/edge));list.scrollTop+=Math.round(minSpeed+(maxSpeed-minSpeed)*intensity*intensity);}});
-    hiddenToggle.onclick=e=>{e.stopPropagation();showHidden=!showHidden;search.value="";renderList();};
-    button.onclick=e=>{e.stopPropagation();const opening=menu.style.display!=="flex";menu.style.display=opening?"flex":"none";if(opening){order=loadOrder();hidden=loadHidden();showHidden=false;positionMenu();search.value="";renderList();setTimeout(()=>search.focus(),0);}};
-    search.oninput=()=>renderList(search.value);
+    list.addEventListener("dragover",e=>{if(search.value||showHidden||!isDragging)return;e.preventDefault();updateDragPointer(e);});
+    list.addEventListener("drop",stopAutoScroll);
+    hiddenToggle.onclick=e=>{e.stopPropagation();stopAutoScroll();showHidden=!showHidden;search.value="";renderList();};
+    button.onclick=e=>{e.stopPropagation();const opening=menu.style.display!=="flex";if(!opening)stopAutoScroll();menu.style.display=opening?"flex":"none";if(opening){order=loadOrder();hidden=loadHidden();showHidden=false;positionMenu();search.value="";renderList();setTimeout(()=>search.focus(),0);}};
+    search.oninput=()=>{stopAutoScroll();renderList(search.value);};
     window.addEventListener("resize",()=>{if(menu.style.display==="flex")positionMenu();});
     window.addEventListener("scroll",()=>{if(menu.style.display==="flex")positionMenu();},true);
-    document.addEventListener("click",e=>{if(!wrap.contains(e.target)&&!menu.contains(e.target))menu.style.display="none";});
+    window.addEventListener("blur",stopAutoScroll);
+    document.addEventListener("visibilitychange",()=>{if(document.hidden)stopAutoScroll();});
+    document.addEventListener("click",e=>{if(!wrap.contains(e.target)&&!menu.contains(e.target)){menu.style.display="none";stopAutoScroll();}});
     renderButton();renderList();menu.append(hint,tools,list);document.body.appendChild(menu);wrap.append(button);select.insertAdjacentElement("afterend",wrap);
   }
   function scan(){document.querySelectorAll('select[aria-label="Language"]').forEach(enhance);}
