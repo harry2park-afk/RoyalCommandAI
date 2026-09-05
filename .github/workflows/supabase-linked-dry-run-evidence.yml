@@ -1,0 +1,67 @@
+name: Supabase Linked Dry-Run Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "scripts/supabase-linked-migration-dry-run.sh"
+      - "scripts/supabase-dry-run-apply-set.mjs"
+      - "scripts/supabase-dry-run-apply-set.test.ts"
+      - "supabase/migrations/**"
+      - ".github/workflows/supabase-linked-dry-run-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-supabase-linked-dry-run-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linked-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      EXPECTED_APPLY_MIGRATIONS: >-
+        20260831225500_scope_matter_staff_access.sql,
+        20260901025800_room_factory_atomic_non_encounter.sql,
+        20260904105500_harden_profile_role_authority.sql
+    steps:
+      - name: Checkout exact candidate
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Verify required hosted credentials are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${SUPABASE_ACCESS_TOKEN:-}" ]] || { echo "BLOCKED: repository secret SUPABASE_ACCESS_TOKEN is not configured for this workflow"; exit 1; }
+          [[ -n "${SUPABASE_DB_PASSWORD:-}" ]] || { echo "BLOCKED: repository secret SUPABASE_DB_PASSWORD is not configured for this workflow"; exit 1; }
+
+      - name: Capture exact linked migration evidence (read-only / dry-run only)
+        shell: bash
+        run: bash scripts/supabase-linked-migration-dry-run.sh artifacts/supabase-linked-dry-run
+
+      - name: Upload evidence bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-linked-dry-run-${{ github.sha }}
+          path: artifacts/supabase-linked-dry-run/
+          if-no-files-found: warn
+          retention-days: 7
