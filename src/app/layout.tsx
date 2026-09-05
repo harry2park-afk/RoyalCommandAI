@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import CustomerRoomDesigner from "@/components/CustomerRoomDesigner";
 import SecureProtectedLayoutEditor from "@/components/SecureProtectedLayoutEditor";
 import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
 import RoomPreferenceAuthority from "@/components/RoomPreferenceAuthority";
@@ -27,6 +28,7 @@ export default function RootLayout({
         <RetellRoomVoiceBridge />
         <RoomPreferenceAuthority />
         <RoomHeaderStyleAuthority />
+        <CustomerRoomDesigner />
         <SecureProtectedLayoutEditor />
       </body>
     </html>
