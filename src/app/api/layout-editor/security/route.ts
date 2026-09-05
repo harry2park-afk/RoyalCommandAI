@@ -99,6 +99,14 @@ function passkeyLastUsed(passkey: PasskeyMeta) {
   return value ? Date.parse(value) : Number.NaN;
 }
 
+function recentlyUsedPasskeys(passkeys: PasskeyMeta[]) {
+  const now = Date.now();
+  return passkeys
+    .map((passkey) => ({ passkey, lastUsed: passkeyLastUsed(passkey) }))
+    .filter((item) => Number.isFinite(item.lastUsed) && now - item.lastUsed <= PASSKEY_RECENT_MS)
+    .sort((a, b) => b.lastUsed - a.lastUsed);
+}
+
 function jsonError(message: string, status: number) {
   return NextResponse.json({ error: message }, { status });
 }
@@ -116,6 +124,55 @@ async function createEditorSession(userId: string, deviceId: string) {
   });
   if (error) throw error;
   return sessionToken;
+}
+
+async function registerTrustedDevice(
+  request: Request,
+  userId: string,
+  passkeyId: string,
+  deviceNameInput: unknown,
+  enrollmentCodeHash: string | null,
+  auditMode: "new-passkey" | "existing-passkey-bootstrap",
+) {
+  const admin = createAdminClient();
+  const { data: existing } = await admin
+    .from("layout_editor_trusted_devices")
+    .select("id")
+    .eq("user_id", userId)
+    .eq("passkey_id", passkeyId)
+    .is("revoked_at", null)
+    .maybeSingle();
+  if (existing) return jsonError("This passkey is already bound to a trusted Layout Editor device.", 409);
+
+  const deviceToken = newOpaqueToken();
+  const deviceName = safeDeviceName(deviceNameInput);
+  const { data: device, error } = await admin
+    .from("layout_editor_trusted_devices")
+    .insert({
+      user_id: userId,
+      passkey_id: passkeyId,
+      device_name: deviceName,
+      device_cookie_hash: sha256Hex(deviceToken),
+      user_agent: request.headers.get("user-agent")?.slice(0, 500) || null,
+    })
+    .select("id")
+    .single();
+  if (error || !device) return jsonError("Could not register this trusted device.", 409);
+
+  if (enrollmentCodeHash) {
+    await admin
+      .from("layout_editor_enrollment_codes")
+      .update({ used_at: new Date().toISOString() })
+      .eq("code_hash", enrollmentCodeHash);
+  }
+
+  const sessionToken = await createEditorSession(userId, device.id);
+  await audit(userId, "trusted_device_registered", device.id, { deviceName, passkeyId, auditMode });
+  const response = NextResponse.json({ ok: true, deviceId: device.id });
+  response.cookies.set(LAYOUT_EDITOR_DEVICE_COOKIE, deviceToken, { ...COOKIE_BASE, maxAge: 60 * 60 * 24 * 365 });
+  response.cookies.set(LAYOUT_EDITOR_SESSION_COOKIE, sessionToken, { ...COOKIE_BASE, maxAge: LAYOUT_EDITOR_SESSION_MINUTES * 60 });
+  response.cookies.set(LAYOUT_EDITOR_REAUTH_COOKIE, "", { ...COOKIE_BASE, maxAge: 0 });
+  return response;
 }
 
 export async function GET() {
@@ -210,39 +267,48 @@ export async function POST(request: Request) {
         if (!codeRow) return jsonError("The enrollment code is invalid or expired.", 403);
       }
 
-      const { data: existing } = await admin
-        .from("layout_editor_trusted_devices")
-        .select("id")
-        .eq("user_id", user.id)
-        .eq("passkey_id", passkeyId)
-        .is("revoked_at", null)
-        .maybeSingle();
-      if (existing) return jsonError("This passkey is already bound to a trusted Layout Editor device.", 409);
+      return registerTrustedDevice(request, user.id, passkeyId, body.deviceName, enrollmentCodeHash, "new-passkey");
+    }
 
-      const deviceToken = newOpaqueToken();
-      const deviceName = safeDeviceName(body.deviceName);
-      const { data: device, error } = await admin
-        .from("layout_editor_trusted_devices")
-        .insert({
-          user_id: user.id,
-          passkey_id: passkeyId,
-          device_name: deviceName,
-          device_cookie_hash: sha256Hex(deviceToken),
-          user_agent: request.headers.get("user-agent")?.slice(0, 500) || null,
-        })
-        .select("id")
-        .single();
-      if (error || !device) return jsonError("Could not register this trusted device.", 409);
-      if (enrollmentCodeHash) {
-        await admin.from("layout_editor_enrollment_codes").update({ used_at: new Date().toISOString() }).eq("code_hash", enrollmentCodeHash);
+    if (action === "bind-existing-passkey") {
+      const cookieStore = await cookies();
+      if (!readReauthProof(cookieStore.get(LAYOUT_EDITOR_REAUTH_COOKIE)?.value, user.id)) {
+        return jsonError("Re-enter your administrator password before registering a device.", 401);
       }
-      const sessionToken = await createEditorSession(user.id, device.id);
-      await audit(user.id, "trusted_device_registered", device.id, { deviceName, passkeyId });
-      const response = NextResponse.json({ ok: true, deviceId: device.id });
-      response.cookies.set(LAYOUT_EDITOR_DEVICE_COOKIE, deviceToken, { ...COOKIE_BASE, maxAge: 60 * 60 * 24 * 365 });
-      response.cookies.set(LAYOUT_EDITOR_SESSION_COOKIE, sessionToken, { ...COOKIE_BASE, maxAge: LAYOUT_EDITOR_SESSION_MINUTES * 60 });
-      response.cookies.set(LAYOUT_EDITOR_REAUTH_COOKIE, "", { ...COOKIE_BASE, maxAge: 0 });
-      return response;
+
+      const { count } = await admin
+        .from("layout_editor_trusted_devices")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .is("revoked_at", null);
+      if ((count || 0) !== 0) {
+        await audit(user.id, "existing_passkey_bootstrap_blocked", null, { reason: "trusted_device_already_exists" });
+        return jsonError("Existing-passkey bootstrap is allowed only for the first trusted device.", 403);
+      }
+
+      const passkeys = await listUserPasskeys(user.id);
+      const recent = recentlyUsedPasskeys(passkeys);
+      if (recent.length === 0) {
+        await audit(user.id, "existing_passkey_bootstrap_blocked", null, { reason: "no_recent_passkey" });
+        return jsonError("Verify an existing passkey on this device now, then try again.", 401);
+      }
+      if (recent.length !== 1) {
+        await audit(user.id, "existing_passkey_bootstrap_blocked", null, {
+          reason: "ambiguous_recent_passkeys",
+          candidateCount: recent.length,
+        });
+        return jsonError("More than one passkey was used recently. Wait two minutes, verify only this device passkey, then try again.", 409);
+      }
+
+      const passkeyId = recent[0].passkey.id;
+      return registerTrustedDevice(
+        request,
+        user.id,
+        passkeyId,
+        body.deviceName,
+        null,
+        "existing-passkey-bootstrap",
+      );
     }
 
     if (action === "confirm-passkey") {
