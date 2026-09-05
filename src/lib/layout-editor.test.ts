@@ -18,6 +18,8 @@ describe("room header layout config", () => {
           height: 2,
           fontSize: 99,
           label: "  Build   Your   Room  ",
+          borderColor: "#12abEF",
+          backgroundColor: "#102030",
         },
       },
     });
@@ -30,6 +32,8 @@ describe("room header layout config", () => {
       height: 20,
       fontSize: 32,
       label: "Build Your Room",
+      borderColor: "#12ABEF",
+      backgroundColor: "#102030",
     });
   });
 
@@ -44,6 +48,21 @@ describe("room header layout config", () => {
     });
 
     expect(result?.elements).toEqual({ "ai-codex": { offsetX: 4 } });
+  });
+
+  it("rejects unsafe colour strings", () => {
+    const result = sanitiseRoomHeaderLayoutConfig({
+      screenId: "ROOM_HEADER",
+      layoutVersion: 1,
+      elements: {
+        "ai-warehouse": {
+          borderColor: "url(javascript:alert(1))",
+          backgroundColor: "red",
+        },
+      },
+    });
+
+    expect(result?.elements["ai-warehouse"]).toEqual({});
   });
 
   it("rejects configs for another screen", () => {
