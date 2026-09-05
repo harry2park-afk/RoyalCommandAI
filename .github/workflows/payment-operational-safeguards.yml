@@ -1,0 +1,65 @@
+name: Payment Operational Safeguards Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260903065000_payment_operational_safeguards.sql"
+      - "scripts/payment-operational-safeguards-evidence.sql"
+      - ".github/workflows/payment-operational-safeguards.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-payment-safeguards-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  payment-safeguards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Assemble disposable recovery replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+
+          cp supabase/migrations-full/001_init.sql supabase/migrations/001_init.sql
+          cp supabase/migrations-full/002_rls.sql supabase/migrations/002_rls.sql
+          cp supabase/recovery/20260901_prelaunch_baseline.sql \
+             supabase/migrations/003_recovery_prelaunch_baseline.sql
+          cp supabase/recovery/20260901_communications_foundation.sql \
+             supabase/migrations/004_recovery_communications_foundation.sql
+
+          find supabase/migrations-full -maxdepth 1 -type f -name '*.sql' \
+            ! -name '001_init.sql' \
+            ! -name '002_rls.sql' \
+            -print0 | sort -z | xargs -0 -I{} cp '{}' supabase/migrations/
+
+      - name: Start disposable Supabase and replay repository
+        run: supabase start
+
+      - name: Verify payment operational safeguard schema
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -f scripts/payment-operational-safeguards-evidence.sql
+
+      - name: Stop disposable Supabase
+        if: always()
+        run: supabase stop --no-backup
