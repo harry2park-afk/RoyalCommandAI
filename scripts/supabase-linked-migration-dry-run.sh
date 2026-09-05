@@ -26,6 +26,7 @@ command -v supabase >/dev/null 2>&1 || fail "Supabase CLI is required"
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "run from a Git checkout"
 cd "$repo_root"
 
+# Do not collect release evidence from a dirty checkout.
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   fail "tracked files are dirty; use an exact clean candidate checkout"
 fi
@@ -50,6 +51,8 @@ find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print0 \
   | xargs -0 sha256sum \
   > "$EVIDENCE_DIR/local-migration-sha256.txt"
 
+# `supabase link` changes only local CLI link state. The DB password is supplied
+# via environment so it is not placed on the command line or echoed here.
 supabase link --project-ref "$EXPECTED_PROJECT_REF"
 
 linked_ref_file="supabase/.temp/project-ref"
@@ -60,18 +63,26 @@ linked_ref="$(tr -d '[:space:]' < "$linked_ref_file")"
 
 printf 'linked_project_ref=%s\n' "$linked_ref" | tee -a "$EVIDENCE_DIR/metadata.txt"
 
+# Read-only history comparison. Never substitute migration repair for this step.
 set +e
 supabase migration list --linked 2>&1 | tee "$EVIDENCE_DIR/migration-list.txt"
 list_status=${PIPESTATUS[0]}
 set -e
 [[ $list_status -eq 0 ]] || fail "supabase migration list --linked failed"
 
+# Critical safety boundary: --dry-run is mandatory and --include-all is absent.
+# This prints what would be applied but must not apply migrations.
 set +e
 supabase db push --linked --dry-run 2>&1 | tee "$EVIDENCE_DIR/db-push-dry-run.txt"
 dry_run_status=${PIPESTATUS[0]}
 set -e
 [[ $dry_run_status -eq 0 ]] || fail "supabase db push --linked --dry-run failed"
 
+# Fail closed unless the dry-run exposes exactly the explicitly allow-listed local
+# migration versions. The allow-list is deliberately mandatory rather than
+# inferred from branch names or release intent. A later candidate must state the
+# exact comma-separated migration basename(s) it permits; an empty,
+# unrecognizable, or expanded apply set is never treated as safe.
 IFS=',' read -r -a expected_apply_raw <<< "$EXPECTED_APPLY_MIGRATIONS"
 expected_apply=()
 for migration in "${expected_apply_raw[@]}"; do
