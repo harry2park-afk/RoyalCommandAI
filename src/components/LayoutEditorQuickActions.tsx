@@ -13,31 +13,40 @@ type QuickItem = {
   label: string;
   selector: string;
   textEditable: boolean;
+  fontEditable: boolean;
 };
 
-type Mode = "move" | "resize" | "text" | "colour" | null;
+type Mode = "move" | "resize" | "style" | null;
 
 const REGISTRY: QuickItem[] = [
-  { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", textEditable: true },
-  { id: "integrated-answer", label: "Integrated Answer", selector: "[data-rc-native-synthesis-button='true']", textEditable: false },
-  { id: "ai-warehouse", label: "AI Warehouse", selector: "button[title^='AI Warehouse']", textEditable: true },
-  { id: "ai-chatgpt", label: "ChatGPT", selector: "button[title^='ChatGPT']", textEditable: false },
-  { id: "ai-claude", label: "Claude", selector: "button[title^='Claude']", textEditable: false },
-  { id: "ai-gemini", label: "Gemini", selector: "button[title^='Gemini']", textEditable: false },
-  { id: "ai-grok", label: "Grok", selector: "button[title^='Grok']", textEditable: false },
-  { id: "ai-codex", label: "Codex", selector: "button[title^='OpenAI Codex']", textEditable: false },
-  { id: "ai-deepseek", label: "DeepSeek", selector: "button[title^='DeepSeek']", textEditable: false },
-  { id: "ai-perplexity", label: "Perplexity", selector: "button[title^='Perplexity']", textEditable: false },
-  { id: "ai-mistral", label: "Mistral", selector: "button[title^='Mistral']", textEditable: false },
-  { id: "ai-llama", label: "Llama", selector: "button[title^='Meta Llama']", textEditable: false },
-  { id: "ai-qwen", label: "Qwen", selector: "button[title^='Qwen']", textEditable: false },
-  { id: "profile-button", label: "Profile", selector: "button[aria-label*='profile'],button[aria-label*='프로필'],button[title='My Profile'],button[title='내 프로필']", textEditable: false },
+  { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", textEditable: true, fontEditable: true },
+  { id: "integrated-answer", label: "Integrated Answer", selector: "[data-rc-native-synthesis-button='true']", textEditable: false, fontEditable: true },
+  { id: "ai-warehouse", label: "AI Warehouse", selector: "button[title^='AI Warehouse']", textEditable: true, fontEditable: true },
+  { id: "ai-chatgpt", label: "ChatGPT", selector: "button[title^='ChatGPT']", textEditable: false, fontEditable: true },
+  { id: "ai-claude", label: "Claude", selector: "button[title^='Claude']", textEditable: false, fontEditable: true },
+  { id: "ai-gemini", label: "Gemini", selector: "button[title^='Gemini']", textEditable: false, fontEditable: true },
+  { id: "ai-grok", label: "Grok", selector: "button[title^='Grok']", textEditable: false, fontEditable: true },
+  { id: "ai-codex", label: "Codex", selector: "button[title^='OpenAI Codex']", textEditable: false, fontEditable: true },
+  { id: "ai-deepseek", label: "DeepSeek", selector: "button[title^='DeepSeek']", textEditable: false, fontEditable: true },
+  { id: "ai-perplexity", label: "Perplexity", selector: "button[title^='Perplexity']", textEditable: false, fontEditable: true },
+  { id: "ai-mistral", label: "Mistral", selector: "button[title^='Mistral']", textEditable: false, fontEditable: true },
+  { id: "ai-llama", label: "Llama", selector: "button[title^='Meta Llama']", textEditable: false, fontEditable: true },
+  { id: "ai-qwen", label: "Qwen", selector: "button[title^='Qwen']", textEditable: false, fontEditable: true },
+  { id: "profile-button", label: "Profile", selector: "button[aria-label*='profile'],button[aria-label*='프로필'],button[title='My Profile'],button[title='내 프로필']", textEditable: false, fontEditable: false },
 ];
 
 function resolveItem(item: QuickItem | null) {
   if (!item || typeof document === "undefined") return null;
   const node = document.querySelector(item.selector);
   return node instanceof HTMLElement ? node : null;
+}
+
+function directLabelTarget(element: HTMLElement, item: QuickItem) {
+  if (!item.textEditable && !item.fontEditable) return element;
+  if (item.id === "build-your-room") return element;
+  const spans = Array.from(element.children).filter((child): child is HTMLSpanElement => child instanceof HTMLSpanElement);
+  const candidates = spans.filter((span) => !span.dataset.rcAiTick && (span.textContent || "").trim().length > 1);
+  return candidates[candidates.length - 1] || element;
 }
 
 function rgbToHex(value: string, fallback: string) {
@@ -48,27 +57,32 @@ function rgbToHex(value: string, fallback: string) {
   return `#${[match[1], match[2], match[3]].map((part) => Math.max(0, Math.min(255, Number(part))).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
 }
 
+function hexWithStrength(hex: string, strength: number) {
+  const safe = /^#[0-9A-F]{6}$/i.test(hex) ? hex : "#000000";
+  const r = Number.parseInt(safe.slice(1, 3), 16);
+  const g = Number.parseInt(safe.slice(3, 5), 16);
+  const b = Number.parseInt(safe.slice(5, 7), 16);
+  const alpha = Math.max(1, Math.min(10, Math.round(strength))) / 10;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function selectInProtectedPanel(item: QuickItem) {
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-rc-layout-editor-ui='true'] button"));
   const target = buttons.find((button) => (button.textContent || "").trim() === item.label);
   target?.click();
 }
 
-function focusProtectedTextInput() {
-  const labels = Array.from(document.querySelectorAll<HTMLLabelElement>("[data-rc-layout-editor-ui='true'] label"));
-  const label = labels.find((node) => (node.textContent || "").trim().startsWith("Button text"));
-  const input = label?.querySelector<HTMLInputElement>("input[type='text']");
-  input?.focus();
-  input?.select();
-}
-
-function applyColours(config: RoomHeaderLayoutConfig) {
+function applyVisualOverrides(config: RoomHeaderLayoutConfig) {
   for (const item of REGISTRY) {
     const element = resolveItem(item);
     if (!element) continue;
     const patch = config.elements[item.id];
-    if (patch?.borderColor) element.style.setProperty("border-color", patch.borderColor, "important");
-    if (patch?.backgroundColor) element.style.setProperty("background-color", patch.backgroundColor, "important");
+    const strength = patch?.colourStrength ?? 10;
+    if (patch?.borderColor) element.style.setProperty("border-color", hexWithStrength(patch.borderColor, strength), "important");
+    if (patch?.backgroundColor) element.style.setProperty("background-color", hexWithStrength(patch.backgroundColor, strength), "important");
+    const target = directLabelTarget(element, item);
+    if (item.fontEditable && patch?.fontSize !== undefined) target.style.setProperty("font-size", `${patch.fontSize}px`, "important");
+    if (item.fontEditable && patch?.textColor) target.style.setProperty("color", patch.textColor, "important");
   }
 }
 
@@ -77,8 +91,12 @@ export default function LayoutEditorQuickActions() {
   const [mode, setMode] = useState<Mode>(null);
   const [borderColor, setBorderColor] = useState("#BCAE8D");
   const [backgroundColor, setBackgroundColor] = useState("#273A33");
+  const [colourStrength, setColourStrength] = useState(10);
+  const [textValue, setTextValue] = useState("");
+  const [fontSize, setFontSize] = useState(12);
+  const [textColor, setTextColor] = useState("#FFFFFF");
   const [saving, setSaving] = useState(false);
-  const [message, setMessage] = useState("Double-click a button, then choose what you want to change.");
+  const [message, setMessage] = useState("Double-click a button, then choose Move, Resize, or Style.");
 
   const selected = useMemo(() => REGISTRY.find((item) => item.id === selectedId) || null, [selectedId]);
 
@@ -92,7 +110,7 @@ export default function LayoutEditorQuickActions() {
         .then((data) => {
           if (cancelled) return;
           currentConfig = sanitiseRoomHeaderLayoutConfig(data?.preferences?.layoutRoomHeaderV1) || emptyRoomHeaderLayoutConfig();
-          applyColours(currentConfig);
+          applyVisualOverrides(currentConfig);
         })
         .catch(() => undefined);
     };
@@ -112,17 +130,25 @@ export default function LayoutEditorQuickActions() {
       setMode(null);
       const element = resolveItem(item);
       if (element) {
+        const patch = currentConfig.elements[item.id];
         const computed = getComputedStyle(element);
-        setBorderColor(currentConfig.elements[item.id]?.borderColor || rgbToHex(computed.borderColor, "#BCAE8D"));
-        setBackgroundColor(currentConfig.elements[item.id]?.backgroundColor || rgbToHex(computed.backgroundColor, "#273A33"));
+        const labelTarget = directLabelTarget(element, item);
+        const labelComputed = getComputedStyle(labelTarget);
+        setBorderColor(patch?.borderColor || rgbToHex(computed.borderColor, "#BCAE8D"));
+        setBackgroundColor(patch?.backgroundColor || rgbToHex(computed.backgroundColor, "#273A33"));
+        setColourStrength(patch?.colourStrength ?? 10);
+        setTextValue(patch?.label || (labelTarget.textContent || "").trim());
+        const computedFontSize = Number.parseFloat(labelComputed.fontSize) || 12;
+        setFontSize(Math.max(8, Math.min(32, Math.round(patch?.fontSize ?? computedFontSize))));
+        setTextColor(patch?.textColor || rgbToHex(labelComputed.color, "#FFFFFF"));
       }
-      setMessage(`${item.label} selected. Choose Move, Resize, Text, or Colours.`);
+      setMessage(`${item.label} selected. Choose Move, Resize, or Style.`);
       window.setTimeout(() => selectInProtectedPanel(item), 0);
     };
 
     load();
     window.addEventListener("pointerdown", onPointerDown, true);
-    const observer = new MutationObserver(() => applyColours(currentConfig));
+    const observer = new MutationObserver(() => applyVisualOverrides(currentConfig));
     observer.observe(document.documentElement, { childList: true, subtree: true });
     return () => {
       cancelled = true;
@@ -132,12 +158,18 @@ export default function LayoutEditorQuickActions() {
   }, []);
 
   useEffect(() => {
-    if (!selected || mode !== "colour") return;
+    if (!selected || mode !== "style") return;
     const element = resolveItem(selected);
     if (!element) return;
-    element.style.setProperty("border-color", borderColor, "important");
-    element.style.setProperty("background-color", backgroundColor, "important");
-  }, [selected, mode, borderColor, backgroundColor]);
+    const target = directLabelTarget(element, selected);
+    element.style.setProperty("border-color", hexWithStrength(borderColor, colourStrength), "important");
+    element.style.setProperty("background-color", hexWithStrength(backgroundColor, colourStrength), "important");
+    if (selected.textEditable && textValue.trim()) target.textContent = textValue;
+    if (selected.fontEditable) {
+      target.style.setProperty("font-size", `${fontSize}px`, "important");
+      target.style.setProperty("color", textColor, "important");
+    }
+  }, [selected, mode, borderColor, backgroundColor, colourStrength, textValue, fontSize, textColor]);
 
   function chooseMode(next: Exclude<Mode, null>) {
     if (!selected) return;
@@ -145,33 +177,40 @@ export default function LayoutEditorQuickActions() {
     selectInProtectedPanel(selected);
     if (next === "move") setMessage("Move selected: drag the yellow box to the new position.");
     if (next === "resize") setMessage("Resize selected: drag any yellow round handle.");
-    if (next === "text") {
-      if (!selected.textEditable) {
-        setMessage("This button's text is Core-protected. Choose another edit type.");
-        return;
-      }
-      setMessage("Text selected: type the new button text in the editor field.");
-      window.setTimeout(focusProtectedTextInput, 0);
-    }
-    if (next === "colour") setMessage("Colours selected: choose Border and Background colours, then save colours.");
+    if (next === "style") setMessage("Style selected: edit button colours, strength, text, text size, and text colour together.");
   }
 
-  async function saveColours(useCore = false) {
+  async function saveStyle(useCoreStyle = false) {
     if (!selected) return;
+    if (selected.textEditable && !textValue.trim()) {
+      setMessage("Button text cannot be empty.");
+      return;
+    }
     setSaving(true);
-    setMessage("Saving colours…");
+    setMessage(useCoreStyle ? "Restoring Core style…" : "Saving button style…");
     try {
       const read = await fetch("/api/user/preferences", { cache: "no-store" });
       const data = read.ok ? await read.json() : null;
       const config = sanitiseRoomHeaderLayoutConfig(data?.preferences?.layoutRoomHeaderV1) || emptyRoomHeaderLayoutConfig();
       const patch = { ...(config.elements[selected.id] || {}) };
-      if (useCore) {
+
+      if (selected.textEditable) patch.label = textValue.trim().replace(/\s+/g, " ").slice(0, 80);
+      if (useCoreStyle) {
         delete patch.borderColor;
         delete patch.backgroundColor;
+        delete patch.colourStrength;
+        delete patch.fontSize;
+        delete patch.textColor;
       } else {
         patch.borderColor = borderColor;
         patch.backgroundColor = backgroundColor;
+        patch.colourStrength = colourStrength;
+        if (selected.fontEditable) {
+          patch.fontSize = Math.max(8, Math.min(32, Math.round(fontSize)));
+          patch.textColor = textColor;
+        }
       }
+
       const next: RoomHeaderLayoutConfig = {
         ...config,
         layoutVersion: config.layoutVersion + 1,
@@ -183,11 +222,11 @@ export default function LayoutEditorQuickActions() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ layoutRoomHeaderV1: next }),
       });
-      if (!response.ok) throw new Error("Server rejected the colour save.");
-      setMessage(useCore ? "Core colours restored. Reloading editor…" : "Colours saved. Reloading editor…");
+      if (!response.ok) throw new Error("Server rejected the style save.");
+      setMessage(useCoreStyle ? "Core style restored. Reloading editor…" : "Button style saved. Reloading editor…");
       window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Colour save failed.");
+      setMessage(error instanceof Error ? error.message : "Style save failed.");
       setSaving(false);
     }
   }
@@ -202,7 +241,7 @@ export default function LayoutEditorQuickActions() {
   }
 
   return (
-    <div data-rc-layout-editor-ui="true" className="fixed right-[360px] top-[104px] z-[1002] w-[360px] rounded-xl border border-amber-300/60 bg-[#07101d]/98 p-3 text-xs text-white shadow-2xl">
+    <div data-rc-layout-editor-ui="true" className="fixed right-[360px] top-[104px] z-[1002] w-[380px] max-h-[calc(100vh-130px)] overflow-y-auto rounded-xl border border-amber-300/60 bg-[#07101d]/98 p-3 text-xs text-white shadow-2xl">
       <div className="flex items-center justify-between gap-2">
         <div>
           <div className="font-semibold text-amber-200">Quick Edit · {selected.label}</div>
@@ -211,15 +250,15 @@ export default function LayoutEditorQuickActions() {
         <button type="button" onClick={() => { setSelectedId(null); setMode(null); }} className="rounded border border-white/15 px-2 py-1 text-white/70">×</button>
       </div>
 
-      <div className="mt-3 grid grid-cols-4 gap-1.5">
+      <div className="mt-3 grid grid-cols-3 gap-1.5">
         <button type="button" onClick={() => chooseMode("move")} className={`rounded-md border px-2 py-2 ${mode === "move" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Move</button>
         <button type="button" onClick={() => chooseMode("resize")} className={`rounded-md border px-2 py-2 ${mode === "resize" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Resize</button>
-        <button type="button" disabled={!selected.textEditable} onClick={() => chooseMode("text")} className={`rounded-md border px-2 py-2 disabled:opacity-30 ${mode === "text" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Text</button>
-        <button type="button" onClick={() => chooseMode("colour")} className={`rounded-md border px-2 py-2 ${mode === "colour" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Colours</button>
+        <button type="button" onClick={() => chooseMode("style")} className={`rounded-md border px-2 py-2 ${mode === "style" ? "border-amber-300 bg-amber-300/15" : "border-white/15 bg-white/[0.04]"}`}>Style</button>
       </div>
 
-      {mode === "colour" ? (
+      {mode === "style" ? (
         <div className="mt-3 rounded-lg border border-white/10 bg-black/20 p-2.5">
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-amber-200/80">Button</div>
           <div className="grid grid-cols-2 gap-3">
             <label className="text-[11px] text-white/65">Border colour
               <div className="mt-1 flex items-center gap-2">
@@ -234,9 +273,41 @@ export default function LayoutEditorQuickActions() {
               </div>
             </label>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
-            <button type="button" disabled={saving} onClick={() => void saveColours(false)} className="rounded-md border border-emerald-400/50 bg-emerald-500/10 px-2 py-2 font-semibold text-emerald-200 disabled:opacity-40">Save Colours</button>
-            <button type="button" disabled={saving} onClick={() => void saveColours(true)} className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-2 disabled:opacity-40">Use Core Colours</button>
+
+          <label className="mt-3 block text-[11px] text-white/70">Colour strength: <strong className="text-amber-200">{colourStrength}</strong> / 10
+            <input type="range" min={1} max={10} step={1} value={colourStrength} onChange={(event) => setColourStrength(Number(event.target.value))} className="mt-2 w-full accent-amber-300" />
+            <div className="mt-1 flex justify-between text-[9px] text-white/45"><span>1 · Very light</span><span>10 · Strong</span></div>
+          </label>
+
+          <div className="my-3 border-t border-white/10" />
+          <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-amber-200/80">Text</div>
+
+          {selected.textEditable ? (
+            <label className="block text-[11px] text-white/65">Button text
+              <input type="text" maxLength={80} value={textValue} onChange={(event) => setTextValue(event.target.value)} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-2 text-white" />
+            </label>
+          ) : (
+            <div className="text-[10px] text-white/45">Button name is Core-protected. Text size and colour can still be changed.</div>
+          )}
+
+          {selected.fontEditable ? (
+            <>
+              <label className="mt-3 block text-[11px] text-white/70">Text size: <strong className="text-amber-200">{fontSize}px</strong>
+                <input type="range" min={8} max={32} step={1} value={fontSize} onChange={(event) => setFontSize(Number(event.target.value))} className="mt-2 w-full accent-amber-300" />
+                <div className="mt-1 flex justify-between text-[9px] text-white/45"><span>8 · Small</span><span>32 · Large</span></div>
+              </label>
+              <label className="mt-3 block text-[11px] text-white/65">Text colour
+                <div className="mt-1 flex items-center gap-2">
+                  <input type="color" value={textColor} onChange={(event) => setTextColor(event.target.value.toUpperCase())} className="h-9 w-12 cursor-pointer rounded border border-white/15 bg-transparent p-0" />
+                  <span className="font-mono text-[10px] text-white/55">{textColor}</span>
+                </div>
+              </label>
+            </>
+          ) : null}
+
+          <div className="mt-4 grid grid-cols-2 gap-2">
+            <button type="button" disabled={saving} onClick={() => void saveStyle(false)} className="rounded-md border border-emerald-400/50 bg-emerald-500/10 px-2 py-2 font-semibold text-emerald-200 disabled:opacity-40">Save Style</button>
+            <button type="button" disabled={saving} onClick={() => void saveStyle(true)} className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-2 disabled:opacity-40">Use Core Style</button>
           </div>
         </div>
       ) : null}
