@@ -70,6 +70,19 @@ list_status=${PIPESTATUS[0]}
 set -e
 [[ $list_status -eq 0 ]] || fail "supabase migration list --linked failed"
 
+# Convert the CLI table into a deterministic exact/local-only/remote-only map.
+# This is evidence only: it does not infer that a version mismatch is safe to
+# repair and it does not mutate remote migration history.
+set +e
+node scripts/supabase-migration-reconciliation.mjs \
+  "$EVIDENCE_DIR/migration-list.txt" \
+  "supabase/migrations" \
+  "$EVIDENCE_DIR/migration-reconciliation.json" \
+  2>&1 | tee "$EVIDENCE_DIR/migration-reconciliation-summary.txt"
+reconciliation_status=${PIPESTATUS[0]}
+set -e
+[[ $reconciliation_status -eq 0 ]] || fail "migration-list reconciliation could not be proven from exact CLI output"
+
 # Critical safety boundary: --dry-run is mandatory and --include-all is absent.
 # This prints what would be applied but must not apply migrations.
 set +e
@@ -104,5 +117,5 @@ set -e
 
 printf 'VERIFIED_EVIDENCE_CAPTURED git_head=%s project_ref=%s\n' \
   "$head_sha" "$linked_ref"
-printf 'Review %s/migration-list.txt, %s/db-push-dry-run.txt and %s/apply-set-verification.txt before any Hosted staging.\n' \
-  "$EVIDENCE_DIR" "$EVIDENCE_DIR" "$EVIDENCE_DIR"
+printf 'Review %s/migration-list.txt, %s/migration-reconciliation.json, %s/db-push-dry-run.txt and %s/apply-set-verification.txt before any Hosted staging.\n' \
+  "$EVIDENCE_DIR" "$EVIDENCE_DIR" "$EVIDENCE_DIR" "$EVIDENCE_DIR"
