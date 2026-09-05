@@ -29,14 +29,37 @@ select jsonb_build_object(
         ) as hosted_versions
       from (
         values
+          ('atomic_room_factory_encounter_creation', '20260831084700'),
           ('scope_matter_staff_access', '20260831225500'),
+          ('harden_room_factory_atomic_invoker', '20260901022500'),
           ('room_factory_atomic_non_encounter', '20260901025800'),
+          ('layout_editor_trusted_devices_v1', '20260904193500'),
           ('harden_profile_role_authority', '20260904105500'),
           ('customer_room_designer_v1', '20260905055000')
       ) expected(name, expected_version)
       left join supabase_migrations.schema_migrations applied
         on applied.name = expected.name
       group by expected.name, expected.expected_version
+    ) q
+  ),
+  'known_remote_history_anomalies', (
+    select jsonb_agg(q order by q.name)
+    from (
+      select
+        expected.name,
+        expected.baseline_classification,
+        count(applied.*)::int as hosted_rows,
+        coalesce(
+          jsonb_agg(applied.version order by applied.version) filter (where applied.version is not null),
+          '[]'::jsonb
+        ) as hosted_versions
+      from (
+        values
+          ('allow_room_owner_delete', 'REMOTE_NAME_PRESENT_WITHOUT_MATCHING_FILE_ON_BASELINE')
+      ) expected(name, baseline_classification)
+      left join supabase_migrations.schema_migrations applied
+        on applied.name = expected.name
+      group by expected.name, expected.baseline_classification
     ) q
   ),
   'required_migration_counts', (
