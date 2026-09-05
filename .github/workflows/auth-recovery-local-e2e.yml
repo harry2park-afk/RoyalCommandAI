@@ -1,0 +1,109 @@
+name: Auth Recovery Local E2E Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "src/app/account/update-password/**"
+      - "src/app/api/auth/password-recovery/**"
+      - "src/app/auth/recovery/**"
+      - "src/app/forgot-password/**"
+      - "src/lib/auth/passwordRecovery.ts"
+      - "scripts/auth-recovery-local-e2e.mjs"
+      - ".github/workflows/auth-recovery-local-e2e.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-auth-recovery-e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  auth-recovery-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies reproducibly
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Prepare disposable Auth-only Supabase fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The recovery E2E needs real local GoTrue behavior, not Hosted credentials
+          # or the application's unrelated schema history. Keep only the foundation
+          # migration so this test cannot mutate or depend on Hosted Supabase.
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+          cp supabase/migrations-full/001_init.sql supabase/migrations/
+
+      - name: Start isolated Supabase Auth stack
+        run: supabase start
+
+      - name: Start isolated recovery route candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:54321"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          export NEXT_PUBLIC_APP_URL="http://127.0.0.1:3001"
+          nohup npm run dev -- --hostname 127.0.0.1 --port 3001 >/tmp/rc-auth-recovery-next.log 2>&1 &
+          echo $! >/tmp/rc-auth-recovery-next.pid
+
+          for attempt in $(seq 1 60); do
+            if curl -sS -o /dev/null "http://127.0.0.1:3001/api/auth/password-recovery"; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/rc-auth-recovery-next.log
+          echo "::error::Recovery route candidate did not become reachable"
+          exit 1
+
+      - name: Prove isolated Supabase recovery lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_AUTH_E2E_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_AUTH_E2E_ANON_KEY="$ANON_KEY"
+          export RC_AUTH_E2E_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_AUTH_E2E_APP_URL="http://127.0.0.1:3001"
+          export RC_AUTH_E2E_EMAIL="rc-auth-e2e-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.test"
+          export RC_AUTH_E2E_PASSWORD="RC-Auth-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
+          export RC_AUTH_E2E_NEW_PASSWORD="RC-Auth-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Bb2!"
+          export RC_AUTH_E2E_ALLOW_LOCALHOST=1
+          node scripts/auth-recovery-local-e2e.mjs
+
+      - name: Stop isolated recovery route candidate
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/rc-auth-recovery-next.pid ]; then
+            kill "$(cat /tmp/rc-auth-recovery-next.pid)" 2>/dev/null || true
+          fi
+          pkill -f "next dev.*127.0.0.1.*3001" 2>/dev/null || true
+
+      - name: Stop isolated Supabase stack
+        if: always()
+        run: supabase stop --no-backup
