@@ -60,13 +60,18 @@ export default function LayoutEditorSecurityGate() {
 
   const needsEnrollmentCode = useMemo(() => Boolean(status?.devices?.length), [status]);
 
-  async function registerDevice() {
-    if (!password) { setMessage("Enter your administrator password first."); return; }
-    if (!deviceName.trim()) { setMessage("Enter a device name, for example Harry Tablet or New Laptop."); return; }
+  function validateDeviceRegistration() {
+    if (!password) { setMessage("Enter your administrator password first."); return false; }
+    if (!deviceName.trim()) { setMessage("Enter a device name, for example Harry Tablet or New Laptop."); return false; }
     if (needsEnrollmentCode && !enrollmentCode.trim()) {
       setMessage("Enter the one-time code generated on an already trusted device.");
-      return;
+      return false;
     }
+    return true;
+  }
+
+  async function registerDevice() {
+    if (!validateDeviceRegistration()) return;
 
     setBusy(true);
     setMessage("Verifying administrator password…");
@@ -76,7 +81,10 @@ export default function LayoutEditorSecurityGate() {
       setMessage("Now verify with this device's fingerprint, face, Windows Hello, or device PIN…");
       const { data: passkey, error: passkeyError } = await supabase.auth.registerPasskey();
       if (passkeyError || !passkey?.id) {
-        throw new Error(passkeyError?.message || "Passkey registration was cancelled or could not be verified.");
+        throw new Error(
+          passkeyError?.message
+          || "Passkey registration was cancelled or could not be verified. If this device already has a passkey, use Verify Existing Passkey below.",
+        );
       }
 
       const friendlyName = `RC Layout — ${deviceName.trim()}`.slice(0, 120);
@@ -94,6 +102,37 @@ export default function LayoutEditorSecurityGate() {
       await load();
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Device registration failed.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function registerExistingPasskeyForFirstDevice() {
+    if (!status || status.devices.length !== 0) {
+      setMessage("Existing-passkey bootstrap is available only for the first trusted device.");
+      return;
+    }
+    if (!password) { setMessage("Enter your administrator password first."); return; }
+    if (!deviceName.trim()) { setMessage("Enter a device name, for example Harry LG Laptop."); return; }
+
+    setBusy(true);
+    setMessage("Verifying administrator password…");
+    try {
+      await api({ action: "reauth", password });
+      const supabase = createClient();
+      setMessage("Use the existing passkey on this device now. Royal Command will bind only a freshly verified passkey.");
+      const { error } = await supabase.auth.signInWithPasskey();
+      if (error) throw new Error(error.message || "Existing passkey verification failed.");
+
+      await api({
+        action: "bind-existing-passkey",
+        deviceName: deviceName.trim(),
+      });
+      setPassword("");
+      setMessage("Existing passkey verified. This device is now trusted and Layout Editor is unlocked.");
+      await load();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Existing passkey bootstrap failed.");
     } finally {
       setBusy(false);
     }
@@ -158,7 +197,7 @@ export default function LayoutEditorSecurityGate() {
           <h2 className="text-xl font-semibold text-[var(--gold-soft)]">Register this trusted device</h2>
           <p className="mt-2 text-sm text-[var(--muted)]">
             {status.devices.length === 0
-              ? "First setup: verify your administrator password, then Supabase Auth will verify this tablet or laptop passkey."
+              ? "First setup: verify your administrator password, then verify either a new passkey or an existing passkey already stored on this laptop/tablet."
               : "This browser is not trusted. Use a 10-minute enrollment code from your already trusted tablet or laptop, then verify your password and register this device passkey."}
           </p>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
@@ -166,7 +205,17 @@ export default function LayoutEditorSecurityGate() {
             <input value={password} onChange={(e) => setPassword(e.target.value)} type="password" className="rc-input" placeholder="Administrator password" autoComplete="current-password" />
             {status.devices.length > 0 ? <input value={enrollmentCode} onChange={(e) => setEnrollmentCode(e.target.value.toUpperCase())} className="rc-input uppercase" placeholder="One-time enrollment code" autoComplete="off" /> : null}
           </div>
-          <button type="button" onClick={() => void registerDevice()} disabled={busy} className="rc-btn rc-btn-primary mt-4 text-sm disabled:opacity-50">Verify & Register This Device</button>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <button type="button" onClick={() => void registerDevice()} disabled={busy} className="rc-btn rc-btn-primary text-sm disabled:opacity-50">Verify & Register This Device</button>
+            {status.devices.length === 0 ? (
+              <button type="button" onClick={() => void registerExistingPasskeyForFirstDevice()} disabled={busy} className="rc-btn rc-btn-ghost text-sm disabled:opacity-50">Verify Existing Passkey</button>
+            ) : null}
+          </div>
+          {status.devices.length === 0 ? (
+            <p className="mt-3 text-xs leading-5 text-[var(--muted)]">
+              If Windows or Chrome says this device is already registered, use Verify Existing Passkey. This bootstrap path still requires your administrator password and a fresh passkey verification, and it is disabled after the first trusted device exists.
+            </p>
+          ) : null}
         </section>
       ) : !status.unlocked ? (
         <section className="rounded-2xl border border-[var(--gold)]/35 bg-black/25 p-5">
