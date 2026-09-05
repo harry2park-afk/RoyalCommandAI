@@ -302,7 +302,7 @@ export default function RoomBuilderAIFormAssistant() {
   }
 
   function startWaveform(stream: MediaStream) {
-    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    const AudioContextClass = window.AudioContext || (window as Window & typeof globalThis & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const context: AudioContext = new AudioContextClass();
     audioContextRef.current = context;
@@ -353,9 +353,10 @@ export default function RoomBuilderAIFormAssistant() {
       });
       streamRef.current = stream;
       activeRef.current = true;
-      setListening(true);
-      startWaveform(stream);
-      setMicStatus("듣고 있습니다…");
+      stream.getAudioTracks().forEach((track) => {
+        track.enabled = false;
+      });
+      setMicStatus("음성 연결 중…");
 
       const tokenResponse = await fetch(`/api/voice/realtime-token?lang=${encodeURIComponent(realtimeLanguage(languageTag))}`, { cache: "no-store" });
       const tokenPayload = await tokenResponse.json().catch(() => ({}));
@@ -370,11 +371,27 @@ export default function RoomBuilderAIFormAssistant() {
       dcRef.current = dc;
 
       dc.addEventListener("open", () => {
-        if (!closingRef.current) setMicStatus("말씀하세요…");
+        if (closingRef.current) return;
+        streamRef.current?.getAudioTracks().forEach((audioTrack) => {
+          audioTrack.enabled = true;
+        });
+        setListening(true);
+        if (streamRef.current) startWaveform(streamRef.current);
+        setMicStatus("말씀하세요…");
       });
       dc.addEventListener("message", (event) => {
-        let message: any;
-        try { message = JSON.parse(String(event.data || "{}")); } catch { return; }
+        let message: {
+          type?: unknown;
+          item_id?: unknown;
+          item?: { id?: unknown };
+          delta?: unknown;
+          transcript?: unknown;
+        };
+        try {
+          message = JSON.parse(String(event.data || "{}")) as typeof message;
+        } catch {
+          return;
+        }
         const type = String(message?.type || "");
         const itemId = String(message?.item_id || message?.item?.id || "");
         if (type === "conversation.item.input_audio_transcription.delta" && itemId) {
