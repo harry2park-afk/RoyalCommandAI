@@ -48,6 +48,15 @@ function rgbToHex(value: string, fallback: string) {
   return `#${[match[1], match[2], match[3]].map((part) => Math.max(0, Math.min(255, Number(part))).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
 }
 
+function hexWithStrength(hex: string, strength: number) {
+  const safe = /^#[0-9A-F]{6}$/i.test(hex) ? hex : "#000000";
+  const r = Number.parseInt(safe.slice(1, 3), 16);
+  const g = Number.parseInt(safe.slice(3, 5), 16);
+  const b = Number.parseInt(safe.slice(5, 7), 16);
+  const alpha = Math.max(1, Math.min(10, Math.round(strength))) / 10;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
 function selectInProtectedPanel(item: QuickItem) {
   const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("[data-rc-layout-editor-ui='true'] button"));
   const target = buttons.find((button) => (button.textContent || "").trim() === item.label);
@@ -67,8 +76,9 @@ function applyColours(config: RoomHeaderLayoutConfig) {
     const element = resolveItem(item);
     if (!element) continue;
     const patch = config.elements[item.id];
-    if (patch?.borderColor) element.style.setProperty("border-color", patch.borderColor, "important");
-    if (patch?.backgroundColor) element.style.setProperty("background-color", patch.backgroundColor, "important");
+    const strength = patch?.colourStrength ?? 10;
+    if (patch?.borderColor) element.style.setProperty("border-color", hexWithStrength(patch.borderColor, strength), "important");
+    if (patch?.backgroundColor) element.style.setProperty("background-color", hexWithStrength(patch.backgroundColor, strength), "important");
   }
 }
 
@@ -77,6 +87,7 @@ export default function LayoutEditorQuickActions() {
   const [mode, setMode] = useState<Mode>(null);
   const [borderColor, setBorderColor] = useState("#BCAE8D");
   const [backgroundColor, setBackgroundColor] = useState("#273A33");
+  const [colourStrength, setColourStrength] = useState(10);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("Double-click a button, then choose what you want to change.");
 
@@ -113,8 +124,10 @@ export default function LayoutEditorQuickActions() {
       const element = resolveItem(item);
       if (element) {
         const computed = getComputedStyle(element);
-        setBorderColor(currentConfig.elements[item.id]?.borderColor || rgbToHex(computed.borderColor, "#BCAE8D"));
-        setBackgroundColor(currentConfig.elements[item.id]?.backgroundColor || rgbToHex(computed.backgroundColor, "#273A33"));
+        const patch = currentConfig.elements[item.id];
+        setBorderColor(patch?.borderColor || rgbToHex(computed.borderColor, "#BCAE8D"));
+        setBackgroundColor(patch?.backgroundColor || rgbToHex(computed.backgroundColor, "#273A33"));
+        setColourStrength(patch?.colourStrength ?? 10);
       }
       setMessage(`${item.label} selected. Choose Move, Resize, Text, or Colours.`);
       window.setTimeout(() => selectInProtectedPanel(item), 0);
@@ -135,9 +148,9 @@ export default function LayoutEditorQuickActions() {
     if (!selected || mode !== "colour") return;
     const element = resolveItem(selected);
     if (!element) return;
-    element.style.setProperty("border-color", borderColor, "important");
-    element.style.setProperty("background-color", backgroundColor, "important");
-  }, [selected, mode, borderColor, backgroundColor]);
+    element.style.setProperty("border-color", hexWithStrength(borderColor, colourStrength), "important");
+    element.style.setProperty("background-color", hexWithStrength(backgroundColor, colourStrength), "important");
+  }, [selected, mode, borderColor, backgroundColor, colourStrength]);
 
   function chooseMode(next: Exclude<Mode, null>) {
     if (!selected) return;
@@ -153,7 +166,7 @@ export default function LayoutEditorQuickActions() {
       setMessage("Text selected: type the new button text in the editor field.");
       window.setTimeout(focusProtectedTextInput, 0);
     }
-    if (next === "colour") setMessage("Colours selected: choose Border and Background colours, then save colours.");
+    if (next === "colour") setMessage("Colours selected: choose colours and strength 1–10, then save.");
   }
 
   async function saveColours(useCore = false) {
@@ -168,9 +181,11 @@ export default function LayoutEditorQuickActions() {
       if (useCore) {
         delete patch.borderColor;
         delete patch.backgroundColor;
+        delete patch.colourStrength;
       } else {
         patch.borderColor = borderColor;
         patch.backgroundColor = backgroundColor;
+        patch.colourStrength = colourStrength;
       }
       const next: RoomHeaderLayoutConfig = {
         ...config,
@@ -184,7 +199,7 @@ export default function LayoutEditorQuickActions() {
         body: JSON.stringify({ layoutRoomHeaderV1: next }),
       });
       if (!response.ok) throw new Error("Server rejected the colour save.");
-      setMessage(useCore ? "Core colours restored. Reloading editor…" : "Colours saved. Reloading editor…");
+      setMessage(useCore ? "Core colours restored. Reloading editor…" : "Colours and strength saved. Reloading editor…");
       window.setTimeout(() => window.location.reload(), 250);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Colour save failed.");
@@ -234,7 +249,22 @@ export default function LayoutEditorQuickActions() {
               </div>
             </label>
           </div>
-          <div className="mt-2 grid grid-cols-2 gap-2">
+
+          <label className="mt-3 block text-[11px] text-white/70">
+            Colour strength: <strong className="text-amber-200">{colourStrength}</strong> / 10
+            <input
+              type="range"
+              min={1}
+              max={10}
+              step={1}
+              value={colourStrength}
+              onChange={(event) => setColourStrength(Number(event.target.value))}
+              className="mt-2 w-full accent-amber-300"
+            />
+            <div className="mt-1 flex justify-between text-[9px] text-white/45"><span>1 · Very light</span><span>10 · Strong</span></div>
+          </label>
+
+          <div className="mt-3 grid grid-cols-2 gap-2">
             <button type="button" disabled={saving} onClick={() => void saveColours(false)} className="rounded-md border border-emerald-400/50 bg-emerald-500/10 px-2 py-2 font-semibold text-emerald-200 disabled:opacity-40">Save Colours</button>
             <button type="button" disabled={saving} onClick={() => void saveColours(true)} className="rounded-md border border-white/15 bg-white/[0.04] px-2 py-2 disabled:opacity-40">Use Core Colours</button>
           </div>
