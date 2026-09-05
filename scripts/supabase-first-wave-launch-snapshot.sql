@@ -15,6 +15,30 @@ select jsonb_build_object(
       limit 8
     ) x
   ),
+  'migration_version_alignment', (
+    select jsonb_agg(q order by q.expected_version)
+    from (
+      select
+        expected.name,
+        expected.expected_version,
+        count(applied.*) filter (where applied.version = expected.expected_version)::int as exact_version_rows,
+        count(applied.*) filter (where applied.version <> expected.expected_version)::int as same_name_other_version_rows,
+        coalesce(
+          jsonb_agg(applied.version order by applied.version) filter (where applied.version is not null),
+          '[]'::jsonb
+        ) as hosted_versions
+      from (
+        values
+          ('scope_matter_staff_access', '20260831225500'),
+          ('room_factory_atomic_non_encounter', '20260901025800'),
+          ('harden_profile_role_authority', '20260904105500'),
+          ('customer_room_designer_v1', '20260905055000')
+      ) expected(name, expected_version)
+      left join supabase_migrations.schema_migrations applied
+        on applied.name = expected.name
+      group by expected.name, expected.expected_version
+    ) q
+  ),
   'required_migration_counts', (
     select jsonb_object_agg(name, cnt)
     from (
