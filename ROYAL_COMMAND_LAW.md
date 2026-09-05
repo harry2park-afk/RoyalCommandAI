@@ -103,6 +103,19 @@ Exceptions are explicit, narrow and documented. No exception may violate binding
 ## Article 24 — Amendment
 Material changes to this Law require a reviewed repository change. Amendments should simplify or strengthen controls based on evidence, not add process for its own sake.
 
+## Article 25 — Preview-First Development and RC/RCA Promotion
+All Royal Command modification and development work must be performed in one controlled development lane before Production promotion: a dedicated GitHub Branch with Vercel Preview, or an explicitly approved equivalent isolated Preview environment. RC and RCA Production are deployment targets, not experimental development workspaces.
+
+Promotion rules are mandatory:
+- Australia-specific functionality, policy, legal/accounting behaviour, locale, tax, currency, regulatory configuration or Australia-only UX is promoted to RCA (`atyourcommandai.com.au`) after Preview verification.
+- International/common functionality that belongs in the shared Global Core is promoted to RC Master (`royalcommand.ai`) after Preview verification.
+- A feature first proven in RCA may be promoted to RC Master only after Australia-specific content is separated into Country Profile / Country Pack / Policy / Configuration / Locale Overlay as appropriate.
+- The same shared feature must not be independently rebuilt in multiple country editions. Shared fixes belong in Global Core once; country differences remain overlays.
+- Direct Production experimentation or ad-hoc code modification on RC or RCA is prohibited except for an explicitly approved emergency hotfix with rollback evidence.
+- Production promotion requires the checks appropriate to the task risk, exact tested-head evidence where applicable, and a known-good rollback point.
+
+This Article establishes the default development path: `Branch/Preview → verify → promote to RCA for Australia-specific scope or RC Master for global scope → inherit through country overlays`.
+
 ---
 
 ## Required Work Declaration
