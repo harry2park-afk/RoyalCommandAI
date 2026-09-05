@@ -77,7 +77,7 @@ function applyWideLayout(locale: string) {
 
   section.setAttribute(MARKER, "1");
   localizeLegalSection(section, locale);
-  forceStyle(section, "left", "8px");
+  forceStyle(section, "left", "0");
   forceStyle(section, "right", "185px");
   forceStyle(section, "width", "auto");
   forceStyle(section, "max-width", "none");
@@ -87,6 +87,7 @@ function applyWideLayout(locale: string) {
   forceStyle(section, "bottom", "0");
   forceStyle(section, "height", "calc(100dvh - 72px)");
   forceStyle(section, "max-height", "calc(100dvh - 72px)");
+  forceStyle(section, "border-radius", "0");
 
   let exit = document.getElementById(EXIT_ID) as HTMLButtonElement | null;
   if (!exit) {
@@ -191,5 +192,20 @@ export default function LegalRoomLayoutBridge() {
     };
   }, [locale]);
 
-  return null;
+  return (
+    <style>{`
+      .royal-room-main section.fixed[class*="left-[245px]"][class*="right-[185px]"] {
+        left: 0 !important;
+        right: 185px !important;
+        top: 72px !important;
+        bottom: 0 !important;
+        width: auto !important;
+        max-width: none !important;
+        height: calc(100dvh - 72px) !important;
+        max-height: calc(100dvh - 72px) !important;
+        margin: 0 !important;
+        border-radius: 0 !important;
+      }
+    `}</style>
+  );
 }
