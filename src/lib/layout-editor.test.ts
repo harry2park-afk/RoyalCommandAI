@@ -20,6 +20,7 @@ describe("room header layout config", () => {
           label: "  Build   Your   Room  ",
           borderColor: "#12abEF",
           backgroundColor: "#102030",
+          colourStrength: 99,
         },
       },
     });
@@ -34,7 +35,24 @@ describe("room header layout config", () => {
       label: "Build Your Room",
       borderColor: "#12ABEF",
       backgroundColor: "#102030",
+      colourStrength: 10,
     });
+  });
+
+  it("clamps colour strength to the supported 1–10 range", () => {
+    const low = sanitiseRoomHeaderLayoutConfig({
+      screenId: "ROOM_HEADER",
+      layoutVersion: 1,
+      elements: { "ai-warehouse": { colourStrength: -5 } },
+    });
+    const high = sanitiseRoomHeaderLayoutConfig({
+      screenId: "ROOM_HEADER",
+      layoutVersion: 1,
+      elements: { "ai-warehouse": { colourStrength: 50 } },
+    });
+
+    expect(low?.elements["ai-warehouse"]?.colourStrength).toBe(1);
+    expect(high?.elements["ai-warehouse"]?.colourStrength).toBe(10);
   });
 
   it("drops unknown element ids instead of allowing arbitrary DOM control", () => {
