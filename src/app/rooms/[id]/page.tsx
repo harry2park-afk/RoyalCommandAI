@@ -12,8 +12,29 @@ export default function RoomPage() {
   return (
     <>
       <style>{`
+        .royal-room-main main {
+          padding-top: 72px !important;
+        }
         .royal-room-main main > div.fixed:first-of-type {
+          height: 72px !important;
           background: linear-gradient(180deg, #2a3c33 0%, #273a33 100%) !important;
+        }
+        .royal-room-main main > div.fixed:first-of-type > div:first-child {
+          height: 34px !important;
+          min-height: 34px !important;
+        }
+        .royal-room-main main > div.fixed:first-of-type > div:nth-child(2) {
+          height: 38px !important;
+          min-height: 38px !important;
+          padding-top: 3px !important;
+          padding-bottom: 3px !important;
+        }
+        @media (min-width: 1024px) {
+          .royal-room-main .royal-room-layout > aside {
+            top: 72px !important;
+            height: calc(100vh - 72px) !important;
+            min-height: calc(100vh - 72px) !important;
+          }
         }
         html:not([data-rc-room-enhanced="1"]) .royal-room-main main > div.fixed:first-of-type > div:first-child > h1 {
           font-size: 0 !important;
