@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { usePathname } from "next/navigation";
 import { RoomHeaderLayoutElementId } from "@/lib/layout-editor";
@@ -111,6 +111,7 @@ export default function RoomHeaderStyleAuthority() {
   const pathname = usePathname();
   const roomPage = /^\/rooms\/[^/]+\/?$/.test(pathname || "");
   const [config, setConfig] = useState<RoomHeaderStyleConfig>(emptyRoomHeaderStyleConfig);
+  const configRef = useRef(config);
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [selectedId, setSelectedId] = useState<RoomHeaderLayoutElementId | null>(null);
   const [borderColor, setBorderColor] = useState("#E6C85C");
@@ -139,48 +140,54 @@ export default function RoomHeaderStyleAuthority() {
   }, [roomPage]);
 
   useEffect(() => {
+    configRef.current = config;
+    if (roomPage) applyConfig(config);
+  }, [roomPage, config]);
+
+  useEffect(() => {
     if (!roomPage) return;
     let cancelled = false;
     void fetch("/api/layout-editor/style", { cache: "no-store" })
       .then(async (response) => response.ok ? response.json() : null)
       .then((data) => {
         if (cancelled) return;
-        const next = sanitiseRoomHeaderStyleConfig(data?.style) || emptyRoomHeaderStyleConfig();
-        setConfig(next);
-        applyConfig(next);
+        setConfig(sanitiseRoomHeaderStyleConfig(data?.style) || emptyRoomHeaderStyleConfig());
       })
       .catch(() => undefined);
+
     const observer = new MutationObserver(() => {
-      applyConfig(config);
+      applyConfig(configRef.current);
       discoverEditor();
     });
     observer.observe(document.documentElement, { childList: true, subtree: true });
     const timer = window.setInterval(discoverEditor, 300);
-    discoverEditor();
+    const first = window.setTimeout(discoverEditor, 0);
     return () => {
       cancelled = true;
       observer.disconnect();
       window.clearInterval(timer);
+      window.clearTimeout(first);
     };
   }, [roomPage, discoverEditor]);
 
-  useEffect(() => { if (roomPage) applyConfig(config); }, [roomPage, config]);
-
   useEffect(() => {
     if (!selected) return;
-    const element = resolveItem(selected);
-    if (!element) return;
-    const target = directLabelTarget(element, selected);
-    const patch = config.elements[selected.id];
-    const computed = getComputedStyle(element);
-    const textComputed = getComputedStyle(target);
-    setBorderColor(patch?.borderColor || rgbToHex(computed.borderColor, "#E6C85C"));
-    setBackgroundColor(patch?.backgroundColor || rgbToHex(computed.backgroundColor, "#1F2937"));
-    setTextColor(patch?.textColor || rgbToHex(textComputed.color, "#FFFFFF"));
-    setColourStrength(patch?.colourStrength ?? 10);
-    setBorderWidth(patch?.borderWidth ?? Math.max(1, Math.min(5, Math.round(Number.parseFloat(computed.borderWidth) || 1))));
-    setMessage("");
-  }, [selected, config]);
+    const timer = window.setTimeout(() => {
+      const element = resolveItem(selected);
+      if (!element) return;
+      const target = directLabelTarget(element, selected);
+      const patch = configRef.current.elements[selected.id];
+      const computed = getComputedStyle(element);
+      const textComputed = getComputedStyle(target);
+      setBorderColor(patch?.borderColor || rgbToHex(computed.borderColor, "#E6C85C"));
+      setBackgroundColor(patch?.backgroundColor || rgbToHex(computed.backgroundColor, "#1F2937"));
+      setTextColor(patch?.textColor || rgbToHex(textComputed.color, "#FFFFFF"));
+      setColourStrength(patch?.colourStrength ?? 10);
+      setBorderWidth(patch?.borderWidth ?? Math.max(1, Math.min(5, Math.round(Number.parseFloat(computed.borderWidth) || 1))));
+      setMessage("");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [selected]);
 
   useEffect(() => {
     if (!selected) return;
@@ -196,10 +203,10 @@ export default function RoomHeaderStyleAuthority() {
   async function saveStyle() {
     if (!selected) return;
     const next: RoomHeaderStyleConfig = {
-      ...config,
+      ...configRef.current,
       updatedAt: new Date().toISOString(),
       elements: {
-        ...config.elements,
+        ...configRef.current.elements,
         [selected.id]: {
           borderColor,
           backgroundColor,
@@ -219,8 +226,7 @@ export default function RoomHeaderStyleAuthority() {
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data?.error || "Style save failed.");
-      const saved = sanitiseRoomHeaderStyleConfig(data?.style) || next;
-      setConfig(saved);
+      setConfig(sanitiseRoomHeaderStyleConfig(data?.style) || next);
       setMessage("Style saved. Move/resize settings were not changed.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Style save failed.");
@@ -229,11 +235,11 @@ export default function RoomHeaderStyleAuthority() {
     }
   }
 
-  async function useCoreStyle() {
+  async function restoreCoreStyle() {
     if (!selected) return;
-    const elements = { ...config.elements };
+    const elements = { ...configRef.current.elements };
     delete elements[selected.id];
-    const next: RoomHeaderStyleConfig = { ...config, updatedAt: new Date().toISOString(), elements };
+    const next: RoomHeaderStyleConfig = { ...configRef.current, updatedAt: new Date().toISOString(), elements };
     setSaving(true);
     try {
       const response = await fetch("/api/layout-editor/style", {
@@ -293,7 +299,7 @@ export default function RoomHeaderStyleAuthority() {
           ) : null}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <button type="button" disabled={saving} onClick={() => void saveStyle()} className="rounded-lg border border-emerald-400/60 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Save Style</button>
-            <button type="button" disabled={saving} onClick={() => void useCoreStyle()} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 disabled:opacity-50">Use Core Style</button>
+            <button type="button" disabled={saving} onClick={() => void restoreCoreStyle()} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100 disabled:opacity-50">Use Core Style</button>
           </div>
           {message ? <div className="mt-2 rounded-md border border-white/10 bg-white/[0.04] px-2 py-1.5 text-[10px] leading-4 text-white/70">{message}</div> : null}
         </div>,
