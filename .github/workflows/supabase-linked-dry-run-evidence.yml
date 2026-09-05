@@ -7,6 +7,8 @@ on:
       - "scripts/supabase-linked-migration-dry-run.sh"
       - "scripts/supabase-dry-run-apply-set.mjs"
       - "scripts/supabase-dry-run-apply-set.test.ts"
+      - "scripts/supabase-migration-reconciliation.mjs"
+      - "scripts/supabase-migration-reconciliation.test.ts"
       - "supabase/migrations/**"
       - ".github/workflows/supabase-linked-dry-run-evidence.yml"
   workflow_dispatch:
