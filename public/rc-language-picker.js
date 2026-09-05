@@ -80,7 +80,7 @@
       });
     }
 
-    list.addEventListener("dragover",e=>{if(search.value||showHidden)return;e.preventDefault();const r=list.getBoundingClientRect();const edge=120;const speed=72;if(e.clientY<r.top+edge)list.scrollTop-=speed;else if(e.clientY>r.bottom-edge)list.scrollTop+=speed;});
+    list.addEventListener("dragover",e=>{if(search.value||showHidden)return;e.preventDefault();const r=list.getBoundingClientRect();const edge=Math.min(220,r.height*.45);const minSpeed=10;const maxSpeed=140;const topDistance=e.clientY-r.top;const bottomDistance=r.bottom-e.clientY;if(topDistance<edge){const intensity=Math.max(0,Math.min(1,(edge-topDistance)/edge));list.scrollTop-=Math.round(minSpeed+(maxSpeed-minSpeed)*intensity*intensity);}else if(bottomDistance<edge){const intensity=Math.max(0,Math.min(1,(edge-bottomDistance)/edge));list.scrollTop+=Math.round(minSpeed+(maxSpeed-minSpeed)*intensity*intensity);}});
     hiddenToggle.onclick=e=>{e.stopPropagation();showHidden=!showHidden;search.value="";renderList();};
     button.onclick=e=>{e.stopPropagation();const opening=menu.style.display!=="flex";menu.style.display=opening?"flex":"none";if(opening){order=loadOrder();hidden=loadHidden();showHidden=false;positionMenu();search.value="";renderList();setTimeout(()=>search.focus(),0);}};
     search.oninput=()=>renderList(search.value);
