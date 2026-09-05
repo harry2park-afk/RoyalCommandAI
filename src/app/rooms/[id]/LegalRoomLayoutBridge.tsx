@@ -83,8 +83,10 @@ function applyWideLayout(locale: string) {
   forceStyle(section, "max-width", "none");
   forceStyle(section, "margin-left", "0");
   forceStyle(section, "margin-right", "0");
-  forceStyle(section, "top", "104px");
-  forceStyle(section, "max-height", "calc(100dvh - 118px)");
+  forceStyle(section, "top", "72px");
+  forceStyle(section, "bottom", "0");
+  forceStyle(section, "height", "calc(100dvh - 72px)");
+  forceStyle(section, "max-height", "calc(100dvh - 72px)");
 
   let exit = document.getElementById(EXIT_ID) as HTMLButtonElement | null;
   if (!exit) {
@@ -94,7 +96,7 @@ function applyWideLayout(locale: string) {
     Object.assign(exit.style, {
       position: "fixed",
       right: "205px",
-      top: "112px",
+      top: "80px",
       zIndex: "510",
       border: "1px solid #d7b64d",
       borderRadius: "10px",
