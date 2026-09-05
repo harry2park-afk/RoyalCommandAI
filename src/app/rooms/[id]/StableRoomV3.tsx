@@ -16,6 +16,7 @@ import LegalRoomStarter from "./LegalRoomStarter";
 import LegalHelperOpenBridge from "./LegalHelperOpenBridge";
 import LegalCaseSelectorBridge from "./LegalCaseSelectorBridge";
 import LegalRoomLayoutBridge from "./LegalRoomLayoutBridge";
+import LegalRoomDesignButtonBridge from "./LegalRoomDesignButtonBridge";
 import AISelectionAccountRestore from "./AISelectionAccountRestore";
 import RCFileDestinationBridge from "./RCFileDestinationBridge";
 import RoomConnectorPanel from "./RoomConnectorPanel";
@@ -205,6 +206,7 @@ export default function StableRoomV3() {
       <LegalHelperOpenBridge />
       <LegalCaseSelectorBridge />
       <LegalRoomLayoutBridge />
+      <LegalRoomDesignButtonBridge />
       <AIHelperVoiceBridge />
       <MainChatMicBridge />
       <LiveAvatarLayer />
