@@ -5,8 +5,10 @@ on:
     branches: [master]
     paths:
       - "src/app/api/room-factory/rooms/route.ts"
+      - "src/app/api/room-factory/rooms/route.test.ts"
       - "supabase/migrations/**"
       - "scripts/room-factory-concurrency-evidence.mjs"
+      - "scripts/room-factory-route-smoke.mjs"
       - ".github/workflows/room-factory-concurrency.yml"
   workflow_dispatch:
 
@@ -54,6 +56,7 @@ jobs:
           cp supabase/migrations-full/20260829211500_room_factory_manifests.sql supabase/migrations/
           cp supabase/migrations-full/20260831084700_atomic_room_factory_encounter_creation.sql supabase/migrations/
           cp supabase/migrations-full/20260901022500_harden_room_factory_atomic_invoker.sql supabase/migrations/
+          cp supabase/migrations-full/20260901025800_room_factory_atomic_non_encounter.sql supabase/migrations/
 
           # Production has private.is_room_member from the canonical recovered
           # lineage. Match that helper only for this focused disposable fixture;
@@ -211,6 +214,50 @@ jobs:
           export RC_CONCURRENCY_ALLOW_LOCALHOST=1
           export RC_CONCURRENCY_FORCE_ROLLBACK_TEST=1
           node scripts/room-factory-concurrency-evidence.mjs
+
+      - name: Start isolated Room Factory route candidate
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export NEXT_PUBLIC_SUPABASE_URL="http://127.0.0.1:54321"
+          export NEXT_PUBLIC_SUPABASE_ANON_KEY="$ANON_KEY"
+          nohup npm run dev -- --hostname 127.0.0.1 --port 3000 >/tmp/rc-route-smoke-next.log 2>&1 &
+          echo $! >/tmp/rc-route-smoke-next.pid
+
+          for attempt in $(seq 1 60); do
+            if curl -sS -o /dev/null "http://127.0.0.1:3000/api/room-factory/rooms"; then
+              exit 0
+            fi
+            sleep 1
+          done
+
+          cat /tmp/rc-route-smoke-next.log
+          echo "::error::Next.js route candidate did not become reachable"
+          exit 1
+
+      - name: Prove authenticated Room Factory route cutover
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_ROUTE_SMOKE_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_ROUTE_SMOKE_ANON_KEY="$ANON_KEY"
+          export RC_ROUTE_SMOKE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_ROUTE_SMOKE_APP_URL="http://127.0.0.1:3000"
+          export RC_ROUTE_SMOKE_TEST_EMAIL="rc-route-smoke-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.test"
+          export RC_ROUTE_SMOKE_TEST_PASSWORD="RC-Route-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
+          export RC_ROUTE_SMOKE_ALLOW_LOCALHOST=1
+          node scripts/room-factory-route-smoke.mjs
+
+      - name: Stop isolated Room Factory route candidate
+        if: always()
+        shell: bash
+        run: |
+          if [ -f /tmp/rc-route-smoke-next.pid ]; then
+            kill "$(cat /tmp/rc-route-smoke-next.pid)" 2>/dev/null || true
+          fi
+          pkill -f "next dev.*127.0.0.1.*3000" 2>/dev/null || true
 
       - name: Stop isolated Supabase stack
         if: always()

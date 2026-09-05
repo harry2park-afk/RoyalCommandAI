@@ -108,115 +108,46 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
-
-    if (rawInput.encounterSessionId) {
-      const { data: existingManifest, error: existingManifestError } = await supabase
-        .from("room_factory_manifests")
-        .select("id, room_id, factory_version, template_id, country_code, language_tag, country_profile_status, created_at, manifest")
-        .eq("owner_id", user.id)
-        .contains("manifest", { encounterSessionId: rawInput.encounterSessionId })
-        .limit(1)
-        .maybeSingle();
-
-      if (existingManifestError) return NextResponse.json({ error: existingManifestError.message }, { status: 500 });
-      if (existingManifest?.room_id) {
-        const { data: existingRoom, error: existingRoomError } = await supabase
-          .from("rooms")
-          .select("*")
-          .eq("id", existingManifest.room_id)
-          .eq("room_owner_id", user.id)
-          .maybeSingle();
-        if (existingRoomError) return NextResponse.json({ error: existingRoomError.message }, { status: 500 });
-        if (existingRoom) {
-          return NextResponse.json({ room: existingRoom, manifest: existingManifest, blueprint, reused: true }, { status: 200 });
-        }
-      }
-    }
-
-    let householdId = rawInput.householdId;
-    if (!householdId) {
-      const { data: existingMembership } = await supabase
-        .from("household_members")
-        .select("household_id")
-        .eq("user_id", user.id)
-        .limit(1)
-        .maybeSingle();
-      householdId = existingMembership?.household_id || undefined;
-    }
-
-    if (!householdId) {
-      const { data: household, error: householdError } = await supabase
-        .from("households")
-        .insert({
-          owner_id: user.id,
-          name: `${user.fullName}'s Household`,
-          household_type: "individual",
-        })
-        .select("*")
-        .single();
-      if (householdError) return NextResponse.json({ error: householdError.message }, { status: 500 });
-      householdId = household.id;
-
-      const { error: householdMemberError } = await supabase.from("household_members").insert({
-        household_id: householdId,
-        user_id: user.id,
-        role: "sovereign",
-      });
-      if (householdMemberError) {
-        await supabase.from("households").delete().eq("id", householdId).eq("owner_id", user.id);
-        return NextResponse.json({ error: householdMemberError.message }, { status: 500 });
-      }
-    }
-
-    const { data: room, error: roomError } = await supabase
-      .from("rooms")
-      .insert({
-        household_id: householdId,
-        room_owner_id: user.id,
-        name: blueprint.room.name,
-        description: `${blueprint.room.templateName} · ${blueprint.room.purpose}`.slice(0, 2000),
-        status: "active",
-      })
-      .select("*")
-      .single();
-    if (roomError) return NextResponse.json({ error: roomError.message }, { status: 500 });
-
-    const { error: roomMemberError } = await supabase.from("room_members").insert({
-      room_id: room.id,
-      user_id: user.id,
-      role: "owner",
-      language_pref: blueprint.locale.languageTag,
-    });
-    if (roomMemberError) {
-      await supabase.from("rooms").delete().eq("id", room.id).eq("room_owner_id", user.id);
-      return NextResponse.json({ error: roomMemberError.message }, { status: 500 });
-    }
-
     const storedManifest = rawInput.encounterSessionId
       ? { ...blueprint, encounterSessionId: rawInput.encounterSessionId }
       : blueprint;
+    const roomDescription = `${blueprint.room.templateName} · ${blueprint.room.purpose}`.slice(0, 2000);
 
-    const { data: manifest, error: manifestError } = await supabase
-      .from("room_factory_manifests")
-      .insert({
-        room_id: room.id,
-        owner_id: user.id,
-        factory_version: blueprint.version,
-        template_id: blueprint.room.templateId,
-        country_code: blueprint.locale.countryCode,
-        language_tag: blueprint.locale.languageTag,
-        country_profile_status: blueprint.locale.countryProfileStatus,
-        manifest: storedManifest,
-      })
-      .select("id, room_id, factory_version, template_id, country_code, language_tag, country_profile_status, created_at")
-      .single();
+    // Both creation modes persist through the same privileged transaction.
+    // Encounter-backed calls are idempotent; null-encounter calls intentionally
+    // create a fresh Room. This keeps host-compiled manifests behind RLS rather
+    // than granting direct authenticated INSERT access to the manifest table.
+    const { data: atomicRows, error: atomicError } = await supabase.rpc("create_room_factory_room_atomic", {
+      p_encounter_session_id: rawInput.encounterSessionId ?? null,
+      p_household_id: rawInput.householdId ?? null,
+      p_household_name: `${user.fullName}'s Household`,
+      p_room_name: blueprint.room.name,
+      p_room_description: roomDescription,
+      p_language_pref: blueprint.locale.languageTag,
+      p_factory_version: blueprint.version,
+      p_template_id: blueprint.room.templateId,
+      p_country_code: blueprint.locale.countryCode,
+      p_language_tag: blueprint.locale.languageTag,
+      p_country_profile_status: blueprint.locale.countryProfileStatus,
+      p_manifest: storedManifest,
+    });
 
-    if (manifestError) {
-      await supabase.from("rooms").delete().eq("id", room.id).eq("room_owner_id", user.id);
-      return NextResponse.json({ error: manifestError.message }, { status: 500 });
+    if (atomicError) return NextResponse.json({ error: atomicError.message }, { status: 500 });
+
+    const atomicResult = Array.isArray(atomicRows) ? atomicRows[0] : atomicRows;
+    if (!atomicResult?.room_data || !atomicResult?.manifest_data) {
+      return NextResponse.json({ error: "Atomic Room Factory creation returned no persisted Room." }, { status: 500 });
     }
 
-    return NextResponse.json({ room, manifest, blueprint, reused: false }, { status: 201 });
+    const reused = Boolean(atomicResult.reused);
+    if (!rawInput.encounterSessionId && reused) {
+      return NextResponse.json({ error: "Non-encounter Room Factory creation unexpectedly reused an existing Room." }, { status: 500 });
+    }
+
+    return NextResponse.json(
+      { room: atomicResult.room_data, manifest: atomicResult.manifest_data, blueprint, reused },
+      { status: reused ? 200 : 201 },
+    );
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });
