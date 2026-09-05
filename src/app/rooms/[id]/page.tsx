@@ -6,7 +6,7 @@ import RightMenuPasteFix from "./RightMenuPasteFix";
 import SpeakerTtsBridge from "./SpeakerTtsBridge";
 import NativeSynthesisButton from "./NativeSynthesisButton";
 
-const ROOM_UI_VERSION = "20260829-legal-speaker-recovery";
+const ROOM_UI_VERSION = "20260906-language-persistence-search";
 
 export default function RoomPage() {
   return (
@@ -148,6 +148,7 @@ export default function RoomPage() {
         })();`}
       </Script>
       <Script src={`/rc-language-picker.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
+      <Script src={`/rc-language-preference-recovery.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-copy-question-thread.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-question-rules-v2.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-command-room-english.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
