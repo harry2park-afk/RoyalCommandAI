@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { getCountryConfigByCountryCode } from "../../config/countryResolver";
 import { COUNTRY_ROOM_PRESETS } from "./countryPresets";
 
-const REQUIRED_COUNTRIES = ["AU", "KR", "US", "GB", "JP", "SG", "CN", "HK", "TW", "IN"];
+const FIRST_WAVE_COUNTRIES = ["AU", "US", "CA", "KR", "JP", "GB"];
+const EXPANSION_PRESET_COUNTRIES = ["SG", "CN", "HK", "TW", "IN"];
 
 describe("Room Factory country preset registry", () => {
   it("provides at least 100 country locale defaults", () => {
@@ -14,9 +16,27 @@ describe("Room Factory country preset registry", () => {
     for (const id of ids) expect(id).toMatch(/^[A-Z]{2}$/);
   });
 
-  it("keeps core launch countries registered", () => {
+  it("keeps every first-wave launch country in the locale preset registry", () => {
     const ids = new Set(COUNTRY_ROOM_PRESETS.map((preset) => preset.id));
-    for (const id of REQUIRED_COUNTRIES) expect(ids.has(id)).toBe(true);
+    for (const id of FIRST_WAVE_COUNTRIES) expect(ids.has(id)).toBe(true);
+  });
+
+  it("keeps first-wave Room Factory defaults aligned with CountryConfig", () => {
+    for (const countryCode of FIRST_WAVE_COUNTRIES) {
+      const preset = COUNTRY_ROOM_PRESETS.find((item) => item.id === countryCode);
+      const config = getCountryConfigByCountryCode(countryCode);
+
+      expect(preset, `${countryCode} Room Factory preset`).toBeDefined();
+      expect(config, `${countryCode} CountryConfig`).not.toBeNull();
+      expect(preset?.languageTag).toBe(config?.locale);
+      expect(preset?.currencyCode).toBe(config?.currency);
+      expect(config?.timezone.supportedExamples).toContain(preset?.timeZone);
+    }
+  });
+
+  it("keeps expansion locale presets separate from launch approval", () => {
+    const ids = new Set(COUNTRY_ROOM_PRESETS.map((preset) => preset.id));
+    for (const id of EXPANSION_PRESET_COUNTRIES) expect(ids.has(id)).toBe(true);
   });
 
   it("provides only base locale defaults, not compliance approval fields", () => {
