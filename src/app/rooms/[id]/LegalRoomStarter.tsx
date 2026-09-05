@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { FileText, FolderOpen, MessageCircle, Scale, Sparkles, X } from "lucide-react";
+import { useRoyalCommandLocale } from "./useRoyalCommandLocale";
 
 type Workspace = { caseStory: string; desiredOutcome: string; updatedAt: string | null };
 type EvidenceItem = { id: string; title: string; event_date: string | null; description: string; document_id: string | null; created_at: string };
@@ -15,6 +16,7 @@ type EditField = "raw" | "ai";
 export default function LegalRoomStarter() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
+  const selectedLocale = useRoyalCommandLocale();
   const [enabled, setEnabled] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [languageTag, setLanguageTag] = useState("en-AU");
@@ -40,7 +42,8 @@ export default function LegalRoomStarter() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const recognitionRef = useRef<{ stop?: () => void } | null>(null);
 
-  const korean = languageTag.toLowerCase().startsWith("ko");
+  const effectiveLanguageTag = selectedLocale || languageTag;
+  const korean = effectiveLanguageTag.toLowerCase().startsWith("ko");
   const label = (ko: string, en: string) => korean ? `${ko} / ${en}` : en;
 
   useEffect(() => {
@@ -190,7 +193,7 @@ export default function LegalRoomStarter() {
     if (!Recognition) { setStatus(label("이 브라우저에서는 음성 수정 기능을 사용할 수 없습니다.", "Voice editing is unavailable in this browser.")); return; }
     recognitionRef.current?.stop?.();
     const recognition = new Recognition();
-    recognition.lang = korean ? "ko-KR" : languageTag;
+    recognition.lang = korean ? "ko-KR" : effectiveLanguageTag;
     recognition.interimResults = false;
     recognition.continuous = false;
     recognition.onresult = (event: any) => {
