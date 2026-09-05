@@ -1,0 +1,35 @@
+name: Launch Matter RLS Performance Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260903155500_optimize_launch_matter_rls.sql"
+      - "scripts/launch-matter-rls-performance-evidence.mjs"
+      - ".github/workflows/launch-matter-rls-performance.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-launch-matter-rls-performance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  matter-rls-performance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Prove narrow Matter RLS performance safeguards
+        run: node scripts/launch-matter-rls-performance-evidence.mjs
