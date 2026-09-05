@@ -3,6 +3,7 @@ import Script from "next/script";
 import SecureProtectedLayoutEditor from "@/components/SecureProtectedLayoutEditor";
 import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
 import RoomPreferenceAuthority from "@/components/RoomPreferenceAuthority";
+import RoomHeaderStyleAuthority from "@/components/RoomHeaderStyleAuthority";
 import "./globals.css";
 import "./room-viewport-tight.css";
 
@@ -25,6 +26,7 @@ export default function RootLayout({
         {children}
         <RetellRoomVoiceBridge />
         <RoomPreferenceAuthority />
+        <RoomHeaderStyleAuthority />
         <SecureProtectedLayoutEditor />
       </body>
     </html>
