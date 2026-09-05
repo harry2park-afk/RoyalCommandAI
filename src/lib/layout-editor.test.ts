@@ -21,6 +21,7 @@ describe("room header layout config", () => {
           borderColor: "#12abEF",
           backgroundColor: "#102030",
           colourStrength: 99,
+          textColor: "#fFaa00",
         },
       },
     });
@@ -36,6 +37,7 @@ describe("room header layout config", () => {
       borderColor: "#12ABEF",
       backgroundColor: "#102030",
       colourStrength: 10,
+      textColor: "#FFAA00",
     });
   });
 
@@ -68,7 +70,7 @@ describe("room header layout config", () => {
     expect(result?.elements).toEqual({ "ai-codex": { offsetX: 4 } });
   });
 
-  it("rejects unsafe colour strings", () => {
+  it("rejects unsafe colour strings for button and text styles", () => {
     const result = sanitiseRoomHeaderLayoutConfig({
       screenId: "ROOM_HEADER",
       layoutVersion: 1,
@@ -76,6 +78,7 @@ describe("room header layout config", () => {
         "ai-warehouse": {
           borderColor: "url(javascript:alert(1))",
           backgroundColor: "red",
+          textColor: "expression(alert(1))",
         },
       },
     });
