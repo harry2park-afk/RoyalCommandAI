@@ -2,6 +2,16 @@
 
 import { useEffect } from "react";
 
+const SELECTED_LANGUAGE_KEY = "royalcommand:selected-language";
+
+function isKorean() {
+  try {
+    return (window.localStorage.getItem(SELECTED_LANGUAGE_KEY) || "").toLowerCase().startsWith("ko");
+  } catch {
+    return false;
+  }
+}
+
 export default function RoomGuideLiveInputMirror() {
   useEffect(() => {
     const sync = () => {
@@ -9,35 +19,36 @@ export default function RoomGuideLiveInputMirror() {
       const aside = textarea?.closest("aside");
       if (!textarea || !aside) return;
 
+      // Keep typed or voice-transcribed text inside the actual editable input.
+      // Older behavior made the textarea text transparent and mirrored it above,
+      // which prevented users from seeing and correcting what they were editing.
+      textarea.style.color = "white";
+      textarea.style.caretColor = "white";
+      textarea.style.background = "rgba(0, 0, 0, 0.28)";
+      textarea.style.border = "1px solid rgba(215, 182, 77, 0.5)";
+      textarea.style.borderRadius = "10px";
+      textarea.style.padding = "4px 10px";
+      textarea.style.boxSizing = "border-box";
+      textarea.placeholder = isKorean()
+        ? "여기에 글로 입력하거나 마이크로 말하세요"
+        : "Type here or use the microphone";
+
+      const mirror = aside.querySelector<HTMLElement>('[data-room-guide-live-mirror="true"]');
+      if (mirror) mirror.remove();
+
       const youLabel = Array.from(aside.querySelectorAll<HTMLElement>("div")).find(
         (el) => el.textContent?.trim() === "You" && el.className.includes("font-semibold"),
       );
       const row = youLabel?.parentElement;
-      if (!youLabel || !row) return;
-
-      let mirror = row.querySelector<HTMLElement>('[data-room-guide-live-mirror="true"]');
-      if (!mirror) {
-        mirror = document.createElement("div");
-        mirror.dataset.roomGuideLiveMirror = "true";
-        mirror.className = "min-w-0 whitespace-pre-wrap text-[13px] leading-5 text-white/68";
-        row.appendChild(mirror);
+      if (row) {
+        for (const child of Array.from(row.children)) {
+          if (child instanceof HTMLElement) child.style.display = "";
+        }
       }
-
-      const live = textarea.value;
-      mirror.textContent = live;
-      mirror.style.display = live ? "block" : "none";
-
-      for (const child of Array.from(row.children)) {
-        if (child === youLabel || child === mirror) continue;
-        if (child instanceof HTMLElement) child.style.display = live ? "none" : "";
-      }
-
-      textarea.style.color = "transparent";
-      textarea.style.caretColor = "white";
     };
 
     sync();
-    const timer = window.setInterval(sync, 50);
+    const timer = window.setInterval(sync, 250);
     return () => window.clearInterval(timer);
   }, []);
 
