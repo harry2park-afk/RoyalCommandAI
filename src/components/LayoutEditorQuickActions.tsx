@@ -138,7 +138,8 @@ export default function LayoutEditorQuickActions() {
         setBackgroundColor(patch?.backgroundColor || rgbToHex(computed.backgroundColor, "#273A33"));
         setColourStrength(patch?.colourStrength ?? 10);
         setTextValue(patch?.label || (labelTarget.textContent || "").trim());
-        setFontSize(Math.max(8, Math.min(32, Math.round(patch?.fontSize ?? Number.parseFloat(labelComputed.fontSize) || 12))));
+        const computedFontSize = Number.parseFloat(labelComputed.fontSize) || 12;
+        setFontSize(Math.max(8, Math.min(32, Math.round(patch?.fontSize ?? computedFontSize))));
         setTextColor(patch?.textColor || rgbToHex(labelComputed.color, "#FFFFFF"));
       }
       setMessage(`${item.label} selected. Choose Move, Resize, or Style.`);
