@@ -41,7 +41,7 @@ function declaredChangedPaths(value) {
     const ticks = [...line.matchAll(/`([^`]+)`/g)].map((match) => normalizePath(match[1]));
     if (ticks.length) {
       for (const candidate of ticks) {
-        if (candidate.includes("/") || candidate.startsWith(".")) paths.add(candidate);
+        if (/^[A-Za-z0-9_.\-[\]()]+(?:\/[A-Za-z0-9_.\-[\]()]+)*$/.test(candidate)) paths.add(candidate);
       }
       continue;
     }
