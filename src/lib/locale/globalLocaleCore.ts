@@ -3,8 +3,10 @@ export const GLOBAL_FALLBACK_LOCALE = "en-US" as const;
 export const COUNTRY_DEFAULT_LOCALE: Record<string, string> = {
   US: "en-US",
   AU: "en-AU",
+  CA: "en-CA",
   GB: "en-GB",
   KR: "ko-KR",
+  JP: "ja-JP",
 };
 
 export type LocaleResolutionInput = {
@@ -38,6 +40,7 @@ function normalizedCountry(value?: string | null) {
 export function localeForEnglishCountry(countryCode?: string | null) {
   const country = normalizedCountry(countryCode);
   if (country === "AU") return "en-AU";
+  if (country === "CA") return "en-CA";
   if (country === "GB") return "en-GB";
   return "en-US";
 }
@@ -55,8 +58,10 @@ export function normalizeLegacyLanguage(value?: string | null, countryCode?: str
 
   if (raw.toUpperCase() === "AU") return "en-AU";
   if (raw.toUpperCase() === "US") return "en-US";
+  if (raw.toUpperCase() === "CA") return "en-CA";
   if (raw.toUpperCase() === "GB") return "en-GB";
   if (raw.toUpperCase() === "KR") return "ko-KR";
+  if (raw.toUpperCase() === "JP") return "ja-JP";
 
   return canonicalLocale(raw);
 }
