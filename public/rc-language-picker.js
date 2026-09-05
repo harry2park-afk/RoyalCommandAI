@@ -43,7 +43,7 @@
     const search=document.createElement("input");search.type="text";search.placeholder="Search country or language…";search.style.cssText="flex:1;min-width:0;padding:8px 10px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#070b14;color:#fff;font-size:12px;outline:none";
     const hiddenToggle=document.createElement("button");hiddenToggle.type="button";hiddenToggle.style.cssText="border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#111827;color:#fff;padding:0 10px;font-size:11px;cursor:pointer;white-space:nowrap";
     tools.append(search,hiddenToggle);
-    const list=document.createElement("div");list.style.cssText="flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 7px;scroll-behavior:smooth";
+    const list=document.createElement("div");list.style.cssText="flex:1 1 auto;min-height:0;overflow-y:auto;padding:0 6px 7px;scroll-behavior:auto";
 
     const selectValue=select.value==="ko"?"ko-KR":select.value==="en"?"en-AU":select.value;
     const remembered=localStorage.getItem(SELECTED_KEY);
@@ -80,7 +80,7 @@
       });
     }
 
-    list.addEventListener("dragover",e=>{if(search.value||showHidden)return;e.preventDefault();const r=list.getBoundingClientRect();const edge=80;const speed=22;if(e.clientY<r.top+edge)list.scrollTop-=speed;else if(e.clientY>r.bottom-edge)list.scrollTop+=speed;});
+    list.addEventListener("dragover",e=>{if(search.value||showHidden)return;e.preventDefault();const r=list.getBoundingClientRect();const edge=120;const speed=72;if(e.clientY<r.top+edge)list.scrollTop-=speed;else if(e.clientY>r.bottom-edge)list.scrollTop+=speed;});
     hiddenToggle.onclick=e=>{e.stopPropagation();showHidden=!showHidden;search.value="";renderList();};
     button.onclick=e=>{e.stopPropagation();const opening=menu.style.display!=="flex";menu.style.display=opening?"flex":"none";if(opening){order=loadOrder();hidden=loadHidden();showHidden=false;positionMenu();search.value="";renderList();setTimeout(()=>search.focus(),0);}};
     search.oninput=()=>renderList(search.value);
