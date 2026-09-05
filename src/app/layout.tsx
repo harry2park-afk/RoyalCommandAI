@@ -4,7 +4,7 @@ import CustomerRoomDesigner from "@/components/CustomerRoomDesigner";
 import SecureProtectedLayoutEditor from "@/components/SecureProtectedLayoutEditor";
 import RetellRoomVoiceBridge from "@/components/RetellRoomVoiceBridge";
 import RoomPreferenceAuthority from "@/components/RoomPreferenceAuthority";
-import RoomHeaderStyleAuthority from "@/components/RoomHeaderStyleAuthority";
+import ScopedRoomHeaderStyleAuthority from "@/components/ScopedRoomHeaderStyleAuthority";
 import "./globals.css";
 import "./room-viewport-tight.css";
 
@@ -27,7 +27,7 @@ export default function RootLayout({
         {children}
         <RetellRoomVoiceBridge />
         <RoomPreferenceAuthority />
-        <RoomHeaderStyleAuthority />
+        <ScopedRoomHeaderStyleAuthority />
         <CustomerRoomDesigner />
         <SecureProtectedLayoutEditor />
       </body>
