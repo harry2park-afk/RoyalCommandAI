@@ -29,6 +29,7 @@ export type RoomHeaderLayoutPatch = {
   borderColor?: string;
   backgroundColor?: string;
   colourStrength?: number;
+  textColor?: string;
 };
 
 export type RoomHeaderLayoutConfig = {
@@ -85,6 +86,7 @@ export function sanitiseRoomHeaderLayoutConfig(value: unknown): RoomHeaderLayout
     const borderColor = safeColour(raw.borderColor);
     const backgroundColor = safeColour(raw.backgroundColor);
     const colourStrength = finiteNumber(raw.colourStrength, 1, 10);
+    const textColor = safeColour(raw.textColor);
     if (offsetX !== undefined) patch.offsetX = offsetX;
     if (offsetY !== undefined) patch.offsetY = offsetY;
     if (width !== undefined) patch.width = width;
@@ -93,6 +95,7 @@ export function sanitiseRoomHeaderLayoutConfig(value: unknown): RoomHeaderLayout
     if (borderColor !== undefined) patch.borderColor = borderColor;
     if (backgroundColor !== undefined) patch.backgroundColor = backgroundColor;
     if (colourStrength !== undefined) patch.colourStrength = Math.round(colourStrength);
+    if (textColor !== undefined) patch.textColor = textColor;
     if (typeof raw.label === "string") {
       const label = raw.label.trim().replace(/\s+/g, " ").slice(0, 80);
       if (label) patch.label = label;
