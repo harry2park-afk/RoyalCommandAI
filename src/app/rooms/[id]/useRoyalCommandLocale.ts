@@ -15,10 +15,23 @@ function readLegacyRaw() {
 
 function readResolvedLocale() {
   if (typeof window === "undefined") return GLOBAL_FALLBACK_LOCALE;
+  const selectedLanguage = window.localStorage.getItem(SELECTED_KEY);
+  const countryCode = window.localStorage.getItem(COUNTRY_KEY);
+
+  // The visible language picker is the user's current instruction and must win
+  // over any older stored UI locale left behind by a previous country/language.
+  if (selectedLanguage) {
+    return resolveGlobalLocale({
+      explicitUiLocale: selectedLanguage,
+      legacyLanguage: selectedLanguage,
+      countryCode,
+    }).locale;
+  }
+
   return resolveGlobalLocale({
     explicitUiLocale: window.localStorage.getItem(UI_LOCALE_KEY),
     legacyLanguage: readLegacyRaw(),
-    countryCode: window.localStorage.getItem(COUNTRY_KEY),
+    countryCode,
   }).locale;
 }
 
