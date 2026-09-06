@@ -21,6 +21,7 @@ type UiPreferences = {
   compactAiDock?: string[];
   rightPanelApps?: string[];
   hiddenRoomIds?: string[];
+  hiddenCountries?: string[];
   language?: string;
   uiLocale?: string;
   countryCode?: string;
@@ -87,6 +88,10 @@ function sanitise(value: unknown): UiPreferences {
   if (rightPanelApps) result.rightPanelApps = rightPanelApps;
   const hiddenRoomIds = sanitiseStringArray(input.hiddenRoomIds, 100);
   if (hiddenRoomIds) result.hiddenRoomIds = hiddenRoomIds;
+  const hiddenCountries = sanitiseStringArray(input.hiddenCountries, 250)
+    ?.map((code) => code.trim().toUpperCase())
+    .filter((code, index, values) => /^[A-Z]{2}$/.test(code) && values.indexOf(code) === index);
+  if (hiddenCountries) result.hiddenCountries = hiddenCountries;
 
   if (typeof input.language === "string" && input.language.length <= 32) result.language = input.language;
   if (typeof input.uiLocale === "string" && input.uiLocale.length <= 32) {
