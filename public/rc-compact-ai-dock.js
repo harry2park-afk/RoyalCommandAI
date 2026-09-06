@@ -4,10 +4,16 @@
   const STORAGE_KEY = `royalcommand:room:${window.location.pathname}:compact-ai-dock`;
   const WAREHOUSE_LABEL = "AI Warehouse";
   const COUNCIL_ID = "rc-council-mode-toggle";
+  const RCA_PATH = "/rooms/rca";
+  const RCA_FIXED_DOCK_NAMES = ["ChatGPT", "Claude", "Gemini", "Grok", "Codex"];
   let seeded = false;
   let scheduled = false;
   let pendingWarehouseName = "";
   let preferencesReady = false;
+
+  function isRcaCommandCenter() {
+    return window.location.pathname === RCA_PATH;
+  }
 
   function cleanNames(value) {
     return Array.isArray(value)
@@ -16,6 +22,7 @@
   }
 
   function readVisible() {
+    if (isRcaCommandCenter()) return [...RCA_FIXED_DOCK_NAMES];
     try {
       return cleanNames(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
     } catch {
@@ -24,6 +31,7 @@
   }
 
   function saveToAccount(names) {
+    if (isRcaCommandCenter()) return;
     const clean = cleanNames(names);
     if (!clean.length) return;
     void fetch("/api/user/preferences", {
@@ -35,26 +43,30 @@
   }
 
   function writeVisible(names, syncAccount = true) {
-    const clean = cleanNames(names);
+    const clean = isRcaCommandCenter() ? [...RCA_FIXED_DOCK_NAMES] : cleanNames(names);
     if (!clean.length) return;
     try { localStorage.setItem(STORAGE_KEY, JSON.stringify(clean)); } catch {}
     if (syncAccount) saveToAccount(clean);
   }
 
   async function restorePreference() {
+    // Harry's RCA Command Center is an internal development workspace. Its
+    // five-member team is code-owned and must not be overridden by customer,
+    // account, or stale browser AI-selection preferences.
+    if (isRcaCommandCenter()) {
+      writeVisible(RCA_FIXED_DOCK_NAMES, false);
+      preferencesReady = true;
+      schedule();
+      return;
+    }
+
     const local = readVisible();
     try {
       const res = await fetch("/api/user/preferences", { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         const account = cleanNames(data?.preferences?.compactAiDock);
-
-        // RCA Command Center has one account-owned AI dock. The server preference
-        // is authoritative so stale browser storage cannot silently remove Codex
-        // or any other explicitly saved Command Center AI.
-        if (window.location.pathname === "/rooms/rca" && account.length) {
-          if (JSON.stringify(local) !== JSON.stringify(account)) writeVisible(account, false);
-        } else if (local.length) {
+        if (local.length) {
           if (JSON.stringify(local) !== JSON.stringify(account)) saveToAccount(local);
         } else if (account.length) {
           writeVisible(account, false);
@@ -108,6 +120,7 @@
     });
     if (textSpan) return (textSpan.textContent || "").trim();
     const title = (button.getAttribute("title") || "").replace(/\s+—.*$/, "").trim();
+    if (/OpenAI Codex/i.test(title)) return "Codex";
     return title || (button.textContent || "").trim();
   }
 
@@ -190,7 +203,7 @@
     const spans = Array.from(button.querySelectorAll("span"));
     const label = spans.find((span) => {
       const text = (span.textContent || "").trim();
-      return text === name && !span.dataset.rcAiTick;
+      return (text === name || (name === "Codex" && text === "Codex")) && !span.dataset.rcAiTick;
     });
     if (label instanceof HTMLElement) {
       label.style.transform = "none";
@@ -205,6 +218,20 @@
     ensureTick(button, active);
   }
 
+  function ensureRcaFixedTeamActive(buttons) {
+    if (!isRcaCommandCenter()) return;
+    for (const button of buttons) {
+      const name = shortName(button);
+      if (!RCA_FIXED_DOCK_NAMES.includes(name) || button.disabled || isActive(button)) continue;
+      if (button.dataset.rcRcaActivating === "1") continue;
+      button.dataset.rcRcaActivating = "1";
+      // Delegate the actual selected-AI state mutation to RoomV3, which owns
+      // selection. This dock only enforces the fixed RCA team presentation.
+      button.click();
+      window.setTimeout(() => { delete button.dataset.rcRcaActivating; }, 250);
+    }
+  }
+
   function styleDock() {
     const dock = topDock();
     if (!(dock instanceof HTMLElement)) return;
@@ -217,7 +244,7 @@
     seedVisible(buttons);
     let visibleNames = readVisible();
 
-    if (pendingWarehouseName) {
+    if (!isRcaCommandCenter() && pendingWarehouseName) {
       const match = buttons.find((button) => shortName(button) === pendingWarehouseName);
       if (match && !visibleNames.includes(pendingWarehouseName)) {
         visibleNames = [...visibleNames, pendingWarehouseName];
@@ -227,7 +254,7 @@
     }
 
     dock.style.gap = "2px";
-    if (window.location.pathname === "/rooms/rca") {
+    if (isRcaCommandCenter()) {
       dock.style.setProperty("overflow", "visible", "important");
     } else {
       dock.style.overflowX = "auto";
@@ -255,6 +282,7 @@
 
     const saveButton = saveReferenceButton();
     buttons.forEach((button) => styleButton(button, visibleNames, saveButton));
+    if (isRcaCommandCenter()) requestAnimationFrame(() => ensureRcaFixedTeamActive(buttons));
   }
 
   function warehouseChoiceName(button) {
@@ -265,7 +293,7 @@
   }
 
   document.addEventListener("click", (event) => {
-    if (window.location.pathname === "/rooms/rca" && event.isTrusted) {
+    if (isRcaCommandCenter() && event.isTrusted) {
       const host = document.getElementById("rc-synthesis-host");
       const synthesisButton = host?.querySelector("button");
       if (host instanceof HTMLElement && synthesisButton instanceof HTMLButtonElement) {
