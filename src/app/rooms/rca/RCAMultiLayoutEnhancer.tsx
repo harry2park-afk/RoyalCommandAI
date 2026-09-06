@@ -42,11 +42,6 @@ export default function RCAMultiLayoutEnhancer() {
         const available = !selectButton?.disabled;
         const active = Boolean(selectButton && String(selectButton.className).includes("bg-[#d7b64d]"));
 
-        if (available && !active) {
-          selectButton?.click();
-          return;
-        }
-
         card.dataset.rcMultiAiActive = active && available ? "true" : "false";
         card.style.display = active && available ? "flex" : "none";
       });
