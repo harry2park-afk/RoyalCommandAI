@@ -12,9 +12,13 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "NEEDS_REVIEW",
   authCallback: "NEEDS_REVIEW",
   sessionCookies: "NEEDS_REVIEW",
+  authDataIsolation: "NEEDS_REVIEW",
   communicationsRules: "NEEDS_REVIEW",
   dataResidency: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
+  roomFactory: "NEEDS_REVIEW",
+  complianceEvidence: "NEEDS_REVIEW",
+  paymentOperations: "NEEDS_REVIEW",
   requiredIntegrations: "NEEDS_REVIEW",
   previewSmokeTest: "NEEDS_REVIEW",
   rollbackPath: "NEEDS_REVIEW",
@@ -24,9 +28,13 @@ const verifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
   authCallback: "VERIFIED",
   sessionCookies: "VERIFIED",
+  authDataIsolation: "VERIFIED",
   communicationsRules: "VERIFIED",
   dataResidency: "VERIFIED",
   localization: "VERIFIED",
+  roomFactory: "VERIFIED",
+  complianceEvidence: "VERIFIED",
+  paymentOperations: "VERIFIED",
   requiredIntegrations: "VERIFIED",
   previewSmokeTest: "VERIFIED",
   rollbackPath: "VERIFIED",
@@ -66,6 +74,10 @@ describe("country operational launch readiness gate", () => {
       expect(gate.launchable, countryCode).toBe(false);
       expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("AUTH_DATA_ISOLATION_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROLLBACK_PATH_NOT_VERIFIED");
     }
@@ -94,6 +106,36 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["DATA_RESIDENCY_NOT_VERIFIED"]);
+  });
+
+  it("requires explicit evidence for launch-critical isolation, Room Factory, compliance and payment operations", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const cases: Array<{
+      key: keyof Pick<
+        CountryOperationalEvidence,
+        "authDataIsolation" | "roomFactory" | "complianceEvidence" | "paymentOperations"
+      >;
+      blocker:
+        | "AUTH_DATA_ISOLATION_NOT_VERIFIED"
+        | "ROOM_FACTORY_NOT_VERIFIED"
+        | "COMPLIANCE_EVIDENCE_NOT_VERIFIED"
+        | "PAYMENT_OPERATIONS_NOT_VERIFIED";
+    }> = [
+      { key: "authDataIsolation", blocker: "AUTH_DATA_ISOLATION_NOT_VERIFIED" },
+      { key: "roomFactory", blocker: "ROOM_FACTORY_NOT_VERIFIED" },
+      { key: "complianceEvidence", blocker: "COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
+      { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
+    ];
+
+    for (const { key, blocker } of cases) {
+      const evidence = { ...verifiedEvidence, [key]: "NEEDS_REVIEW" } as CountryOperationalEvidence;
+      const gate = evaluateCountryOperationalLaunch(ready, evidence);
+      expect(gate.launchable, key).toBe(false);
+      expect(gate.operationalBlockers, key).toEqual([blocker]);
+    }
   });
 
   it("only becomes launchable when both country and operational evidence are verified", () => {
