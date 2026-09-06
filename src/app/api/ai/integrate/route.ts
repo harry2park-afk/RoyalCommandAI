@@ -7,6 +7,13 @@ export const maxDuration = 120;
 
 const INTEGRATOR_PROVIDER: AIProviderId = "openai";
 
+type FrozenResult = {
+  provider: string;
+  providerName: string;
+  content: string;
+  receipt: unknown;
+};
+
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,7 +31,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Integration engine is not connected" }, { status: 503 });
   }
 
-  const normalized = frozen.map((item: unknown) => {
+  const normalized: FrozenResult[] = frozen.map((item: unknown): FrozenResult => {
     const row = item && typeof item === "object" ? item as Record<string, unknown> : {};
     return {
       provider: String(row.provider || "unknown"),
@@ -32,12 +39,12 @@ export async function POST(request: Request) {
       content: String(row.content || ""),
       receipt: row.receipt || null,
     };
-  }).filter((item) => item.content.trim());
+  }).filter((item: FrozenResult) => item.content.trim().length > 0);
 
   if (!normalized.length) return NextResponse.json({ error: "No completed provider results to integrate" }, { status: 400 });
 
   const connector = getConnector(INTEGRATOR_PROVIDER);
-  const source = normalized.map((item, index) => [
+  const source = normalized.map((item: FrozenResult, index: number) => [
     `RESULT ${index + 1}`,
     `Provider: ${item.providerName} (${item.provider})`,
     item.content,
@@ -71,7 +78,7 @@ export async function POST(request: Request) {
     content: result.content,
     latencyMs: result.latencyMs,
     error: result.error || null,
-    sourceProviders: normalized.map((item) => item.provider),
+    sourceProviders: normalized.map((item: FrozenResult) => item.provider),
     receipt: {
       integrationId,
       terminal: true,
