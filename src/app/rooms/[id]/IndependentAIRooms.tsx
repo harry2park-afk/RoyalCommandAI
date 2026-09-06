@@ -1,8 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Check, ChevronDown, Languages, Menu, MessageSquare, Mic, Send, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Copy, Languages, Menu, MessageSquare, Mic, Send, Sparkles, X } from "lucide-react";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
@@ -69,6 +69,8 @@ export default function IndependentAIRooms() {
   const [language, setLanguage] = useState("ko");
   const [roomPrompt, setRoomPrompt] = useState("");
   const [allPrompt, setAllPrompt] = useState("");
+  const [cardPrompts, setCardPrompts] = useState<Record<ProviderId, string>>({ openai: "", anthropic: "", google: "", xai: "", codex: "" });
+  const [expandedAnswers, setExpandedAnswers] = useState<Partial<Record<ProviderId, boolean>>>({});
   const [frozenResults, setFrozenResults] = useState<Record<string, ProviderResult>>({});
   const [frozenQuestion, setFrozenQuestion] = useState("");
   const [integrated, setIntegrated] = useState("");
@@ -228,6 +230,27 @@ export default function IndependentAIRooms() {
     }));
   }
 
+  async function submitCard(provider: ProviderId) {
+    const prompt = cardPrompts[provider].trim();
+    if (!prompt || !connected.has(provider) || rooms[provider].loading) return;
+    setCardPrompts((current) => ({ ...current, [provider]: "" }));
+    setExpandedAnswers((current) => ({ ...current, [provider]: false }));
+    const generation = executionGeneration.current;
+    await askProvider(provider, prompt, [provider], generation);
+  }
+
+  function handleCardPromptKeyDown(event: KeyboardEvent<HTMLTextAreaElement>, provider: ProviderId) {
+    if (event.key !== "Enter" || event.shiftKey) return;
+    event.preventDefault();
+    event.currentTarget.style.height = "auto";
+    void submitCard(provider);
+  }
+
+  function autoSizeCardPrompt(target: HTMLTextAreaElement) {
+    target.style.height = "auto";
+    target.style.height = `${target.scrollHeight}px`;
+  }
+
   function cancelAll() {
     executionGeneration.current += 1;
     aborters.current.forEach((controller) => controller.abort());
@@ -295,11 +318,16 @@ export default function IndependentAIRooms() {
                 const room = rooms[provider.id];
                 const available = connected.has(provider.id);
                 const active = selected.includes(provider.id) && available;
-                const recent = room.history.slice(-5);
-                return <article key={provider.id} className={`flex min-h-[360px] flex-col rounded-2xl border p-4 shadow-lg ${active ? "border-[#d7b64d]/70 bg-[#10223f]" : "border-white/10 bg-[#0b1524]"}`}>
-                  <div className="flex items-start gap-3"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`mt-0.5 grid h-6 w-6 place-items-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <Check size={15}/> : null}</button><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="text-xl font-semibold">{provider.name}</h3><span className={`h-2 w-2 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div><p className="text-xs text-[#93a0af]">{provider.role}</p></div></div>
-                  <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-black/15 p-3">
-                    {recent.length ? recent.map((item) => <div key={item.id} className={`mb-2 whitespace-pre-wrap rounded-lg px-3 py-2 text-[15px] leading-6 ${item.role === "user" ? "ml-6 bg-[#1e3a8a]/70" : "mr-6 bg-[#07101d]"}`}>{item.content}</div>) : <div className="pt-2 text-[15px] text-[#c8d0dc]">No conversation yet</div>}
+                const latestQuestionIndex = room.history.map((item) => item.role).lastIndexOf("user");
+                const latestQuestion = latestQuestionIndex >= 0 ? room.history[latestQuestionIndex] : undefined;
+                const latestAnswer = latestQuestionIndex >= 0 ? room.history.slice(latestQuestionIndex + 1).find((item) => item.role === "assistant") : undefined;
+                const expanded = Boolean(expandedAnswers[provider.id]);
+                return <article key={provider.id} data-rc-multi-ai-expanded={expanded ? "true" : "false"} className={`flex min-h-[360px] flex-col rounded-2xl border p-4 shadow-lg ${active ? "border-[#d7b64d]/70 bg-[#10223f]" : "border-white/10 bg-[#0b1524]"}`}>
+                  <div className="flex items-start gap-3"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <Check size={15}/> : null}</button><div className="min-w-0 shrink-0"><div className="flex items-center gap-2"><h3 className="text-xl font-semibold">{provider.name}</h3><span className={`h-2 w-2 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div><p className="text-xs text-[#93a0af]">{provider.role}</p></div><textarea rows={1} value={cardPrompts[provider.id]} onChange={(event) => setCardPrompts((current) => ({ ...current, [provider.id]: event.target.value }))} onInput={(event) => autoSizeCardPrompt(event.currentTarget)} onKeyDown={(event) => handleCardPromptKeyDown(event, provider.id)} disabled={!available || room.loading} aria-label={`Ask ${provider.name}`} placeholder={`Ask ${provider.name}...`} className="ml-2 min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-white/15 bg-[#07101d] px-3 py-2 text-sm leading-5 outline-none focus:border-[#d7b64d]/60 disabled:opacity-40"/></div>
+                  {latestQuestion ? <div className="mt-3 truncate border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]" title={latestQuestion.content}>{latestQuestion.content}</div> : null}
+                  <div role="button" tabIndex={0} aria-expanded={expanded} onClick={() => latestAnswer && setExpandedAnswers((current) => ({ ...current, [provider.id]: !expanded }))} onKeyDown={(event) => { if (latestAnswer && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setExpandedAnswers((current) => ({ ...current, [provider.id]: !expanded })); } }} className={`mt-2 min-h-0 flex-1 rounded-xl border border-white/10 bg-black/15 p-3 text-[15px] leading-6 ${latestAnswer ? "cursor-pointer" : ""} ${expanded ? "overflow-visible whitespace-pre-wrap" : "overflow-hidden"}`}>
+                    {latestAnswer ? latestAnswer.content : room.loading ? `${provider.name} is working…` : <span className="text-[#c8d0dc]">No answer yet</span>}
+                    {expanded && latestAnswer ? <div className="mt-4 flex justify-end gap-2 border-t border-white/10 pt-3"><button type="button" onClick={(event) => { event.stopPropagation(); void navigator.clipboard.writeText(latestAnswer.content); }} className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/10"><Copy size={13}/>Copy</button><button type="button" onClick={(event) => { event.stopPropagation(); setExpandedAnswers((current) => ({ ...current, [provider.id]: false })); }} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/10">Collapse</button></div> : null}
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-[11px] text-[#8e99a8]"><span>{room.loading ? "Working…" : room.error ? "Error" : available ? "Connected" : "Not connected"}</span>{room.lastLatency ? <span>· {Math.round(room.lastLatency)} ms</span> : null}</div>
                   <button onClick={() => setOpenRoom(provider.id)} className="mt-3 w-full rounded-lg border border-white/15 bg-[#07101d] px-3 py-2.5 text-sm font-semibold hover:border-[#d7b64d]/50">Open</button>

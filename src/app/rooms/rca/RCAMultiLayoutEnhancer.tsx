@@ -56,25 +56,13 @@ export default function RCAMultiLayoutEnhancer() {
       requestAnimationFrame(apply);
     };
 
-    const onClick = (event: MouseEvent) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const card = target.closest<HTMLElement>('article[data-rc-multi-ai-card="true"]');
-      if (!card) return;
-      if (target.closest("button, input, textarea, select, a")) return;
-      const expanded = card.dataset.rcMultiAiExpanded === "true";
-      card.dataset.rcMultiAiExpanded = expanded ? "false" : "true";
-    };
-
     schedule();
     const observer = new MutationObserver(schedule);
     observer.observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["class", "disabled"] });
-    document.addEventListener("click", onClick, true);
     window.addEventListener("resize", schedule);
 
     return () => {
       observer.disconnect();
-      document.removeEventListener("click", onClick, true);
       window.removeEventListener("resize", schedule);
     };
   }, []);
@@ -194,7 +182,6 @@ export default function RCAMultiLayoutEnhancer() {
         height: clamp(240px, calc((100dvh - 285px) / 2.18), 355px) !important;
         max-height: clamp(240px, calc((100dvh - 285px) / 2.18), 355px) !important;
         overflow: hidden !important;
-        cursor: pointer;
       }
 
       main section[data-rc-multi-ai-grid="true"] > article[data-rc-multi-ai-card="true"][data-rc-multi-ai-expanded="true"] {
@@ -204,8 +191,12 @@ export default function RCAMultiLayoutEnhancer() {
         overflow: visible !important;
       }
 
-      main section[data-rc-multi-ai-grid="true"] > article[data-rc-multi-ai-card="true"] > div:nth-of-type(2) {
-        overflow-y: auto !important;
+      main section[data-rc-multi-ai-grid="true"] > article[data-rc-multi-ai-card="true"] > div[role="button"] {
+        overflow: hidden !important;
+      }
+
+      main section[data-rc-multi-ai-grid="true"] > article[data-rc-multi-ai-card="true"][data-rc-multi-ai-expanded="true"] > div[role="button"] {
+        overflow: visible !important;
       }
 
       main section[data-rc-multi-ai-grid="true"] > article:not([data-rc-multi-ai-card="true"]) {
