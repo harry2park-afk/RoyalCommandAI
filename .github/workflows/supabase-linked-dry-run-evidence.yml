@@ -61,6 +61,28 @@ jobs:
         with:
           version: 2.116.0
 
+      - name: Verify allow-listed migrations exist in exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a migrations <<< "${EXPECTED_APPLY_MIGRATIONS}"
+          missing=0
+          for migration in "${migrations[@]}"; do
+            migration="${migration#"${migration%%[![:space:]]*}"}"
+            migration="${migration%"${migration##*[![:space:]]}"}"
+            [[ -n "${migration}" ]] || {
+              echo "BLOCKED: EXPECTED_APPLY_MIGRATIONS contains an empty entry"
+              exit 1
+            }
+            if [[ ! -f "supabase/migrations/${migration}" ]]; then
+              echo "BLOCKED: expected migration is not present in exact checkout: ${migration}"
+              missing=1
+            else
+              echo "FOUND_EXPECTED_MIGRATION ${migration}"
+            fi
+          done
+          [[ "${missing}" -eq 0 ]] || exit 1
+
       - name: Verify required hosted credentials are present
         shell: bash
         run: |
