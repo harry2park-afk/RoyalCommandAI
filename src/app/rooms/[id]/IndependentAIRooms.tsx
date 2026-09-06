@@ -74,6 +74,8 @@ export default function IndependentAIRooms() {
   const [languageOpen, setLanguageOpen] = useState(false);
   const [helperOpen, setHelperOpen] = useState(false);
   const [userWantsListening, setUserWantsListening] = useState(false);
+  const [recognitionActive, setRecognitionActive] = useState(false);
+  const [manualStop, setManualStop] = useState(true);
   const [interimTranscript, setInterimTranscript] = useState("");
   const [language, setLanguage] = useState("ko");
   const [selectedLocale, setSelectedLocale] = useState("ko-KR");
@@ -96,8 +98,15 @@ export default function IndependentAIRooms() {
   const recognitionRef = useRef<any>(null);
   const recognitionActiveRef = useRef(false);
   const userWantsListeningRef = useRef(false);
+  const manualStopRef = useRef(true);
   const recognitionTargetRef = useRef<"all" | "room">("room");
   const recognitionRestartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognitionGenerationRef = useRef(0);
+  const recognitionSessionRef = useRef(0);
+  const consumedFinalKeysRef = useRef(new Set<string>());
+  const consumedFinalTranscriptsRef = useRef(new Set<string>());
+  const openRoomRef = useRef<ProviderId | null>(null);
+  openRoomRef.current = openRoom;
 
   useEffect(() => {
     void fetch("/api/ai/providers", { cache: "no-store" })
@@ -170,7 +179,9 @@ export default function IndependentAIRooms() {
   useEffect(() => () => {
     aborters.current.forEach((controller) => controller.abort());
     aborters.current.clear();
+    recognitionGenerationRef.current += 1;
     userWantsListeningRef.current = false;
+    manualStopRef.current = true;
     if (recognitionRestartTimerRef.current) clearTimeout(recognitionRestartTimerRef.current);
     try { recognitionRef.current?.abort(); } catch {}
     recognitionRef.current = null;
@@ -195,8 +206,12 @@ export default function IndependentAIRooms() {
   }
 
   function stopMic() {
+    recognitionGenerationRef.current += 1;
     userWantsListeningRef.current = false;
+    manualStopRef.current = true;
     setUserWantsListening(false);
+    setManualStop(true);
+    setRecognitionActive(false);
     setInterimTranscript("");
     if (recognitionRestartTimerRef.current) {
       clearTimeout(recognitionRestartTimerRef.current);
@@ -208,45 +223,62 @@ export default function IndependentAIRooms() {
     try { recognition?.abort(); } catch {}
   }
 
-  function startRecognition(target: "all" | "room") {
-    if (!userWantsListeningRef.current || recognitionActiveRef.current) return;
+  function startRecognition(target: "all" | "room", generation: number) {
+    if (generation !== recognitionGenerationRef.current || manualStopRef.current || !userWantsListeningRef.current || recognitionRef.current) return;
+    if (target === "room" && !openRoomRef.current) {
+      stopMic();
+      return;
+    }
     setGlobalError("");
     const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
     const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
     if (!SR) {
       userWantsListeningRef.current = false;
       setUserWantsListening(false);
+      manualStopRef.current = true;
+      setManualStop(true);
       setGlobalError("Voice input is not supported in this browser.");
       return;
     }
     const recognition = new SR();
-    const finalizedResults = new Set<string>();
+    const sessionId = ++recognitionSessionRef.current;
     recognitionRef.current = recognition;
     recognitionTargetRef.current = target;
     recognition.lang = language === "ko" ? "ko-KR" : "en-AU";
     recognition.interimResults = true;
     recognition.continuous = true;
-    recognition.onstart = () => { recognitionActiveRef.current = true; };
+    recognition.onstart = () => {
+      if (generation !== recognitionGenerationRef.current || recognitionRef.current !== recognition) {
+        try { recognition.abort(); } catch {}
+        return;
+      }
+      recognitionActiveRef.current = true;
+      setRecognitionActive(true);
+    };
     recognition.onend = () => {
+      if (generation !== recognitionGenerationRef.current || recognitionRef.current !== recognition) return;
       recognitionActiveRef.current = false;
-      if (recognitionRef.current === recognition) recognitionRef.current = null;
+      recognitionRef.current = null;
+      setRecognitionActive(false);
       setInterimTranscript("");
-      if (!userWantsListeningRef.current) return;
+      if (manualStopRef.current || !userWantsListeningRef.current || (target === "room" && !openRoomRef.current)) return;
       recognitionRestartTimerRef.current = setTimeout(() => {
         recognitionRestartTimerRef.current = null;
-        startRecognition(recognitionTargetRef.current);
+        startRecognition(recognitionTargetRef.current, generation);
       }, 250);
     };
     recognition.onerror = (event: any) => {
+      if (generation !== recognitionGenerationRef.current || recognitionRef.current !== recognition) return;
       recognitionActiveRef.current = false;
-      if (event?.error === "aborted" && !userWantsListeningRef.current) return;
+      setRecognitionActive(false);
+      if (event?.error === "aborted" && manualStopRef.current) return;
       if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
-        userWantsListeningRef.current = false;
-        setUserWantsListening(false);
+        stopMic();
         setGlobalError("Microphone permission was not granted.");
       }
     };
     recognition.onresult = (event: any) => {
+      if (generation !== recognitionGenerationRef.current || recognitionRef.current !== recognition || manualStopRef.current) return;
       const finalParts: string[] = [];
       const interimParts: string[] = [];
       for (let index = event.resultIndex || 0; index < event.results.length; index += 1) {
@@ -257,9 +289,12 @@ export default function IndependentAIRooms() {
           interimParts.push(transcript);
           continue;
         }
-        const resultKey = `${index}:${transcript}`;
-        if (finalizedResults.has(resultKey)) continue;
-        finalizedResults.add(resultKey);
+        const normalizedTranscript = transcript.toLocaleLowerCase();
+        const resultKey = `${generation}:${sessionId}:${index}:${normalizedTranscript}`;
+        const transcriptKey = `${generation}:${normalizedTranscript}`;
+        if (consumedFinalKeysRef.current.has(resultKey) || consumedFinalTranscriptsRef.current.has(transcriptKey)) continue;
+        consumedFinalKeysRef.current.add(resultKey);
+        consumedFinalTranscriptsRef.current.add(transcriptKey);
         finalParts.push(transcript);
       }
       setInterimTranscript(interimParts.join(" "));
@@ -271,8 +306,11 @@ export default function IndependentAIRooms() {
     try {
       recognition.start();
     } catch {
-      recognitionRef.current = null;
+      if (recognitionRef.current === recognition) recognitionRef.current = null;
       recognitionActiveRef.current = false;
+      setRecognitionActive(false);
+      stopMic();
+      setGlobalError("Microphone could not start.");
     }
   }
 
@@ -281,10 +319,16 @@ export default function IndependentAIRooms() {
       stopMic();
       return;
     }
+    const generation = recognitionGenerationRef.current + 1;
+    recognitionGenerationRef.current = generation;
+    consumedFinalKeysRef.current.clear();
+    consumedFinalTranscriptsRef.current.clear();
+    manualStopRef.current = false;
+    setManualStop(false);
     userWantsListeningRef.current = true;
     setUserWantsListening(true);
     recognitionTargetRef.current = target;
-    startRecognition(target);
+    startRecognition(target, generation);
   }
 
   async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number) {
@@ -525,9 +569,9 @@ export default function IndependentAIRooms() {
           </>
         ) : (
           <section className="mx-auto flex min-h-[calc(100dvh-86px)] max-w-6xl flex-col rounded-2xl border border-white/10 bg-[#0b1524] shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-white/10 p-3"><button onClick={() => setOpenRoom(null)} className="grid h-9 w-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10"><X size={17}/></button><div><h2 className="text-xl font-semibold">{openMeta?.name}</h2><p className="text-xs text-[#8f9baa]">Strict isolated provider room</p></div><span className={`ml-auto h-2.5 w-2.5 rounded-full ${openRoom && connected.has(openRoom) ? "bg-emerald-400" : "bg-slate-600"}`}/></div>
+            <div className="flex items-center gap-3 border-b border-white/10 p-3"><button onClick={() => { stopMic(); setOpenRoom(null); }} className="grid h-9 w-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10"><X size={17}/></button><div><h2 className="text-xl font-semibold">{openMeta?.name}</h2><p className="text-xs text-[#8f9baa]">Strict isolated provider room</p></div><span className={`ml-auto h-2.5 w-2.5 rounded-full ${openRoom && connected.has(openRoom) ? "bg-emerald-400" : "bg-slate-600"}`}/></div>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{rooms[openRoom].history.length ? rooms[openRoom].history.map((item) => <div key={item.id} className={`max-w-[88%] whitespace-pre-wrap rounded-xl border px-3 py-2 text-[15px] leading-7 ${item.role === "user" ? "ml-auto border-[#d7b64d]/35 bg-[#1e3a8a]" : "mr-auto border-white/10 bg-[#07101d]"}`}>{item.content}</div>) : <div className="py-20 text-center text-[#8d99a8]">Start a private conversation with {openMeta?.name}.</div>}{rooms[openRoom].loading && <div className="text-sm text-[#f0d36a]">{openMeta?.name} is working…</div>}{rooms[openRoom].error && <div className="rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{rooms[openRoom].error}</div>}</div>
-            <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="relative"><textarea value={roomPrompt} onChange={(e) => setRoomPrompt(e.target.value)} className="min-h-28 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-3 pb-14 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/>{interimTranscript && userWantsListening ? <div className="pointer-events-none absolute bottom-14 left-3 right-14 truncate text-xs text-white/35">{interimTranscript}</div> : null}<div className="absolute bottom-3 left-3 flex items-center gap-2"><button type="button" onClick={() => toggleMic("room")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524]"}`}><Mic size={17}/></button><div aria-hidden="true" className="flex h-8 items-center gap-1"><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "0ms", animationDuration: "650ms" } : undefined}/><span className={`h-4 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "90ms", animationDuration: "650ms" } : undefined}/><span className={`h-6 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "180ms", animationDuration: "650ms" } : undefined}/><span className={`h-3 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "270ms", animationDuration: "650ms" } : undefined}/><span className={`h-5 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "360ms", animationDuration: "650ms" } : undefined}/><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "450ms", animationDuration: "650ms" } : undefined}/></div></div><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div></form>
+            <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="relative"><textarea value={roomPrompt} onChange={(e) => setRoomPrompt(e.target.value)} className="min-h-28 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-3 pb-14 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/>{interimTranscript && userWantsListening ? <div className="pointer-events-none absolute bottom-14 left-3 right-14 truncate text-xs text-white/35">{interimTranscript}</div> : null}<div className="absolute bottom-3 left-3 flex items-center gap-2"><button type="button" aria-pressed={userWantsListening} data-recognition-active={recognitionActive ? "true" : "false"} data-manual-stop={manualStop ? "true" : "false"} onClick={() => toggleMic("room")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524]"}`}><Mic size={17}/></button><div aria-hidden="true" className="flex h-8 items-center gap-1"><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "0ms", animationDuration: "650ms" } : undefined}/><span className={`h-4 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "90ms", animationDuration: "650ms" } : undefined}/><span className={`h-6 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "180ms", animationDuration: "650ms" } : undefined}/><span className={`h-3 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "270ms", animationDuration: "650ms" } : undefined}/><span className={`h-5 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "360ms", animationDuration: "650ms" } : undefined}/><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "450ms", animationDuration: "650ms" } : undefined}/></div></div><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div></form>
           </section>
         )}
       </div>
