@@ -1,8 +1,8 @@
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 
 const DEFAULT_CODEX_MODEL = "gpt-5.3-codex";
-const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
-const CODEX_TIMEOUT_MS = 60000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 2048;
+const CODEX_TIMEOUT_MS = 25000;
 
 async function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -69,10 +69,14 @@ export class CodexConnector implements AIConnector {
     }
 
     try {
+      const requestedMaxTokens = request.maxTokens || DEFAULT_MAX_OUTPUT_TOKENS;
+      const reasoningEffort = requestedMaxTokens > 8192 ? "medium" : "low";
       const body: Record<string, unknown> = {
         model,
         input: request.messages,
-        max_output_tokens: request.maxTokens || DEFAULT_MAX_OUTPUT_TOKENS,
+        max_output_tokens: requestedMaxTokens,
+        reasoning: { effort: reasoningEffort },
+        text: { verbosity: "low" },
       };
 
       const res = await withTimeout(
