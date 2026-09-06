@@ -91,7 +91,7 @@ jobs:
       - name: Start disposable Supabase
         run: supabase start
 
-      - name: Prove manifest creation is atomic-only
+      - name: Prove manifest creation is atomic-only and least-privilege
         shell: bash
         run: |
           set -euo pipefail
@@ -102,12 +102,30 @@ jobs:
             v_client_insert_policies integer;
             v_private_functions integer;
             v_bad_private_functions integer;
+            v_anon_privileges integer;
+            v_authenticated_unexpected_privileges integer;
           begin
-            if has_table_privilege('authenticated', 'public.room_factory_manifests', 'INSERT') then
-              raise exception 'authenticated still has direct INSERT privilege on room_factory_manifests';
+            select count(*) into v_anon_privileges
+            from information_schema.role_table_grants
+            where table_schema = 'public'
+              and table_name = 'room_factory_manifests'
+              and grantee = 'anon';
+            if v_anon_privileges <> 0 then
+              raise exception 'anon retains table privileges on room_factory_manifests: %', v_anon_privileges;
             end if;
-            if has_table_privilege('anon', 'public.room_factory_manifests', 'INSERT') then
-              raise exception 'anon still has direct INSERT privilege on room_factory_manifests';
+
+            if not has_table_privilege('authenticated', 'public.room_factory_manifests', 'SELECT') then
+              raise exception 'authenticated lost required SELECT privilege on room_factory_manifests';
+            end if;
+
+            select count(*) into v_authenticated_unexpected_privileges
+            from information_schema.role_table_grants
+            where table_schema = 'public'
+              and table_name = 'room_factory_manifests'
+              and grantee = 'authenticated'
+              and privilege_type <> 'SELECT';
+            if v_authenticated_unexpected_privileges <> 0 then
+              raise exception 'authenticated retains non-SELECT table privileges on room_factory_manifests: %', v_authenticated_unexpected_privileges;
             end if;
 
             select count(*) into v_client_insert_policies
