@@ -48,7 +48,13 @@
       if (res.ok) {
         const data = await res.json();
         const account = cleanNames(data?.preferences?.compactAiDock);
-        if (local.length) {
+
+        // RCA Command Center has one account-owned AI dock. The server preference
+        // is authoritative so stale browser storage cannot silently remove Codex
+        // or any other explicitly saved Command Center AI.
+        if (window.location.pathname === "/rooms/rca" && account.length) {
+          if (JSON.stringify(local) !== JSON.stringify(account)) writeVisible(account, false);
+        } else if (local.length) {
           if (JSON.stringify(local) !== JSON.stringify(account)) saveToAccount(local);
         } else if (account.length) {
           writeVisible(account, false);

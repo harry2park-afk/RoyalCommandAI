@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { localDb } from "@/lib/local-store";
+import { resolveRoomRouteId } from "@/lib/rooms/resolve-room-id";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
@@ -35,7 +36,8 @@ export async function GET(
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await context.params;
+  const { id: routeId } = await context.params;
+  const id = resolveRoomRouteId(routeId);
   const currentUser = {
     fullName: user.fullName,
     defaultLanguage: user.defaultLanguage,
@@ -90,7 +92,8 @@ export async function PATCH(
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await context.params;
+  const { id: routeId } = await context.params;
+  const id = resolveRoomRouteId(routeId);
   let body: { name?: unknown; description?: unknown };
   try {
     body = await request.json();
@@ -136,7 +139,8 @@ export async function DELETE(
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = await context.params;
+  const { id: routeId } = await context.params;
+  const id = resolveRoomRouteId(routeId);
 
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
