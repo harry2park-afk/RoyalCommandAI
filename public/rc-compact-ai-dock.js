@@ -218,6 +218,20 @@
     ensureTick(button, active);
   }
 
+  function ensureRcaFixedTeamActive(buttons) {
+    if (!isRcaCommandCenter()) return;
+    for (const button of buttons) {
+      const name = shortName(button);
+      if (!RCA_FIXED_DOCK_NAMES.includes(name) || button.disabled || isActive(button)) continue;
+      if (button.dataset.rcRcaActivating === "1") continue;
+      button.dataset.rcRcaActivating = "1";
+      // Delegate the actual selected-AI state mutation to RoomV3, which owns
+      // selection. This dock only enforces the fixed RCA team presentation.
+      button.click();
+      window.setTimeout(() => { delete button.dataset.rcRcaActivating; }, 250);
+    }
+  }
+
   function styleDock() {
     const dock = topDock();
     if (!(dock instanceof HTMLElement)) return;
@@ -268,6 +282,7 @@
 
     const saveButton = saveReferenceButton();
     buttons.forEach((button) => styleButton(button, visibleNames, saveButton));
+    if (isRcaCommandCenter()) requestAnimationFrame(() => ensureRcaFixedTeamActive(buttons));
   }
 
   function warehouseChoiceName(button) {
