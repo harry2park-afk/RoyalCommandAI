@@ -59,7 +59,7 @@ export default function LayoutEditorPage() {
 
         <div className="mt-6 flex gap-3">
           <Link href="/dashboard" className="rc-btn rc-btn-ghost text-sm">← Dashboard</Link>
-          <Link href="/rooms/rca" className="rc-btn rc-btn-ghost text-sm">Open RCA normally</Link>
+          <Link href="/rooms/rca?layoutEdit=1" className="rc-btn rc-btn-ghost text-sm">Edit RCA Buttons</Link>
         </div>
       </div>
     </main>
