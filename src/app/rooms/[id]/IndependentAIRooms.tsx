@@ -285,7 +285,7 @@ export default function IndependentAIRooms() {
                 <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
                   <button type="button" onClick={() => toggleMic("all")} className={`grid h-10 w-10 place-items-center rounded-lg border ${listening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524] text-[#d8dee8]"}`} title="Microphone"><Mic size={17}/></button>
                   <button type="button" onClick={() => setHelperOpen((value) => !value)} className="flex h-10 items-center gap-1 rounded-lg border border-white/15 bg-[#0b1524] px-2.5 text-xs font-semibold text-[#f0d36a]" title="AI Helper"><Sparkles size={15}/>AI Helper</button>
-                  <button disabled={!selectedConnected.length} className="grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-40"><Send size={17}/></button>
+                  <button type="submit" disabled={!selectedConnected.length} className="grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-40"><Send size={17}/></button>
                 </div>
               </form>
             </section>
