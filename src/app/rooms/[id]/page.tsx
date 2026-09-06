@@ -6,7 +6,7 @@ import RightMenuPasteFix from "./RightMenuPasteFix";
 import SpeakerTtsBridge from "./SpeakerTtsBridge";
 import NativeSynthesisButton from "./NativeSynthesisButton";
 
-const ROOM_UI_VERSION = "20260906-rca-fixed-dev-team-v1";
+const ROOM_UI_VERSION = "20260906-rca-fixed-dev-team-v2";
 
 export default function RoomPage() {
   return (
