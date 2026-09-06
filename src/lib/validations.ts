@@ -1,7 +1,9 @@
 import { z } from "zod";
-import { resolveRcMemberCommand } from "@/lib/ai/rcMemberLayer";
+import { RC_MEMBER_PROVIDER_IDS, resolveRcMemberCommand } from "@/lib/ai/rcMemberLayer";
 import { AI_PROVIDER_IDS } from "@/lib/ai/types";
 import { resolveRoomRouteId } from "@/lib/rooms/resolve-room-id";
+
+const RCA_COMMAND_ROOM_ID = "89fe50fc-12bf-4fa0-8da8-aff065bae960";
 
 export const signupSchema = z.object({
   email: z.string().email(),
@@ -47,11 +49,15 @@ const chatInputSchema = z.object({
 
 export const chatSchema = chatInputSchema.transform((data) => {
   const roomId = resolveRoomRouteId(data.roomId);
-  const memberCommand = resolveRcMemberCommand(data.prompt, data.history, data.providers);
+  const isRcaCommandCenter = roomId === RCA_COMMAND_ROOM_ID;
+  const selectedProviders = isRcaCommandCenter
+    ? [...RC_MEMBER_PROVIDER_IDS]
+    : data.providers;
+  const memberCommand = resolveRcMemberCommand(data.prompt, data.history, selectedProviders);
   return {
     ...data,
     roomId,
-    providers: memberCommand.leadProviders.length ? memberCommand.leadProviders : data.providers,
+    providers: memberCommand.leadProviders.length ? memberCommand.leadProviders : selectedProviders,
     memberCommand,
   };
 });
