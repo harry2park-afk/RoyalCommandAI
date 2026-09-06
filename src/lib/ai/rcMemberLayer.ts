@@ -26,7 +26,9 @@ export const RCA_OPERATING_PROTOCOL = [
   "Strictly separate REVIEW/INSPECT from EXECUTE. Review, analysis, verification, diagnosis, status questions, and safety checks are read-only and must not modify code, GitHub, Vercel, Production, branches, PRs, or files.",
   "Words such as GitHub, commit, push, merge, Vercel, deploy, Production, Preview, code, file, API, or branch are not execution authorization by themselves.",
   "Repository mutation requires an explicit current instruction to modify, implement, apply, commit, push, merge, deploy, or otherwise execute a change.",
-  "For execution, keep Single Write Authority: prefer Codex as the sole writer when Codex is selected and connected; every other selected AI is review-only.",
+  "For execution, Single Write Authority is strict: Codex is the only permitted repository writer. If Codex is unavailable or not selected, execution is BLOCKED; never fall back to ChatGPT, Claude, Gemini, Grok, or another provider as writer.",
+  "RESTORE-FIRST is mandatory for regressions and previously-working features: identify the last known-good commit/preview, compare the diff, identify the single owner, restore when possible, and only then consider a minimal owner-file change.",
+  "STRICT NO-ADD is the default: do not add a new Bridge, overlay, patch JS, MutationObserver, duplicate component, or fallback writer merely because the first fix failed. If the owner cannot be safely restored or minimally corrected, stop and report BLOCKED with evidence.",
   "Do not add avoidable sequential AI waits. Independent review work should run in parallel when the execution path supports it.",
   "Before execution, preserve current working behavior and verify the relevant Production state, master/base SHA, target branch or PR, target files, restore point, and likely impact when host evidence is available.",
   "Make the smallest coherent change that satisfies the current order. Do not broaden scope into unrelated UI, data, auth, billing, other Rooms, or Production behavior.",
@@ -59,11 +61,12 @@ function selectedMembers(selected?: AIProviderId[]) {
 }
 
 function executionAssignment(selectedIds: AIProviderId[]) {
-  if (!selectedIds.length) return { leadProviders: [] as AIProviderId[], reviewOnlyProviders: [] as AIProviderId[] };
-  const writer = selectedIds.includes("codex") ? "codex" as AIProviderId : selectedIds[0]!;
+  if (!selectedIds.includes("codex")) {
+    return { leadProviders: [] as AIProviderId[], reviewOnlyProviders: selectedIds };
+  }
   return {
-    leadProviders: [writer],
-    reviewOnlyProviders: selectedIds.filter((id) => id !== writer),
+    leadProviders: ["codex" as AIProviderId],
+    reviewOnlyProviders: selectedIds.filter((id) => id !== "codex"),
   };
 }
 
@@ -87,6 +90,13 @@ function hasExplicitExecutionRequest(prompt: string) {
   return executionVerb && mutationTarget;
 }
 
+function hasExplicitCodexExecuteMarker(prompt: string) {
+  const codex = /(?:codex|코덱스)/i.test(prompt);
+  const executeMarker = /(?:\bEXECUTE\b|실제\s*EXECUTE|실행\s*(?:작업|요청|테스트|모드|단계)|실제로\s*(?:구현|수정|적용|실행))/i.test(prompt);
+  const writerOrMutation = /(?:single\s*writer|sole\s*writer|writer|단일\s*writer|단독\s*(?:수정|작성|구현)|파일\s*(?:생성|수정|작성)|코드\s*(?:수정|작성|구현)|branch|commit|브랜치|커밋)/i.test(prompt);
+  return codex && executeMarker && writerOrMutation;
+}
+
 /**
  * A Command Center order may intentionally say that reviewers must not write while
  * explicitly authorizing Codex as the only writer. That is not a global no-write
@@ -95,8 +105,8 @@ function hasExplicitExecutionRequest(prompt: string) {
  */
 function hasRoleScopedExecutionAuthorization(prompt: string) {
   const codexWriter = /(?:codex|코덱스).{0,120}(?:single\s*writer|sole\s*writer|writer|단일\s*writer|단독\s*(?:writer|수정|작성|구현)|실제\s*(?:코드\s*)?(?:수정|작성|구현)|(?:코드|파일|소스).{0,20}(?:수정|작성|구현|write))/i.test(prompt);
-  const explicitExecute = /(?:\bEXECUTE\b|실행\s*(?:모드|단계|작업|요청)|실제로\s*(?:구현|수정|적용|실행)|(?:구현|수정|적용|반영).{0,24}(?:해\s*주세요|하세요|진행))/i.test(prompt);
-  return codexWriter && (explicitExecute || hasMutationRequest(prompt) || hasExplicitExecutionRequest(prompt));
+  const explicitExecute = /(?:\bEXECUTE\b|실행\s*(?:모드|단계|작업|요청|테스트)|실제로\s*(?:구현|수정|적용|실행)|(?:구현|수정|적용|반영).{0,24}(?:해\s*주세요|하세요|진행))/i.test(prompt);
+  return hasExplicitCodexExecuteMarker(prompt) || (codexWriter && (explicitExecute || hasMutationRequest(prompt) || hasExplicitExecutionRequest(prompt)));
 }
 
 function hasInspectIntent(prompt: string) {
@@ -109,8 +119,9 @@ function hasContinuationIntent(prompt: string) {
 
 function classifyDirect(prompt: string): RcMemberMode {
   const roleScopedExecution = hasRoleScopedExecutionAuthorization(prompt);
-  if (hasGlobalNoWriteIntent(prompt) && !roleScopedExecution) return hasInspectIntent(prompt) ? "inspect" : "answer";
-  if (roleScopedExecution || hasMutationRequest(prompt) || hasExplicitExecutionRequest(prompt)) return "execute";
+  if (roleScopedExecution) return "execute";
+  if (hasGlobalNoWriteIntent(prompt)) return hasInspectIntent(prompt) ? "inspect" : "answer";
+  if (hasMutationRequest(prompt) || hasExplicitExecutionRequest(prompt)) return "execute";
   if (hasInspectIntent(prompt)) return "inspect";
   return "answer";
 }
@@ -167,14 +178,14 @@ export function resolveRcMemberCommand(
     mode,
     leadProviders,
     reviewOnlyProviders,
-    gitWrite: mode === "execute" && leadProviders.length > 0,
+    gitWrite: mode === "execute" && leadProviders[0] === "codex",
     productionAllowed: false,
     effectivePrompt,
     continuedFromPriorOrder,
     reason: mode === "execute"
-      ? leadProviders.length
-        ? `Single Write Authority: ${RC_MEMBER_PROVIDER_NAMES[leadProviders[0]!] || leadProviders[0]} is the sole writer for this task; ${reviewOnlyProviders.length} selected AI(s) are review-only. Codex is preferred automatically whenever selected.`
-        : "Repository mutation requested, but no active AI was selected; no implicit provider fallback is allowed."
+      ? leadProviders[0] === "codex"
+        ? `Single Write Authority: Codex is the sole writer for this task; ${reviewOnlyProviders.length} selected AI(s) are review-only. Restore-First and Strict No-Add apply.`
+        : "Repository mutation requested, but Codex is not available as the selected writer. Execution is BLOCKED; no fallback writer is permitted."
       : mode === "inspect"
         ? "Review/inspection request; selected AI may investigate in parallel without repository mutation."
         : "Open answer mode; selected AI may reason and respond freely according to the fixed RC member role contract.",
