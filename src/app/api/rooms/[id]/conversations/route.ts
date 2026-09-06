@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { resolveRoomRouteId } from "@/lib/rooms/resolve-room-id";
 
 function normaliseTitle(value: unknown) {
   if (typeof value !== "string") return "New Chat";
@@ -20,7 +21,8 @@ export async function GET(
     return NextResponse.json({ conversations: [] });
   }
 
-  const { id: roomId } = await context.params;
+  const { id } = await context.params;
+  const roomId = resolveRoomRouteId(id);
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("conversations")
@@ -47,7 +49,8 @@ export async function POST(
     );
   }
 
-  const { id: roomId } = await context.params;
+  const { id } = await context.params;
+  const roomId = resolveRoomRouteId(id);
   const body = await request.json().catch(() => ({}));
   const title = normaliseTitle(body?.title);
   const now = new Date().toISOString();
