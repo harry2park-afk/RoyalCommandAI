@@ -3,11 +3,11 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useParams } from "next/navigation";
-import { Check, ChevronDown, Copy, Languages, Menu, MessageSquare, Mic, Plus, Search, Send, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Copy, Languages, Menu, MessageSquare, Mic, Pencil, Plus, Search, Send, Sparkles, X } from "lucide-react";
 import { FEATURED_LANGUAGE_ENTRIES, LOCALE_SEARCH_REGISTRY } from "@/lib/locale/localeSearchRegistry";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
-type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
+type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string; title?: string; titleEdited?: boolean };
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
 type ProviderResult = {
   requestId: string;
@@ -30,6 +30,7 @@ type RoomState = {
 type ChatSession = {
   id: string;
   title: string;
+  titleEdited?: boolean;
   updatedAt: string;
   histories: Record<ProviderId, ChatItem[]>;
 };
@@ -209,6 +210,37 @@ export default function IndependentAIRooms() {
     setRooms((prev) => ({ ...prev, [provider]: { ...prev[provider], history: [...prev[provider].history, item].slice(-120) } }));
   }
 
+  function applyGeneratedTitle(provider: ProviderId, itemId: string, title: string) {
+    setRooms((prev) => ({ ...prev, [provider]: { ...prev[provider], history: prev[provider].history.map((item) => item.id === itemId && !item.titleEdited ? { ...item, title } : item) } }));
+  }
+
+  function fallbackTitle(text: string) {
+    const normalized = text.replace(/\s+/g, " ").replace(/^(please|can you|could you|질문|문의|요청)[:\s,-]*/i, "").trim();
+    if (!normalized) return language === "ko" ? "새 대화" : "New chat";
+    return normalized.length > 50 ? `${normalized.slice(0, 49).trim()}…` : normalized;
+  }
+
+  function cleanGeneratedTitle(value: string, fallback: string) {
+    const title = value.replace(/^[#*\s"'`]+|[#*\s"'`]+$/g, "").replace(/^(title|제목)\s*:\s*/i, "").replace(/\s+/g, " ").trim();
+    if (!title) return fallback;
+    return title.length > 60 ? `${title.slice(0, 59).trim()}…` : title;
+  }
+
+  async function generateTitle(kind: "chat" | "answer", question: string, answer = "") {
+    const fallback = fallbackTitle(kind === "chat" ? question : answer || question);
+    const instruction = kind === "chat"
+      ? `Create one concise, descriptive chat title from the entire user request below. Do not copy its first sentence. Use the same language as the request. Return only the title, ideally 20-50 characters.\n\nUSER REQUEST:\n${question}`
+      : `Create one concise answer title using both the user request and the actual answer below. Do not copy the question title. Use the same language as the request. Return only the title, ideally 20-50 characters.\n\nUSER REQUEST:\n${question}\n\nANSWER:\n${answer.slice(0, 6000)}`;
+    try {
+      const response = await fetch("/api/ai/helper", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId, message: instruction, selectedLanguage: language, history: [] }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.answer) return fallback;
+      return cleanGeneratedTitle(String(data.answer), fallback);
+    } catch {
+      return fallback;
+    }
+  }
+
   function toggleSelected(provider: ProviderId) {
     if (!connected.has(provider)) return;
     setSelected((prev) => prev.includes(provider) ? prev.filter((id) => id !== provider) : [...prev, provider]);
@@ -355,13 +387,15 @@ export default function IndependentAIRooms() {
     followLatestRoomPromptRef.current = textarea.scrollHeight - textarea.scrollTop - textarea.clientHeight < 24;
   }
 
-  async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number) {
+  async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number, chatTitlePromise?: Promise<string>) {
     if (!connected.has(provider)) return null;
     const requestId = uid(`${provider}-request`);
     const controller = new AbortController();
     aborters.current.set(provider, controller);
     setProviderState(provider, { loading: true, error: "" });
-    append(provider, { id: uid("user"), role: "user", content: prompt, createdAt: new Date().toISOString() });
+    const userItemId = uid("user");
+    append(provider, { id: userItemId, role: "user", content: prompt, createdAt: new Date().toISOString(), title: fallbackTitle(prompt) });
+    if (chatTitlePromise) void chatTitlePromise.then((title) => applyGeneratedTitle(provider, userItemId, title));
 
     try {
       const history = rooms[provider].history.slice(-24).map((item) => ({ role: item.role, content: item.content }));
@@ -375,7 +409,9 @@ export default function IndependentAIRooms() {
       if (generation !== executionGeneration.current) return null;
       if (!res.ok || data?.error) throw new Error(data?.error || "AI request failed");
       const result = data as ProviderResult;
-      append(provider, { id: uid("assistant"), role: "assistant", content: result.content, createdAt: new Date().toISOString() });
+      const assistantItemId = uid("assistant");
+      append(provider, { id: assistantItemId, role: "assistant", content: result.content, createdAt: new Date().toISOString(), title: fallbackTitle(result.content) });
+      void generateTitle("answer", prompt, result.content).then((title) => applyGeneratedTitle(provider, assistantItemId, title));
       setProviderState(provider, { loading: false, error: "", lastLatency: result.latencyMs });
       return result;
     } catch (error) {
@@ -395,7 +431,7 @@ export default function IndependentAIRooms() {
     const prompt = roomPrompt.trim();
     setRoomPrompt("");
     const generation = ++executionGeneration.current;
-    await askProvider(openRoom, prompt, [openRoom], generation);
+    await askProvider(openRoom, prompt, [openRoom], generation, generateTitle("chat", prompt));
   }
 
   async function submitSelected(e?: FormEvent) {
@@ -411,10 +447,11 @@ export default function IndependentAIRooms() {
     setIntegrated("");
     setGlobalError("");
     const snapshot = [...target];
+    const chatTitlePromise = generateTitle("chat", prompt);
     setAllPrompt("");
 
     await Promise.all(snapshot.map(async (provider) => {
-      const result = await askProvider(provider, prompt, snapshot, generation);
+      const result = await askProvider(provider, prompt, snapshot, generation, chatTitlePromise);
       if (!result || generation !== executionGeneration.current) return;
       setFrozenResults((prev) => ({ ...prev, [provider]: Object.freeze({ ...result }) }));
     }));
@@ -426,7 +463,7 @@ export default function IndependentAIRooms() {
     setCardPrompts((current) => ({ ...current, [provider]: "" }));
     setExpandedAnswers((current) => ({ ...current, [provider]: false }));
     const generation = executionGeneration.current;
-    await askProvider(provider, prompt, [provider], generation);
+    await askProvider(provider, prompt, [provider], generation, generateTitle("chat", prompt));
   }
 
   function handleCardPromptKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>, provider: ProviderId) {
@@ -447,7 +484,8 @@ export default function IndependentAIRooms() {
     const latestQuestion = allItems.filter((item) => item.role === "user").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     return {
       id: uid("chat"),
-      title: latestQuestion?.content.replace(/\s+/g, " ").trim() || "Saved chat",
+      title: latestQuestion?.title || fallbackTitle(latestQuestion?.content || "") || "Saved chat",
+      titleEdited: latestQuestion?.titleEdited,
       updatedAt: new Date().toISOString(),
       histories: Object.fromEntries(PROVIDERS.map((provider) => [provider.id, [...rooms[provider.id].history]])) as Record<ProviderId, ChatItem[]>,
     };
@@ -469,6 +507,23 @@ export default function IndependentAIRooms() {
     archiveCurrentSession();
     setRooms(Object.fromEntries(PROVIDERS.map((provider) => [provider.id, { ...EMPTY, history: [...(session.histories[provider.id] || [])] }])) as Record<ProviderId, RoomState>);
     setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
+  }
+
+  function editCurrentChatTitle() {
+    const nextTitle = window.prompt("Edit chat title", currentChatTitle)?.replace(/\s+/g, " ").trim();
+    if (!nextTitle) return;
+    setRooms((prev) => Object.fromEntries(PROVIDERS.map((provider) => {
+      const history = [...prev[provider.id].history];
+      const questionIndex = history.map((item) => item.role).lastIndexOf("user");
+      if (questionIndex >= 0) history[questionIndex] = { ...history[questionIndex], title: nextTitle.slice(0, 60), titleEdited: true };
+      return [provider.id, { ...prev[provider.id], history }];
+    })) as Record<ProviderId, RoomState>);
+  }
+
+  function editSavedChatTitle(session: ChatSession) {
+    const nextTitle = window.prompt("Edit chat title", session.title)?.replace(/\s+/g, " ").trim();
+    if (!nextTitle) return;
+    setChatSessions((current) => current.map((item) => item.id === session.id ? { ...item, title: nextTitle.slice(0, 60), titleEdited: true } : item));
   }
 
   function chooseProvider(id: string) {
@@ -525,7 +580,7 @@ export default function IndependentAIRooms() {
   const selectedLanguageLabel = LOCALE_SEARCH_REGISTRY.find((entry) => entry.locale === selectedLocale)?.label.split(" · ")[0] || selectedLocale;
   const currentChatTitle = useMemo(() => {
     const latest = PROVIDERS.flatMap((provider) => rooms[provider.id].history).filter((item) => item.role === "user").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
-    return latest?.content.replace(/\s+/g, " ").trim() || "New chat";
+    return latest?.title || (latest ? fallbackTitle(latest.content) : "New chat");
   }, [rooms]);
   const openMeta = PROVIDERS.find((provider) => provider.id === openRoom);
 
@@ -538,7 +593,7 @@ export default function IndependentAIRooms() {
           <button onClick={() => { setLanguageOpen((v) => !v); setMenuOpen(false); setChatsOpen(false); }} className="flex max-w-44 items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><Languages size={16}/><span className="truncate">{selectedLanguageLabel}</span><ChevronDown size={14}/></button>
           <div className="ml-auto text-right"><div className="font-serif text-lg text-[#f1d77a]">Royal Command AI</div><div className="text-[10px] uppercase tracking-[.22em] text-[#8d98a8]">Independent Rooms V1</div></div>
 
-          {menuOpen && <div className="absolute left-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] p-2 shadow-2xl"><button type="button" onClick={startNewChat} className="mb-2 flex items-center justify-center gap-2 rounded-lg border border-[#d7b64d]/45 bg-[#17130a] px-3 py-2.5 font-semibold text-[#f0d36a] hover:bg-[#2a2109]"><Plus size={16}/>New Chat</button><div className="min-h-0 overflow-y-auto"><div className="sticky top-0 bg-[#0b1524] px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Chat History</div><button type="button" onClick={() => setMenuOpen(false)} title={currentChatTitle} className="mb-1 block w-full truncate rounded-lg border border-[#d7b64d]/45 bg-[#17130a] px-3 py-2.5 text-left text-sm text-[#f0d36a]">{currentChatTitle}</button>{chatSessions.map((session) => <button key={session.id} type="button" onClick={() => loadChatSession(session)} title={session.title} className="mb-1 block w-full truncate rounded-lg border border-white/10 px-3 py-2.5 text-left text-sm hover:border-[#d7b64d]/35 hover:bg-white/5">{session.title}</button>)}</div></div>}
+          {menuOpen && <div className="absolute left-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] p-2 shadow-2xl"><button type="button" onClick={startNewChat} className="mb-2 flex items-center justify-center gap-2 rounded-lg border border-[#d7b64d]/45 bg-[#17130a] px-3 py-2.5 font-semibold text-[#f0d36a] hover:bg-[#2a2109]"><Plus size={16}/>New Chat</button><div className="min-h-0 overflow-y-auto"><div className="sticky top-0 bg-[#0b1524] px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Chat History</div><div className="mb-1 flex items-center rounded-lg border border-[#d7b64d]/45 bg-[#17130a]"><button type="button" onClick={() => setMenuOpen(false)} title={currentChatTitle} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm text-[#f0d36a]">{currentChatTitle}</button><button type="button" onClick={editCurrentChatTitle} className="grid h-9 w-9 shrink-0 place-items-center text-[#f0d36a]" aria-label="Edit current chat title"><Pencil size={13}/></button></div>{chatSessions.map((session) => <div key={session.id} className="mb-1 flex items-center rounded-lg border border-white/10 hover:border-[#d7b64d]/35 hover:bg-white/5"><button type="button" onClick={() => loadChatSession(session)} title={session.title} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm">{session.title}</button><button type="button" onClick={() => editSavedChatTitle(session)} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-[#f0d36a]" aria-label={`Edit ${session.title}`}><Pencil size={13}/></button></div>)}</div></div>}
 
           {chatsOpen && <div className="absolute left-24 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} autoFocus placeholder="Search AI providers" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2">{filteredProviders.map((provider) => { const cardProvider = PROVIDERS.find((item) => item.id === provider.id); const selectable = Boolean(cardProvider && provider.available); const chosen = Boolean(cardProvider && selected.includes(cardProvider.id)); const status = selectable ? "Available" : provider.available ? "Coming Soon" : "Not Connected"; return <button key={provider.id} type="button" disabled={!selectable} onClick={() => chooseProvider(provider.id)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${chosen ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"} disabled:cursor-not-allowed disabled:opacity-60`}><span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${chosen ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/20"}`}>{chosen ? <Check size={13}/> : null}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{provider.name}</span><span className={`shrink-0 text-[10px] ${status === "Available" ? "text-emerald-300" : "text-[#8d98a8]"}`}>{status}</span></button>; })}</div></div>}
 
@@ -577,9 +632,9 @@ export default function IndependentAIRooms() {
                     <div className="flex w-8 shrink-0 flex-col items-stretch gap-2"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`grid h-6 w-6 shrink-0 place-items-center self-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <Check size={15}/> : null}</button><button type="button" onClick={() => setOpenRoom(provider.id)} className="flex min-h-0 flex-1 items-center justify-center rounded-lg border border-white/15 bg-[#07101d] text-xs font-semibold [writing-mode:vertical-rl] hover:border-[#d7b64d]/50">Open</button></div>
                     <div className="flex min-w-0 flex-1 flex-col">
                       <div className="flex items-start gap-3"><div className="min-w-0 shrink-0"><div className="flex items-center gap-2"><h3 className="text-xl font-semibold">{provider.name}</h3><span className={`h-2 w-2 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div><p className="text-xs text-[#93a0af]">{provider.role}</p></div><textarea rows={1} value={cardPrompts[provider.id]} onChange={(event) => setCardPrompts((current) => ({ ...current, [provider.id]: event.target.value }))} onInput={(event) => autoSizeCardPrompt(event.currentTarget)} onKeyDown={(event) => handleCardPromptKeyDown(event, provider.id)} disabled={!available || room.loading} aria-label={`Ask ${provider.name}`} placeholder={`Ask ${provider.name}...`} className="ml-2 min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-white/15 bg-[#07101d] px-3 py-2 text-sm leading-5 outline-none focus:border-[#d7b64d]/60 disabled:opacity-40"/></div>
-                      {latestQuestion ? <div className="mt-3 truncate border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]" title={latestQuestion.content}>{latestQuestion.content}</div> : null}
+                      {latestQuestion ? <div className="mt-3 truncate border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]" title={latestQuestion.content}>{latestQuestion.title || latestQuestion.content}</div> : null}
                       <div role="button" tabIndex={0} aria-expanded={expanded} onClick={() => latestAnswer && setExpandedAnswers((current) => ({ ...current, [provider.id]: !expanded }))} onKeyDown={(event) => { if (latestAnswer && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setExpandedAnswers((current) => ({ ...current, [provider.id]: !expanded })); } }} className={`mt-2 min-h-0 flex-1 rounded-xl border border-white/10 bg-black/15 p-3 text-[15px] leading-6 ${latestAnswer ? "cursor-pointer" : ""} ${expanded ? "overflow-visible whitespace-pre-wrap" : "overflow-hidden"}`}>
-                        {latestAnswer ? latestAnswer.content : room.loading ? `${provider.name} is working…` : <span className="text-[#c8d0dc]">No answer yet</span>}
+                        {latestAnswer ? <><div className="mb-2 border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]">{latestAnswer.title || fallbackTitle(latestAnswer.content)}</div>{latestAnswer.content}</> : room.loading ? `${provider.name} is working…` : <span className="text-[#c8d0dc]">No answer yet</span>}
                         {expanded && latestAnswer ? <div className="mt-4 flex justify-end gap-2 border-t border-white/10 pt-3"><button type="button" onClick={(event) => { event.stopPropagation(); void navigator.clipboard.writeText(latestAnswer.content); }} className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/10"><Copy size={13}/>Copy</button><button type="button" onClick={(event) => { event.stopPropagation(); setExpandedAnswers((current) => ({ ...current, [provider.id]: false })); }} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/10">Collapse</button></div> : null}
                       </div>
                       {room.loading || room.error || !available ? <div className="mt-2 text-[11px] text-[#8e99a8]">{room.loading ? "Working…" : room.error ? "Error" : "Not connected"}</div> : null}
@@ -594,7 +649,7 @@ export default function IndependentAIRooms() {
         ) : (
           <section className="mx-auto flex min-h-[calc(100dvh-86px)] max-w-6xl flex-col rounded-2xl border border-white/10 bg-[#0b1524] shadow-2xl">
             <div className="flex items-center gap-3 border-b border-white/10 p-3"><button onClick={() => { stopMic(); setOpenRoom(null); }} className="grid h-9 w-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10"><X size={17}/></button><div><h2 className="text-xl font-semibold">{openMeta?.name}</h2><p className="text-xs text-[#8f9baa]">Strict isolated provider room</p></div><span className={`ml-auto h-2.5 w-2.5 rounded-full ${openRoom && connected.has(openRoom) ? "bg-emerald-400" : "bg-slate-600"}`}/></div>
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{rooms[openRoom].history.length ? rooms[openRoom].history.map((item) => <div key={item.id} className={`max-w-[88%] whitespace-pre-wrap rounded-xl border px-3 py-2 text-[15px] leading-7 ${item.role === "user" ? "ml-auto border-[#d7b64d]/35 bg-[#1e3a8a]" : "mr-auto border-white/10 bg-[#07101d]"}`}>{item.content}</div>) : <div className="py-20 text-center text-[#8d99a8]">Start a private conversation with {openMeta?.name}.</div>}{rooms[openRoom].loading && <div className="text-sm text-[#f0d36a]">{openMeta?.name} is working…</div>}{rooms[openRoom].error && <div className="rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{rooms[openRoom].error}</div>}</div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{rooms[openRoom].history.length ? rooms[openRoom].history.map((item) => <div key={item.id} className={`max-w-[88%] whitespace-pre-wrap rounded-xl border px-3 py-2 text-[15px] leading-7 ${item.role === "user" ? "ml-auto border-[#d7b64d]/35 bg-[#1e3a8a]" : "mr-auto border-white/10 bg-[#07101d]"}`}>{item.role === "assistant" && item.title ? <div className="mb-1 text-xs font-semibold text-[#f1d77a]">{item.title}</div> : null}{item.content}</div>) : <div className="py-20 text-center text-[#8d99a8]">Start a private conversation with {openMeta?.name}.</div>}{rooms[openRoom].loading && <div className="text-sm text-[#f0d36a]">{openMeta?.name} is working…</div>}{rooms[openRoom].error && <div className="rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{rooms[openRoom].error}</div>}</div>
             <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="relative"><textarea ref={roomPromptRef} value={roomPrompt} onChange={(event) => handleRoomPromptChange(event.currentTarget)} onInput={(event) => autoSizeRoomPrompt(event.currentTarget)} onScroll={(event) => handleRoomPromptScroll(event.currentTarget)} className="min-h-28 max-h-[38dvh] w-full resize-none overflow-y-hidden rounded-xl border border-white/10 bg-[#07101d] p-3 pb-14 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/>{interimTranscript && userWantsListening ? <div className="pointer-events-none absolute bottom-14 left-3 right-14 truncate text-xs text-white/35">{interimTranscript}</div> : null}<div className="absolute bottom-3 left-3 flex items-center gap-2"><button type="button" aria-pressed={userWantsListening} data-recognition-active={recognitionActive ? "true" : "false"} data-manual-stop={manualStop ? "true" : "false"} onClick={() => toggleMic("room")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524]"}`}><Mic size={17}/></button><div aria-hidden="true" className="flex h-8 items-center gap-1"><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "0ms", animationDuration: "650ms" } : undefined}/><span className={`h-4 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "90ms", animationDuration: "650ms" } : undefined}/><span className={`h-6 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "180ms", animationDuration: "650ms" } : undefined}/><span className={`h-3 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "270ms", animationDuration: "650ms" } : undefined}/><span className={`h-5 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "360ms", animationDuration: "650ms" } : undefined}/><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "450ms", animationDuration: "650ms" } : undefined}/></div></div><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div></form>
           </section>
         )}
