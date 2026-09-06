@@ -238,6 +238,21 @@ select jsonb_build_object(
     where namespace.nspname = 'public'
       and function.proname = 'handle_new_user'
   ),
+  'payment_operational_schema', jsonb_build_object(
+    'provider_registry_present',
+      to_regclass('public.rc_payment_provider_registry') is not null,
+    'provider_events_present',
+      to_regclass('public.rc_payment_provider_events') is not null,
+    'service_order_idempotency_key_present', (
+      select exists(
+        select 1
+        from information_schema.columns
+        where table_schema = 'public'
+          and table_name = 'rc_service_connection_orders'
+          and column_name = 'idempotency_key'
+      )
+    )
+  ),
   'payment_named_tables', (
     select coalesce(jsonb_agg(table_name order by table_name), '[]'::jsonb)
     from information_schema.tables
