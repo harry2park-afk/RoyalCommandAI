@@ -5,6 +5,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useParams } from "next/navigation";
 import { Check, ChevronDown, Copy, Menu, MessageSquare, Mic, Pencil, Plus, Search, Send, Sparkles, Trash2, X } from "lucide-react";
 import { FEATURED_LANGUAGE_ENTRIES, LOCALE_SEARCH_REGISTRY } from "@/lib/locale/localeSearchRegistry";
+import styles from "./IndependentAIRooms.module.css";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string; title?: string; titleEdited?: boolean };
@@ -33,6 +34,7 @@ type ChatSession = {
   titleEdited?: boolean;
   updatedAt: string;
   histories: Record<ProviderId, ChatItem[]>;
+  serverStored?: boolean;
 };
 
 const PROVIDERS: Array<{ id: ProviderId; name: string; role: string }> = [
@@ -45,6 +47,10 @@ const PROVIDERS: Array<{ id: ProviderId; name: string; role: string }> = [
 
 const EMPTY: RoomState = { history: [], loading: false, error: "" };
 const HIDDEN_COUNTRIES_KEY = "royalcommand:hidden-countries";
+
+function emptyHistories(): Record<ProviderId, ChatItem[]> {
+  return { openai: [], anthropic: [], google: [], xai: [], codex: [] };
+}
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -76,7 +82,7 @@ function countryCodeForLocale(locale: string) {
 
 function CountryFlag({ countryCode }: { countryCode: string }) {
   const normalizedCode = countryCode.toLowerCase();
-  return <span aria-hidden="true" className="inline-block h-[15px] w-5 shrink-0 rounded-[2px] bg-cover bg-center shadow-[0_0_0_1px_rgba(255,255,255,0.14)]" style={{ backgroundImage: `url("https://flagcdn.com/20x15/${normalizedCode}.png")` }}/>;
+  return <span aria-hidden="true" className="inline-block h-[15px] w-5 shrink-0 rounded-[2px] bg-cover bg-center shadow-[0_0_0_1px_rgba(255,255,255,0.14)]" style={{ backgroundImage: `url("/api/flags/${normalizedCode}")` }}/>;
 }
 
 function countryNameForLocale(locale: string, label: string) {
@@ -86,9 +92,9 @@ function countryNameForLocale(locale: string, label: string) {
   try { return new Intl.DisplayNames(["en"], { type: "region" }).of(countryCode) || countryCode; } catch { return countryCode; }
 }
 
-export default function IndependentAIRooms() {
+export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: string } = {}) {
   const params = useParams<{ id: string }>();
-  const roomId = params.id;
+  const roomId = roomIdProp || params.id || "rca";
   const [connected, setConnected] = useState<Set<string>>(new Set());
   const [selected, setSelected] = useState<ProviderId[]>(["openai"]);
   const [rooms, setRooms] = useState<Record<ProviderId, RoomState>>({
@@ -137,6 +143,8 @@ export default function IndependentAIRooms() {
   const openRoomRef = useRef<ProviderId | null>(null);
   const roomPromptRef = useRef<HTMLTextAreaElement | null>(null);
   const followLatestRoomPromptRef = useRef(true);
+  const activeChatSessionIdRef = useRef<string | null>(null);
+  const serverSessionPromiseRef = useRef<Promise<string | null> | null>(null);
   openRoomRef.current = openRoom;
 
   useEffect(() => {
@@ -192,12 +200,28 @@ export default function IndependentAIRooms() {
     try {
       const savedSessions = JSON.parse(localStorage.getItem(chatSessionsKey(roomId)) || "[]") as ChatSession[];
       setChatSessions(Array.isArray(savedSessions) ? savedSessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : []);
-      setActiveChatSessionId(localStorage.getItem(activeChatSessionKey(roomId)));
+      const savedActiveId = localStorage.getItem(activeChatSessionKey(roomId));
+      activeChatSessionIdRef.current = savedActiveId;
+      setActiveChatSessionId(savedActiveId);
     } catch {
       setChatSessions([]);
     } finally {
       setChatSessionsLoaded(true);
     }
+    void fetch(`/api/rooms/${encodeURIComponent(roomId)}/conversations`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const serverSessions = Array.isArray(data?.conversations) ? data.conversations.map((row: Record<string, unknown>) => ({
+          id: String(row.id),
+          title: String(row.title || "New Chat"),
+          updatedAt: String(row.last_message_at || row.updated_at || new Date().toISOString()),
+          histories: emptyHistories(),
+          serverStored: true,
+        })) : [];
+        setChatSessions((current) => [...serverSessions, ...current.filter((item) => !serverSessions.some((server: ChatSession) => server.id === item.id))]
+          .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, 100));
+      })
+      .catch(() => {});
   }, [roomId]);
 
   useEffect(() => {
@@ -207,6 +231,7 @@ export default function IndependentAIRooms() {
 
   useEffect(() => {
     if (!chatSessionsLoaded) return;
+    activeChatSessionIdRef.current = activeChatSessionId;
     if (activeChatSessionId) localStorage.setItem(activeChatSessionKey(roomId), activeChatSessionId);
     else localStorage.removeItem(activeChatSessionKey(roomId));
   }, [activeChatSessionId, chatSessionsLoaded, roomId]);
@@ -282,11 +307,14 @@ export default function IndependentAIRooms() {
     return title.length > 60 ? `${title.slice(0, 59).trim()}…` : title;
   }
 
-  async function generateTitle(kind: "chat" | "answer", question: string, answer = "") {
-    const fallback = fallbackTitle(kind === "chat" ? question : answer || question);
-    const instruction = kind === "chat"
-      ? `Create one concise, descriptive chat title from the entire user request below. Do not copy its first sentence. Use the same language as the request. Return only the title, ideally 20-50 characters.\n\nUSER REQUEST:\n${question}`
-      : `Create one concise answer title using both the user request and the actual answer below. Do not copy the question title. Use the same language as the request. Return only the title, ideally 20-50 characters.\n\nUSER REQUEST:\n${question}\n\nANSWER:\n${answer.slice(0, 6000)}`;
+  function answerTitle(question: string, answer: string) {
+    const firstMeaningfulLine = answer.split("\n").map((line) => line.replace(/^\s*#{1,6}\s*|[*_`]/g, "").trim()).find((line) => line.length >= 8);
+    return cleanGeneratedTitle(firstMeaningfulLine || answer || question, fallbackTitle(answer || question));
+  }
+
+  async function generateChatTitle(question: string) {
+    const fallback = fallbackTitle(question);
+    const instruction = `Create one concise, descriptive chat title from the entire user request below. Do not copy its first sentence. Use the same language as the request. Return only the title, ideally 20-50 characters.\n\nUSER REQUEST:\n${question}`;
     try {
       const response = await fetch("/api/ai/helper", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId, message: instruction, selectedLanguage: language, history: [] }) });
       const data = await response.json().catch(() => ({}));
@@ -341,7 +369,7 @@ export default function IndependentAIRooms() {
     const sessionId = ++recognitionSessionRef.current;
     recognitionRef.current = recognition;
     recognitionTargetRef.current = target;
-    recognition.lang = language === "ko" ? "ko-KR" : "en-AU";
+    recognition.lang = selectedLocale;
     recognition.interimResults = true;
     recognition.continuous = true;
     recognition.onstart = () => {
@@ -443,15 +471,63 @@ export default function IndependentAIRooms() {
     followLatestRoomPromptRef.current = textarea.scrollHeight - textarea.scrollTop - textarea.clientHeight < 24;
   }
 
-  async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number, chatTitlePromise?: Promise<string>) {
+  async function ensureServerSession(title: string) {
+    if (activeChatSessionIdRef.current) return activeChatSessionIdRef.current;
+    if (serverSessionPromiseRef.current) return serverSessionPromiseRef.current;
+    serverSessionPromiseRef.current = fetch(`/api/rooms/${encodeURIComponent(roomId)}/conversations`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    }).then(async (response) => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok || !data?.conversation?.id) return null;
+      const id = String(data.conversation.id);
+      activeChatSessionIdRef.current = id;
+      setActiveChatSessionId(id);
+      setChatSessions((current) => [{
+        id,
+        title: String(data.conversation.title || title),
+        updatedAt: String(data.conversation.last_message_at || new Date().toISOString()),
+        histories: emptyHistories(),
+        serverStored: true,
+      }, ...current.filter((session) => session.id !== id)].slice(0, 100));
+      return id;
+    }).catch(() => null).finally(() => { serverSessionPromiseRef.current = null; });
+    return serverSessionPromiseRef.current;
+  }
+
+  async function persistServerMessage(conversationId: string | null, provider: ProviderId, item: ChatItem) {
+    if (!conversationId) return;
+    await fetch(`/api/rooms/${encodeURIComponent(roomId)}/conversations/${encodeURIComponent(conversationId)}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider, role: item.role, content: item.content, clientItemId: item.id, title: item.title, titleEdited: item.titleEdited }),
+    }).catch(() => null);
+  }
+
+  async function updateServerChatTitle(title: string) {
+    const conversationId = activeChatSessionIdRef.current;
+    if (!conversationId) return;
+    await fetch(`/api/rooms/${encodeURIComponent(roomId)}/conversations/${encodeURIComponent(conversationId)}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title }),
+    }).catch(() => null);
+    setChatSessions((current) => current.map((session) => session.id === conversationId ? { ...session, title } : session));
+  }
+
+  async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number, chatTitlePromise?: Promise<string>, updateServerTitleOnce = true) {
     if (!connected.has(provider)) return null;
     const requestId = uid(`${provider}-request`);
     const controller = new AbortController();
     aborters.current.set(provider, controller);
     setProviderState(provider, { loading: true, error: "" });
     const userItemId = uid("user");
-    append(provider, { id: userItemId, role: "user", content: prompt, createdAt: new Date().toISOString(), title: fallbackTitle(prompt) });
-    if (chatTitlePromise) void chatTitlePromise.then((title) => applyGeneratedTitle(provider, userItemId, title));
+    const userItem: ChatItem = { id: userItemId, role: "user", content: prompt, createdAt: new Date().toISOString(), title: fallbackTitle(prompt) };
+    append(provider, userItem);
+    const serverSessionPromise = ensureServerSession(userItem.title || "New Chat");
+    void serverSessionPromise.then((serverSessionId) => persistServerMessage(serverSessionId, provider, userItem));
+    if (chatTitlePromise) void chatTitlePromise.then((title) => { applyGeneratedTitle(provider, userItemId, title); if (updateServerTitleOnce) void updateServerChatTitle(title); });
 
     try {
       const history = rooms[provider].history.slice(-24).map((item) => ({ role: item.role, content: item.content }));
@@ -466,8 +542,9 @@ export default function IndependentAIRooms() {
       if (!res.ok || data?.error) throw new Error(data?.error || "AI request failed");
       const result = data as ProviderResult;
       const assistantItemId = uid("assistant");
-      append(provider, { id: assistantItemId, role: "assistant", content: result.content, createdAt: new Date().toISOString(), title: fallbackTitle(result.content) });
-      void generateTitle("answer", prompt, result.content).then((title) => applyGeneratedTitle(provider, assistantItemId, title));
+      const assistantItem: ChatItem = { id: assistantItemId, role: "assistant", content: result.content, createdAt: new Date().toISOString(), title: answerTitle(prompt, result.content) };
+      append(provider, assistantItem);
+      void serverSessionPromise.then((serverSessionId) => persistServerMessage(serverSessionId, provider, assistantItem));
       setProviderState(provider, { loading: false, error: "", lastLatency: result.latencyMs });
       return result;
     } catch (error) {
@@ -487,7 +564,7 @@ export default function IndependentAIRooms() {
     const prompt = roomPrompt.trim();
     setRoomPrompt("");
     const generation = ++executionGeneration.current;
-    await askProvider(openRoom, prompt, [openRoom], generation, generateTitle("chat", prompt));
+    await askProvider(openRoom, prompt, [openRoom], generation, generateChatTitle(prompt));
   }
 
   async function submitSelected(e?: FormEvent) {
@@ -503,11 +580,11 @@ export default function IndependentAIRooms() {
     setIntegrated("");
     setGlobalError("");
     const snapshot = [...target];
-    const chatTitlePromise = generateTitle("chat", prompt);
+    const chatTitlePromise = generateChatTitle(prompt);
     setAllPrompt("");
 
-    await Promise.all(snapshot.map(async (provider) => {
-      const result = await askProvider(provider, prompt, snapshot, generation, chatTitlePromise);
+    await Promise.all(snapshot.map(async (provider, index) => {
+      const result = await askProvider(provider, prompt, snapshot, generation, chatTitlePromise, index === 0);
       if (!result || generation !== executionGeneration.current) return;
       setFrozenResults((prev) => ({ ...prev, [provider]: Object.freeze({ ...result }) }));
     }));
@@ -519,7 +596,7 @@ export default function IndependentAIRooms() {
     setCardPrompts((current) => ({ ...current, [provider]: "" }));
     setExpandedAnswers((current) => ({ ...current, [provider]: false }));
     const generation = executionGeneration.current;
-    await askProvider(provider, prompt, [provider], generation, generateTitle("chat", prompt));
+    await askProvider(provider, prompt, [provider], generation, generateChatTitle(prompt));
   }
 
   function handleCardPromptKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>, provider: ProviderId) {
@@ -534,12 +611,12 @@ export default function IndependentAIRooms() {
     target.style.height = `${target.scrollHeight}px`;
   }
 
-  function currentSessionSnapshot(): ChatSession | null {
+  function currentSessionSnapshot(id = activeChatSessionIdRef.current || uid("chat")): ChatSession | null {
     const allItems = PROVIDERS.flatMap((provider) => rooms[provider.id].history);
     if (!allItems.length) return null;
     const latestQuestion = allItems.filter((item) => item.role === "user").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
     return {
-      id: uid("chat"),
+      id,
       title: latestQuestion?.title || fallbackTitle(latestQuestion?.content || "") || "Saved chat",
       titleEdited: latestQuestion?.titleEdited,
       updatedAt: new Date().toISOString(),
@@ -549,20 +626,45 @@ export default function IndependentAIRooms() {
 
   function archiveCurrentSession() {
     const snapshot = currentSessionSnapshot();
-    if (snapshot) setChatSessions((current) => [snapshot, ...current].slice(0, 100));
+    if (!snapshot) return;
+    setChatSessions((current) => {
+      const existing = current.find((session) => session.id === snapshot.id);
+      const updated = existing ? { ...snapshot, serverStored: existing.serverStored } : snapshot;
+      return [updated, ...current.filter((session) => session.id !== snapshot.id)].slice(0, 100);
+    });
   }
 
   function startNewChat() {
     archiveCurrentSession();
     cancelAll();
     setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } });
-    setActiveChatSessionId(null); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
+    activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
   }
 
-  function loadChatSession(session: ChatSession) {
+  async function loadChatSession(session: ChatSession) {
     archiveCurrentSession();
-    setRooms(Object.fromEntries(PROVIDERS.map((provider) => [provider.id, { ...EMPTY, history: [...(session.histories[provider.id] || [])] }])) as Record<ProviderId, RoomState>);
-    setActiveChatSessionId(session.id); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
+    let histories = session.histories;
+    if (session.serverStored) {
+      const response = await fetch(`/api/rooms/${encodeURIComponent(roomId)}/conversations/${encodeURIComponent(session.id)}`, { cache: "no-store" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) { setGlobalError(data?.error || "Unable to load chat history"); return; }
+      histories = emptyHistories();
+      for (const row of Array.isArray(data?.messages) ? data.messages : []) {
+        const metadata = row?.metadata && typeof row.metadata === "object" ? row.metadata as Record<string, unknown> : {};
+        const provider = metadata.provider;
+        if (metadata.source !== "rca-independent" || !PROVIDERS.some((item) => item.id === provider)) continue;
+        histories[provider as ProviderId].push({
+          id: typeof metadata.clientItemId === "string" ? metadata.clientItemId : String(row.id),
+          role: row.author_type === "user" ? "user" : "assistant",
+          content: String(row.content || ""),
+          createdAt: String(row.created_at || new Date().toISOString()),
+          title: typeof metadata.title === "string" ? metadata.title : undefined,
+          titleEdited: metadata.titleEdited === true,
+        });
+      }
+    }
+    setRooms(Object.fromEntries(PROVIDERS.map((provider) => [provider.id, { ...EMPTY, history: [...(histories[provider.id] || [])] }])) as Record<ProviderId, RoomState>);
+    activeChatSessionIdRef.current = session.id; setActiveChatSessionId(session.id); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
   }
 
   function editCurrentChatTitle() {
@@ -574,25 +676,29 @@ export default function IndependentAIRooms() {
       if (questionIndex >= 0) history[questionIndex] = { ...history[questionIndex], title: nextTitle.slice(0, 60), titleEdited: true };
       return [provider.id, { ...prev[provider.id], history }];
     })) as Record<ProviderId, RoomState>);
+    void updateServerChatTitle(nextTitle.slice(0, 60));
   }
 
   function editSavedChatTitle(session: ChatSession) {
     const nextTitle = window.prompt("Edit chat title", session.title)?.replace(/\s+/g, " ").trim();
     if (!nextTitle) return;
     setChatSessions((current) => current.map((item) => item.id === session.id ? { ...item, title: nextTitle.slice(0, 60), titleEdited: true } : item));
+    if (session.serverStored) void fetch(`/api/rooms/${encodeURIComponent(roomId)}/conversations/${encodeURIComponent(session.id)}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: nextTitle.slice(0, 60) }) });
   }
 
   function clearCurrentChatWithoutArchive() {
     cancelAll();
     stopMic();
     setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } });
-    setActiveChatSessionId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError("");
+    activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError("");
   }
 
   function deleteChatSession(sessionId: string) {
     const deletesCurrent = sessionId === "current" || sessionId === activeChatSessionId;
     const storedId = sessionId === "current" ? activeChatSessionId : sessionId;
     if (storedId) setChatSessions((current) => current.filter((session) => session.id !== storedId));
+    const storedSession = storedId ? chatSessions.find((session) => session.id === storedId) : null;
+    if (storedId && storedSession?.serverStored) void fetch(`/api/rooms/${encodeURIComponent(roomId)}/conversations/${encodeURIComponent(storedId)}`, { method: "DELETE" });
     if (deletesCurrent) clearCurrentChatWithoutArchive();
     setDeleteConfirmId(null);
   }
@@ -694,7 +800,7 @@ export default function IndependentAIRooms() {
   const openMeta = PROVIDERS.find((provider) => provider.id === openRoom);
 
   return (
-    <main className="min-h-[100dvh] bg-[#07101d] text-[#f4f0e7]">
+    <main className={`${styles.root} min-h-[100dvh] bg-[#07101d] text-[#f4f0e7]`}>
       <header className="sticky top-0 z-50 border-b border-[#d7b64d]/25 bg-[#07101d]/95 backdrop-blur">
         <div data-rc-top-controls className="relative flex h-14 items-center gap-2 px-3 sm:px-4">
           <button onClick={() => { setMenuOpen((v) => !v); setChatsOpen(false); setLanguageOpen(false); }} className="flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><Menu size={16}/>Menu</button>
@@ -702,7 +808,7 @@ export default function IndependentAIRooms() {
           <button onClick={() => { setLanguageOpen((v) => !v); setMenuOpen(false); setChatsOpen(false); }} className="flex max-w-44 items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><CountryFlag countryCode={selectedCountryCode}/><span className="truncate">{selectedCountryCode}</span><ChevronDown size={14}/></button>
           <div className="ml-auto text-right"><div className="font-serif text-lg text-[#f1d77a]">Royal Command AI</div><div className="text-[10px] uppercase tracking-[.22em] text-[#8d98a8]">Independent Rooms V1</div></div>
 
-          {menuOpen && <div className="absolute left-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] p-2 shadow-2xl"><button type="button" onClick={startNewChat} className="mb-2 flex items-center justify-center gap-2 rounded-lg border border-[#d7b64d]/45 bg-[#17130a] px-3 py-2.5 font-semibold text-[#f0d36a] hover:bg-[#2a2109]"><Plus size={16}/>New Chat</button><div className="min-h-0 overflow-y-auto"><div className="sticky top-0 bg-[#0b1524] px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Chat History</div>{hasCurrentChatMessages ? <div className="mb-1"><div className="flex items-center rounded-lg border border-[#d7b64d]/45 bg-[#17130a]"><button type="button" onClick={() => setMenuOpen(false)} title={currentChatTitle} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm text-[#f0d36a]">{currentChatTitle}</button>{hasCurrentChatMessages ? <><button type="button" onClick={editCurrentChatTitle} className="grid h-9 w-9 shrink-0 place-items-center text-[#f0d36a]" aria-label="Edit current chat title"><Pencil size={13}/></button><button type="button" onClick={() => setDeleteConfirmId("current")} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-red-300" aria-label="Delete current chat"><Trash2 size={13}/></button></> : null}</div>{hasCurrentChatMessages && deleteConfirmId === "current" ? <div className="mt-1 flex items-center gap-2 rounded-lg border border-red-400/25 bg-red-950/25 px-2 py-2 text-xs"><span className="min-w-0 flex-1">Delete this chat?</span><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded px-2 py-1 text-[#c9d1dc] hover:bg-white/10">Cancel</button><button type="button" onClick={() => deleteChatSession("current")} className="rounded bg-red-500/20 px-2 py-1 text-red-200 hover:bg-red-500/30">Delete</button></div> : null}</div> : null}{chatSessions.map((session) => <div key={session.id} className="mb-1"><div className="flex items-center rounded-lg border border-white/10 hover:border-[#d7b64d]/35 hover:bg-white/5"><button type="button" onClick={() => loadChatSession(session)} title={session.title} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm">{session.title}</button><button type="button" onClick={() => editSavedChatTitle(session)} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-[#f0d36a]" aria-label={`Edit ${session.title}`}><Pencil size={13}/></button><button type="button" onClick={() => setDeleteConfirmId(session.id)} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-red-300" aria-label={`Delete ${session.title}`}><Trash2 size={13}/></button></div>{deleteConfirmId === session.id ? <div className="mt-1 flex items-center gap-2 rounded-lg border border-red-400/25 bg-red-950/25 px-2 py-2 text-xs"><span className="min-w-0 flex-1">Delete this chat?</span><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded px-2 py-1 text-[#c9d1dc] hover:bg-white/10">Cancel</button><button type="button" onClick={() => deleteChatSession(session.id)} className="rounded bg-red-500/20 px-2 py-1 text-red-200 hover:bg-red-500/30">Delete</button></div> : null}</div>)}</div></div>}
+          {menuOpen && <div className="absolute left-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] p-2 shadow-2xl"><button type="button" onClick={startNewChat} className="mb-2 flex items-center justify-center gap-2 rounded-lg border border-[#d7b64d]/45 bg-[#17130a] px-3 py-2.5 font-semibold text-[#f0d36a] hover:bg-[#2a2109]"><Plus size={16}/>New Chat</button><div className="min-h-0 overflow-y-auto"><div className="sticky top-0 bg-[#0b1524] px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Chat History</div>{hasCurrentChatMessages ? <div className="mb-1"><div className="flex items-center rounded-lg border border-[#d7b64d]/45 bg-[#17130a]"><button type="button" onClick={() => setMenuOpen(false)} title={currentChatTitle} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm text-[#f0d36a]">{currentChatTitle}</button>{hasCurrentChatMessages ? <><button type="button" onClick={editCurrentChatTitle} className="grid h-9 w-9 shrink-0 place-items-center text-[#f0d36a]" aria-label="Edit current chat title"><Pencil size={13}/></button><button type="button" onClick={() => setDeleteConfirmId("current")} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-red-300" aria-label="Delete current chat"><Trash2 size={13}/></button></> : null}</div>{hasCurrentChatMessages && deleteConfirmId === "current" ? <div className="mt-1 flex items-center gap-2 rounded-lg border border-red-400/25 bg-red-950/25 px-2 py-2 text-xs"><span className="min-w-0 flex-1">Delete this chat?</span><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded px-2 py-1 text-[#c9d1dc] hover:bg-white/10">Cancel</button><button type="button" onClick={() => deleteChatSession("current")} className="rounded bg-red-500/20 px-2 py-1 text-red-200 hover:bg-red-500/30">Delete</button></div> : null}</div> : null}{chatSessions.filter((session) => session.id !== activeChatSessionId).map((session) => <div key={session.id} className="mb-1"><div className="flex items-center rounded-lg border border-white/10 hover:border-[#d7b64d]/35 hover:bg-white/5"><button type="button" onClick={() => loadChatSession(session)} title={session.title} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm">{session.title}</button><button type="button" onClick={() => editSavedChatTitle(session)} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-[#f0d36a]" aria-label={`Edit ${session.title}`}><Pencil size={13}/></button><button type="button" onClick={() => setDeleteConfirmId(session.id)} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-red-300" aria-label={`Delete ${session.title}`}><Trash2 size={13}/></button></div>{deleteConfirmId === session.id ? <div className="mt-1 flex items-center gap-2 rounded-lg border border-red-400/25 bg-red-950/25 px-2 py-2 text-xs"><span className="min-w-0 flex-1">Delete this chat?</span><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded px-2 py-1 text-[#c9d1dc] hover:bg-white/10">Cancel</button><button type="button" onClick={() => deleteChatSession(session.id)} className="rounded bg-red-500/20 px-2 py-1 text-red-200 hover:bg-red-500/30">Delete</button></div> : null}</div>)}</div></div>}
 
           {chatsOpen && <div className="absolute left-24 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} autoFocus placeholder="Search AI providers" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2">{filteredProviders.map((provider) => { const cardProvider = PROVIDERS.find((item) => item.id === provider.id); const selectable = Boolean(cardProvider && provider.available); const chosen = Boolean(cardProvider && selected.includes(cardProvider.id)); const status = selectable ? "Available" : provider.available ? "Coming Soon" : "Not Connected"; return <button key={provider.id} type="button" disabled={!selectable} onClick={() => chooseProvider(provider.id)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${chosen ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"} disabled:cursor-not-allowed disabled:opacity-60`}><span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${chosen ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/20"}`}>{chosen ? <Check size={13}/> : null}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{provider.name}</span><span className={`shrink-0 text-[10px] ${status === "Available" ? "text-emerald-300" : "text-[#8d98a8]"}`}>{status}</span></button>; })}</div></div>}
 

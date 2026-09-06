@@ -15,18 +15,18 @@ export const RC_MEMBER_PROVIDER_ROLES: Partial<Record<AIProviderId, string>> = {
   anthropic: "Architecture / UX Reviewer — protect system structure, maintainability, safety boundaries, and operator usability.",
   google: "Global / Product Reviewer — check multilingual, multi-country, product simplicity, and practical user experience.",
   xai: "Red-Team Reviewer — search for regressions, hidden conflicts, failure modes, performance risks, and unsupported claims.",
-  codex: "Implementation Writer — inspect repository evidence, make the smallest coherent code change when execution is authorized, and return verifiable implementation evidence.",
+  codex: "Implementation Specialist — inspect repository evidence, make the smallest coherent code change when selected as Writer, and return verifiable implementation evidence.",
 };
 
 export const RCA_OPERATING_PROTOCOL = [
   "ROYAL COMMAND RCA COMMON OPERATING PROTOCOL — HOST PROVIDED",
   "Current user order is authoritative. Use prior history only when needed to understand the current order and never let an older instruction override a conflicting current instruction.",
   "RC Command Center is the user's single operational workspace. Do not instruct the user to split the same task across separate AI browser tabs unless an external account action genuinely requires it.",
-  "Use the fixed five-member role contract: ChatGPT = Controller/Final Integrator; Claude = Architecture/UX; Gemini = Global/Product; Grok = Red-Team; Codex = Implementation Writer.",
+  "Use the fixed five-member review specialties without making any provider a permanent Writer.",
   "Strictly separate REVIEW/INSPECT from EXECUTE. Review, analysis, verification, diagnosis, status questions, and safety checks are read-only and must not modify code, GitHub, Vercel, Production, branches, PRs, or files.",
   "Words such as GitHub, commit, push, merge, Vercel, deploy, Production, Preview, code, file, API, or branch are not execution authorization by themselves.",
   "Repository mutation requires an explicit current instruction to modify, implement, apply, commit, push, merge, deploy, or otherwise execute a change.",
-  "For execution, Single Write Authority is strict: Codex is the only permitted repository writer. If Codex is unavailable or not selected, execution is BLOCKED; never fall back to ChatGPT, Claude, Gemini, Grok, or another provider as writer.",
+  "For execution, Single Write Authority is strict per conflicting resource: the first selected provider is the Writer and other selected providers are review-only unless the user explicitly assigns a different Writer.",
   "RESTORE-FIRST is mandatory for regressions and previously-working features: identify the last known-good commit/preview, compare the diff, identify the single owner, restore when possible, and only then consider a minimal owner-file change.",
   "STRICT NO-ADD is the default: do not add a new Bridge, overlay, patch JS, MutationObserver, duplicate component, or fallback writer merely because the first fix failed. If the owner cannot be safely restored or minimally corrected, stop and report BLOCKED with evidence.",
   "Do not add avoidable sequential AI waits. Independent review work should run in parallel when the execution path supports it.",
@@ -60,13 +60,12 @@ function selectedMembers(selected?: AIProviderId[]) {
   return Array.from(new Set((selected || []).filter((id) => RC_MEMBER_PROVIDER_IDS.includes(id as (typeof RC_MEMBER_PROVIDER_IDS)[number]))));
 }
 
-function executionAssignment(selectedIds: AIProviderId[]) {
-  if (!selectedIds.includes("codex")) {
-    return { leadProviders: [] as AIProviderId[], reviewOnlyProviders: selectedIds };
-  }
+function executionAssignment(selectedIds: AIProviderId[], preferExplicitCodex: boolean) {
+  const writer = preferExplicitCodex && selectedIds.includes("codex") ? "codex" : selectedIds[0];
+  if (!writer) return { leadProviders: [] as AIProviderId[], reviewOnlyProviders: [] as AIProviderId[] };
   return {
-    leadProviders: ["codex" as AIProviderId],
-    reviewOnlyProviders: selectedIds.filter((id) => id !== "codex"),
+    leadProviders: [writer],
+    reviewOnlyProviders: selectedIds.filter((id) => id !== writer),
   };
 }
 
@@ -170,7 +169,7 @@ export function resolveRcMemberCommand(
   effectivePrompt = withOperatingProtocol(mode, effectivePrompt);
 
   const assignment = mode === "execute"
-    ? executionAssignment(selectedIds)
+    ? executionAssignment(selectedIds, hasRoleScopedExecutionAuthorization(current))
     : { leadProviders: selectedIds, reviewOnlyProviders: [] as AIProviderId[] };
   const { leadProviders, reviewOnlyProviders } = assignment;
 
@@ -178,14 +177,14 @@ export function resolveRcMemberCommand(
     mode,
     leadProviders,
     reviewOnlyProviders,
-    gitWrite: mode === "execute" && leadProviders[0] === "codex",
+    gitWrite: mode === "execute" && leadProviders.length > 0,
     productionAllowed: false,
     effectivePrompt,
     continuedFromPriorOrder,
     reason: mode === "execute"
-      ? leadProviders[0] === "codex"
-        ? `Single Write Authority: Codex is the sole writer for this task; ${reviewOnlyProviders.length} selected AI(s) are review-only. Restore-First and Strict No-Add apply.`
-        : "Repository mutation requested, but Codex is not available as the selected writer. Execution is BLOCKED; no fallback writer is permitted."
+      ? leadProviders[0]
+        ? `Single Write Authority: ${RC_MEMBER_PROVIDER_NAMES[leadProviders[0]] || leadProviders[0]} is the sole writer for this task; ${reviewOnlyProviders.length} selected AI(s) are review-only. Restore-First and Strict No-Add apply.`
+        : "Repository mutation requested, but no selected Writer is available. Execution is BLOCKED."
       : mode === "inspect"
         ? "Review/inspection request; selected AI may investigate in parallel without repository mutation."
         : "Open answer mode; selected AI may reason and respond freely according to the fixed RC member role contract.",

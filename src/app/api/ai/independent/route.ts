@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getAvailableProviderIds, getConnector } from "@/lib/ai/connectors";
 import { AI_PROVIDER_IDS, PROVIDER_LABELS, type AIMessage, type AIProviderId } from "@/lib/ai/types";
+import { signIndependentReceipt, type IndependentReceiptPayload } from "@/lib/ai/independentReceipt";
 
 export const maxDuration = 120;
 
@@ -75,6 +76,7 @@ export async function POST(request: Request) {
     const startedAt = Date.now();
     const result = await connector.complete({ messages });
     const finishedAt = Date.now();
+    const receipt: IndependentReceiptPayload = { requestId, provider, terminal: true, completedAt: new Date(finishedAt).toISOString() };
 
     return NextResponse.json({
       requestId,
@@ -84,12 +86,7 @@ export async function POST(request: Request) {
       content: result.content,
       latencyMs: result.latencyMs || finishedAt - startedAt,
       error: result.error || null,
-      receipt: {
-        requestId,
-        provider,
-        terminal: true,
-        completedAt: new Date(finishedAt).toISOString(),
-      },
+      receipt: { ...receipt, signature: signIndependentReceipt(user.id, receipt) },
     }, { status: result.error ? 502 : 200 });
   } catch (error) {
     return NextResponse.json({
