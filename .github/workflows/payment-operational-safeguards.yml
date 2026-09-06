@@ -1,0 +1,267 @@
+name: Payment Operational Safeguards Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260903205500_payment_operational_safeguards.sql"
+      - ".github/workflows/payment-operational-safeguards.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-payment-operational-safeguards-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  payment-safeguards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: 2.116.0
+
+      - name: Assemble disposable recovery replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+
+          cp supabase/migrations-full/001_init.sql supabase/migrations/001_init.sql
+          cp supabase/migrations-full/002_rls.sql supabase/migrations/002_rls.sql
+          cp supabase/recovery/20260901_prelaunch_baseline.sql \
+             supabase/migrations/003_recovery_prelaunch_baseline.sql
+          cp supabase/recovery/20260901_communications_foundation.sql \
+             supabase/migrations/004_recovery_communications_foundation.sql
+
+          find supabase/migrations-full -maxdepth 1 -type f -name '*.sql' \
+            ! -name '001_init.sql' \
+            ! -name '002_rls.sql' \
+            -print0 | sort -z | xargs -0 -I{} cp '{}' supabase/migrations/
+
+      - name: Start blank Supabase and replay repository chain
+        run: supabase start
+
+      - name: Verify payment safeguards fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            registry_constraint text;
+            signature_constraint text;
+            idempotency_index text;
+          begin
+            if to_regclass('public.rc_payment_provider_registry') is null then
+              raise exception 'Payment provider registry did not replay';
+            end if;
+            if to_regclass('public.rc_payment_provider_events') is null then
+              raise exception 'Payment provider event ledger did not replay';
+            end if;
+            if not exists (
+              select 1
+              from information_schema.columns
+              where table_schema = 'public'
+                and table_name = 'rc_service_connection_orders'
+                and column_name = 'idempotency_key'
+            ) then
+              raise exception 'Service-order idempotency column did not replay';
+            end if;
+
+            if not (select relrowsecurity from pg_class where oid = 'public.rc_payment_provider_registry'::regclass) then
+              raise exception 'Payment provider registry RLS must be enabled';
+            end if;
+            if not (select relrowsecurity from pg_class where oid = 'public.rc_payment_provider_events'::regclass) then
+              raise exception 'Payment event ledger RLS must be enabled';
+            end if;
+
+            if has_table_privilege('anon', 'public.rc_payment_provider_registry', 'SELECT')
+              or has_table_privilege('authenticated', 'public.rc_payment_provider_registry', 'SELECT')
+              or has_table_privilege('anon', 'public.rc_payment_provider_events', 'SELECT')
+              or has_table_privilege('authenticated', 'public.rc_payment_provider_events', 'SELECT') then
+              raise exception 'Payment operational tables must remain server-only';
+            end if;
+
+            if exists (select 1 from public.rc_payment_provider_registry)
+              or exists (select 1 from public.rc_payment_provider_events) then
+              raise exception 'Payment safeguards migration must not seed provider or event rows';
+            end if;
+
+            if exists (
+              select 1
+              from information_schema.columns
+              where table_schema = 'public'
+                and table_name = 'rc_payment_provider_events'
+                and lower(column_name) in ('payload', 'raw_payload', 'request_body', 'response_body')
+            ) then
+              raise exception 'Raw payment/webhook payload columns are forbidden';
+            end if;
+
+            select pg_get_constraintdef(oid)
+              into registry_constraint
+            from pg_constraint
+            where conrelid = 'public.rc_payment_provider_registry'::regclass
+              and conname = 'rc_payment_provider_registry_production_capabilities';
+            if registry_constraint is null
+              or registry_constraint not ilike '%supports_webhooks%'
+              or registry_constraint not ilike '%supports_refunds%'
+              or registry_constraint not ilike '%supports_cancellations%' then
+              raise exception 'production_ready must require webhook/refund/cancellation capability';
+            end if;
+
+            select pg_get_constraintdef(oid)
+              into signature_constraint
+            from pg_constraint
+            where conrelid = 'public.rc_payment_provider_events'::regclass
+              and conname = 'rc_payment_provider_events_processing_requires_verified_signature';
+            if signature_constraint is null
+              or signature_constraint not ilike '%signature_verified%'
+              or signature_constraint not ilike '%processing%'
+              or signature_constraint not ilike '%processed%' then
+              raise exception 'Payment event processing must require verified signatures';
+            end if;
+
+            select indexdef
+              into idempotency_index
+            from pg_indexes
+            where schemaname = 'public'
+              and indexname = 'rc_service_connection_orders_owner_idempotency_uidx';
+            if idempotency_index is null
+              or idempotency_index not ilike '%owner_id%'
+              or idempotency_index not ilike '%idempotency_key%'
+              or idempotency_index not ilike '%where (idempotency_key is not null)%' then
+              raise exception 'Per-owner non-null idempotency unique index is missing';
+            end if;
+          end;
+          $$;
+
+          insert into public.rc_payment_provider_registry(provider_key, environment)
+          values ('evidence_provider', 'sandbox');
+
+          do $$
+          begin
+            begin
+              insert into public.rc_payment_provider_registry(
+                provider_key, environment, status
+              ) values (
+                'unreviewed_provider', 'sandbox', 'sandbox_ready'
+              );
+              raise exception 'Non-disabled provider status must require reviewer provenance';
+            exception
+              when check_violation then null;
+            end;
+          end;
+          $$;
+
+          insert into public.rc_payment_provider_events(
+            provider_key,
+            environment,
+            external_event_id,
+            event_type,
+            payload_sha256
+          ) values (
+            'evidence_provider',
+            'sandbox',
+            'evt-evidence-1',
+            'payment.test',
+            repeat('a', 64)
+          );
+
+          do $$
+          begin
+            begin
+              update public.rc_payment_provider_events
+              set processing_status = 'processing'
+              where external_event_id = 'evt-evidence-1';
+              raise exception 'Unsigned events must not enter processing';
+            exception
+              when check_violation then null;
+            end;
+          end;
+          $$;
+
+          update public.rc_payment_provider_events
+          set signature_verified = true,
+              processing_status = 'processing'
+          where external_event_id = 'evt-evidence-1';
+
+          do $$
+          begin
+            begin
+              update public.rc_payment_provider_events
+              set processing_status = 'processed'
+              where external_event_id = 'evt-evidence-1';
+              raise exception 'Processed events must record processed_at';
+            exception
+              when check_violation then null;
+            end;
+          end;
+          $$;
+
+          update public.rc_payment_provider_events
+          set processing_status = 'processed',
+              processed_at = now()
+          where external_event_id = 'evt-evidence-1';
+
+          do $$
+          begin
+            begin
+              insert into public.rc_payment_provider_events(
+                provider_key,
+                environment,
+                external_event_id,
+                event_type,
+                payload_sha256
+              ) values (
+                'evidence_provider',
+                'sandbox',
+                'evt-evidence-1',
+                'payment.duplicate',
+                repeat('b', 64)
+              );
+              raise exception 'Provider event replay must be unique';
+            exception
+              when unique_violation then null;
+            end;
+          end;
+          $$;
+
+          do $$
+          begin
+            begin
+              insert into public.rc_payment_provider_events(
+                provider_key,
+                environment,
+                external_event_id,
+                event_type,
+                payload_sha256
+              ) values (
+                'evidence_provider',
+                'sandbox',
+                'evt-invalid-digest',
+                'payment.invalid',
+                'not-a-sha256'
+              );
+              raise exception 'Invalid payload digest must be rejected';
+            exception
+              when check_violation then null;
+            end;
+          end;
+          $$;
+          SQL
+
+      - name: Stop disposable Supabase stack
+        if: always()
+        run: supabase stop --no-backup
