@@ -173,7 +173,7 @@ select jsonb_build_object(
         count(terms.*)::int as term_rows,
         count(terms.*) filter (
           where coalesce(terms.customer_price_minor, 0) > 0
-            and coalesce(terms.availability_status, '') not in ('UNAVAILABLE', 'BLOCKED')
+            and lower(coalesce(terms.availability_status, '')) not in ('unavailable', 'blocked')
         )::int as positive_available_terms
       from (
         values
@@ -197,9 +197,11 @@ select jsonb_build_object(
         country.country_code,
         count(policy.*)::int as policy_rows,
         count(policy.*) filter (
-          where policy.review_status = 'APPROVED'
+          where lower(coalesce(policy.review_status, '')) = 'approved'
+            and lower(coalesce(policy.recording_policy, '')) <> 'blocked'
             and policy.reviewed_by is not null
             and policy.reviewed_at is not null
+            and nullif(trim(policy.legal_basis), '') is not null
         )::int as reviewer_proven_approved_rows
       from (
         values ('AU'), ('US'), ('CA'), ('KR'), ('JP'), ('GB')
