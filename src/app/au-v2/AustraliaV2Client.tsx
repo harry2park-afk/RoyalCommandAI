@@ -5,7 +5,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
 type ProviderResponse = { provider: string; content: string; latencyMs?: number; error?: string };
 
-const PRIMARY_IDS = ["openai", "anthropic", "google", "xai"];
+const PRIMARY_IDS = ["openai", "anthropic", "google", "xai", "codex"];
+const SELECTION_KEY = "royalcommand:au-v2:selected-ai";
 
 export default function AustraliaV2Client() {
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
@@ -51,8 +52,18 @@ export default function AustraliaV2Client() {
         const sessionData = await sessionRes.json().catch(() => ({}));
         const list: ProviderInfo[] = Array.isArray(providerData?.connectors) ? providerData.connectors : [];
         setProviders(list);
-        const initial = PRIMARY_IDS.filter((id) => list.some((p) => p.id === id && p.available));
-        setSelected(initial.length ? initial : list.filter((p) => p.available).slice(0, 1).map((p) => p.id));
+
+        const availableIds = new Set(list.filter((p) => p.available).map((p) => p.id));
+        const defaults = PRIMARY_IDS.filter((id) => availableIds.has(id));
+        let initial = defaults.length ? defaults : list.filter((p) => p.available).slice(0, 1).map((p) => p.id);
+        try {
+          const saved = JSON.parse(window.localStorage.getItem(SELECTION_KEY) || "[]") as string[];
+          if (Array.isArray(saved)) {
+            const restored = saved.filter((id) => availableIds.has(id));
+            if (restored.length || saved.length === 0) initial = restored;
+          }
+        } catch {}
+        setSelected(initial);
         setTestAccess(Boolean(sessionData?.active));
       } catch (cause) {
         setError(cause instanceof Error ? cause.message : "Australia V2 준비에 실패했습니다.");
@@ -79,7 +90,11 @@ export default function AustraliaV2Client() {
   function toggleProvider(id: string, closeWarehouse = false) {
     const provider = providers.find((p) => p.id === id);
     if (!provider?.available) return;
-    setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+    setSelected((prev) => {
+      const next = prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id];
+      try { window.localStorage.setItem(SELECTION_KEY, JSON.stringify(next)); } catch {}
+      return next;
+    });
     setError("");
     if (closeWarehouse) setWarehouseOpen(false);
   }
@@ -111,7 +126,7 @@ export default function AustraliaV2Client() {
       setError("먼저 ‘Australia V2 시험 입장’을 눌러 주세요.");
       return;
     }
-    const active = selected.filter((id) => available.some((p) => p.id === id)).slice(0, 4);
+    const active = selected.filter((id) => available.some((p) => p.id === id)).slice(0, 5);
     if (!active.length) {
       setError("AI를 한 개 이상 선택해 주세요.");
       return;
@@ -182,13 +197,13 @@ export default function AustraliaV2Client() {
 
       <section className="flex flex-wrap items-center gap-3 border-b border-[#d7b64d]/25 bg-[#20392f] px-5 py-3">
         <div ref={warehouseRef} className="relative">
-          <button onClick={() => { setSynthOpen(false); setWarehouseOpen((v) => !v); }} className="rounded-md border border-[#FFD700] bg-[#0b1524] px-4 py-2 text-sm text-[#FFD700]">AI Warehouse</button>
+          <button type="button" onClick={() => { setSynthOpen(false); setWarehouseOpen((v) => !v); }} className="rounded-md border border-[#FFD700] bg-[#0b1524] px-4 py-2 text-sm text-[#FFD700]">AI Warehouse</button>
           {warehouseOpen && (
             <div className="absolute left-0 top-12 z-30 max-h-[70vh] w-64 overflow-y-auto rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
               {providers.map((p) => {
                 const active = selected.includes(p.id) && p.available;
                 return (
-                  <button key={p.id} onClick={() => toggleProvider(p.id, true)} disabled={!p.available} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${active ? "bg-[#126b3a] text-white" : "text-white/45 hover:bg-white/10 hover:text-white/80"} disabled:cursor-not-allowed disabled:opacity-25`}>
+                  <button type="button" key={p.id} aria-pressed={active} onClick={() => toggleProvider(p.id, true)} disabled={!p.available} className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm ${active ? "bg-[#126b3a] text-white" : "text-white/45 hover:bg-white/10 hover:text-white/80"} disabled:cursor-not-allowed disabled:opacity-25`}>
                     <span>{p.name}</span><span>{active ? "✓" : p.available ? "+" : "미연결"}</span>
                   </button>
                 );
@@ -198,10 +213,10 @@ export default function AustraliaV2Client() {
         </div>
 
         <div ref={synthRef} className="relative">
-          <button onClick={handleSynthesisButton} className={`rounded-md border px-4 py-2 text-sm font-semibold ${goodAnswers.length >= 2 && testAccess && !busy ? "border-[#FFD700] bg-[#7A0C2E] text-[#FFF3D6]" : "border-white/15 bg-[#2d3642] text-white/45"}`}>통합 답변 ▾</button>
+          <button type="button" onClick={handleSynthesisButton} className={`rounded-md border px-4 py-2 text-sm font-semibold ${goodAnswers.length >= 2 && testAccess && !busy ? "border-[#FFD700] bg-[#7A0C2E] text-[#FFF3D6]" : "border-white/15 bg-[#2d3642] text-white/45"}`}>통합 답변 ▾</button>
           {synthOpen && (
             <div className="absolute left-0 top-12 z-30 w-52 rounded-xl border border-[#d7b64d]/50 bg-[#081321] p-2 shadow-2xl">
-              {available.slice(0, 25).map((p) => <button key={p.id} onClick={() => void synthesize(p.id)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10">{p.name}</button>)}
+              {available.slice(0, 25).map((p) => <button type="button" key={p.id} onClick={() => void synthesize(p.id)} className="block w-full rounded-lg px-3 py-2 text-left text-sm hover:bg-white/10">{p.name}</button>)}
             </div>
           )}
         </div>
@@ -209,7 +224,7 @@ export default function AustraliaV2Client() {
         {primary.map((p) => {
           const active = selected.includes(p.id) && p.available;
           return (
-            <button key={p.id} onClick={() => toggleProvider(p.id)} disabled={!p.available} className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${active ? "border-[#35d07f] bg-[#126b3a] text-white shadow-[0_0_10px_rgba(53,208,127,.18)]" : "border-white/15 bg-[#2d3642]/60 text-white/35"} disabled:cursor-not-allowed disabled:opacity-20`}>
+            <button type="button" key={p.id} aria-pressed={active} onClick={() => toggleProvider(p.id)} disabled={!p.available} className={`rounded-md border px-3 py-2 text-sm font-semibold transition ${active ? "border-[#35d07f] bg-[#126b3a] text-white shadow-[0_0_10px_rgba(53,208,127,.18)]" : "border-white/15 bg-[#2d3642]/60 text-white/35"} disabled:cursor-not-allowed disabled:opacity-20`}>
               {p.name} {active ? "✓" : ""}
             </button>
           );
@@ -220,7 +235,7 @@ export default function AustraliaV2Client() {
         {!testAccess && (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#35d07f]/40 bg-[#0e2118] p-4 text-sm">
             <span>기존 Royal Command 로그인 없이 이 시험 화면만 사용할 수 있습니다.</span>
-            <button onClick={() => void enterTestRoom()} disabled={accessBusy} className="rounded-lg border border-[#35d07f] bg-[#126b3a] px-4 py-2 font-semibold text-white disabled:opacity-50">
+            <button type="button" onClick={() => void enterTestRoom()} disabled={accessBusy} className="rounded-lg border border-[#35d07f] bg-[#126b3a] px-4 py-2 font-semibold text-white disabled:opacity-50">
               {accessBusy ? "입장 중…" : "Australia V2 시험 입장"}
             </button>
           </div>
@@ -232,7 +247,7 @@ export default function AustraliaV2Client() {
           <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} maxLength={2000} placeholder="질문을 입력하세요…" className="min-h-28 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-4 text-base outline-none" />
           <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
             <div className="text-xs text-white/55">선택 AI: {selected.map((id) => providers.find((p) => p.id === id)?.name || id).join(" + ") || "없음"}</div>
-            <button onClick={() => void send()} disabled={!prompt.trim() || busy || !testAccess} className="rounded-xl bg-[#d7b64d] px-6 py-3 font-semibold text-[#111827] disabled:opacity-40">{busy ? "실행 중…" : "Send"}</button>
+            <button type="button" onClick={() => void send()} disabled={!prompt.trim() || busy || !testAccess} className="rounded-xl bg-[#d7b64d] px-6 py-3 font-semibold text-[#111827] disabled:opacity-40">{busy ? "실행 중…" : "Send"}</button>
           </div>
         </div>
 
