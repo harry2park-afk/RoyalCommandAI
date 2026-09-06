@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { resolveRcMemberCommand } from "@/lib/ai/rcMemberLayer";
 import { AI_PROVIDER_IDS } from "@/lib/ai/types";
+import { resolveRoomRouteId } from "@/lib/rooms/resolve-room-id";
 
 export const signupSchema = z.object({
   email: z.string().email(),
@@ -45,9 +46,11 @@ const chatInputSchema = z.object({
 );
 
 export const chatSchema = chatInputSchema.transform((data) => {
+  const roomId = resolveRoomRouteId(data.roomId);
   const memberCommand = resolveRcMemberCommand(data.prompt, data.history, data.providers);
   return {
     ...data,
+    roomId,
     providers: memberCommand.leadProviders.length ? memberCommand.leadProviders : data.providers,
     memberCommand,
   };
