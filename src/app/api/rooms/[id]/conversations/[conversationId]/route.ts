@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { resolveRoomRouteId } from "@/lib/rooms/resolve-room-id";
 
 const MAX_CONVERSATION_MESSAGES = 250;
 
@@ -22,7 +23,8 @@ export async function GET(
     return NextResponse.json({ error: "Server conversation persistence requires Supabase" }, { status: 503 });
   }
 
-  const { id: roomId, conversationId } = await context.params;
+  const { id, conversationId } = await context.params;
+  const roomId = resolveRoomRouteId(id);
   const supabase = await createClient();
 
   const { data: conversation, error: conversationError } = await supabase
@@ -61,7 +63,8 @@ export async function PATCH(
     return NextResponse.json({ error: "Server conversation persistence requires Supabase" }, { status: 503 });
   }
 
-  const { id: roomId, conversationId } = await context.params;
+  const { id, conversationId } = await context.params;
+  const roomId = resolveRoomRouteId(id);
   const body = await request.json().catch(() => ({}));
   const update: Record<string, unknown> = { updated_at: new Date().toISOString() };
 
