@@ -181,6 +181,57 @@ select jsonb_build_object(
       limit 1
     ), 'ABSENT')
   ),
+  'harden_room_household_insert_history_drift', jsonb_build_object(
+    'remote_history', coalesce((
+      select jsonb_agg(
+        jsonb_build_object('version', version, 'name', name)
+        order by version
+      )
+      from supabase_migrations.schema_migrations
+      where name in (
+        'harden_room_household_insert_rls',
+        'align_room_household_insert_policy'
+      )
+    ), '[]'::jsonb),
+    'rooms_insert_policy_present', exists (
+      select 1
+      from pg_policies
+      where schemaname = 'public'
+        and tablename = 'rooms'
+        and policyname = 'rooms_insert'
+    ),
+    'rooms_insert_policy_roles', coalesce((
+      select to_jsonb(roles)
+      from pg_policies
+      where schemaname = 'public'
+        and tablename = 'rooms'
+        and policyname = 'rooms_insert'
+      limit 1
+    ), '[]'::jsonb),
+    'rooms_insert_policy_with_check', coalesce((
+      select with_check
+      from pg_policies
+      where schemaname = 'public'
+        and tablename = 'rooms'
+        and policyname = 'rooms_insert'
+      limit 1
+    ), 'ABSENT'),
+    'household_member_helper_present',
+      to_regprocedure('private.is_household_member(uuid)') is not null,
+    'household_member_helper_definition', coalesce((
+      select pg_get_functiondef(function_row.oid)
+      from pg_proc function_row
+      join pg_namespace namespace on namespace.oid = function_row.pronamespace
+      where namespace.nspname = 'private'
+        and function_row.proname = 'is_household_member'
+        and pg_get_function_identity_arguments(function_row.oid) = 'h_id uuid'
+      limit 1
+    ), 'ABSENT'),
+    'anon_table_insert_privilege',
+      has_table_privilege('anon', 'public.rooms', 'INSERT'),
+    'authenticated_table_insert_privilege',
+      has_table_privilege('authenticated', 'public.rooms', 'INSERT')
+  ),
   'scope_matter_staff_access_local_only', jsonb_build_object(
     'migration_history_present', exists (
       select 1
