@@ -102,6 +102,35 @@ export default function RoomPage() {
         aside button[title="Delete this conversation"] {
           display: none !important;
         }
+
+        /* Readability pass: use the full centre width and size AI answers for two readable cards plus a third-card preview. */
+        .royal-room-main main section > div:first-child {
+          padding-left: 0 !important;
+          padding-right: 0 !important;
+          padding-top: 2px !important;
+        }
+        .royal-room-main main section > div:first-child > div[class*="mx-auto"][class*="mt-8"][class*="text-center"] {
+          display: none !important;
+        }
+        .royal-room-main main section > div:first-child > article[class*="whitespace-pre-wrap"] {
+          width: 100% !important;
+          height: clamp(220px, calc((100dvh - 290px) / 2.25), 340px) !important;
+          min-height: clamp(220px, calc((100dvh - 290px) / 2.25), 340px) !important;
+          overflow: hidden !important;
+          cursor: pointer !important;
+          padding-left: 12px !important;
+          padding-right: 12px !important;
+        }
+        .royal-room-main main section > div:first-child > article[data-rc-ai-answer-expanded="true"] {
+          height: auto !important;
+          max-height: none !important;
+          overflow: visible !important;
+        }
+        .royal-room-main main form textarea {
+          height: 82px !important;
+          min-height: 82px !important;
+          max-height: 120px !important;
+        }
       `}</style>
 
       <RoomExternalAppClickGuard />
@@ -110,6 +139,47 @@ export default function RoomPage() {
       <SpeakerTtsBridge />
       <NativeSynthesisButton />
       <StableRoomV3 />
+      <Script id="rc-ai-answer-expand" strategy="afterInteractive">
+        {`(() => {
+          if (window.__rcAiAnswerExpandV1) return;
+          window.__rcAiAnswerExpandV1 = true;
+          const selector = '.royal-room-main main section > div:first-child > article[class*="whitespace-pre-wrap"]';
+          const mark = () => {
+            document.querySelectorAll(selector).forEach((node) => {
+              if (!(node instanceof HTMLElement)) return;
+              node.tabIndex = 0;
+              node.setAttribute('role', 'button');
+              node.setAttribute('aria-expanded', node.dataset.rcAiAnswerExpanded === 'true' ? 'true' : 'false');
+              node.title = node.dataset.rcAiAnswerExpanded === 'true' ? 'Click to close full answer' : 'Click to open full answer';
+            });
+          };
+          const toggle = (node) => {
+            const expanded = node.dataset.rcAiAnswerExpanded === 'true';
+            node.dataset.rcAiAnswerExpanded = expanded ? 'false' : 'true';
+            node.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+            node.title = expanded ? 'Click to open full answer' : 'Click to close full answer';
+          };
+          document.addEventListener('click', (event) => {
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            const answer = target.closest(selector);
+            if (!(answer instanceof HTMLElement)) return;
+            toggle(answer);
+          }, true);
+          document.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            const target = event.target;
+            if (!(target instanceof Element)) return;
+            const answer = target.closest(selector);
+            if (!(answer instanceof HTMLElement)) return;
+            event.preventDefault();
+            toggle(answer);
+          }, true);
+          mark();
+          const observer = new MutationObserver(mark);
+          observer.observe(document.documentElement, { childList: true, subtree: true });
+        })();`}
+      </Script>
       <Script src={`/rc-room-switcher.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script src={`/rc-room-manager.js?v=${ROOM_UI_VERSION}`} strategy="afterInteractive" />
       <Script id="rc-room-manager-fixed-position" strategy="afterInteractive">
