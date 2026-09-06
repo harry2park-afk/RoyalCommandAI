@@ -10,13 +10,24 @@ export const RC_MEMBER_PROVIDER_NAMES: Partial<Record<AIProviderId, string>> = {
   codex: "Codex",
 };
 
+export const RC_MEMBER_PROVIDER_ROLES: Partial<Record<AIProviderId, string>> = {
+  openai: "Controller / Final Integrator — understand the user's order, keep scope aligned, reconcile findings, and state the final decision clearly.",
+  anthropic: "Architecture / UX Reviewer — protect system structure, maintainability, safety boundaries, and operator usability.",
+  google: "Global / Product Reviewer — check multilingual, multi-country, product simplicity, and practical user experience.",
+  xai: "Red-Team Reviewer — search for regressions, hidden conflicts, failure modes, performance risks, and unsupported claims.",
+  codex: "Implementation Writer — inspect repository evidence, make the smallest coherent code change when execution is authorized, and return verifiable implementation evidence.",
+};
+
 export const RCA_OPERATING_PROTOCOL = [
   "ROYAL COMMAND RCA COMMON OPERATING PROTOCOL — HOST PROVIDED",
   "Current user order is authoritative. Use prior history only when needed to understand the current order and never let an older instruction override a conflicting current instruction.",
+  "RC Command Center is the user's single operational workspace. Do not instruct the user to split the same task across separate AI browser tabs unless an external account action genuinely requires it.",
+  "Use the fixed five-member role contract: ChatGPT = Controller/Final Integrator; Claude = Architecture/UX; Gemini = Global/Product; Grok = Red-Team; Codex = Implementation Writer.",
   "Strictly separate REVIEW/INSPECT from EXECUTE. Review, analysis, verification, diagnosis, status questions, and safety checks are read-only and must not modify code, GitHub, Vercel, Production, branches, PRs, or files.",
   "Words such as GitHub, commit, push, merge, Vercel, deploy, Production, Preview, code, file, API, or branch are not execution authorization by themselves.",
   "Repository mutation requires an explicit current instruction to modify, implement, apply, commit, push, merge, deploy, or otherwise execute a change.",
-  "For execution, keep Single Write Authority: one selected writer may mutate repository state and all other selected AIs are review-only.",
+  "For execution, keep Single Write Authority: prefer Codex as the sole writer when Codex is selected and connected; every other selected AI is review-only.",
+  "Do not add avoidable sequential AI waits. Independent review work should run in parallel when the execution path supports it.",
   "Before execution, preserve current working behavior and verify the relevant Production state, master/base SHA, target branch or PR, target files, restore point, and likely impact when host evidence is available.",
   "Make the smallest coherent change that satisfies the current order. Do not broaden scope into unrelated UI, data, auth, billing, other Rooms, or Production behavior.",
   "Never report SUCCESS without host-verifiable evidence appropriate to the task, such as changed files, commit SHA, CI results, Preview status, and Production READY when Production deployment is actually part of the order.",
@@ -45,6 +56,15 @@ export type RcMemberCommand = {
 
 function selectedMembers(selected?: AIProviderId[]) {
   return Array.from(new Set((selected || []).filter((id) => RC_MEMBER_PROVIDER_IDS.includes(id as (typeof RC_MEMBER_PROVIDER_IDS)[number]))));
+}
+
+function executionAssignment(selectedIds: AIProviderId[]) {
+  if (!selectedIds.length) return { leadProviders: [] as AIProviderId[], reviewOnlyProviders: [] as AIProviderId[] };
+  const writer = selectedIds.includes("codex") ? "codex" as AIProviderId : selectedIds[0]!;
+  return {
+    leadProviders: [writer],
+    reviewOnlyProviders: selectedIds.filter((id) => id !== writer),
+  };
 }
 
 /** Only an explicit global no-write or no-execute instruction blocks repository mutation. */
@@ -125,8 +145,10 @@ export function resolveRcMemberCommand(
 
   effectivePrompt = withOperatingProtocol(mode, effectivePrompt);
 
-  const leadProviders = mode === "execute" ? selectedIds.slice(0, 1) : selectedIds;
-  const reviewOnlyProviders = mode === "execute" ? selectedIds.slice(1) : [];
+  const assignment = mode === "execute"
+    ? executionAssignment(selectedIds)
+    : { leadProviders: selectedIds, reviewOnlyProviders: [] as AIProviderId[] };
+  const { leadProviders, reviewOnlyProviders } = assignment;
 
   return {
     mode,
@@ -138,10 +160,10 @@ export function resolveRcMemberCommand(
     continuedFromPriorOrder,
     reason: mode === "execute"
       ? leadProviders.length
-        ? `Single Write Authority: ${RC_MEMBER_PROVIDER_NAMES[leadProviders[0]!] || leadProviders[0]} is the sole writer for this task; ${reviewOnlyProviders.length} selected AI(s) are reserved for review.`
+        ? `Single Write Authority: ${RC_MEMBER_PROVIDER_NAMES[leadProviders[0]!] || leadProviders[0]} is the sole writer for this task; ${reviewOnlyProviders.length} selected AI(s) are review-only. Codex is preferred automatically whenever selected.`
         : "Repository mutation requested, but no active AI was selected; no implicit provider fallback is allowed."
       : mode === "inspect"
-        ? "Review/inspection request; selected AI may investigate without repository mutation."
-        : "Open answer mode; selected AI may reason and respond freely.",
+        ? "Review/inspection request; selected AI may investigate in parallel without repository mutation."
+        : "Open answer mode; selected AI may reason and respond freely according to the fixed RC member role contract.",
   };
 }
