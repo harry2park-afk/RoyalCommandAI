@@ -1,8 +1,10 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useParams } from "next/navigation";
-import { Check, ChevronDown, Copy, Languages, Menu, MessageSquare, Mic, Send, Sparkles, X } from "lucide-react";
+import { Check, ChevronDown, Copy, Languages, Menu, MessageSquare, Mic, Plus, Search, Send, Sparkles, X } from "lucide-react";
+import { FEATURED_LANGUAGE_ENTRIES, LOCALE_SEARCH_REGISTRY } from "@/lib/locale/localeSearchRegistry";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
@@ -23,6 +25,13 @@ type RoomState = {
   loading: boolean;
   error: string;
   lastLatency?: number;
+};
+
+type ChatSession = {
+  id: string;
+  title: string;
+  updatedAt: string;
+  histories: Record<ProviderId, ChatItem[]>;
 };
 
 const PROVIDERS: Array<{ id: ProviderId; name: string; role: string }> = [
@@ -47,9 +56,8 @@ function selectedKey(roomId: string) {
   return `royalcommand:independent-ai:v1:${roomId}:selected`;
 }
 
-function latestPreview(history: ChatItem[]) {
-  const last = [...history].reverse().find((item) => item.content.trim());
-  return last?.content.replace(/\s+/g, " ").slice(0, 120) || "No conversation yet";
+function chatSessionsKey(roomId: string) {
+  return `royalcommand:independent-ai:v1:${roomId}:chat-sessions`;
 }
 
 export default function IndependentAIRooms() {
@@ -67,6 +75,12 @@ export default function IndependentAIRooms() {
   const [helperOpen, setHelperOpen] = useState(false);
   const [listening, setListening] = useState(false);
   const [language, setLanguage] = useState("ko");
+  const [selectedLocale, setSelectedLocale] = useState("ko-KR");
+  const [providerSearch, setProviderSearch] = useState("");
+  const [languageSearch, setLanguageSearch] = useState("");
+  const [providerRegistry, setProviderRegistry] = useState<ProviderInfo[]>([]);
+  const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
+  const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
   const [roomPrompt, setRoomPrompt] = useState("");
   const [allPrompt, setAllPrompt] = useState("");
   const [cardPrompts, setCardPrompts] = useState<Record<ProviderId, string>>({ openai: "", anthropic: "", google: "", xai: "", codex: "" });
@@ -83,7 +97,9 @@ export default function IndependentAIRooms() {
     void fetch("/api/ai/providers", { cache: "no-store" })
       .then((res) => res.ok ? res.json() : null)
       .then((data) => {
-        const ids = new Set<string>((data?.connectors || []).filter((p: ProviderInfo) => p.available).map((p: ProviderInfo) => p.id));
+        const registry = (data?.connectors || []) as ProviderInfo[];
+        const ids = new Set<string>(registry.filter((p) => p.available).map((p) => p.id));
+        setProviderRegistry(registry);
         setConnected(ids);
         setSelected((current) => current.filter((id) => ids.has(id)).length ? current.filter((id) => ids.has(id)) : PROVIDERS.filter((p) => ids.has(p.id)).slice(0, 1).map((p) => p.id));
       })
@@ -101,7 +117,39 @@ export default function IndependentAIRooms() {
       const savedSelected = JSON.parse(localStorage.getItem(selectedKey(roomId)) || "[]") as ProviderId[];
       if (savedSelected.length) setSelected(savedSelected.filter((id) => PROVIDERS.some((p) => p.id === id)));
     } catch {}
+    const savedLocale = localStorage.getItem("royalcommand:ui-locale");
+    if (savedLocale && LOCALE_SEARCH_REGISTRY.some((entry) => entry.locale === savedLocale)) {
+      setSelectedLocale(savedLocale);
+      setLanguage(savedLocale.split("-")[0].toLowerCase());
+    }
+    try {
+      const savedSessions = JSON.parse(localStorage.getItem(chatSessionsKey(roomId)) || "[]") as ChatSession[];
+      setChatSessions(Array.isArray(savedSessions) ? savedSessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : []);
+    } catch {
+      setChatSessions([]);
+    } finally {
+      setChatSessionsLoaded(true);
+    }
   }, [roomId]);
+
+  useEffect(() => {
+    if (!chatSessionsLoaded) return;
+    localStorage.setItem(chatSessionsKey(roomId), JSON.stringify(chatSessions.slice(0, 100)));
+  }, [chatSessions, chatSessionsLoaded, roomId]);
+
+  useEffect(() => {
+    const closePanels = (event: globalThis.KeyboardEvent | MouseEvent) => {
+      if (event instanceof globalThis.KeyboardEvent && event.key === "Escape") {
+        setMenuOpen(false); setChatsOpen(false); setLanguageOpen(false);
+      }
+      if (event instanceof MouseEvent && event.target instanceof Element && !event.target.closest("[data-rc-top-controls]")) {
+        setMenuOpen(false); setChatsOpen(false); setLanguageOpen(false);
+      }
+    };
+    document.addEventListener("keydown", closePanels);
+    document.addEventListener("mousedown", closePanels);
+    return () => { document.removeEventListener("keydown", closePanels); document.removeEventListener("mousedown", closePanels); };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(selectedKey(roomId), JSON.stringify(selected));
@@ -239,7 +287,7 @@ export default function IndependentAIRooms() {
     await askProvider(provider, prompt, [provider], generation);
   }
 
-  function handleCardPromptKeyDown(event: KeyboardEvent<HTMLTextAreaElement>, provider: ProviderId) {
+  function handleCardPromptKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>, provider: ProviderId) {
     if (event.key !== "Enter" || event.shiftKey) return;
     event.preventDefault();
     event.currentTarget.style.height = "auto";
@@ -249,6 +297,50 @@ export default function IndependentAIRooms() {
   function autoSizeCardPrompt(target: HTMLTextAreaElement) {
     target.style.height = "auto";
     target.style.height = `${target.scrollHeight}px`;
+  }
+
+  function currentSessionSnapshot(): ChatSession | null {
+    const allItems = PROVIDERS.flatMap((provider) => rooms[provider.id].history);
+    if (!allItems.length) return null;
+    const latestQuestion = allItems.filter((item) => item.role === "user").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return {
+      id: uid("chat"),
+      title: latestQuestion?.content.replace(/\s+/g, " ").trim() || "Saved chat",
+      updatedAt: new Date().toISOString(),
+      histories: Object.fromEntries(PROVIDERS.map((provider) => [provider.id, [...rooms[provider.id].history]])) as Record<ProviderId, ChatItem[]>,
+    };
+  }
+
+  function archiveCurrentSession() {
+    const snapshot = currentSessionSnapshot();
+    if (snapshot) setChatSessions((current) => [snapshot, ...current].slice(0, 100));
+  }
+
+  function startNewChat() {
+    archiveCurrentSession();
+    cancelAll();
+    setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } });
+    setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
+  }
+
+  function loadChatSession(session: ChatSession) {
+    archiveCurrentSession();
+    setRooms(Object.fromEntries(PROVIDERS.map((provider) => [provider.id, { ...EMPTY, history: [...(session.histories[provider.id] || [])] }])) as Record<ProviderId, RoomState>);
+    setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
+  }
+
+  function chooseProvider(id: string) {
+    const provider = PROVIDERS.find((item) => item.id === id);
+    if (!provider || !connected.has(id)) return;
+    toggleSelected(provider.id);
+  }
+
+  function chooseLocale(locale: string) {
+    setSelectedLocale(locale);
+    setLanguage(locale.split("-")[0].toLowerCase());
+    localStorage.setItem("royalcommand:ui-locale", locale);
+    window.dispatchEvent(new Event("royalcommand:language-change"));
+    setLanguageOpen(false);
   }
 
   function cancelAll() {
@@ -278,22 +370,38 @@ export default function IndependentAIRooms() {
     }
   }
 
+  const filteredProviders = useMemo(() => {
+    const query = providerSearch.trim().toLowerCase();
+    return providerRegistry.filter((provider) => !query || `${provider.name} ${provider.id}`.toLowerCase().includes(query));
+  }, [providerRegistry, providerSearch]);
+
+  const filteredLocales = useMemo(() => {
+    const query = languageSearch.trim().toLowerCase();
+    return (query ? LOCALE_SEARCH_REGISTRY.filter((entry) => entry.searchText.includes(query)) : FEATURED_LANGUAGE_ENTRIES).slice(0, 80);
+  }, [languageSearch]);
+
+  const selectedLanguageLabel = LOCALE_SEARCH_REGISTRY.find((entry) => entry.locale === selectedLocale)?.label.split(" · ")[0] || selectedLocale;
+  const currentChatTitle = useMemo(() => {
+    const latest = PROVIDERS.flatMap((provider) => rooms[provider.id].history).filter((item) => item.role === "user").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return latest?.content.replace(/\s+/g, " ").trim() || "New chat";
+  }, [rooms]);
   const openMeta = PROVIDERS.find((provider) => provider.id === openRoom);
 
   return (
     <main className="min-h-[100dvh] bg-[#07101d] text-[#f4f0e7]">
       <header className="sticky top-0 z-50 border-b border-[#d7b64d]/25 bg-[#07101d]/95 backdrop-blur">
-        <div className="flex h-14 items-center gap-2 px-3 sm:px-4">
+        <div data-rc-top-controls className="relative flex h-14 items-center gap-2 px-3 sm:px-4">
           <button onClick={() => { setMenuOpen((v) => !v); setChatsOpen(false); setLanguageOpen(false); }} className="flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><Menu size={16}/>Menu</button>
           <button onClick={() => { setChatsOpen((v) => !v); setMenuOpen(false); setLanguageOpen(false); }} className="flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><MessageSquare size={16}/>Chats</button>
-          <div className="relative">
-            <button onClick={() => { setLanguageOpen((v) => !v); setMenuOpen(false); setChatsOpen(false); }} className="flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><Languages size={16}/>{language === "ko" ? "한국어" : "English"}<ChevronDown size={14}/></button>
-            {languageOpen && <div className="absolute left-0 top-11 min-w-36 rounded-lg border border-white/15 bg-[#0b1524] p-1 shadow-2xl"><button className="block w-full rounded px-3 py-2 text-left hover:bg-white/10" onClick={() => { setLanguage("ko"); setLanguageOpen(false); }}>한국어</button><button className="block w-full rounded px-3 py-2 text-left hover:bg-white/10" onClick={() => { setLanguage("en"); setLanguageOpen(false); }}>English</button></div>}
-          </div>
+          <button onClick={() => { setLanguageOpen((v) => !v); setMenuOpen(false); setChatsOpen(false); }} className="flex max-w-44 items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><Languages size={16}/><span className="truncate">{selectedLanguageLabel}</span><ChevronDown size={14}/></button>
           <div className="ml-auto text-right"><div className="font-serif text-lg text-[#f1d77a]">Royal Command AI</div><div className="text-[10px] uppercase tracking-[.22em] text-[#8d98a8]">Independent Rooms V1</div></div>
+
+          {menuOpen && <div className="absolute left-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] p-2 shadow-2xl"><button type="button" onClick={startNewChat} className="mb-2 flex items-center justify-center gap-2 rounded-lg border border-[#d7b64d]/45 bg-[#17130a] px-3 py-2.5 font-semibold text-[#f0d36a] hover:bg-[#2a2109]"><Plus size={16}/>New Chat</button><div className="min-h-0 overflow-y-auto"><div className="sticky top-0 bg-[#0b1524] px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Chat History</div><button type="button" onClick={() => setMenuOpen(false)} title={currentChatTitle} className="mb-1 block w-full truncate rounded-lg border border-[#d7b64d]/45 bg-[#17130a] px-3 py-2.5 text-left text-sm text-[#f0d36a]">{currentChatTitle}</button>{chatSessions.map((session) => <button key={session.id} type="button" onClick={() => loadChatSession(session)} title={session.title} className="mb-1 block w-full truncate rounded-lg border border-white/10 px-3 py-2.5 text-left text-sm hover:border-[#d7b64d]/35 hover:bg-white/5">{session.title}</button>)}</div></div>}
+
+          {chatsOpen && <div className="absolute left-24 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} autoFocus placeholder="Search AI providers" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2">{filteredProviders.map((provider) => { const cardProvider = PROVIDERS.find((item) => item.id === provider.id); const selectable = Boolean(cardProvider && provider.available); const chosen = Boolean(cardProvider && selected.includes(cardProvider.id)); const status = selectable ? "Available" : provider.available ? "Coming Soon" : "Not Connected"; return <button key={provider.id} type="button" disabled={!selectable} onClick={() => chooseProvider(provider.id)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${chosen ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"} disabled:cursor-not-allowed disabled:opacity-60`}><span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${chosen ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/20"}`}>{chosen ? <Check size={13}/> : null}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{provider.name}</span><span className={`shrink-0 text-[10px] ${status === "Available" ? "text-emerald-300" : "text-[#8d98a8]"}`}>{status}</span></button>; })}</div></div>}
+
+          {languageOpen && <div className="absolute right-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-96 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl sm:right-auto sm:left-48"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={languageSearch} onChange={(event) => setLanguageSearch(event.target.value)} autoFocus placeholder="Search languages, countries or codes" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2">{filteredLocales.length ? filteredLocales.map((entry) => <button key={entry.locale} type="button" onClick={() => chooseLocale(entry.locale)} className={`mb-1 flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left ${selectedLocale === entry.locale ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><span className="truncate text-sm">{entry.label}</span><span className="shrink-0 text-xs text-[#8d98a8]">{entry.locale}</span></button>) : <div className="px-3 py-8 text-center text-sm text-[#8d98a8]">No matching locale</div>}</div></div>}
         </div>
-        {menuOpen && <div className="absolute left-3 top-14 z-50 w-56 rounded-xl border border-white/15 bg-[#0b1524] p-2 shadow-2xl"><div className="px-3 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Workspace</div><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10" onClick={() => setMenuOpen(false)}>Independent AI Rooms</button><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10" onClick={() => { setOpenRoom(null); setMenuOpen(false); }}>All AI Cards</button><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10" onClick={() => { cancelAll(); setMenuOpen(false); }}>Cancel active</button></div>}
-        {chatsOpen && <div className="absolute left-24 top-14 z-50 w-72 max-h-[70vh] overflow-y-auto rounded-xl border border-white/15 bg-[#0b1524] p-2 shadow-2xl">{PROVIDERS.map((provider) => <button key={provider.id} onClick={() => { setOpenRoom(provider.id); setChatsOpen(false); }} className="mb-1 block w-full rounded-lg border border-white/10 p-3 text-left hover:bg-white/10"><div className="font-semibold">{provider.name}</div><div className="mt-1 truncate text-xs text-[#9ca6b4]">{latestPreview(rooms[provider.id].history)}</div></button>)}</div>}
       </header>
 
       <div className="w-full max-w-none p-2 sm:p-3">
