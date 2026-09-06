@@ -106,6 +106,8 @@ export default function IndependentAIRooms() {
   const consumedFinalKeysRef = useRef(new Set<string>());
   const consumedFinalTranscriptsRef = useRef(new Set<string>());
   const openRoomRef = useRef<ProviderId | null>(null);
+  const roomPromptRef = useRef<HTMLTextAreaElement | null>(null);
+  const followLatestRoomPromptRef = useRef(true);
   openRoomRef.current = openRoom;
 
   useEffect(() => {
@@ -187,6 +189,13 @@ export default function IndependentAIRooms() {
     recognitionRef.current = null;
     recognitionActiveRef.current = false;
   }, []);
+
+  useEffect(() => {
+    const textarea = roomPromptRef.current;
+    if (!textarea) return;
+    autoSizeRoomPrompt(textarea);
+    if (followLatestRoomPromptRef.current) textarea.scrollTop = textarea.scrollHeight;
+  }, [roomPrompt]);
 
   const selectedConnected = useMemo(() => selected.filter((id) => connected.has(id)), [selected, connected]);
   const frozenList = useMemo(() => selectedConnected.map((id) => frozenResults[id]).filter(Boolean), [selectedConnected, frozenResults]);
@@ -329,6 +338,21 @@ export default function IndependentAIRooms() {
     setUserWantsListening(true);
     recognitionTargetRef.current = target;
     startRecognition(target, generation);
+  }
+
+  function autoSizeRoomPrompt(textarea: HTMLTextAreaElement) {
+    textarea.style.height = "auto";
+    textarea.style.height = `${textarea.scrollHeight}px`;
+    textarea.style.overflowY = textarea.scrollHeight > textarea.clientHeight ? "auto" : "hidden";
+  }
+
+  function handleRoomPromptChange(textarea: HTMLTextAreaElement) {
+    followLatestRoomPromptRef.current = textarea.selectionStart === textarea.value.length;
+    setRoomPrompt(textarea.value);
+  }
+
+  function handleRoomPromptScroll(textarea: HTMLTextAreaElement) {
+    followLatestRoomPromptRef.current = textarea.scrollHeight - textarea.scrollTop - textarea.clientHeight < 24;
   }
 
   async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number) {
@@ -571,7 +595,7 @@ export default function IndependentAIRooms() {
           <section className="mx-auto flex min-h-[calc(100dvh-86px)] max-w-6xl flex-col rounded-2xl border border-white/10 bg-[#0b1524] shadow-2xl">
             <div className="flex items-center gap-3 border-b border-white/10 p-3"><button onClick={() => { stopMic(); setOpenRoom(null); }} className="grid h-9 w-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10"><X size={17}/></button><div><h2 className="text-xl font-semibold">{openMeta?.name}</h2><p className="text-xs text-[#8f9baa]">Strict isolated provider room</p></div><span className={`ml-auto h-2.5 w-2.5 rounded-full ${openRoom && connected.has(openRoom) ? "bg-emerald-400" : "bg-slate-600"}`}/></div>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{rooms[openRoom].history.length ? rooms[openRoom].history.map((item) => <div key={item.id} className={`max-w-[88%] whitespace-pre-wrap rounded-xl border px-3 py-2 text-[15px] leading-7 ${item.role === "user" ? "ml-auto border-[#d7b64d]/35 bg-[#1e3a8a]" : "mr-auto border-white/10 bg-[#07101d]"}`}>{item.content}</div>) : <div className="py-20 text-center text-[#8d99a8]">Start a private conversation with {openMeta?.name}.</div>}{rooms[openRoom].loading && <div className="text-sm text-[#f0d36a]">{openMeta?.name} is working…</div>}{rooms[openRoom].error && <div className="rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{rooms[openRoom].error}</div>}</div>
-            <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="relative"><textarea value={roomPrompt} onChange={(e) => setRoomPrompt(e.target.value)} className="min-h-28 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-3 pb-14 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/>{interimTranscript && userWantsListening ? <div className="pointer-events-none absolute bottom-14 left-3 right-14 truncate text-xs text-white/35">{interimTranscript}</div> : null}<div className="absolute bottom-3 left-3 flex items-center gap-2"><button type="button" aria-pressed={userWantsListening} data-recognition-active={recognitionActive ? "true" : "false"} data-manual-stop={manualStop ? "true" : "false"} onClick={() => toggleMic("room")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524]"}`}><Mic size={17}/></button><div aria-hidden="true" className="flex h-8 items-center gap-1"><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "0ms", animationDuration: "650ms" } : undefined}/><span className={`h-4 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "90ms", animationDuration: "650ms" } : undefined}/><span className={`h-6 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "180ms", animationDuration: "650ms" } : undefined}/><span className={`h-3 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "270ms", animationDuration: "650ms" } : undefined}/><span className={`h-5 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "360ms", animationDuration: "650ms" } : undefined}/><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "450ms", animationDuration: "650ms" } : undefined}/></div></div><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div></form>
+            <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="relative"><textarea ref={roomPromptRef} value={roomPrompt} onChange={(event) => handleRoomPromptChange(event.currentTarget)} onInput={(event) => autoSizeRoomPrompt(event.currentTarget)} onScroll={(event) => handleRoomPromptScroll(event.currentTarget)} className="min-h-28 max-h-[38dvh] w-full resize-none overflow-y-hidden rounded-xl border border-white/10 bg-[#07101d] p-3 pb-14 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/>{interimTranscript && userWantsListening ? <div className="pointer-events-none absolute bottom-14 left-3 right-14 truncate text-xs text-white/35">{interimTranscript}</div> : null}<div className="absolute bottom-3 left-3 flex items-center gap-2"><button type="button" aria-pressed={userWantsListening} data-recognition-active={recognitionActive ? "true" : "false"} data-manual-stop={manualStop ? "true" : "false"} onClick={() => toggleMic("room")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524]"}`}><Mic size={17}/></button><div aria-hidden="true" className="flex h-8 items-center gap-1"><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "0ms", animationDuration: "650ms" } : undefined}/><span className={`h-4 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "90ms", animationDuration: "650ms" } : undefined}/><span className={`h-6 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "180ms", animationDuration: "650ms" } : undefined}/><span className={`h-3 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "270ms", animationDuration: "650ms" } : undefined}/><span className={`h-5 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "360ms", animationDuration: "650ms" } : undefined}/><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "450ms", animationDuration: "650ms" } : undefined}/></div></div><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div></form>
           </section>
         )}
       </div>
