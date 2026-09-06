@@ -440,7 +440,7 @@ export default function IndependentAIRooms() {
                         {latestAnswer ? latestAnswer.content : room.loading ? `${provider.name} is working…` : <span className="text-[#c8d0dc]">No answer yet</span>}
                         {expanded && latestAnswer ? <div className="mt-4 flex justify-end gap-2 border-t border-white/10 pt-3"><button type="button" onClick={(event) => { event.stopPropagation(); void navigator.clipboard.writeText(latestAnswer.content); }} className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/10"><Copy size={13}/>Copy</button><button type="button" onClick={(event) => { event.stopPropagation(); setExpandedAnswers((current) => ({ ...current, [provider.id]: false })); }} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/10">Collapse</button></div> : null}
                       </div>
-                      <div className="mt-3 flex items-center gap-2 text-[11px] text-[#8e99a8]"><span>{room.loading ? "Working…" : room.error ? "Error" : available ? "Connected" : "Not connected"}</span>{room.lastLatency ? <span>· {Math.round(room.lastLatency)} ms</span> : null}</div>
+                      {room.loading || room.error || !available ? <div className="mt-2 text-[11px] text-[#8e99a8]">{room.loading ? "Working…" : room.error ? "Error" : "Not connected"}</div> : null}
                     </div>
                   </div>
                 </article>;
