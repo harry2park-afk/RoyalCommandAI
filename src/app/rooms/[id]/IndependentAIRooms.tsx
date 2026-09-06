@@ -44,6 +44,7 @@ const PROVIDERS: Array<{ id: ProviderId; name: string; role: string }> = [
 ];
 
 const EMPTY: RoomState = { history: [], loading: false, error: "" };
+const HIDDEN_COUNTRIES_KEY = "royalcommand:hidden-countries";
 
 function uid(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
@@ -65,6 +66,27 @@ function activeChatSessionKey(roomId: string) {
   return `royalcommand:independent-ai:v1:${roomId}:active-chat-session`;
 }
 
+function countryCodeForLocale(locale: string) {
+  const parts = locale.split("-");
+  for (let index = parts.length - 1; index >= 0; index -= 1) {
+    if (/^[A-Z]{2}$/i.test(parts[index])) return parts[index].toUpperCase();
+  }
+  return "";
+}
+
+function countryFlag(countryCode: string) {
+  return /^[A-Z]{2}$/.test(countryCode)
+    ? String.fromCodePoint(...countryCode.split("").map((character) => 127397 + character.charCodeAt(0)))
+    : "🏳️";
+}
+
+function countryNameForLocale(locale: string, label: string) {
+  const labelledCountry = label.match(/\(([^)]+)\)\s*$/)?.[1];
+  if (labelledCountry) return labelledCountry;
+  const countryCode = countryCodeForLocale(locale);
+  try { return new Intl.DisplayNames(["en"], { type: "region" }).of(countryCode) || countryCode; } catch { return countryCode; }
+}
+
 export default function IndependentAIRooms() {
   const params = useParams<{ id: string }>();
   const roomId = params.id;
@@ -84,6 +106,7 @@ export default function IndependentAIRooms() {
   const [interimTranscript, setInterimTranscript] = useState("");
   const [language, setLanguage] = useState("ko");
   const [selectedLocale, setSelectedLocale] = useState("ko-KR");
+  const [hiddenCountries, setHiddenCountries] = useState<Set<string>>(new Set());
   const [providerSearch, setProviderSearch] = useState("");
   const [languageSearch, setLanguageSearch] = useState("");
   const [providerRegistry, setProviderRegistry] = useState<ProviderInfo[]>([]);
@@ -146,6 +169,27 @@ export default function IndependentAIRooms() {
       setSelectedLocale(savedLocale);
       setLanguage(savedLocale.split("-")[0].toLowerCase());
     }
+    try {
+      const savedHiddenCountries = JSON.parse(localStorage.getItem(HIDDEN_COUNTRIES_KEY) || "[]") as string[];
+      setHiddenCountries(new Set(savedHiddenCountries.filter((code) => /^[A-Z]{2}$/.test(code))));
+    } catch {}
+    void fetch("/api/user/preferences", { cache: "no-store", credentials: "same-origin" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((data) => {
+        const preferences = data?.preferences;
+        if (!preferences) return;
+        if (typeof preferences.uiLocale === "string" && LOCALE_SEARCH_REGISTRY.some((entry) => entry.locale === preferences.uiLocale)) {
+          setSelectedLocale(preferences.uiLocale);
+          setLanguage(preferences.uiLocale.split("-")[0].toLowerCase());
+          localStorage.setItem("royalcommand:ui-locale", preferences.uiLocale);
+        }
+        if (Array.isArray(preferences.hiddenCountries)) {
+          const nextHidden = preferences.hiddenCountries.filter((code: unknown): code is string => typeof code === "string" && /^[A-Z]{2}$/.test(code));
+          setHiddenCountries(new Set(nextHidden));
+          localStorage.setItem(HIDDEN_COUNTRIES_KEY, JSON.stringify(nextHidden));
+        }
+      })
+      .catch(() => {});
     try {
       const savedSessions = JSON.parse(localStorage.getItem(chatSessionsKey(roomId)) || "[]") as ChatSession[];
       setChatSessions(Array.isArray(savedSessions) ? savedSessions.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)) : []);
@@ -561,11 +605,37 @@ export default function IndependentAIRooms() {
   }
 
   function chooseLocale(locale: string) {
+    const countryCode = countryCodeForLocale(locale);
     setSelectedLocale(locale);
     setLanguage(locale.split("-")[0].toLowerCase());
     localStorage.setItem("royalcommand:ui-locale", locale);
+    void saveLocalePreferences({ uiLocale: locale, countryCode, language: locale.split("-")[0].toLowerCase() });
     window.dispatchEvent(new Event("royalcommand:language-change"));
     setLanguageOpen(false);
+  }
+
+  async function saveLocalePreferences(preferences: Record<string, unknown>) {
+    try {
+      await fetch("/api/user/preferences", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preferences) });
+    } catch {}
+  }
+
+  function hideCountry(countryCode: string) {
+    const next = new Set(hiddenCountries);
+    next.add(countryCode);
+    setHiddenCountries(next);
+    const values = Array.from(next);
+    localStorage.setItem(HIDDEN_COUNTRIES_KEY, JSON.stringify(values));
+    void saveLocalePreferences({ hiddenCountries: values });
+  }
+
+  function restoreCountry(countryCode: string) {
+    const next = new Set(hiddenCountries);
+    next.delete(countryCode);
+    setHiddenCountries(next);
+    const values = Array.from(next);
+    localStorage.setItem(HIDDEN_COUNTRIES_KEY, JSON.stringify(values));
+    void saveLocalePreferences({ hiddenCountries: values });
   }
 
   function cancelAll() {
@@ -602,10 +672,22 @@ export default function IndependentAIRooms() {
 
   const filteredLocales = useMemo(() => {
     const query = languageSearch.trim().toLowerCase();
-    return (query ? LOCALE_SEARCH_REGISTRY.filter((entry) => entry.searchText.includes(query)) : FEATURED_LANGUAGE_ENTRIES).slice(0, 80);
-  }, [languageSearch]);
+    return (query ? LOCALE_SEARCH_REGISTRY.filter((entry) => entry.searchText.includes(query)) : FEATURED_LANGUAGE_ENTRIES)
+      .filter((entry) => !hiddenCountries.has(countryCodeForLocale(entry.locale)))
+      .slice(0, 80);
+  }, [hiddenCountries, languageSearch]);
 
-  const selectedLanguageLabel = LOCALE_SEARCH_REGISTRY.find((entry) => entry.locale === selectedLocale)?.label.split(" · ")[0] || selectedLocale;
+  const hiddenCountryEntries = useMemo(() => {
+    const entries = new Map<string, (typeof LOCALE_SEARCH_REGISTRY)[number]>();
+    for (const entry of LOCALE_SEARCH_REGISTRY) {
+      const countryCode = countryCodeForLocale(entry.locale);
+      if (countryCode && hiddenCountries.has(countryCode) && !entries.has(countryCode)) entries.set(countryCode, entry);
+    }
+    return Array.from(entries.entries());
+  }, [hiddenCountries]);
+
+  const selectedCountryCode = countryCodeForLocale(selectedLocale);
+  const selectedLanguageLabel = `${countryFlag(selectedCountryCode)} ${selectedCountryCode || selectedLocale}`;
   const hasCurrentChatMessages = useMemo(() => PROVIDERS.some((provider) => rooms[provider.id].history.length > 0), [rooms]);
   const currentChatTitle = useMemo(() => {
     const latest = PROVIDERS.flatMap((provider) => rooms[provider.id].history).filter((item) => item.role === "user").sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
@@ -626,7 +708,7 @@ export default function IndependentAIRooms() {
 
           {chatsOpen && <div className="absolute left-24 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} autoFocus placeholder="Search AI providers" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2">{filteredProviders.map((provider) => { const cardProvider = PROVIDERS.find((item) => item.id === provider.id); const selectable = Boolean(cardProvider && provider.available); const chosen = Boolean(cardProvider && selected.includes(cardProvider.id)); const status = selectable ? "Available" : provider.available ? "Coming Soon" : "Not Connected"; return <button key={provider.id} type="button" disabled={!selectable} onClick={() => chooseProvider(provider.id)} className={`mb-1 flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left ${chosen ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"} disabled:cursor-not-allowed disabled:opacity-60`}><span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${chosen ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/20"}`}>{chosen ? <Check size={13}/> : null}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{provider.name}</span><span className={`shrink-0 text-[10px] ${status === "Available" ? "text-emerald-300" : "text-[#8d98a8]"}`}>{status}</span></button>; })}</div></div>}
 
-          {languageOpen && <div className="absolute right-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-96 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl sm:right-auto sm:left-48"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={languageSearch} onChange={(event) => setLanguageSearch(event.target.value)} autoFocus placeholder="Search languages, countries or codes" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2">{filteredLocales.length ? filteredLocales.map((entry) => <button key={entry.locale} type="button" onClick={() => chooseLocale(entry.locale)} className={`mb-1 flex w-full items-center justify-between gap-3 rounded-lg border px-3 py-2.5 text-left ${selectedLocale === entry.locale ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><span className="truncate text-sm">{entry.label}</span><span className="shrink-0 text-xs text-[#8d98a8]">{entry.locale}</span></button>) : <div className="px-3 py-8 text-center text-sm text-[#8d98a8]">No matching locale</div>}</div></div>}
+          {languageOpen && <div className="absolute right-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-96 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl sm:right-auto sm:left-48"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={languageSearch} onChange={(event) => setLanguageSearch(event.target.value)} autoFocus placeholder="Search languages, countries or codes" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2">{filteredLocales.length ? filteredLocales.map((entry) => { const countryCode = countryCodeForLocale(entry.locale); return <div key={entry.locale} className={`mb-1 flex items-center rounded-lg border ${selectedLocale === entry.locale ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><button type="button" onClick={() => chooseLocale(entry.locale)} className="flex min-w-0 flex-1 items-center justify-between gap-3 px-3 py-2.5 text-left"><span className="truncate text-sm">{countryFlag(countryCode)} {countryNameForLocale(entry.locale, entry.label)}</span><span className="shrink-0 text-xs text-[#8d98a8]">{entry.locale}</span></button><button type="button" onClick={() => hideCountry(countryCode)} className="mr-2 rounded px-2 py-1 text-[10px] text-[#8d98a8] hover:bg-white/10 hover:text-[#f0d36a]">Hide</button></div>; }) : <div className="px-3 py-8 text-center text-sm text-[#8d98a8]">No matching locale</div>}{hiddenCountryEntries.length ? <div className="mt-3 border-t border-white/10 pt-2"><div className="px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Hidden countries</div>{hiddenCountryEntries.map(([countryCode, entry]) => <div key={countryCode} className="mb-1 flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2"><span className="min-w-0 flex-1 truncate text-sm">{countryFlag(countryCode)} {countryNameForLocale(entry.locale, entry.label)}</span><button type="button" onClick={() => restoreCountry(countryCode)} className="rounded border border-[#d7b64d]/30 px-2 py-1 text-xs text-[#f0d36a] hover:bg-[#2a2109]">Restore</button></div>)}</div> : null}</div></div>}
         </div>
       </header>
 
