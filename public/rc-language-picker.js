@@ -38,7 +38,6 @@
     const wrap=document.createElement("div");wrap.className="rc-lang-picker";wrap.style.cssText="position:relative;flex:0 0 auto;margin-left:auto;z-index:2147483646";
     const button=document.createElement("button");button.type="button";button.style.cssText="height:32px;width:170px;display:flex;align-items:center;justify-content:space-between;gap:7px;padding:0 10px;border:1px solid #f2cf24;border-radius:8px;background:var(--bg);color:var(--text);font-size:12px;cursor:pointer;box-sizing:border-box;box-shadow:inset 0 0 0 1px #1d4ed8,inset 0 0 0 2px #c81e1e";
     const menu=document.createElement("div");menu.style.cssText="display:none;position:fixed;width:380px;overflow:hidden;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:#0b1220;box-shadow:0 22px 70px rgba(0,0,0,.8);z-index:2147483647;flex-direction:column";
-    const hint=document.createElement("div");hint.textContent="Drag to reorder, or hide countries you do not use.";hint.style.cssText="padding:9px 10px 0;color:#9aa6b2;font-size:12px;line-height:18px;flex:0 0 auto";
     const tools=document.createElement("div");tools.style.cssText="display:flex;gap:6px;padding:8px;flex:0 0 auto";
     const search=document.createElement("input");search.type="text";search.placeholder="Search country or language";search.setAttribute("aria-label","Search country or language");search.setAttribute("autocomplete","off");search.setAttribute("spellcheck","false");search.style.cssText="flex:1;min-width:0;height:40px;padding:8px 10px 8px 38px;border:1px solid rgba(255,255,255,.12);border-radius:8px;background-color:#070b14;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='11' cy='11' r='6.5' fill='none' stroke='%23f3d36a' stroke-width='2'/%3E%3Cpath d='M16 16l5 5' fill='none' stroke='%23f3d36a' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E\");background-repeat:no-repeat;background-position:11px center;background-size:18px 18px;color:#fff;font-size:14px;line-height:20px;outline:none";
     const hiddenToggle=document.createElement("button");hiddenToggle.type="button";hiddenToggle.style.cssText="border:1px solid rgba(255,255,255,.12);border-radius:8px;background:#111827;color:#fff;padding:0 10px;font-size:12px;cursor:pointer;white-space:nowrap";
@@ -87,7 +86,7 @@
     window.addEventListener("resize",()=>{if(menu.style.display==="flex")positionMenu();});
     window.addEventListener("scroll",()=>{if(menu.style.display==="flex")positionMenu();},true);
     document.addEventListener("click",e=>{if(!wrap.contains(e.target)&&!menu.contains(e.target))menu.style.display="none";});
-    renderButton();renderList();menu.append(hint,tools,list);document.body.appendChild(menu);wrap.append(button);select.insertAdjacentElement("afterend",wrap);
+    renderButton();renderList();menu.append(tools,list);document.body.appendChild(menu);wrap.append(button);select.insertAdjacentElement("afterend",wrap);
   }
   function scan(){document.querySelectorAll('select[aria-label="Language"]').forEach(enhance);}
   scan();new MutationObserver(scan).observe(document.documentElement,{childList:true,subtree:true});
