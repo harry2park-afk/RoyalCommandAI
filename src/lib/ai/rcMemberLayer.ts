@@ -87,6 +87,18 @@ function hasExplicitExecutionRequest(prompt: string) {
   return executionVerb && mutationTarget;
 }
 
+/**
+ * A Command Center order may intentionally say that reviewers must not write while
+ * explicitly authorizing Codex as the only writer. That is not a global no-write
+ * instruction. Treat it as execution only when both the Codex writer scope and an
+ * affirmative execution/change directive are present in the current order.
+ */
+function hasRoleScopedExecutionAuthorization(prompt: string) {
+  const codexWriter = /(?:codex|코덱스).{0,120}(?:single\s*writer|sole\s*writer|writer|단일\s*writer|단독\s*(?:writer|수정|작성|구현)|실제\s*(?:코드\s*)?(?:수정|작성|구현)|(?:코드|파일|소스).{0,20}(?:수정|작성|구현|write))/i.test(prompt);
+  const explicitExecute = /(?:\bEXECUTE\b|실행\s*(?:모드|단계|작업|요청)|실제로\s*(?:구현|수정|적용|실행)|(?:구현|수정|적용|반영).{0,24}(?:해\s*주세요|하세요|진행))/i.test(prompt);
+  return codexWriter && (explicitExecute || hasMutationRequest(prompt) || hasExplicitExecutionRequest(prompt));
+}
+
 function hasInspectIntent(prompt: string) {
   return /(검토|검증|점검|조사|분석|진단|원인|inspect|investigate|review|verify|diagnos|analy[sz]e)/i.test(prompt);
 }
@@ -96,8 +108,9 @@ function hasContinuationIntent(prompt: string) {
 }
 
 function classifyDirect(prompt: string): RcMemberMode {
-  if (hasGlobalNoWriteIntent(prompt)) return hasInspectIntent(prompt) ? "inspect" : "answer";
-  if (hasMutationRequest(prompt) || hasExplicitExecutionRequest(prompt)) return "execute";
+  const roleScopedExecution = hasRoleScopedExecutionAuthorization(prompt);
+  if (hasGlobalNoWriteIntent(prompt) && !roleScopedExecution) return hasInspectIntent(prompt) ? "inspect" : "answer";
+  if (roleScopedExecution || hasMutationRequest(prompt) || hasExplicitExecutionRequest(prompt)) return "execute";
   if (hasInspectIntent(prompt)) return "inspect";
   return "answer";
 }
