@@ -1,0 +1,167 @@
+name: Room Factory Schema Stage Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260901025800_room_factory_atomic_non_encounter.sql"
+      - "scripts/room-factory-schema-stage-evidence.mjs"
+      - ".github/workflows/room-factory-schema-stage.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-room-factory-schema-stage-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  schema-stage:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          [[ "${actual_sha}" == "${CANDIDATE_SHA}" ]] || {
+            echo "BLOCKED: checkout SHA ${actual_sha} does not match candidate ${CANDIDATE_SHA}"
+            exit 1
+          }
+          echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies reproducibly
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: 2.116.0
+
+      - name: Prepare isolated Room Factory schema fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+          cp supabase/migrations-full/001_init.sql supabase/migrations/
+          cp supabase/migrations-full/002_rls.sql supabase/migrations/
+          cp supabase/migrations-full/20260829211500_room_factory_manifests.sql supabase/migrations/
+          cp supabase/migrations-full/20260831084700_atomic_room_factory_encounter_creation.sql supabase/migrations/
+          cp supabase/migrations-full/20260901022500_harden_room_factory_atomic_invoker.sql supabase/migrations/
+          cp supabase/migrations-full/20260901025800_room_factory_atomic_non_encounter.sql supabase/migrations/
+
+          cat > supabase/roles.sql <<'SQL'
+          create schema if not exists private;
+
+          create or replace function private.is_room_member(r_id uuid)
+          returns boolean
+          language plpgsql
+          stable
+          security definer
+          set search_path = public
+          as $$
+          begin
+            return exists (
+              select 1 from public.room_members
+              where room_id = r_id and user_id = auth.uid()
+            );
+          end;
+          $$;
+          SQL
+
+      - name: Start disposable Supabase
+        run: supabase start
+
+      - name: Read back privilege boundary after schema stage
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            v_private_definer boolean;
+            v_public_definer boolean;
+            v_internal_definer boolean;
+          begin
+            if has_function_privilege('authenticated', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE')
+               or has_function_privilege('anon', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE')
+               or has_function_privilege('service_role', 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'private implementation execution boundary widened';
+            end if;
+
+            if not has_function_privilege('authenticated', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'authenticated public Room Factory entrypoint missing';
+            end if;
+            if has_function_privilege('anon', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE')
+               or has_function_privilege('service_role', 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'public Room Factory entrypoint privilege widened';
+            end if;
+
+            if not has_schema_privilege('authenticated', 'room_factory_internal', 'USAGE')
+               or has_schema_privilege('anon', 'room_factory_internal', 'USAGE')
+               or has_schema_privilege('service_role', 'room_factory_internal', 'USAGE') then
+              raise exception 'room_factory_internal schema privilege boundary changed';
+            end if;
+
+            if not has_function_privilege('authenticated', 'room_factory_internal.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE')
+               or has_function_privilege('anon', 'room_factory_internal.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE')
+               or has_function_privilege('service_role', 'room_factory_internal.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)', 'EXECUTE') then
+              raise exception 'room_factory_internal function privilege boundary changed';
+            end if;
+
+            select p.prosecdef into v_private_definer
+            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'private'
+              and p.oid = 'private.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)'::regprocedure;
+            select p.prosecdef into v_public_definer
+            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'public'
+              and p.oid = 'public.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)'::regprocedure;
+            select p.prosecdef into v_internal_definer
+            from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'room_factory_internal'
+              and p.oid = 'room_factory_internal.create_room_factory_room_atomic(uuid,uuid,text,text,text,text,text,text,text,text,text,jsonb)'::regprocedure;
+
+            if v_private_definer is distinct from true
+               or v_public_definer is distinct from false
+               or v_internal_definer is distinct from true then
+              raise exception 'Room Factory SECURITY DEFINER/INVOKER contract changed';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Prove null-encounter and encounter semantics
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_SCHEMA_STAGE_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_SCHEMA_STAGE_ANON_KEY="$ANON_KEY"
+          export RC_SCHEMA_STAGE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_SCHEMA_STAGE_TEST_EMAIL="rc-schema-stage-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.test"
+          export RC_SCHEMA_STAGE_TEST_PASSWORD="RC-Schema-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
+          export RC_SCHEMA_STAGE_ALLOW_LOCALHOST=1
+          node scripts/room-factory-schema-stage-evidence.mjs
+
+      - name: Stop disposable Supabase
+        if: always()
+        run: supabase stop --no-backup
