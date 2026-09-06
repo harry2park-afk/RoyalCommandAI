@@ -5,12 +5,30 @@ import { AI_PROVIDER_IDS, type AIProviderId, type AIMessage } from "@/lib/ai/typ
 import { AU_V2_COOKIE, isAustraliaV2Host, verifyAuV2SessionToken } from "@/lib/auV2TestSession";
 
 const MAX_PROMPT = 30000;
-const MAX_PROVIDERS = 4;
+const MAX_PROVIDERS = 5;
 const MAX_HISTORY_ITEMS = 16;
 const MAX_HISTORY_CHARS = 12000;
 
+const SINGLE_PROVIDER_NAMES: Array<{ id: AIProviderId; names: string[] }> = [
+  { id: "openai", names: ["chatgpt", "챗지피티", "챗gpt"] },
+  { id: "anthropic", names: ["claude", "클로드"] },
+  { id: "google", names: ["gemini", "제미니"] },
+  { id: "xai", names: ["grok", "그록"] },
+  { id: "codex", names: ["codex", "코덱스"] },
+];
+
 function isProviderId(value: unknown): value is AIProviderId {
   return typeof value === "string" && (AI_PROVIDER_IDS as readonly string[]).includes(value);
+}
+
+function explicitSingleProvider(prompt: string): AIProviderId | null {
+  const onlyIntent = /(?:만\s*(?:답|응답)|only\s+(?:answer|respond)|(?:answer|respond)\s+only)/i.test(prompt);
+  if (!onlyIntent) return null;
+  const lower = prompt.toLowerCase();
+  for (const item of SINGLE_PROVIDER_NAMES) {
+    if (item.names.some((name) => lower.includes(name))) return item.id;
+  }
+  return null;
 }
 
 function parseHistory(value: unknown): AIMessage[] {
@@ -51,15 +69,22 @@ export async function POST(request: Request) {
   }
 
   const available = new Set<AIProviderId>(getAvailableProviderIds());
-  const providers: AIProviderId[] = Array.from(new Set<AIProviderId>(requested))
+  const explicitSingle = explicitSingleProvider(prompt);
+  const candidateProviders: AIProviderId[] = explicitSingle ? [explicitSingle] : requested;
+  const providers: AIProviderId[] = Array.from(new Set<AIProviderId>(candidateProviders))
     .filter((id) => available.has(id))
     .slice(0, MAX_PROVIDERS);
-  if (!providers.length) return NextResponse.json({ error: "Select at least one connected AI." }, { status: 400 });
+  if (!providers.length) {
+    const requestedName = explicitSingle ? explicitSingle.toUpperCase() : "selected AI";
+    return NextResponse.json({ error: `${requestedName} is not connected.` }, { status: 400 });
+  }
 
   const system = [
     "You are answering inside the isolated Royal Command Australia (RCA) Room.",
     "Use the supplied conversation history only as context for continuity.",
     "Answer the user's current question directly.",
+    "Never claim to be a different provider or model than the host-routed provider.",
+    "Do not invent provider identity, model names, tool results, commits, branches, PRs, or deployment evidence.",
     "Do not execute tools, browse, modify files, create branches, commit code, deploy, send messages, or take external actions.",
     "If the user asks for an external action, explain that this RCA test room is answer-only.",
   ].join(" ");
@@ -77,6 +102,7 @@ export async function POST(request: Request) {
       });
       return {
         provider,
+        model: result.model,
         content: result.content || "",
         latencyMs: result.latencyMs,
         ...(result.error ? { error: result.error } : {}),
@@ -84,6 +110,7 @@ export async function POST(request: Request) {
     } catch (error) {
       return {
         provider,
+        model: "",
         content: "",
         latencyMs: 0,
         error: error instanceof Error ? error.message : "AI request failed.",
