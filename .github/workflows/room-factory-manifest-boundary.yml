@@ -1,0 +1,160 @@
+name: Room Factory Manifest Atomic Boundary Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260901025800_room_factory_atomic_non_encounter.sql"
+      - "supabase/migrations/20260907045000_room_factory_manifest_atomic_only.sql"
+      - "scripts/room-factory-schema-stage-evidence.mjs"
+      - ".github/workflows/room-factory-manifest-boundary.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-room-factory-manifest-boundary-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  manifest-boundary:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          [[ "${actual_sha}" == "${CANDIDATE_SHA}" ]] || {
+            echo "BLOCKED: checkout SHA ${actual_sha} does not match candidate ${CANDIDATE_SHA}"
+            exit 1
+          }
+          echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies reproducibly
+        run: npm ci --no-audit --no-fund
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: 2.116.0
+
+      - name: Prepare isolated Room Factory schema fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+          cp supabase/migrations-full/001_init.sql supabase/migrations/
+          cp supabase/migrations-full/002_rls.sql supabase/migrations/
+          cp supabase/migrations-full/20260829211500_room_factory_manifests.sql supabase/migrations/
+          cp supabase/migrations-full/20260831084700_atomic_room_factory_encounter_creation.sql supabase/migrations/
+          cp supabase/migrations-full/20260901022500_harden_room_factory_atomic_invoker.sql supabase/migrations/
+          cp supabase/migrations-full/20260901025800_room_factory_atomic_non_encounter.sql supabase/migrations/
+          cp supabase/migrations-full/20260907045000_room_factory_manifest_atomic_only.sql supabase/migrations/
+
+          cat > supabase/roles.sql <<'SQL'
+          create schema if not exists private;
+
+          create or replace function private.is_room_member(r_id uuid)
+          returns boolean
+          language plpgsql
+          stable
+          security definer
+          set search_path = public
+          as $$
+          begin
+            return exists (
+              select 1 from public.room_members
+              where room_id = r_id and user_id = auth.uid()
+            );
+          end;
+          $$;
+          SQL
+
+      - name: Start disposable Supabase
+        run: supabase start
+
+      - name: Prove manifest creation is atomic-only
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            v_client_insert_policies integer;
+            v_private_functions integer;
+            v_bad_private_functions integer;
+          begin
+            if has_table_privilege('authenticated', 'public.room_factory_manifests', 'INSERT') then
+              raise exception 'authenticated still has direct INSERT privilege on room_factory_manifests';
+            end if;
+            if has_table_privilege('anon', 'public.room_factory_manifests', 'INSERT') then
+              raise exception 'anon still has direct INSERT privilege on room_factory_manifests';
+            end if;
+
+            select count(*) into v_client_insert_policies
+            from pg_policies p
+            cross join lateral unnest(p.roles) as r(role_name)
+            where p.schemaname = 'public'
+              and p.tablename = 'room_factory_manifests'
+              and p.cmd = 'INSERT'
+              and r.role_name::text in ('authenticated', 'anon', 'public');
+            if v_client_insert_policies <> 0 then
+              raise exception 'client INSERT policy remains on room_factory_manifests: %', v_client_insert_policies;
+            end if;
+
+            select count(*),
+                   count(*) filter (
+                     where not p.prosecdef
+                        or pg_get_userbyid(p.proowner) <> 'postgres'
+                   )
+              into v_private_functions, v_bad_private_functions
+            from pg_proc p
+            join pg_namespace n on n.oid = p.pronamespace
+            where n.nspname = 'private'
+              and p.proname = 'create_room_factory_room_atomic';
+
+            if v_private_functions = 0 then
+              raise exception 'private Room Factory implementation is missing';
+            end if;
+            if v_bad_private_functions <> 0 then
+              raise exception 'private Room Factory implementation lost postgres-owned SECURITY DEFINER boundary';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Prove authenticated atomic RPC still creates safely
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          export RC_SCHEMA_STAGE_SUPABASE_URL="http://127.0.0.1:54321"
+          export RC_SCHEMA_STAGE_ANON_KEY="$ANON_KEY"
+          export RC_SCHEMA_STAGE_SERVICE_ROLE_KEY="$SERVICE_ROLE_KEY"
+          export RC_SCHEMA_STAGE_TEST_EMAIL="rc-manifest-boundary-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.test"
+          export RC_SCHEMA_STAGE_TEST_PASSWORD="RC-Boundary-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
+          export RC_SCHEMA_STAGE_ALLOW_LOCALHOST=1
+          node scripts/room-factory-schema-stage-evidence.mjs
+
+      - name: Stop disposable Supabase
+        if: always()
+        run: supabase stop --no-backup
