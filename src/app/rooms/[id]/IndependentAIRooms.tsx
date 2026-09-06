@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
-import { Check, ChevronDown, Languages, Menu, MessageSquare, Send, X } from "lucide-react";
+import { Check, ChevronDown, Languages, Menu, MessageSquare, Mic, Send, Sparkles, X } from "lucide-react";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string };
@@ -49,7 +49,7 @@ function selectedKey(roomId: string) {
 
 function latestPreview(history: ChatItem[]) {
   const last = [...history].reverse().find((item) => item.content.trim());
-  return last?.content.replace(/\s+/g, " ").slice(0, 92) || "No conversation yet";
+  return last?.content.replace(/\s+/g, " ").slice(0, 120) || "No conversation yet";
 }
 
 export default function IndependentAIRooms() {
@@ -64,6 +64,8 @@ export default function IndependentAIRooms() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [chatsOpen, setChatsOpen] = useState(false);
   const [languageOpen, setLanguageOpen] = useState(false);
+  const [helperOpen, setHelperOpen] = useState(false);
+  const [listening, setListening] = useState(false);
   const [language, setLanguage] = useState("ko");
   const [roomPrompt, setRoomPrompt] = useState("");
   const [allPrompt, setAllPrompt] = useState("");
@@ -129,6 +131,36 @@ export default function IndependentAIRooms() {
   function toggleSelected(provider: ProviderId) {
     if (!connected.has(provider)) return;
     setSelected((prev) => prev.includes(provider) ? prev.filter((id) => id !== provider) : [...prev, provider]);
+  }
+
+  function toggleMic(target: "all" | "room") {
+    setGlobalError("");
+    const w = window as typeof window & { SpeechRecognition?: new () => any; webkitSpeechRecognition?: new () => any };
+    const SR = w.SpeechRecognition || w.webkitSpeechRecognition;
+    if (!SR) {
+      setGlobalError("Voice input is not supported in this browser.");
+      return;
+    }
+    const recognition = new SR();
+    recognition.lang = language === "ko" ? "ko-KR" : "en-AU";
+    recognition.interimResults = true;
+    recognition.continuous = false;
+    recognition.onstart = () => setListening(true);
+    recognition.onend = () => setListening(false);
+    recognition.onerror = () => {
+      setListening(false);
+      setGlobalError("Microphone could not start.");
+    };
+    recognition.onresult = (event: any) => {
+      let text = "";
+      for (let index = event.resultIndex || 0; index < event.results.length; index += 1) {
+        text += event.results[index]?.[0]?.transcript || "";
+      }
+      if (!text.trim()) return;
+      if (target === "all") setAllPrompt((prev) => prev ? `${prev} ${text.trim()}` : text.trim());
+      else setRoomPrompt((prev) => prev ? `${prev} ${text.trim()}` : text.trim());
+    };
+    recognition.start();
   }
 
   async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number) {
@@ -237,18 +269,25 @@ export default function IndependentAIRooms() {
           </div>
           <div className="ml-auto text-right"><div className="font-serif text-lg text-[#f1d77a]">Royal Command AI</div><div className="text-[10px] uppercase tracking-[.22em] text-[#8d98a8]">Independent Rooms V1</div></div>
         </div>
-        {menuOpen && <div className="absolute left-3 top-14 z-50 w-56 rounded-xl border border-white/15 bg-[#0b1524] p-2 shadow-2xl"><div className="px-3 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Workspace</div><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10" onClick={() => setMenuOpen(false)}>Independent AI Rooms</button><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10" onClick={() => { setOpenRoom(null); setMenuOpen(false); }}>All AI Cards</button></div>}
+        {menuOpen && <div className="absolute left-3 top-14 z-50 w-56 rounded-xl border border-white/15 bg-[#0b1524] p-2 shadow-2xl"><div className="px-3 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Workspace</div><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10" onClick={() => setMenuOpen(false)}>Independent AI Rooms</button><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10" onClick={() => { setOpenRoom(null); setMenuOpen(false); }}>All AI Cards</button><button className="block w-full rounded-lg px-3 py-2 text-left hover:bg-white/10" onClick={() => { cancelAll(); setMenuOpen(false); }}>Cancel active</button></div>}
         {chatsOpen && <div className="absolute left-24 top-14 z-50 w-72 max-h-[70vh] overflow-y-auto rounded-xl border border-white/15 bg-[#0b1524] p-2 shadow-2xl">{PROVIDERS.map((provider) => <button key={provider.id} onClick={() => { setOpenRoom(provider.id); setChatsOpen(false); }} className="mb-1 block w-full rounded-lg border border-white/10 p-3 text-left hover:bg-white/10"><div className="font-semibold">{provider.name}</div><div className="mt-1 truncate text-xs text-[#9ca6b4]">{latestPreview(rooms[provider.id].history)}</div></button>)}</div>}
       </header>
 
-      <div className="mx-auto w-full max-w-[1800px] p-3 sm:p-4">
+      <div className="w-full max-w-none p-2 sm:p-3">
         {globalError && <div className="mb-3 rounded-lg border border-red-400/30 bg-red-950/30 px-3 py-2 text-sm text-red-200">{globalError}</div>}
 
         {!openRoom ? (
           <>
-            <section className="mb-4 rounded-xl border border-white/10 bg-[#0b1524] p-3 sm:p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-2"><div className="mr-auto"><h2 className="text-lg font-semibold">Ask selected AIs independently</h2><p className="text-xs text-[#94a0af]">Each selected provider receives the same question. No provider can see another provider&apos;s result before freeze.</p></div><button onClick={cancelAll} className="rounded-lg border border-white/15 px-3 py-2 text-xs hover:bg-white/10">Cancel active</button></div>
-              <form onSubmit={submitSelected} className="flex gap-2"><textarea value={allPrompt} onChange={(e) => setAllPrompt(e.target.value)} className="min-h-20 flex-1 resize-y rounded-xl border border-white/10 bg-[#07101d] p-3 outline-none focus:border-[#d7b64d]/60" placeholder="Ask the selected AI rooms..."/><button disabled={!selectedConnected.length} className="self-end rounded-xl border border-[#d7b64d]/50 bg-[#1e3a8a] px-4 py-3 font-semibold text-[#f8df7a] disabled:opacity-40"><Send size={17}/></button></form>
+            <section className="relative mb-3 rounded-xl border border-white/10 bg-[#0b1524] p-2 sm:p-3">
+              <form onSubmit={submitSelected} className="relative">
+                <textarea value={allPrompt} onChange={(e) => setAllPrompt(e.target.value)} className="min-h-32 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-4 pr-48 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder="Ask the selected AI rooms..."/>
+                {helperOpen && <div className="absolute bottom-14 right-3 z-20 w-72 rounded-xl border border-[#d7b64d]/35 bg-[#0b1524] p-3 shadow-2xl"><div className="mb-2 flex items-center justify-between"><div className="font-semibold text-[#f0d36a]">AI Helper</div><button type="button" onClick={() => setHelperOpen(false)} className="grid h-7 w-7 place-items-center rounded-md border border-white/10"><X size={14}/></button></div><div className="text-sm leading-6 text-[#c9d1dc]">질문을 입력한 뒤 원하는 AI 카드만 선택하세요. 여러 AI를 선택하면 각 AI가 서로 독립적으로 같은 질문을 받습니다.</div><div className="mt-3 flex gap-2"><button type="button" onClick={() => setSelected(PROVIDERS.filter((p) => connected.has(p.id)).map((p) => p.id))} className="rounded-lg border border-white/15 px-2 py-1.5 text-xs hover:bg-white/10">전체 선택</button><button type="button" onClick={() => setSelected([])} className="rounded-lg border border-white/15 px-2 py-1.5 text-xs hover:bg-white/10">선택 해제</button></div></div>}
+                <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
+                  <button type="button" onClick={() => toggleMic("all")} className={`grid h-10 w-10 place-items-center rounded-lg border ${listening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524] text-[#d8dee8]"}`} title="Microphone"><Mic size={17}/></button>
+                  <button type="button" onClick={() => setHelperOpen((value) => !value)} className="flex h-10 items-center gap-1 rounded-lg border border-white/15 bg-[#0b1524] px-2.5 text-xs font-semibold text-[#f0d36a]" title="AI Helper"><Sparkles size={15}/>AI Helper</button>
+                  <button disabled={!selectedConnected.length} className="grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-40"><Send size={17}/></button>
+                </div>
+              </form>
             </section>
 
             <section className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -256,22 +295,25 @@ export default function IndependentAIRooms() {
                 const room = rooms[provider.id];
                 const available = connected.has(provider.id);
                 const active = selected.includes(provider.id) && available;
-                return <article key={provider.id} className={`rounded-2xl border p-4 shadow-lg ${active ? "border-[#d7b64d]/70 bg-[#10223f]" : "border-white/10 bg-[#0b1524]"}`}>
-                  <div className="flex items-start gap-3"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`mt-0.5 grid h-6 w-6 place-items-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <Check size={15}/> : null}</button><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="text-lg font-semibold">{provider.name}</h3><span className={`h-2 w-2 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div><p className="text-xs text-[#93a0af]">{provider.role}</p></div></div>
-                  <p className="mt-4 min-h-10 text-sm text-[#c8d0dc]">{latestPreview(room.history)}</p>
-                  <div className="mt-4 flex items-center gap-2 text-[11px] text-[#8e99a8]"><span>{room.loading ? "Working…" : room.error ? "Error" : available ? "Connected" : "Not connected"}</span>{room.lastLatency ? <span>· {Math.round(room.lastLatency)} ms</span> : null}</div>
-                  <button onClick={() => setOpenRoom(provider.id)} className="mt-3 w-full rounded-lg border border-white/15 bg-[#07101d] px-3 py-2 text-sm font-semibold hover:border-[#d7b64d]/50">Open</button>
+                const recent = room.history.slice(-5);
+                return <article key={provider.id} className={`flex min-h-[360px] flex-col rounded-2xl border p-4 shadow-lg ${active ? "border-[#d7b64d]/70 bg-[#10223f]" : "border-white/10 bg-[#0b1524]"}`}>
+                  <div className="flex items-start gap-3"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`mt-0.5 grid h-6 w-6 place-items-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <Check size={15}/> : null}</button><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="text-xl font-semibold">{provider.name}</h3><span className={`h-2 w-2 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div><p className="text-xs text-[#93a0af]">{provider.role}</p></div></div>
+                  <div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-white/10 bg-black/15 p-3">
+                    {recent.length ? recent.map((item) => <div key={item.id} className={`mb-2 whitespace-pre-wrap rounded-lg px-3 py-2 text-[15px] leading-6 ${item.role === "user" ? "ml-6 bg-[#1e3a8a]/70" : "mr-6 bg-[#07101d]"}`}>{item.content}</div>) : <div className="pt-2 text-[15px] text-[#c8d0dc]">No conversation yet</div>}
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-[#8e99a8]"><span>{room.loading ? "Working…" : room.error ? "Error" : available ? "Connected" : "Not connected"}</span>{room.lastLatency ? <span>· {Math.round(room.lastLatency)} ms</span> : null}</div>
+                  <button onClick={() => setOpenRoom(provider.id)} className="mt-3 w-full rounded-lg border border-white/15 bg-[#07101d] px-3 py-2.5 text-sm font-semibold hover:border-[#d7b64d]/50">Open</button>
                 </article>;
               })}
 
-              <article className="rounded-2xl border border-[#7a5b18]/60 bg-[#17130a] p-4 shadow-lg"><div className="flex items-center justify-between"><div><h3 className="text-lg font-semibold text-[#f0d36a]">Final Integrator</h3><p className="text-xs text-[#a59a76]">Read-only · Frozen results only</p></div><span className={`h-2 w-2 rounded-full ${canIntegrate ? "bg-emerald-400" : "bg-slate-600"}`}/></div><p className="mt-4 min-h-10 text-sm text-[#d6cfb5]">{integrated ? integrated.slice(0, 120) : canIntegrate ? `${frozenList.length} frozen results ready.` : "Ask selected AIs first. Integration cannot start before freeze."}</p><button disabled={!canIntegrate || integrating} onClick={integrate} className="mt-3 w-full rounded-lg border border-[#d7b64d]/40 bg-[#2a2109] px-3 py-2 text-sm font-semibold text-[#f0d36a] disabled:opacity-35">{integrating ? "Integrating…" : "Create integrated answer"}</button>{integrated && <div className="mt-3 max-h-64 overflow-y-auto whitespace-pre-wrap rounded-lg border border-white/10 bg-black/20 p-3 text-sm leading-6">{integrated}</div>}</article>
+              <article className="flex min-h-[360px] flex-col rounded-2xl border border-[#7a5b18]/60 bg-[#17130a] p-4 shadow-lg"><div className="flex items-center justify-between"><div><h3 className="text-xl font-semibold text-[#f0d36a]">Final Integrator</h3><p className="text-xs text-[#a59a76]">Read-only · Frozen results only</p></div><span className={`h-2 w-2 rounded-full ${canIntegrate ? "bg-emerald-400" : "bg-slate-600"}`}/></div><div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#7a5b18]/30 bg-black/15 p-3 text-[15px] leading-6 text-[#d6cfb5]">{integrated ? integrated : canIntegrate ? `${frozenList.length} frozen results ready.` : "No integrated answer yet"}</div><button disabled={!canIntegrate || integrating} onClick={integrate} className="mt-3 w-full rounded-lg border border-[#d7b64d]/40 bg-[#2a2109] px-3 py-2.5 text-sm font-semibold text-[#f0d36a] disabled:opacity-35">{integrating ? "Integrating…" : "Create integrated answer"}</button></article>
             </section>
           </>
         ) : (
-          <section className="mx-auto flex min-h-[calc(100dvh-86px)] max-w-5xl flex-col rounded-2xl border border-white/10 bg-[#0b1524] shadow-2xl">
-            <div className="flex items-center gap-3 border-b border-white/10 p-3"><button onClick={() => setOpenRoom(null)} className="grid h-9 w-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10"><X size={17}/></button><div><h2 className="text-xl font-semibold">{openMeta?.name}</h2><p className="text-xs text-[#8f9baa]">Strict isolated provider room · other AI rooms are not visible here</p></div><span className={`ml-auto h-2.5 w-2.5 rounded-full ${openRoom && connected.has(openRoom) ? "bg-emerald-400" : "bg-slate-600"}`}/></div>
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{rooms[openRoom].history.length ? rooms[openRoom].history.map((item) => <div key={item.id} className={`max-w-[88%] whitespace-pre-wrap rounded-xl border px-3 py-2 text-sm leading-6 ${item.role === "user" ? "ml-auto border-[#d7b64d]/35 bg-[#1e3a8a]" : "mr-auto border-white/10 bg-[#07101d]"}`}>{item.content}</div>) : <div className="py-20 text-center text-[#8d99a8]">Start a private conversation with {openMeta?.name}. Only this provider&apos;s history is sent.</div>}{rooms[openRoom].loading && <div className="text-sm text-[#f0d36a]">{openMeta?.name} is working…</div>}{rooms[openRoom].error && <div className="rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{rooms[openRoom].error}</div>}</div>
-            <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="flex gap-2"><textarea value={roomPrompt} onChange={(e) => setRoomPrompt(e.target.value)} className="min-h-20 flex-1 resize-y rounded-xl border border-white/10 bg-[#07101d] p-3 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="self-end rounded-xl border border-[#d7b64d]/50 bg-[#1e3a8a] px-4 py-3 text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div></form>
+          <section className="mx-auto flex min-h-[calc(100dvh-86px)] max-w-6xl flex-col rounded-2xl border border-white/10 bg-[#0b1524] shadow-2xl">
+            <div className="flex items-center gap-3 border-b border-white/10 p-3"><button onClick={() => setOpenRoom(null)} className="grid h-9 w-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10"><X size={17}/></button><div><h2 className="text-xl font-semibold">{openMeta?.name}</h2><p className="text-xs text-[#8f9baa]">Strict isolated provider room</p></div><span className={`ml-auto h-2.5 w-2.5 rounded-full ${openRoom && connected.has(openRoom) ? "bg-emerald-400" : "bg-slate-600"}`}/></div>
+            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{rooms[openRoom].history.length ? rooms[openRoom].history.map((item) => <div key={item.id} className={`max-w-[88%] whitespace-pre-wrap rounded-xl border px-3 py-2 text-[15px] leading-7 ${item.role === "user" ? "ml-auto border-[#d7b64d]/35 bg-[#1e3a8a]" : "mr-auto border-white/10 bg-[#07101d]"}`}>{item.content}</div>) : <div className="py-20 text-center text-[#8d99a8]">Start a private conversation with {openMeta?.name}.</div>}{rooms[openRoom].loading && <div className="text-sm text-[#f0d36a]">{openMeta?.name} is working…</div>}{rooms[openRoom].error && <div className="rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{rooms[openRoom].error}</div>}</div>
+            <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="relative"><textarea value={roomPrompt} onChange={(e) => setRoomPrompt(e.target.value)} className="min-h-28 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-3 pr-28 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/><div className="absolute bottom-3 right-3 flex items-center gap-1.5"><button type="button" onClick={() => toggleMic("room")} className={`grid h-10 w-10 place-items-center rounded-lg border ${listening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524]"}`}><Mic size={17}/></button><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div></div></form>
           </section>
         )}
       </div>
