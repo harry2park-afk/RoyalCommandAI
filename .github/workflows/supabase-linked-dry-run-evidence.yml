@@ -28,10 +28,12 @@ jobs:
       CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # This PR is a diagnostic harness on top of protected master. Only migrations
+      # actually present in this exact checkout may be allow-listed here. The Room
+      # Factory and profile-role migrations live on separate Draft PRs (#661/#691)
+      # and require their own exact-head linked dry-run before Hosted staging.
       EXPECTED_APPLY_MIGRATIONS: >-
-        20260831225500_scope_matter_staff_access.sql,
-        20260901025800_room_factory_atomic_non_encounter.sql,
-        20260904105500_harden_profile_role_authority.sql
+        20260831225500_scope_matter_staff_access.sql
     steps:
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
