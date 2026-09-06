@@ -109,6 +109,36 @@
     return String(button.className || "").includes("bg-[#7A0C2E]");
   }
 
+  function activeAiCount() {
+    return Math.max(1, aiButtons().filter(isActive).length);
+  }
+
+  function styleAnswerLayout() {
+    const count = activeAiCount();
+    const mode = count === 1 ? "single" : count === 2 ? "double" : "multi";
+    document.documentElement.dataset.rcAiAnswerLayout = mode;
+    document.documentElement.dataset.rcAiAnswerCount = String(count);
+
+    const selector = '.royal-room-main main section > div:first-child > article[class*="whitespace-pre-wrap"]';
+    const cards = Array.from(document.querySelectorAll(selector));
+    cards.forEach((card) => {
+      if (!(card instanceof HTMLElement)) return;
+      if (card.dataset.rcAiAnswerExpanded === "true") {
+        card.style.removeProperty("height");
+        card.style.removeProperty("min-height");
+        card.style.removeProperty("overflow");
+        return;
+      }
+
+      let height = "clamp(220px, calc((100dvh - 290px) / 2.25), 340px)";
+      if (count === 1) height = "clamp(360px, calc(100dvh - 315px), 650px)";
+      if (count === 2) height = "clamp(250px, calc((100dvh - 292px) / 2.05), 390px)";
+      card.style.setProperty("height", height, "important");
+      card.style.setProperty("min-height", height, "important");
+      card.style.setProperty("overflow", "hidden", "important");
+    });
+  }
+
   function seedVisible(buttons) {
     if (seeded || !preferencesReady) return;
     let visible = readVisible();
@@ -263,6 +293,7 @@
 
     const saveButton = saveReferenceButton();
     buttons.forEach((button) => styleButton(button, visibleNames, saveButton));
+    styleAnswerLayout();
   }
 
   function warehouseChoiceName(button) {
@@ -290,19 +321,21 @@
     }
 
     const button = event.target instanceof Element ? event.target.closest("button") : null;
-    if (!(button instanceof HTMLButtonElement)) return;
+    if (button instanceof HTMLButtonElement) {
+      const modal = button.closest('[role="presentation"]');
+      if (modal && (modal.textContent || "").includes(WAREHOUSE_LABEL)) {
+        const name = warehouseChoiceName(button);
+        if (name && name !== WAREHOUSE_LABEL) pendingWarehouseName = name;
+        return;
+      }
 
-    const modal = button.closest('[role="presentation"]');
-    if (modal && (modal.textContent || "").includes(WAREHOUSE_LABEL)) {
-      const name = warehouseChoiceName(button);
-      if (name && name !== WAREHOUSE_LABEL) pendingWarehouseName = name;
-      return;
+      if (aiButtons().includes(button)) {
+        requestAnimationFrame(styleDock);
+        setTimeout(styleDock, 40);
+      }
     }
 
-    if (aiButtons().includes(button)) {
-      requestAnimationFrame(styleDock);
-      setTimeout(styleDock, 40);
-    }
+    setTimeout(styleAnswerLayout, 0);
   }, true);
 
   function schedule() {
