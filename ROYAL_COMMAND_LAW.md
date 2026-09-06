@@ -5,128 +5,86 @@ Authority: Highest Royal Command repository governance rule
 Scope: Royal Command global platform, all countries, Rooms, AI providers and development work
 
 ## Article 1 — One Global Core
-Royal Command maintains one shared Global Core. Country expansion must use Country Profiles or approved adapters, not uncontrolled country forks.
+Royal Command maintains one shared Global Core. Country expansion uses Country Profiles or approved adapters, not uncontrolled country forks.
 
-## Article 2 — Country Profile / Adapter
-Country differences such as language, timezone, currency, domain, phone, payment, privacy, data residency, legal/regulatory requirements and allowed providers belong in Country Profiles or approved adapters.
+## Article 2 — Country Profiles and Adapters
+Language, timezone, currency, domain, phone, payment, privacy, data residency, law and other country differences belong in Country Profiles or approved adapters.
 
 ## Article 3 — Provider Neutrality
-The Global Core remains provider-neutral. OpenAI, Anthropic, Google, xAI and future providers connect through a Provider Registry or equivalent adapter. No provider becomes a mandatory platform dependency without explicit approval.
+The Core remains provider-neutral. Providers connect through a Registry or equivalent adapter; none becomes mandatory without explicit approval.
 
-## Article 4 — FAST / STANDARD / HIGH-RISK execution paths
-Safety controls must be proportional to risk. The system must not run every available gate, reviewer or AI on every task.
+## Article 4 — Risk-Proportionate Execution and Role Relay
+- **FAST / LOW RISK:** one Writer when needed and the minimum relevant checks.
+- **STANDARD:** one Writer per conflicting boundary, one independent Reviewer and relevant lint/type/test/build checks.
+- **HIGH-RISK / REGULATED:** full applicable Rule Gate, repository evidence, Host-verified tests and at least two independent review perspectives when practical. Include Codex for code/security review when available; otherwise record `CODEX_UNAVAILABLE`.
 
-### FAST / LOW RISK
-Use for answers, analysis, planning and small isolated code changes with no security, auth, billing, database schema, tenant, destructive, regulated, production-infrastructure or Global Core boundary impact.
+Use the fastest safe path. The normal relay is Spec → Plan → Write → Review → Test → Integrate → Evidence → Approval; low-risk work may combine unnecessary stages. Handoffs preserve resource ownership.
 
-Default path: one Writer when writing is needed + only the minimum automated checks appropriate to the changed surface. Multi-AI review, repository-grounded review and full Rule Gate expansion are optional, not mandatory.
+## Article 5 — Parallel Lanes, Single Writer and Change Control
+Single Write Authority applies per Task and conflicting resource boundary. Non-overlapping lanes may run in parallel; shared resources are serialized or explicitly handed off. Change control verifies ownership, scope, relevant checks and rollback without repeating unrelated process.
 
-### STANDARD BUILD
-Use for ordinary implementation work with moderate integration risk.
+## Article 6 — Repository Grounding
+STANDARD or HIGH-RISK decisions affected by repository structure use Host-verified repository/file evidence. Missing paths are labelled `NEW FILE` or `UNVERIFIED PATH`, never treated as existing.
 
-Default path: one Writer per conflicting resource boundary + one independent Reviewer + risk-appropriate lint/typecheck/tests/build. Add more reviewers only when a concrete risk justifies them.
+## Article 7 — Evidence Before SUCCESS
+No model, tool or process may claim a change, test, commit, deployment or system health without task-appropriate Host-verifiable evidence. Provider self-report is not evidence. Evidence strength follows risk.
 
-### HIGH-RISK / REGULATED
-Use for authentication, authorization, secrets, tenant isolation, database schema/RLS, payments, production infrastructure, destructive changes, regulated features, major Global Core architecture, execution authority and comparable high-impact changes.
+## Article 8 — Review Limits
+Review/rework is normally capped at two rounds. Unresolved material conflict goes to the Integrator. Repeating review without new evidence is prohibited.
 
-Default path: full Rule Gate + repository-grounded evidence + at least two independent review perspectives when practical + Host-verified tests/evidence. Codex should be included for code/security inspection when an actual Codex execution/review connector is available. If Codex is unavailable, record `CODEX_UNAVAILABLE` and use available independent reviewers instead.
+## Article 9 — Unified Rule Gate
+Check only relevant Royal Command policy, repository/platform requirements, binding law, provider/API rules, tenant restrictions and resource conflicts. Outcomes: `ALLOW`, `ALLOW_WITH_CONDITIONS`, `OWNER_APPROVAL_REQUIRED`, `BLOCK`, `UNKNOWN_REQUIRES_REVIEW`. Irrelevant gates must not delay FAST work; relevant gates must not be bypassed for HIGH-RISK work.
 
-The Controller must prefer the fastest path that is safe for the actual risk. Adding gates without a concrete risk reason is itself a process defect.
+## Article 10 — Authentication, Secrets and Least Privilege
+Production paths require real authentication/authorization, dedicated secrets and least privilege. Provider keys are not session secrets. Models receive neither raw infrastructure credentials nor unrestricted mutation authority.
 
-## Article 5 — Parallel Work Lanes / Single Write Authority
-Single Write Authority applies per Task and per conflicting resource boundary, not to the whole project. Multiple isolated, non-overlapping Work Lanes may execute in parallel. Shared or conflicting resources must be serialized or explicitly handed off.
+## Article 11 — Tenant and Data Isolation
+Production data is isolated by User → Organisation/Tenant → Room → Conversation/Task or equivalent enforcement. A tenant cannot access another tenant's data, credentials, memory, billing or execution state.
 
-## Article 6 — Role Relay
-Preferred collaboration is Spec → Plan → Write → Review → Test → Integrate → Evidence → Approval, but low-risk work may collapse unnecessary stages. A handoff must preserve declared resource ownership.
+## Article 12 — Controlled Host Executor
+Provider AIs propose or review; an approved Host Executor controls infrastructure mutation and enforces resource ownership, applicable Rule Gate outcomes and evidence requirements.
 
-## Article 7 — Repository Grounding
-For STANDARD or HIGH-RISK work where repository structure affects the decision, reviewers should use a Host-verified repository snapshot or verified file evidence. A path not present in verified evidence must be labelled `NEW FILE` or `UNVERIFIED PATH` and may not be treated as an existing repository file.
+## Article 13 — Rollback and Recovery
+Production-affecting changes require a verified known-good rollback point proportionate to risk. Rollback and recovery must preserve customer data and unrelated working features. Recovery evidence is maintained under the Daily Recovery rules.
 
-## Article 8 — Evidence Before SUCCESS
-No AI, tool or process may declare SUCCESS without evidence appropriate to the task. Evidence must be risk-proportionate: small isolated work needs only the checks that can actually detect its likely failures; high-risk work requires stronger evidence.
+## Article 14 — Production Approval
+The Owner may approve a defined sequence or phase. Do not repeat approval requests inside that scope unless it becomes destructive, materially expands, requires separate external confirmation, reveals a new high-severity risk, or needs an Owner-supplied secret/value.
 
-## Article 9 — Review Limits
-Review/rework loops are normally capped at two rounds. Unresolved material conflict escalates to the Integrator. Repeating reviewers without new evidence is prohibited.
+## Article 15 — Cost, Reliability and Efficient Communication
+Use multiple models only when they materially reduce risk or time. Apply suitable timeouts, failure isolation, retry and cost limits. Answers and work orders must be short and accurate without omitting meaning, conditions or safety. Suggest a materially better or safer method briefly before execution. Avoid repetition and verbosity; these rules must not impair sound judgment or execution speed.
 
-## Article 10 — Unified Rule Gate
-The Rule Gate checks only the rule sources relevant to the task: Royal Command Law/internal policy, repository/platform requirements, applicable country law/regulation, provider/API requirements, tenant/customer restrictions and resource/dependency conflicts.
+## Article 16 — Core Fix Once
+Fix shared defects once in Global Core when appropriate. Country-specific patches require documented necessity and remain overlays.
 
-Allowed dispositions are `ALLOW`, `ALLOW_WITH_CONDITIONS`, `OWNER_APPROVAL_REQUIRED`, `BLOCK`, and `UNKNOWN_REQUIRES_REVIEW`.
+## Article 17 — Security and Privacy by Default
+Build security, privacy, auditability, data minimisation and tenant isolation into the Core without unnecessarily slowing unrelated low-risk work.
 
-FAST/LOW-RISK work must not be delayed by irrelevant Rule Gate checks. HIGH-RISK work must not bypass relevant checks.
+## Article 18 — Binding External Rules
+Binding law and non-waivable platform/provider requirements override internal policy. Stop or redesign only the affected scope; isolated unrelated work may continue.
 
-## Article 11 — Authentication, Secrets and Least Privilege
-Production execution paths require real authentication/authorization, dedicated secrets and least privilege. Provider API keys must not be reused as session-signing secrets. AI models do not receive raw infrastructure credentials or unrestricted mutation authority.
+## Article 19 — Rule Hierarchy, Exceptions and Amendments
+This Law is the highest repository governance rule. Lower rules must comply and may not add broader blocking without a specific risk. Exceptions are explicit, narrow and documented and never override binding law. Material amendments require reviewed repository changes and should simplify or strengthen controls based on evidence.
 
-## Article 12 — Tenant and Data Isolation
-Production data must be isolated by User → Organisation/Tenant → Room → Conversation/Task or an equivalent enforced hierarchy. One tenant must not read, modify or execute against another tenant's private data, credentials, memory, billing or execution state.
+## Article 20 — Preview-First Development and Promotion
+All changes use a controlled branch with Vercel Preview, or an explicitly approved equivalent, before Production. RC/RCA Production is not an experimental workspace.
 
-## Article 13 — Host Executor
-Provider AIs propose or review work; infrastructure mutation authority belongs to an approved Host Executor or equivalent controlled host path. The Host must enforce declared resource ownership, relevant Rule Gate results and required evidence.
+- Australia-specific behavior is verified in Preview, then promoted to RCA.
+- Shared international behavior is verified in Preview, then promoted to RC Master.
+- RCA-proven shared features move to Core only after Australia-specific content is separated into approved overlays.
+- Shared features are not independently rebuilt by country.
+- Direct Production changes are prohibited except approved emergency hotfixes with rollback evidence.
+- Promotion requires risk-appropriate checks, exact tested-head evidence where applicable and a known-good rollback point.
 
-## Article 14 — No Evidence-Free SUCCESS
-A provider response, self-report or model statement is never sufficient evidence that a file changed, a test passed, a commit exists, a deployment succeeded or production is healthy. Those claims require Host-verifiable evidence.
-
-## Article 15 — Rollback
-Production-affecting changes require a known-good rollback point appropriate to the risk. Rollback design must avoid destroying customer data or unrelated working features.
-
-## Article 16 — Production Approval Policy
-The Owner may grant approval for a defined sequence or project phase, not only one PR at a time. Once the Owner explicitly grants continuing approval for that defined scope, repeated approval requests inside the same scope are prohibited unless:
-- the action becomes destructive or materially expands the approved scope,
-- binding external law/platform policy requires separate confirmation,
-- a new unknown/high-severity risk appears,
-- or a required credential/secret/value must be supplied by the Owner.
-
-This rule exists to prevent approval loops from becoming a development bottleneck.
-
-## Article 17 — Cost and Reliability
-Multi-AI use must be purposeful. More models are not automatically safer. Use parallel models when their independent perspective materially reduces risk or time. Timeouts, failure isolation, retry limits and token/cost controls should match the task risk and service stage.
-
-## Article 18 — Core Fix Once
-Shared defects should be fixed in Global Core once where technically appropriate, then inherited by Country Profiles. Country-specific patches require a documented necessity.
-
-## Article 19 — Security and Privacy by Default
-Security, privacy, auditability, data minimisation and tenant isolation are designed into the Core, but controls must be implemented without unnecessarily slowing unrelated low-risk work.
-
-## Article 20 — External Rules
-Binding country law and non-waivable platform/provider requirements cannot be overridden by Royal Command policy. If a true conflict exists, the affected scope must stop or be redesigned; unrelated work should continue when isolated.
-
-## Article 21 — Change Control
-Change Control must verify task ownership, scope and rollback evidence without forcing unrelated full-process repetition. Small isolated changes use lightweight checks. High-risk changes use the full applicable path.
-
-## Article 22 — Rule Hierarchy
-This file is the highest Royal Command repository governance rule. `AGENTS.md`, execution-isolation rules, workflows and implementation documents must comply with it. Lower-level rules that impose broader blocking or slower process than this Law without a specific risk justification must be updated.
-
-## Article 23 — Exceptions
-Exceptions are explicit, narrow and documented. No exception may violate binding law or non-waivable external requirements.
-
-## Article 24 — Amendment
-Material changes to this Law require a reviewed repository change. Amendments should simplify or strengthen controls based on evidence, not add process for its own sake.
-
-## Article 25 — Preview-First Development and RC/RCA Promotion
-All Royal Command modification and development work must be performed in one controlled development lane before Production promotion: a dedicated GitHub Branch with Vercel Preview, or an explicitly approved equivalent isolated Preview environment. RC and RCA Production are deployment targets, not experimental development workspaces.
-
-Promotion rules are mandatory:
-- Australia-specific functionality, policy, legal/accounting behaviour, locale, tax, currency, regulatory configuration or Australia-only UX is promoted to RCA (`atyourcommandai.com.au`) after Preview verification.
-- International/common functionality that belongs in the shared Global Core is promoted to RC Master (`royalcommand.ai`) after Preview verification.
-- A feature first proven in RCA may be promoted to RC Master only after Australia-specific content is separated into Country Profile / Country Pack / Policy / Configuration / Locale Overlay as appropriate.
-- The same shared feature must not be independently rebuilt in multiple country editions. Shared fixes belong in Global Core once; country differences remain overlays.
-- Direct Production experimentation or ad-hoc code modification on RC or RCA is prohibited except for an explicitly approved emergency hotfix with rollback evidence.
-- Production promotion requires the checks appropriate to the task risk, exact tested-head evidence where applicable, and a known-good rollback point.
-
-This Article establishes the default development path: `Branch/Preview → verify → promote to RCA for Australia-specific scope or RC Master for global scope → inherit through country overlays`.
-
----
+Default path: `Branch/Preview → verify → promote to RCA or RC Master → inherit through country overlays`.
 
 ## Required Work Declaration
-For executable work, record only what is necessary for the selected risk path:
-1. Risk class: FAST / STANDARD / HIGH-RISK.
-2. Task/Work Lane and writable resource boundary.
-3. Single Writer/Executor for each conflicting resource.
-4. Required reviewer count for this risk class.
-5. Required evidence/tests.
-6. Rollback point when production-affecting.
-7. Whether continuing Owner approval already covers this scope.
-8. `CODEX_AVAILABLE`, `CODEX_UNAVAILABLE`, or `CODEX_NOT_REQUIRED` when code/security review relevance justifies recording it.
+Record only fields relevant to the selected risk path:
+1. Risk class.
+2. Work Lane and writable boundary.
+3. Single Writer for each conflicting resource.
+4. Required reviewers and evidence/tests.
+5. Rollback point when Production-affecting.
+6. Whether continuing Owner approval covers the scope.
+7. `CODEX_AVAILABLE`, `CODEX_UNAVAILABLE`, or `CODEX_NOT_REQUIRED` when relevant.
 
-If a field is irrelevant to the selected risk class, it should not become a blocking paperwork requirement.
+Irrelevant fields must not become blocking paperwork.
