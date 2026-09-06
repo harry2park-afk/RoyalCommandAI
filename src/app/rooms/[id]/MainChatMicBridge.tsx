@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { createPortal } from "react-dom";
 
 function findComposer() {
   return Array.from(document.querySelectorAll<HTMLTextAreaElement>("textarea")).find((textarea) => {
@@ -18,6 +17,18 @@ function findComposerMicButton() {
   const root = findComposerRoot(findComposer());
   if (!root) return null;
   return Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find((button) => Boolean(button.querySelector("svg.lucide-mic"))) || null;
+}
+
+function findNativeSendButton() {
+  const textarea = findComposer();
+  const root = findComposerRoot(textarea);
+  if (!root) return null;
+  const buttons = Array.from(root.querySelectorAll<HTMLButtonElement>("button"));
+  return buttons.find((button) => {
+    if (button === findComposerMicButton()) return false;
+    const text = `${button.textContent || ""} ${button.title || ""} ${button.getAttribute("aria-label") || ""}`.toLowerCase();
+    return button.type === "submit" || /send|submit|보내|전송/.test(text);
+  }) || null;
 }
 
 function updateReactTextarea(textarea: HTMLTextAreaElement, value: string) {
@@ -48,7 +59,6 @@ function friendlyMicError(error: unknown) {
 }
 
 const EMPTY_LEVELS = Array.from({ length: 18 }, () => 0.1);
-const IDLE_LEVELS = [0.22, 0.36, 0.5, 0.31, 0.62, 0.43, 0.72, 0.38, 0.56, 0.78, 0.47, 0.65, 0.34, 0.59, 0.4, 0.69, 0.46, 0.28];
 
 export default function MainChatMicBridge() {
   const pcRef = useRef<RTCPeerConnection | null>(null);
@@ -70,19 +80,7 @@ export default function MainChatMicBridge() {
   const [problem, setProblem] = useState("");
   const [levels, setLevels] = useState<number[]>(EMPTY_LEVELS);
   const [active, setActive] = useState(false);
-  const [waveSlot, setWaveSlot] = useState<HTMLElement | null>(null);
-
-  useEffect(() => {
-    const syncSlot = () => {
-      const slot = document.getElementById("rc-main-wave-slot");
-      setWaveSlot(slot instanceof HTMLElement ? slot : null);
-    };
-
-    syncSlot();
-    const observer = new MutationObserver(syncSlot);
-    observer.observe(document.documentElement, { childList: true, subtree: true });
-    return () => observer.disconnect();
-  }, []);
+  const [hasText, setHasText] = useState(false);
 
   useEffect(() => {
     const renderTranscript = () => {
@@ -93,6 +91,7 @@ export default function MainChatMicBridge() {
       const base = originalTextRef.current.trim();
       const combined = [base, spoken].filter(Boolean).join(base && spoken ? " " : "");
       updateReactTextarea(textarea, combined);
+      setHasText(Boolean(combined.trim()));
     };
 
     const resetButton = () => {
@@ -171,6 +170,7 @@ export default function MainChatMicBridge() {
       }
       textareaRef.current = textarea;
       originalTextRef.current = textarea.value.trim();
+      setHasText(Boolean(textarea.value.trim()));
       orderRef.current = [];
       partialsRef.current.clear();
       finalsRef.current.clear();
@@ -272,26 +272,47 @@ export default function MainChatMicBridge() {
     };
   }, []);
 
-  if (!waveSlot) return null;
+  const sendCurrentText = () => {
+    const textarea = findComposer();
+    if (!textarea?.value.trim()) return;
+    if (activeRef.current) {
+      try { dcRef.current?.send(JSON.stringify({ type: "input_audio_buffer.commit" })); } catch {}
+      streamRef.current?.getTracks().forEach((track) => track.stop());
+      activeRef.current = false;
+      setActive(false);
+    }
+    const send = findNativeSendButton();
+    if (send) {
+      send.click();
+      return;
+    }
+    const form = textarea.closest("form");
+    if (form) form.requestSubmit();
+    else textarea.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true }));
+  };
 
-  const visibleLevels = active ? levels : IDLE_LEVELS;
-  const label = problem || status || "입력 준비됨";
+  if (!status && !problem && !active && !hasText) return null;
 
-  return createPortal(
-    <div className="flex h-full w-full items-center gap-2 overflow-hidden px-2 text-[9px]">
-      <div className="flex h-5 shrink-0 items-center gap-[2px]" aria-label="Live microphone level">
-        {visibleLevels.map((level, index) => (
-          <span
-            key={index}
-            className={`block w-[2px] rounded-full transition-[height] duration-75 ${active ? "bg-emerald-300" : "bg-emerald-400/65"}`}
-            style={{ height: `${Math.round(4 + level * 14)}px`, opacity: active ? 0.65 + level * 0.35 : 0.7 }}
-          />
-        ))}
-      </div>
-      <span className={`min-w-0 flex-1 truncate whitespace-nowrap ${problem ? "text-amber-200" : active ? "text-emerald-300" : "text-emerald-400/80"}`}>
-        {label}
-      </span>
-    </div>,
-    waveSlot,
+  return (
+    <div className="fixed bottom-[72px] left-1/2 z-[510] flex -translate-x-1/2 items-center gap-3 rounded-xl border border-[#d7b64d]/60 bg-[#07111f]/96 px-4 py-2.5 text-[12px] shadow-2xl backdrop-blur">
+      {active && (
+        <div className="flex h-9 items-center gap-[3px]" aria-label="Live microphone level">
+          {levels.map((level, index) => (
+            <span key={index} className="block w-[3px] rounded-full bg-emerald-300 transition-[height] duration-75" style={{ height: `${Math.round(5 + level * 28)}px`, opacity: 0.6 + level * 0.4 }} />
+          ))}
+        </div>
+      )}
+      {problem ? <span className="max-w-[620px] text-amber-200">{problem}</span> : <span className="whitespace-nowrap text-emerald-300">{status || "입력 준비됨"}</span>}
+      <button
+        type="button"
+        onClick={sendCurrentText}
+        disabled={!hasText}
+        title="말한 내용을 보내기"
+        aria-label="말한 내용을 보내기"
+        className="flex h-9 w-9 items-center justify-center rounded-full border border-[#d7b64d] bg-[#8f1028] text-xl font-bold text-[#f6d56b] shadow disabled:cursor-not-allowed disabled:opacity-35"
+      >
+        ↑
+      </button>
+    </div>
   );
 }
