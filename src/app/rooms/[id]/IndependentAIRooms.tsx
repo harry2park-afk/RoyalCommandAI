@@ -87,7 +87,7 @@ function countryCodeForLocale(locale: string) {
 
 function CountryFlag({ countryCode }: { countryCode: string }) {
   const normalizedCode = countryCode.toLowerCase();
-  return <span aria-hidden="true" className="inline-block h-[15px] w-5 shrink-0 rounded-[2px] bg-cover bg-center shadow-[0_0_0_1px_rgba(255,255,255,0.14)]" style={{ backgroundImage: `url("/api/flags/${normalizedCode}")` }}/>;
+  return <span aria-hidden="true" className="inline-block h-[15px] w-5 shrink-0 rounded-[2px] bg-cover bg-center shadow-[0_0_0_1px_rgba(255,255,255,0.14)]" style={{ backgroundImage: `url("https://flagcdn.com/20x15/${normalizedCode}.png")` }}/>;
 }
 
 function countryNameForLocale(locale: string, label: string) {
