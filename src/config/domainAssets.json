@@ -19,7 +19,8 @@
       "countryPackId": null,
       "policyPackId": null,
       "runtimeEnabled": true,
-      "runtimeBinding": "GLOBAL"
+      "runtimeBinding": "GLOBAL",
+      "activationChecks": { "ownership": true, "dns": true, "tls": true, "vercel": true, "auth": true }
     },
     {
       "domain": "atyourcommandai.com",
@@ -36,7 +37,8 @@
       "countryPackId": null,
       "policyPackId": null,
       "runtimeEnabled": true,
-      "runtimeBinding": "US"
+      "runtimeBinding": "US",
+      "activationChecks": { "ownership": true, "dns": true, "tls": true, "vercel": true, "auth": true }
     },
     {
       "domain": "atyourcommandai.com.au",
@@ -53,7 +55,8 @@
       "countryPackId": null,
       "policyPackId": null,
       "runtimeEnabled": true,
-      "runtimeBinding": "AU"
+      "runtimeBinding": "AU",
+      "activationChecks": { "ownership": true, "dns": true, "tls": true, "vercel": true, "auth": true }
     },
     {
       "domain": "royalcommandai.asia",

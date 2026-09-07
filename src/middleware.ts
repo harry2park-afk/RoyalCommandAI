@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { getDomainRuntimeContext } from "@/config/countryResolver";
 
 function withRoomNoCache(response: NextResponse, path: string) {
   if (path.startsWith("/rooms")) {
@@ -12,6 +13,13 @@ function withRoomNoCache(response: NextResponse, path: string) {
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
+  const domainContext = getDomainRuntimeContext(request.nextUrl.hostname, process.env.VERCEL_ENV);
+  if (!domainContext) {
+    return new NextResponse("Domain unavailable", {
+      status: 404,
+      headers: { "Cache-Control": "no-store, max-age=0", "X-Robots-Tag": "noindex" },
+    });
+  }
   const isProtected =
     path.startsWith("/dashboard") ||
     path.startsWith("/rooms") ||

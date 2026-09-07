@@ -5,13 +5,9 @@ import jpConfig from "./countries/jp.json";
 import krConfig from "./countries/kr.json";
 import usConfig from "./countries/us.json";
 import type { CountryConfig } from "../types/countryConfig";
+import { getDomainAsset, resolveRuntimeDomain } from "./domainRegistry";
 
 export type CountryCode = string;
-
-type DomainBinding = {
-  countryCode: CountryCode | "GLOBAL";
-  allowedCountryOverrides?: CountryCode[];
-};
 
 const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   AU: auConfig as CountryConfig,
@@ -22,28 +18,9 @@ const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   US: usConfig as CountryConfig,
 };
 
-/**
- * Public-domain registry.
- *
- * This is intentionally data-driven so Royal Command can grow toward 100+ country
- * services without adding country-specific branching logic to the resolver.
- * New countries should add their config file to COUNTRY_CONFIGS and their verified
- * domain aliases here only after domain ownership / hosting is confirmed.
- */
-const DOMAIN_BINDINGS: Record<string, DomainBinding> = {
-  "atyourcommandai.com.au": { countryCode: "AU" },
-  "www.atyourcommandai.com.au": { countryCode: "AU" },
-  "atyourcommandai.com": { countryCode: "US", allowedCountryOverrides: ["CA"] },
-  "www.atyourcommandai.com": { countryCode: "US", allowedCountryOverrides: ["CA"] },
-  "royalcommand.ai": { countryCode: "GLOBAL" },
-  "www.royalcommand.ai": { countryCode: "GLOBAL" },
-  "royalcommandai.com": { countryCode: "GLOBAL" },
-  "www.royalcommandai.com": { countryCode: "GLOBAL" },
+const COUNTRY_OVERRIDES_BY_DOMAIN: Record<string, CountryCode[]> = {
+  "atyourcommandai.com": ["CA"],
 };
-
-function cleanHostname(hostname: string): string {
-  return hostname.trim().toLowerCase().split(":")[0];
-}
 
 export function hasCountryConfig(countryCode: CountryCode): boolean {
   return Boolean(COUNTRY_CONFIGS[countryCode.trim().toUpperCase()]);
@@ -60,30 +37,74 @@ export function getCountryConfigByCountryCode(
 }
 
 export function getCountryCodeByDomain(hostname: string): CountryCode | "GLOBAL" | null {
-  return DOMAIN_BINDINGS[cleanHostname(hostname)]?.countryCode || null;
+  const runtime = resolveRuntimeDomain(hostname, "production");
+  return runtime.allowed ? runtime.binding : null;
 }
 
 export function getCountryConfigByDomain(hostname: string): CountryConfig | null {
-  const binding = DOMAIN_BINDINGS[cleanHostname(hostname)];
-  if (!binding || binding.countryCode === "GLOBAL") return null;
-  return getCountryConfigByCountryCode(binding.countryCode);
+  const countryCode = getCountryCodeByDomain(hostname);
+  if (!countryCode || countryCode === "GLOBAL") return null;
+  return getCountryConfigByCountryCode(countryCode);
 }
 
 export function getCountryConfigForRequest(
   hostname: string,
   requestedCountryCode?: CountryCode | null,
 ): CountryConfig | null {
-  const binding = DOMAIN_BINDINGS[cleanHostname(hostname)];
-  if (!binding || binding.countryCode === "GLOBAL") return null;
+  const runtime = resolveRuntimeDomain(hostname, "production");
+  if (!runtime.allowed || !runtime.binding || runtime.binding === "GLOBAL") return null;
 
   const requested = requestedCountryCode?.trim().toUpperCase();
+  const domain = runtime.asset?.domain || getDomainAsset(hostname)?.domain || "";
   if (
     requested &&
-    binding.allowedCountryOverrides?.includes(requested) &&
+    COUNTRY_OVERRIDES_BY_DOMAIN[domain]?.includes(requested) &&
     hasCountryConfig(requested)
   ) {
     return getCountryConfigByCountryCode(requested);
   }
 
-  return getCountryConfigByCountryCode(binding.countryCode);
+  return getCountryConfigByCountryCode(runtime.binding);
+}
+
+export type DomainRuntimeContext = {
+  countryCode: CountryCode | "GLOBAL";
+  regionCode: string;
+  locale: string;
+  currency: string;
+  phoneCountryCode: string | null;
+  countryPackId: string;
+  policyPackId: string;
+  country: CountryConfig | null;
+};
+
+export function getDomainRuntimeContext(hostname: string, vercelEnv = process.env.VERCEL_ENV): DomainRuntimeContext | null {
+  const runtime = resolveRuntimeDomain(hostname, vercelEnv);
+  if (!runtime.allowed || !runtime.binding) return null;
+
+  if (runtime.binding === "GLOBAL") {
+    return {
+      countryCode: "GLOBAL",
+      regionCode: runtime.asset?.regionCode || "GLOBAL",
+      locale: runtime.asset?.defaultLocale || "en",
+      currency: runtime.asset?.currency || "USD",
+      phoneCountryCode: null,
+      countryPackId: runtime.asset?.countryPackId || "global-core",
+      policyPackId: runtime.asset?.policyPackId || "global-core",
+      country: null,
+    };
+  }
+
+  const country = getCountryConfigByCountryCode(runtime.binding);
+  if (!country) return null;
+  return {
+    countryCode: country.countryCode,
+    regionCode: runtime.asset?.regionCode || country.countryCode,
+    locale: runtime.asset?.defaultLocale || country.locale,
+    currency: runtime.asset?.currency || country.currency,
+    phoneCountryCode: country.phoneCountryCode,
+    countryPackId: runtime.asset?.countryPackId || `country-${country.countryCode.toLowerCase()}`,
+    policyPackId: runtime.asset?.policyPackId || `policy-${country.countryCode.toLowerCase()}`,
+    country,
+  };
 }
