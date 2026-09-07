@@ -6,7 +6,11 @@ const FAST_PATH = /^(src\/config\/(domainAssets\.json|countries\/|regions\/|poli
 const HIGH_CONTROL_PATH = /^(src\/config\/(domainRegistry|countryResolver)|src\/middleware\.ts|src\/lib\/supabase\/middleware\.ts|src\/app\/api\/auth\/|src\/lib\/google-workspace\/|src\/app\/api\/tools\/google\/(connect|callback)\/|vercel\.json$|\.github\/workflows\/domain-rollout-gate\.yml$|scripts\/domain-rollout-gate\.mjs$)/;
 
 function git(args) {
-  return execFileSync("git", args, { encoding: "utf8" }).trim();
+  return execFileSync("git", args, { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
+}
+
+function existsAt(ref, path) {
+  try { git(["cat-file", "-e", `${ref}:${path}`]); return true; } catch { return false; }
 }
 
 function changedToReady(before, after) {
@@ -52,8 +56,8 @@ function packReadyTransition(base, head, paths, afterAssets) {
   });
 }
 
-function validateEvidence(result) {
-  if (!result.activation) return;
+function validateEvidence(result, enforce) {
+  if (!result.activation || !enforce) return;
   const evidence = process.env.DOMAIN_ROLLOUT_EVIDENCE || "";
   const required = ["Preview", "Rollback", "Auth", "DNS", "TLS", "Vercel"];
   const missing = required.filter((label) => !new RegExp(`${label}\\s*:`, "i").test(evidence));
@@ -67,7 +71,9 @@ function main() {
   const beforeAssets = jsonAt(base, "src/config/domainAssets.json");
   const afterAssets = jsonAt(head, "src/config/domainAssets.json") || JSON.parse(readFileSync("src/config/domainAssets.json", "utf8"));
   const result = classifyDomainRollout({ paths, beforeAssets, afterAssets, readyTransitions: packReadyTransition(base, head, paths, afterAssets) });
-  validateEvidence(result);
+  // Do not apply a new Gate retroactively to all changes in the PR that introduces it.
+  // Every later activation change is enforced because the Gate then exists at the base ref.
+  validateEvidence(result, existsAt(base, ".github/workflows/domain-rollout-gate.yml"));
   console.log(`Domain Rollout Gate: ${result.mode}`);
   if (result.relevant.length) console.log(`Relevant files: ${result.relevant.join(", ")}`);
   if (process.env.GITHUB_OUTPUT) {
