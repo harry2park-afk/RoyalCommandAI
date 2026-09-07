@@ -1,9 +1,6 @@
 import type { CountryConfig } from "../types/countryConfig";
 import { evaluateCountryLaunch, type CountryLaunchGate } from "./countryLaunchGate";
-import {
-  evaluateCountryLocalizationStructure,
-  type CountryLocalizationStructureGate,
-} from "./countryLocalizationStructure";
+import { evaluateCountryLocalizationStructure } from "./countryLocalizationStructure";
 
 export type OperationalEvidenceStatus = "VERIFIED" | "NEEDS_REVIEW" | "BLOCKED";
 
@@ -86,7 +83,6 @@ export type CountryOperationalBlockerCode =
 export type CountryOperationalLaunchGate = {
   launchable: boolean;
   countryGate: CountryLaunchGate;
-  localizationStructure: CountryLocalizationStructureGate;
   operationalBlockers: CountryOperationalBlockerCode[];
 };
 
@@ -143,7 +139,6 @@ export function evaluateCountryOperationalLaunch(
   return {
     launchable: countryGate.launchable && operationalBlockers.length === 0,
     countryGate,
-    localizationStructure,
     operationalBlockers,
   };
 }
