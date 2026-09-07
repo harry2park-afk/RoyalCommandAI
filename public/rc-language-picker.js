@@ -1,13 +1,20 @@
-(() => {
-  const LANGS = [
-    ["ko-KR","KR","kr","한국어"],["en-AU","AU","au","English (Australia)"],["en-US","US","us","English (United States)"],["en-GB","UK","gb","English (United Kingdom)"],["en-CA","CA","ca","English (Canada)"],["en-NZ","NZ","nz","English (New Zealand)"],["ja-JP","JP","jp","日本語"],["zh-CN","CN","cn","中文 (简体)"],["zh-TW","TW","tw","中文 (繁體)"],["es-ES","ES","es","Español"],["es-MX","MX","mx","Español (México)"],["es-AR","AR","ar","Español (Argentina)"],["fr-FR","FR","fr","Français"],["fr-CA","CA","ca","Français (Canada)"],["de-DE","DE","de","Deutsch"],["it-IT","IT","it","Italiano"],["pt-BR","BR","br","Português (Brasil)"],["pt-PT","PT","pt","Português (Portugal)"],["nl-NL","NL","nl","Nederlands"],["nl-BE","BE","be","Nederlands (België)"],["ru-RU","RU","ru","Русский"],["uk-UA","UA","ua","Українська"],["pl-PL","PL","pl","Polski"],["cs-CZ","CZ","cz","Čeština"],["sk-SK","SK","sk","Slovenčina"],["hu-HU","HU","hu","Magyar"],["ro-RO","RO","ro","Română"],["bg-BG","BG","bg","Български"],["sr-RS","RS","rs","Српски"],["hr-HR","HR","hr","Hrvatski"],["sl-SI","SI","si","Slovenščina"],["bs-BA","BA","ba","Bosanski"],["mk-MK","MK","mk","Македонски"],["el-GR","GR","gr","Ελληνικά"],["tr-TR","TR","tr","Türkçe"],["ar-SA","SA","sa","العربية"],["ar-AE","AE","ae","العربية (الإمارات)"],["he-IL","IL","il","עברית"],["fa-IR","IR","ir","فارسی"],["ur-PK","PK","pk","اردو"],["hi-IN","IN","in","हिन्दी"],["bn-BD","BD","bd","বাংলা"],["pa-IN","IN","in","ਪੰਜਾਬੀ"],["gu-IN","IN","in","ગુજરાતી"],["mr-IN","IN","in","मराठी"],["ta-IN","IN","in","தமிழ்"],["te-IN","IN","in","తెలుగు"],["kn-IN","IN","in","ಕನ್ನಡ"],["ml-IN","IN","in","മലയാളം"],["ne-NP","NP","np","नेपाली"],["si-LK","LK","lk","සිංහල"],["th-TH","TH","th","ไทย"],["vi-VN","VN","vn","Tiếng Việt"],["id-ID","ID","id","Bahasa Indonesia"],["ms-MY","MY","my","Bahasa Melayu"],["fil-PH","PH","ph","Filipino"],["km-KH","KH","kh","ខ្មែរ"],["lo-LA","LA","la","ລາວ"],["my-MM","MM","mm","မြန်မာ"],["mn-MN","MN","mn","Монгол"],["kk-KZ","KZ","kz","Қазақша"],["uz-UZ","UZ","uz","Oʻzbekcha"],["az-AZ","AZ","az","Azərbaycan"],["ka-GE","GE","ge","ქართული"],["hy-AM","AM","am","Հայերեն"],["sw-KE","KE","ke","Kiswahili"],["am-ET","ET","et","አማርኛ"],["af-ZA","ZA","za","Afrikaans"],["zu-ZA","ZA","za","isiZulu"],["xh-ZA","ZA","za","isiXhosa"],["ha-NG","NG","ng","Hausa"],["yo-NG","NG","ng","Yorùbá"],["ig-NG","NG","ng","Igbo"],["so-SO","SO","so","Soomaali"],["sq-AL","AL","al","Shqip"],["et-EE","EE","ee","Eesti"],["lv-LV","LV","lv","Latviešu"],["lt-LT","LT","lt","Lietuvių"],["fi-FI","FI","fi","Suomi"],["sv-SE","SE","se","Svenska"],["no-NO","NO","no","Norsk"],["da-DK","DK","dk","Dansk"],["is-IS","IS","is","Íslenska"],["ca-ES","ES","es","Català"],["eu-ES","ES","es","Euskara"],["gl-ES","ES","es","Galego"],["cy-GB","UK","gb","Cymraeg"],["ga-IE","IE","ie","Gaeilge"],["mt-MT","MT","mt","Malti"],["lb-LU","LU","lu","Lëtzebuergesch"],["be-BY","BY","by","Беларуская"],["ps-AF","AF","af","پښتو"],["sd-PK","PK","pk","سنڌي"],["jv-ID","ID","id","Basa Jawa"],["su-ID","ID","id","Basa Sunda"],["ceb-PH","PH","ph","Cebuano"],["mg-MG","MG","mg","Malagasy"],["mi-NZ","NZ","nz","Māori"],["sm-WS","WS","ws","Gagana Samoa"],["ht-HT","HT","ht","Kreyòl Ayisyen"],["eo-EO","UN","un","Esperanto"]
-  ];
+(async () => {
+  const localeResponse = await fetch("/api/locales", { cache: "force-cache" });
+  const localePayload = localeResponse.ok ? await localeResponse.json() : { locales: [] };
+  const LANGS = (localePayload.locales || []).map((entry) => [
+    entry.locale,
+    entry.countryCode,
+    String(entry.countryCode || "").toLowerCase(),
+    entry.countryName,
+    entry.searchText,
+  ]);
+  if (!LANGS.length) return;
 
   const ORDER_KEY = "royalcommand:language-order-v3";
-  const HIDDEN_KEY = "royalcommand:hidden-languages";
-  const SELECTED_KEY = "royalcommand:selected-language";
+  const HIDDEN_KEY = "royalcommand:hidden-countries";
+  const SELECTED_KEY = "royalcommand:ui-locale";
   const byValue = new Map(LANGS.map((x) => [x[0], x]));
-  const flagUrl = (cc) => `https://flagcdn.com/w40/${cc}.png`;
+  const flagUrl = (cc) => `/api/flags/${cc}`;
   const DEFAULT_ORDER = LANGS.slice().sort((a,b)=>a[1].localeCompare(b[1],"en") || a[3].localeCompare(b[3],"en")).map(x=>x[0]);
 
   function loadOrder(){
@@ -21,8 +28,10 @@
     }catch{return [...DEFAULT_ORDER];}
   }
   function saveOrder(order){localStorage.setItem(ORDER_KEY,JSON.stringify(order));}
-  function loadHidden(){try{return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY)||"[]").filter(v=>byValue.has(v)));}catch{return new Set();}}
-  function saveHidden(hidden){localStorage.setItem(HIDDEN_KEY,JSON.stringify([...hidden]));}
+  function loadHidden(){try{return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY)||"[]").filter(v=>/^[A-Z]{2}$/.test(v)));}catch{return new Set();}}
+  function savePreferences(value){void fetch("/api/user/preferences",{method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(value)}).catch(()=>{});}
+  function saveHidden(hidden){const values=[...hidden];localStorage.setItem(HIDDEN_KEY,JSON.stringify(values));savePreferences({hiddenCountries:values});}
+  function saveSelected(item){localStorage.setItem(SELECTED_KEY,item[0]);savePreferences({uiLocale:item[0],countryCode:item[1],language:item[0].split("-")[0].toLowerCase()});}
 
   function setReactSelect(select,value){
     if(![...select.options].some(o=>o.value===value)){const o=document.createElement("option");o.value=value;o.textContent=value;select.appendChild(o);}
@@ -51,7 +60,7 @@
     let order=loadOrder();
     let hidden=loadHidden();
     let showHidden=false;
-    hidden.delete(current[0]); saveHidden(hidden);
+    hidden.delete(current[1]); saveHidden(hidden);
     localStorage.setItem(SELECTED_KEY,current[0]); setReactSelect(select,current[0]);
 
     function renderButton(){button.innerHTML=`<span style="display:flex;align-items:center;gap:7px"><img src="${flagUrl(current[2])}" width="22" height="15" style="width:22px;height:15px;object-fit:cover;border-radius:2px"><strong>${current[1]}</strong></span><span style="opacity:.8">⌄</span>`;}
@@ -62,20 +71,20 @@
       list.innerHTML="";
       hiddenToggle.textContent=showHidden?`Visible list`:`Hidden (${hidden.size})`;
       const q=query.trim().toLowerCase();
-      const items=order.map(v=>byValue.get(v)).filter(Boolean).filter(x=>(showHidden?hidden.has(x[0]):!hidden.has(x[0])) && (!q||`${x[1]} ${x[3]} ${x[0]}`.toLowerCase().includes(q)));
+      const items=order.map(v=>byValue.get(v)).filter(Boolean).filter(x=>(showHidden?hidden.has(x[1]):!hidden.has(x[1])) && (!q||`${x[1]} ${x[3]} ${x[0]} ${x[4] || ""}`.toLowerCase().includes(q)));
       items.forEach(x=>{
         const row=document.createElement("div");row.draggable=!q&&!showHidden;row.dataset.value=x[0];row.style.cssText=`width:100%;min-height:36px;display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:7px;background:${x[0]===current[0]?"rgba(212,175,55,.12)":"transparent"};color:#fff;font-size:14px;line-height:20px;cursor:${row.draggable?"grab":"default"};user-select:none`;
         const actionLabel=showHidden?"Show":"Hide";
         const actionDisabled=!showHidden&&x[0]===current[0];
         row.innerHTML=`<span style="width:14px;color:#7f8c9d">${showHidden?"":"↕"}</span><img src="${flagUrl(x[2])}" width="24" height="16" style="width:24px;height:16px;object-fit:cover;border-radius:2px"><strong style="width:30px;color:var(--gold-soft)">${x[1]}</strong><span class="rc-lang-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${x[3]}</span><button type="button" data-hide ${actionDisabled?"disabled":""} style="border:1px solid rgba(255,255,255,.12);background:${actionDisabled?"#1a1f2a":"#111827"};color:${actionDisabled?"#657080":"#fff"};border-radius:6px;min-width:52px;height:26px;padding:0 8px;cursor:${actionDisabled?"not-allowed":"pointer"};font-size:12px">${actionLabel}</button>${x[0]===current[0]?'<span style="font-size:11px;color:var(--gold-soft);width:52px">SELECTED</span>':'<span style="width:52px"></span>'}`;
-        row.querySelector("[data-hide]").onclick=e=>{e.stopPropagation();if(actionDisabled)return;if(showHidden)hidden.delete(x[0]);else hidden.add(x[0]);saveHidden(hidden);renderList(search.value);};
-        row.querySelector(".rc-lang-name").onclick=()=>{current=x;hidden.delete(x[0]);saveHidden(hidden);localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
+        row.querySelector("[data-hide]").onclick=e=>{e.stopPropagation();if(actionDisabled)return;if(showHidden)hidden.delete(x[1]);else hidden.add(x[1]);saveHidden(hidden);renderList(search.value);};
+        row.querySelector(".rc-lang-name").onclick=()=>{current=x;hidden.delete(x[1]);saveHidden(hidden);saveSelected(x);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
         row.ondragstart=e=>{if(!row.draggable)return;e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",x[0]);row.style.opacity=".45";};
         row.ondragend=()=>{row.style.opacity="1";};
         row.ondragover=e=>{if(!row.draggable)return;e.preventDefault();e.dataTransfer.dropEffect="move";row.style.outline="0 0 0 1px #d4af37 inset";};
         row.ondragleave=()=>{row.style.outline="none";};
         row.ondrop=e=>{if(!row.draggable)return;e.preventDefault();row.style.outline="none";const r=row.getBoundingClientRect();moveTo(e.dataTransfer.getData("text/plain"),x[0],e.clientY>r.top+r.height/2);renderList();};
-        row.onclick=e=>{if(e.target.closest("button"))return;current=x;hidden.delete(x[0]);saveHidden(hidden);localStorage.setItem(SELECTED_KEY,x[0]);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
+        row.onclick=e=>{if(e.target.closest("button"))return;current=x;hidden.delete(x[1]);saveHidden(hidden);saveSelected(x);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
         list.appendChild(row);
       });
     }
