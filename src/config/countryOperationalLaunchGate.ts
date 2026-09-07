@@ -14,6 +14,11 @@ export type CountryOperationalEvidence = {
   tenantDataIsolation?: OperationalEvidenceStatus;
   communicationsRules: OperationalEvidenceStatus;
   /**
+   * Country recording/consent rules require explicit human-reviewed evidence.
+   * Generic communications readiness cannot substitute for reviewer provenance.
+   */
+  recordingConsentEvidence?: OperationalEvidenceStatus;
+  /**
    * Human-reviewed legal/compliance evidence must exist outside static country
    * configuration before a country can be promoted.
    */
@@ -60,6 +65,7 @@ export type CountryOperationalBlockerCode =
   | "SESSION_COOKIES_NOT_VERIFIED"
   | "TENANT_DATA_ISOLATION_NOT_VERIFIED"
   | "COMMUNICATIONS_RULES_NOT_VERIFIED"
+  | "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED"
   | "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED"
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
@@ -87,6 +93,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "sessionCookies", blocker: "SESSION_COOKIES_NOT_VERIFIED" },
   { key: "tenantDataIsolation", blocker: "TENANT_DATA_ISOLATION_NOT_VERIFIED" },
   { key: "communicationsRules", blocker: "COMMUNICATIONS_RULES_NOT_VERIFIED" },
+  { key: "recordingConsentEvidence", blocker: "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED" },
   { key: "legalComplianceEvidence", blocker: "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
   { key: "dataResidency", blocker: "DATA_RESIDENCY_NOT_VERIFIED" },
   { key: "localization", blocker: "LOCALIZATION_NOT_VERIFIED" },
@@ -107,9 +114,10 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * This gate adds the operational evidence required by the 100-country
  * onboarding contract without changing any existing production routing or
  * activation. Every item fails closed until evidence is explicitly VERIFIED,
- * including tenant isolation, external legal/compliance evidence, commercial
- * terms/pricing/provider readiness, Room Factory readiness, operational payment
- * safeguards, exact-head QA/security evidence, and a protected deployment path.
+ * including tenant isolation, reviewed recording/consent evidence, external
+ * legal/compliance evidence, commercial terms/pricing/provider readiness, Room
+ * Factory readiness, operational payment safeguards, exact-head QA/security
+ * evidence, and a protected deployment path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
