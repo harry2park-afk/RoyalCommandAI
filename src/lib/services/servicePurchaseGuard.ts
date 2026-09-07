@@ -9,7 +9,12 @@ export type ServicePurchaseInput = {
 export type ServicePurchaseDecision = {
   paymentRequired: boolean;
   canCreateOrder: boolean;
-  code: "NOT_REQUIRED" | "PRICING_NOT_READY" | "CHECKOUT_NOT_READY" | "READY_FOR_CHECKOUT";
+  code:
+    | "NOT_REQUIRED"
+    | "PRICING_NOT_READY"
+    | "CHECKOUT_NOT_READY"
+    | "PAYMENT_OPERATIONS_NOT_READY"
+    | "READY_FOR_CHECKOUT";
   amountMinor: number | null;
   currency: string | null;
 };
@@ -17,6 +22,7 @@ export type ServicePurchaseDecision = {
 export function evaluateServicePurchase(
   service: ServicePurchaseInput,
   checkoutConfigured: boolean,
+  paymentOperationsVerified = false,
 ): ServicePurchaseDecision {
   if (service.default_included || service.pricing_type === "free") {
     return {
@@ -52,6 +58,16 @@ export function evaluateServicePurchase(
       paymentRequired: true,
       canCreateOrder: false,
       code: "CHECKOUT_NOT_READY",
+      amountMinor,
+      currency: service.currency ?? null,
+    };
+  }
+
+  if (!paymentOperationsVerified) {
+    return {
+      paymentRequired: true,
+      canCreateOrder: false,
+      code: "PAYMENT_OPERATIONS_NOT_READY",
       amountMinor,
       currency: service.currency ?? null,
     };
