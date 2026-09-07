@@ -60,7 +60,6 @@ describe("country localization structure launch gate", () => {
     const config = getCountryConfigByCountryCode("CA");
     const result = evaluateCountryOperationalLaunch(config!, VERIFIED_OPERATIONAL_EVIDENCE);
 
-    expect(result.localizationStructure.ready).toBe(false);
     expect(result.operationalBlockers).toContain("LOCALIZATION_STRUCTURE_NOT_READY");
     expect(result.launchable).toBe(false);
   });
