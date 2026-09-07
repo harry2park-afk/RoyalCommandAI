@@ -20,11 +20,26 @@ begin
     raise exception 'RLS must be enabled on country_compliance_evidence';
   end if;
 
-  if has_table_privilege('anon', 'public.country_compliance_evidence', 'SELECT')
-     or has_table_privilege('anon', 'public.country_compliance_evidence', 'INSERT')
-     or has_table_privilege('authenticated', 'public.country_compliance_evidence', 'SELECT')
-     or has_table_privilege('authenticated', 'public.country_compliance_evidence', 'INSERT') then
-    raise exception 'client roles must not have direct compliance evidence privileges';
+  if exists (
+    select 1
+    from (values ('anon'), ('authenticated')) as roles(role_name)
+    cross join (
+      values
+        ('SELECT'),
+        ('INSERT'),
+        ('UPDATE'),
+        ('DELETE'),
+        ('TRUNCATE'),
+        ('REFERENCES'),
+        ('TRIGGER')
+    ) as privileges(privilege_name)
+    where has_table_privilege(
+      roles.role_name,
+      'public.country_compliance_evidence',
+      privileges.privilege_name
+    )
+  ) then
+    raise exception 'client roles must not have any direct compliance evidence table privileges';
   end if;
 
   if (select count(*) from public.country_compliance_evidence) <> 0 then
