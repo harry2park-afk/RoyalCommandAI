@@ -33,7 +33,18 @@ export type CountryOperationalEvidence = {
    * webhook/idempotency controls, and cancellation/refund readiness.
    */
   paymentOperations?: OperationalEvidenceStatus;
+  /**
+   * Launch promotion requires exact-head QA/security/regression evidence rather
+   * than relying on a preview smoke test alone. Omitted evidence fails closed.
+   */
+  qaSecurityRegression?: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
+  /**
+   * Safe deployment evidence covers the protected promotion path, including
+   * required checks and branch/ruleset enforcement. Omitted evidence fails
+   * closed even when Preview and rollback checks are otherwise verified.
+   */
+  deploymentProtection?: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
 };
 
@@ -49,7 +60,9 @@ export type CountryOperationalBlockerCode =
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
+  | "QA_SECURITY_REGRESSION_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
+  | "DEPLOYMENT_PROTECTION_NOT_VERIFIED"
   | "ROLLBACK_PATH_NOT_VERIFIED";
 
 export type CountryOperationalLaunchGate = {
@@ -73,7 +86,9 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
   { key: "roomFactoryTemplate", blocker: "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
+  { key: "qaSecurityRegression", blocker: "QA_SECURITY_REGRESSION_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
+  { key: "deploymentProtection", blocker: "DEPLOYMENT_PROTECTION_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
 ] as const;
 
@@ -85,7 +100,8 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * onboarding contract without changing any existing production routing or
  * activation. Every item fails closed until evidence is explicitly VERIFIED,
  * including tenant isolation, external legal/compliance evidence, Room Factory
- * readiness, and operational payment safeguards.
+ * readiness, operational payment safeguards, exact-head QA/security evidence,
+ * and a protected deployment path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
