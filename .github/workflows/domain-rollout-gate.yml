@@ -23,7 +23,7 @@ jobs:
       - id: scope
         name: Classify domain scope
         env:
-          DOMAIN_GATE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          DOMAIN_GATE_BASE: ${{ github.event.action == 'synchronize' && github.event.before || github.event.pull_request.base.sha || github.event.before }}
           DOMAIN_GATE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
           DOMAIN_ROLLOUT_EVIDENCE: ${{ github.event.pull_request.body }}
         run: node scripts/domain-rollout-gate.mjs
