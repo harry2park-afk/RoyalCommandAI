@@ -7,7 +7,17 @@ export type CountryOperationalEvidence = {
   domainBinding: OperationalEvidenceStatus;
   authCallback: OperationalEvidenceStatus;
   sessionCookies: OperationalEvidenceStatus;
+  /**
+   * Tenant/data isolation is optional at the type boundary for source
+   * compatibility, but omitted evidence fails closed at launch time.
+   */
+  tenantDataIsolation?: OperationalEvidenceStatus;
   communicationsRules: OperationalEvidenceStatus;
+  /**
+   * Human-reviewed legal/compliance evidence must exist outside static country
+   * configuration before a country can be promoted.
+   */
+  legalComplianceEvidence?: OperationalEvidenceStatus;
   dataResidency: OperationalEvidenceStatus;
   localization: OperationalEvidenceStatus;
   requiredIntegrations: OperationalEvidenceStatus;
@@ -17,6 +27,12 @@ export type CountryOperationalEvidence = {
    * evidence exactly like unverified evidence and therefore fails closed.
    */
   roomFactoryTemplate?: OperationalEvidenceStatus;
+  /**
+   * A connected payment configuration is not sufficient by itself. Operational
+   * payment evidence covers the launch path such as sandbox/provider handling,
+   * webhook/idempotency controls, and cancellation/refund readiness.
+   */
+  paymentOperations?: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
 };
@@ -25,11 +41,14 @@ export type CountryOperationalBlockerCode =
   | "DOMAIN_BINDING_NOT_VERIFIED"
   | "AUTH_CALLBACK_NOT_VERIFIED"
   | "SESSION_COOKIES_NOT_VERIFIED"
+  | "TENANT_DATA_ISOLATION_NOT_VERIFIED"
   | "COMMUNICATIONS_RULES_NOT_VERIFIED"
+  | "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED"
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
+  | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
   | "ROLLBACK_PATH_NOT_VERIFIED";
 
@@ -46,11 +65,14 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "domainBinding", blocker: "DOMAIN_BINDING_NOT_VERIFIED" },
   { key: "authCallback", blocker: "AUTH_CALLBACK_NOT_VERIFIED" },
   { key: "sessionCookies", blocker: "SESSION_COOKIES_NOT_VERIFIED" },
+  { key: "tenantDataIsolation", blocker: "TENANT_DATA_ISOLATION_NOT_VERIFIED" },
   { key: "communicationsRules", blocker: "COMMUNICATIONS_RULES_NOT_VERIFIED" },
+  { key: "legalComplianceEvidence", blocker: "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
   { key: "dataResidency", blocker: "DATA_RESIDENCY_NOT_VERIFIED" },
   { key: "localization", blocker: "LOCALIZATION_NOT_VERIFIED" },
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
   { key: "roomFactoryTemplate", blocker: "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED" },
+  { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
 ] as const;
@@ -58,11 +80,12 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
 /**
  * Second-stage country activation gate.
  *
- * The existing country launch gate covers legal/tax/payment readiness. This
- * gate adds the operational evidence required by the 100-country onboarding
- * contract without changing any existing production routing or activation.
- * Every item fails closed until evidence is explicitly VERIFIED, including
- * Room Factory/template readiness required to provision a country safely.
+ * The existing country launch gate covers configured legal/tax/payment status.
+ * This gate adds the operational evidence required by the 100-country
+ * onboarding contract without changing any existing production routing or
+ * activation. Every item fails closed until evidence is explicitly VERIFIED,
+ * including tenant isolation, external legal/compliance evidence, Room Factory
+ * readiness, and operational payment safeguards.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
