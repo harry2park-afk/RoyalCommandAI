@@ -14,6 +14,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   sessionCookies: "NEEDS_REVIEW",
   tenantDataIsolation: "NEEDS_REVIEW",
   communicationsRules: "NEEDS_REVIEW",
+  recordingConsentEvidence: "NEEDS_REVIEW",
   legalComplianceEvidence: "NEEDS_REVIEW",
   dataResidency: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
@@ -33,6 +34,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   sessionCookies: "VERIFIED",
   tenantDataIsolation: "VERIFIED",
   communicationsRules: "VERIFIED",
+  recordingConsentEvidence: "VERIFIED",
   legalComplianceEvidence: "VERIFIED",
   dataResidency: "VERIFIED",
   localization: "VERIFIED",
@@ -81,6 +83,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_DATA_ISOLATION_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMMERCIAL_READINESS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_TEMPLATE_NOT_VERIFIED");
@@ -123,6 +126,7 @@ describe("country operational launch readiness gate", () => {
     const ready = makeCountryGateReady(base!);
     const {
       tenantDataIsolation: _tenantDataIsolation,
+      recordingConsentEvidence: _recordingConsentEvidence,
       legalComplianceEvidence: _legalComplianceEvidence,
       commercialReadiness: _commercialReadiness,
       paymentOperations: _paymentOperations,
@@ -137,6 +141,7 @@ describe("country operational launch readiness gate", () => {
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual([
       "TENANT_DATA_ISOLATION_NOT_VERIFIED",
+      "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED",
       "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED",
       "COMMERCIAL_READINESS_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
@@ -156,6 +161,22 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"]);
+  });
+
+  it("requires reviewed recording/consent evidence independently of generic communications readiness", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      communicationsRules: "VERIFIED",
+      legalComplianceEvidence: "VERIFIED",
+      recordingConsentEvidence: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED"]);
   });
 
   it("requires commercial readiness independently of integrations and payment operations", () => {
