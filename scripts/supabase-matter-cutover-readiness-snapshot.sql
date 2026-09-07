@@ -1,6 +1,8 @@
 -- RoyalCommandAI Matter assignment/Auth isolation cutover readiness evidence.
 -- READ-ONLY / aggregate-only / no PII. This script does not authorize assignment,
 -- policy changes, migration staging, or user role changes.
+-- Matter scoping must not be staged while authenticated users can still change
+-- profiles.role, because self-elevation to admin/staff would defeat the boundary.
 
 begin read only;
 
@@ -156,6 +158,8 @@ select jsonb_build_object(
       has_column_privilege('authenticated','public.matters','client_id','UPDATE'),
     'authenticated_can_update_assigned_staff_id',
       has_column_privilege('authenticated','public.matters','assigned_staff_id','UPDATE'),
+    'authenticated_can_update_profile_role',
+      has_column_privilege('authenticated','public.profiles','role','UPDATE'),
     'assigned_staff_helper_present',
       to_regprocedure('private.is_assigned_matter_staff(uuid)') is not null,
     'assignment_rpc_present',
@@ -167,6 +171,7 @@ select jsonb_build_object(
     or (select count(*) from activity where has_staff_or_admin_activity) > 0
     or has_column_privilege('authenticated','public.matters','client_id','UPDATE')
     or has_column_privilege('authenticated','public.matters','assigned_staff_id','UPDATE')
+    or has_column_privilege('authenticated','public.profiles','role','UPDATE')
     or to_regprocedure('private.is_assigned_matter_staff(uuid)') is null
     or to_regprocedure('public.set_matter_staff_assignment(uuid,uuid)') is null
   )
