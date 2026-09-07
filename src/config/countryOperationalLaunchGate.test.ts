@@ -12,6 +12,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "NEEDS_REVIEW",
   authCallback: "NEEDS_REVIEW",
   sessionCookies: "NEEDS_REVIEW",
+  databaseMigrationSafety: "NEEDS_REVIEW",
   tenantDataIsolation: "NEEDS_REVIEW",
   authorizationRoleAuthority: "NEEDS_REVIEW",
   communicationsRules: "NEEDS_REVIEW",
@@ -33,6 +34,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
   authCallback: "VERIFIED",
   sessionCookies: "VERIFIED",
+  databaseMigrationSafety: "VERIFIED",
   tenantDataIsolation: "VERIFIED",
   authorizationRoleAuthority: "VERIFIED",
   communicationsRules: "VERIFIED",
@@ -84,6 +86,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.launchable, countryCode).toBe(false);
       expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("DATABASE_MIGRATION_SAFETY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_DATA_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED");
@@ -128,6 +131,7 @@ describe("country operational launch readiness gate", () => {
     expect(base).not.toBeNull();
     const ready = makeCountryGateReady(base!);
     const {
+      databaseMigrationSafety: _databaseMigrationSafety,
       tenantDataIsolation: _tenantDataIsolation,
       authorizationRoleAuthority: _authorizationRoleAuthority,
       recordingConsentEvidence: _recordingConsentEvidence,
@@ -144,6 +148,7 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual([
+      "DATABASE_MIGRATION_SAFETY_NOT_VERIFIED",
       "TENANT_DATA_ISOLATION_NOT_VERIFIED",
       "AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED",
       "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED",
@@ -166,6 +171,22 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"]);
+  });
+
+  it("requires database migration safety independently of application QA and deployment protection", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      databaseMigrationSafety: "NEEDS_REVIEW",
+      qaSecurityRegression: "VERIFIED",
+      deploymentProtection: "VERIFIED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["DATABASE_MIGRATION_SAFETY_NOT_VERIFIED"]);
   });
 
   it("requires authorization-role authority independently of tenant isolation", () => {
