@@ -1,0 +1,9 @@
+{
+  "packId": "region-au",
+  "regionCode": "AU",
+  "status": "READY",
+  "locale": "en-AU",
+  "currency": "AUD",
+  "phoneCountryCode": "+61",
+  "timeZone": "Australia/Sydney"
+}

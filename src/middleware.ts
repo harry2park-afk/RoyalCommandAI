@@ -20,6 +20,11 @@ export async function middleware(request: NextRequest) {
       headers: { "Cache-Control": "no-store, max-age=0", "X-Robots-Tag": "noindex" },
     });
   }
+  const runtimeHeaders = new Headers(request.headers);
+  runtimeHeaders.set("x-rc-runtime-host", domainContext.hostname);
+  runtimeHeaders.set("x-rc-runtime-country", domainContext.countryCode);
+  runtimeHeaders.set("x-rc-runtime-region", domainContext.regionCode);
+  runtimeHeaders.set("x-rc-runtime-locale", domainContext.locale);
   const isProtected =
     path.startsWith("/dashboard") ||
     path.startsWith("/rooms") ||
@@ -40,7 +45,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  const response = await updateSession(request);
+  const response = await updateSession(request, runtimeHeaders);
   return withRoomNoCache(response, path);
 }
 

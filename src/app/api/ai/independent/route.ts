@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { getAvailableProviderIds, getConnector } from "@/lib/ai/connectors";
 import { AI_PROVIDER_IDS, PROVIDER_LABELS, type AIMessage, type AIProviderId } from "@/lib/ai/types";
 import { signIndependentReceipt, type IndependentReceiptPayload } from "@/lib/ai/independentReceipt";
+import { isDomainFeatureReady } from "@/config/countryResolver";
+import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
 
 export const maxDuration = 120;
 
@@ -28,11 +30,15 @@ function sanitizeHistory(value: unknown): AIMessage[] {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const runtimeContext = await getServerDomainRuntimeContext();
+  if (!runtimeContext || !isDomainFeatureReady(runtimeContext, "ai")) {
+    return NextResponse.json({ error: "AI is unavailable for this domain policy" }, { status: 403 });
+  }
 
   const body = await request.json().catch(() => ({}));
   const provider = body?.provider;
   const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
-  const language = typeof body?.language === "string" ? body.language : user.defaultLanguage || "en";
+  const language = typeof body?.language === "string" ? body.language : user.defaultLanguage || runtimeContext.locale;
   const requestId = typeof body?.requestId === "string" ? body.requestId : "";
 
   if (!requestId) return NextResponse.json({ error: "requestId is required" }, { status: 400 });

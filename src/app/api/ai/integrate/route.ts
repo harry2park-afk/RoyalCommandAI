@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { getAvailableProviderIds, getConnector } from "@/lib/ai/connectors";
 import { AI_PROVIDER_IDS, type AIProviderId } from "@/lib/ai/types";
 import { verifyIndependentReceipt, type IndependentReceiptPayload } from "@/lib/ai/independentReceipt";
+import { isDomainFeatureReady } from "@/config/countryResolver";
+import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
 
 export const maxDuration = 120;
 
@@ -22,6 +24,10 @@ type FrozenResult = {
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const runtimeContext = await getServerDomainRuntimeContext();
+  if (!runtimeContext || !isDomainFeatureReady(runtimeContext, "ai")) {
+    return NextResponse.json({ error: "AI is unavailable for this domain policy" }, { status: 403 });
+  }
 
   const body = await request.json().catch(() => ({}));
   const integrationId = typeof body?.integrationId === "string" ? body.integrationId : "";

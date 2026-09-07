@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { Check, ChevronDown, Copy, Menu, MessageSquare, Mic, Pencil, Plus, Search, Send, Sparkles, Trash2, X } from "lucide-react";
 import { FEATURED_LANGUAGE_ENTRIES, LOCALE_SEARCH_REGISTRY } from "@/lib/locale/localeSearchRegistry";
 import styles from "./IndependentAIRooms.module.css";
+import { useDomainRuntime } from "@/components/DomainRuntimeProvider";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string; title?: string; titleEdited?: boolean };
@@ -93,6 +94,7 @@ function countryNameForLocale(locale: string, label: string) {
 }
 
 export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: string } = {}) {
+  const runtimeContext = useDomainRuntime();
   const params = useParams<{ id: string }>();
   const roomId = roomIdProp || params.id || "rca";
   const [connected, setConnected] = useState<Set<string>>(new Set());
@@ -109,8 +111,8 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [recognitionActive, setRecognitionActive] = useState(false);
   const [manualStop, setManualStop] = useState(true);
   const [interimTranscript, setInterimTranscript] = useState("");
-  const [language, setLanguage] = useState("ko");
-  const [selectedLocale, setSelectedLocale] = useState("ko-KR");
+  const [language, setLanguage] = useState(() => runtimeContext.locale.split("-")[0].toLowerCase());
+  const [selectedLocale, setSelectedLocale] = useState(runtimeContext.locale);
   const [hiddenCountries, setHiddenCountries] = useState<Set<string>>(new Set());
   const [providerSearch, setProviderSearch] = useState("");
   const [languageSearch, setLanguageSearch] = useState("");
