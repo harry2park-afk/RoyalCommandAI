@@ -70,7 +70,10 @@ select jsonb_build_object(
         values
           ('scope_matter_staff_access'),
           ('room_factory_atomic_non_encounter'),
-          ('harden_profile_role_authority')
+          ('room_factory_manifest_atomic_only'),
+          ('harden_profile_role_authority'),
+          ('country_compliance_evidence_registry'),
+          ('payment_operational_safeguards')
       ) required(name)
       left join supabase_migrations.schema_migrations applied
         on applied.name = required.name
@@ -158,6 +161,18 @@ select jsonb_build_object(
       join pg_namespace namespace on namespace.oid = function.pronamespace
       where namespace.nspname = 'private'
         and function.proname = 'create_room_factory_room_atomic'
+    ),
+    'anon_direct_manifest_insert_privilege',
+      has_table_privilege('anon', 'public.room_factory_manifests', 'INSERT'),
+    'authenticated_direct_manifest_insert_privilege',
+      has_table_privilege('authenticated', 'public.room_factory_manifests', 'INSERT'),
+    'authenticated_manifest_insert_policy_count', (
+      select count(*)::int
+      from pg_policies
+      where schemaname = 'public'
+        and tablename = 'room_factory_manifests'
+        and cmd = 'INSERT'
+        and 'authenticated' = any(roles)
     )
   ),
   'service_connection_orders', (
@@ -172,8 +187,8 @@ select jsonb_build_object(
         country.currency,
         count(terms.*)::int as term_rows,
         count(terms.*) filter (
-          where coalesce(terms.customer_price_minor, 0) > 0
-            and lower(coalesce(terms.availability_status, '')) not in ('unavailable', 'blocked')
+          where upper(coalesce(terms.availability_status, '')) = 'AVAILABLE'
+            and coalesce(terms.customer_price_minor, 0) > 0
         )::int as positive_available_terms
       from (
         values
@@ -189,6 +204,31 @@ select jsonb_build_object(
        and terms.currency = country.currency
       group by country.country_code, country.currency
     ) q
+  ),
+  'service_provider_readiness', jsonb_build_object(
+    'providers_total', (select count(*)::int from public.rc_service_providers),
+    'providers_active', (select count(*)::int from public.rc_service_providers where active is true),
+    'offers_total', (select count(*)::int from public.rc_service_provider_offers),
+    'first_wave_offers', (
+      select jsonb_agg(q order by q.country_code)
+      from (
+        select
+          country.country_code,
+          count(offer.*)::int as offer_rows,
+          count(offer.*) filter (
+            where offer.active is true
+              and upper(coalesce(offer.connection_status, '')) = 'AVAILABLE'
+              and upper(coalesce(offer.review_status, '')) = 'APPROVED'
+              and coalesce(offer.customer_price_minor, 0) > 0
+          )::int as active_available_reviewed_positive_offers
+        from (
+          values ('AU'), ('US'), ('CA'), ('KR'), ('JP'), ('GB')
+        ) country(country_code)
+        left join public.rc_service_provider_offers offer
+          on offer.country_code = country.country_code
+        group by country.country_code
+      ) q
+    )
   ),
   'recording_review', (
     select jsonb_agg(q order by q.country_code)
