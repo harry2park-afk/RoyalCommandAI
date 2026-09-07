@@ -18,6 +18,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   dataResidency: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
   requiredIntegrations: "NEEDS_REVIEW",
+  commercialReadiness: "NEEDS_REVIEW",
   roomFactoryTemplate: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
   qaSecurityRegression: "NEEDS_REVIEW",
@@ -36,6 +37,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   dataResidency: "VERIFIED",
   localization: "VERIFIED",
   requiredIntegrations: "VERIFIED",
+  commercialReadiness: "VERIFIED",
   roomFactoryTemplate: "VERIFIED",
   paymentOperations: "VERIFIED",
   qaSecurityRegression: "VERIFIED",
@@ -80,6 +82,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_DATA_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("COMMERCIAL_READINESS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_TEMPLATE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("QA_SECURITY_REGRESSION_NOT_VERIFIED");
@@ -121,6 +124,7 @@ describe("country operational launch readiness gate", () => {
     const {
       tenantDataIsolation: _tenantDataIsolation,
       legalComplianceEvidence: _legalComplianceEvidence,
+      commercialReadiness: _commercialReadiness,
       paymentOperations: _paymentOperations,
       qaSecurityRegression: _qaSecurityRegression,
       deploymentProtection: _deploymentProtection,
@@ -134,6 +138,7 @@ describe("country operational launch readiness gate", () => {
     expect(gate.operationalBlockers).toEqual([
       "TENANT_DATA_ISOLATION_NOT_VERIFIED",
       "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED",
+      "COMMERCIAL_READINESS_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
       "QA_SECURITY_REGRESSION_NOT_VERIFIED",
       "DEPLOYMENT_PROTECTION_NOT_VERIFIED",
@@ -151,6 +156,22 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"]);
+  });
+
+  it("requires commercial readiness independently of integrations and payment operations", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      requiredIntegrations: "VERIFIED",
+      paymentOperations: "VERIFIED",
+      commercialReadiness: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["COMMERCIAL_READINESS_NOT_VERIFIED"]);
   });
 
   it("requires exact-head QA/security evidence independently of preview smoke evidence", () => {
