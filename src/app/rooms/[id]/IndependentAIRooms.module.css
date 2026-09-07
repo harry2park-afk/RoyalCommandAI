@@ -132,6 +132,23 @@
   width: 100% !important;
 }
 
+.root::after {
+  content: "HARRY PREVIEW";
+  position: fixed;
+  top: 10px;
+  right: 210px;
+  z-index: 70;
+  pointer-events: none;
+  border: 1px solid rgba(215, 182, 77, 0.45);
+  border-radius: 999px;
+  background: rgba(7, 16, 29, 0.92);
+  padding: 5px 10px;
+  color: #f0d36a;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+}
+
 @media (max-width: 700px) {
   .root form[data-rc-composer-enhanced="true"] button[title="AI Helper"] {
     width: 122px !important;
@@ -147,5 +164,12 @@
     min-height: 280px !important;
     height: 280px !important;
     max-height: 280px !important;
+  }
+
+  .root::after {
+    top: 12px;
+    right: 12px;
+    font-size: 9px;
+    padding: 4px 7px;
   }
 }
