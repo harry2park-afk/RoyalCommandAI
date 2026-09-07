@@ -61,13 +61,12 @@ describe("country localization structure launch gate", () => {
     expect(result.launchable).toBe(false);
   });
 
-  it("prevents Australia-specific tax and currency copy from leaking through shared English fallback", () => {
-    const english = createRoomCopy("en");
-    const french = createRoomCopy("fr");
-
-    for (const copy of [english, french]) {
-      expect(copy.websiteBenefit).not.toContain("A$");
-      expect(copy.pendingIntegration).not.toContain("GST");
+  it("prevents Australia-specific tax and currency copy from leaking through shared launch locales", () => {
+    for (const locale of ["en", "fr", "ko", "ja", "zh"] as const) {
+      const copy = createRoomCopy(locale);
+      expect(copy.websiteBenefit, `${locale} website benefit`).not.toContain("A$");
+      expect(copy.pendingIntegration, `${locale} pending integration`).not.toContain("GST");
+      expect(copy.step1Help, `${locale} example`).not.toContain("GST");
     }
   });
 });
