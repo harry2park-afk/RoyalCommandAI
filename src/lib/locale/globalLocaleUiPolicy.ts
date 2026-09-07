@@ -9,16 +9,14 @@ export type LocaleUiTextRole =
   | "ai_response"
   | "customer_content";
 
+// Retained as the fail-safe when no selected UI locale is available.
 export const GLOBAL_UI_CHROME_LOCALE = "en-US" as const;
 
-const ENGLISH_FIRST_ROLES = new Set<LocaleUiTextRole>([
+const LOCALISED_SYSTEM_ROLES = new Set<LocaleUiTextRole>([
   "action",
   "navigation",
   "feature_title",
   "dialog_title",
-]);
-
-const LOCALISED_ROLES = new Set<LocaleUiTextRole>([
   "description",
   "help",
   "status_detail",
@@ -26,8 +24,9 @@ const LOCALISED_ROLES = new Set<LocaleUiTextRole>([
 ]);
 
 export function uiTextLocale(role: LocaleUiTextRole, selectedUiLocale: string) {
-  if (ENGLISH_FIRST_ROLES.has(role)) return GLOBAL_UI_CHROME_LOCALE;
-  if (LOCALISED_ROLES.has(role)) return selectedUiLocale;
+  if (LOCALISED_SYSTEM_ROLES.has(role)) {
+    return selectedUiLocale.trim() || GLOBAL_UI_CHROME_LOCALE;
+  }
   // Customer-authored content is preserved in its original language and is not auto-rewritten.
   return null;
 }
