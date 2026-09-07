@@ -1,0 +1,106 @@
+name: Supabase Linked Dry-Run Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "scripts/supabase-linked-migration-dry-run.sh"
+      - "scripts/supabase-dry-run-apply-set.mjs"
+      - "scripts/supabase-dry-run-apply-set.test.ts"
+      - "scripts/supabase-migration-reconciliation.mjs"
+      - "scripts/supabase-migration-reconciliation.test.ts"
+      - "supabase/migrations/**"
+      - ".github/workflows/supabase-linked-dry-run-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-supabase-linked-dry-run-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linked-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      # This PR is a diagnostic harness on top of protected master. Only migrations
+      # actually present in this exact checkout may be allow-listed here. The Room
+      # Factory and profile-role migrations live on separate Draft PRs (#661/#691)
+      # and require their own exact-head linked dry-run before Hosted staging.
+      EXPECTED_APPLY_MIGRATIONS: >-
+        20260831225500_scope_matter_staff_access.sql
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          [[ "${actual_sha}" == "${CANDIDATE_SHA}" ]] || {
+            echo "BLOCKED: checkout SHA ${actual_sha} does not match candidate ${CANDIDATE_SHA}"
+            exit 1
+          }
+          echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: 2.116.0
+
+      - name: Verify allow-listed migrations exist in exact checkout
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a migrations <<< "${EXPECTED_APPLY_MIGRATIONS}"
+          missing=0
+          for migration in "${migrations[@]}"; do
+            migration="${migration#"${migration%%[![:space:]]*}"}"
+            migration="${migration%"${migration##*[![:space:]]}"}"
+            [[ -n "${migration}" ]] || {
+              echo "BLOCKED: EXPECTED_APPLY_MIGRATIONS contains an empty entry"
+              exit 1
+            }
+            if [[ ! -f "supabase/migrations/${migration}" ]]; then
+              echo "BLOCKED: expected migration is not present in exact checkout: ${migration}"
+              missing=1
+            else
+              echo "FOUND_EXPECTED_MIGRATION ${migration}"
+            fi
+          done
+          [[ "${missing}" -eq 0 ]] || exit 1
+
+      - name: Verify required hosted credentials are present
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ -n "${SUPABASE_ACCESS_TOKEN:-}" ]] || { echo "BLOCKED: repository secret SUPABASE_ACCESS_TOKEN is not configured for this workflow"; exit 1; }
+          [[ -n "${SUPABASE_DB_PASSWORD:-}" ]] || { echo "BLOCKED: repository secret SUPABASE_DB_PASSWORD is not configured for this workflow"; exit 1; }
+
+      - name: Capture exact linked migration evidence (read-only / dry-run only)
+        shell: bash
+        run: bash scripts/supabase-linked-migration-dry-run.sh artifacts/supabase-linked-dry-run
+
+      - name: Upload evidence bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-linked-dry-run-${{ env.CANDIDATE_SHA }}
+          path: artifacts/supabase-linked-dry-run/
+          if-no-files-found: warn
+          retention-days: 7
