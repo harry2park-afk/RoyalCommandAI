@@ -18,7 +18,7 @@ describe("country configuration to Room Factory preset alignment", () => {
     }
   });
 
-  it("keeps locale and currency aligned for every configured launch country", () => {
+  it("keeps locale, currency and timezone aligned for every configured launch country", () => {
     const presetsByCountry = new Map(
       COUNTRY_ROOM_PRESETS.map((preset) => [preset.id, preset] as const),
     );
@@ -31,6 +31,10 @@ describe("country configuration to Room Factory preset alignment", () => {
       expect(preset, countryCode).toBeDefined();
       expect(preset?.languageTag, `${countryCode} locale`).toBe(config?.locale);
       expect(preset?.currencyCode, `${countryCode} currency`).toBe(config?.currency);
+      expect(
+        config?.timezone.supportedExamples,
+        `${countryCode} Room Factory timezone must be supported by CountryConfig`,
+      ).toContain(preset?.timeZone);
     }
   });
 });
