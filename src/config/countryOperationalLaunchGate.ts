@@ -11,6 +11,12 @@ export type CountryOperationalEvidence = {
   dataResidency: OperationalEvidenceStatus;
   localization: OperationalEvidenceStatus;
   requiredIntegrations: OperationalEvidenceStatus;
+  /**
+   * Room Factory/template readiness is optional at the type boundary so older
+   * callers remain source-compatible, but the launch gate treats missing
+   * evidence exactly like unverified evidence and therefore fails closed.
+   */
+  roomFactoryTemplate?: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
 };
@@ -23,6 +29,7 @@ export type CountryOperationalBlockerCode =
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
+  | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
   | "ROLLBACK_PATH_NOT_VERIFIED";
 
@@ -43,6 +50,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "dataResidency", blocker: "DATA_RESIDENCY_NOT_VERIFIED" },
   { key: "localization", blocker: "LOCALIZATION_NOT_VERIFIED" },
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
+  { key: "roomFactoryTemplate", blocker: "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
 ] as const;
@@ -53,7 +61,8 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * The existing country launch gate covers legal/tax/payment readiness. This
  * gate adds the operational evidence required by the 100-country onboarding
  * contract without changing any existing production routing or activation.
- * Every item fails closed until evidence is explicitly VERIFIED.
+ * Every item fails closed until evidence is explicitly VERIFIED, including
+ * Room Factory/template readiness required to provision a country safely.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
