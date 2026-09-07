@@ -1,0 +1,74 @@
+name: Domain Rollout Gate
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: domain-rollout-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify:
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.scope.outputs.mode }}
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - id: scope
+        name: Classify domain scope
+        env:
+          DOMAIN_GATE_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          DOMAIN_GATE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+          DOMAIN_ROLLOUT_EVIDENCE: ${{ github.event.pull_request.body }}
+        run: node scripts/domain-rollout-gate.mjs
+
+  gate:
+    needs: classify
+    if: needs.classify.outputs.mode != 'SKIP'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - name: Restore exact-head Gate result
+        id: gate-cache
+        uses: actions/cache@v4
+        with:
+          path: .cache/domain-rollout-gate
+          key: domain-rollout-${{ runner.os }}-${{ github.sha }}-${{ needs.classify.outputs.mode }}
+      - uses: actions/setup-node@v5
+        if: steps.gate-cache.outputs.cache-hit != 'true'
+        with:
+          node-version: 22
+          cache: npm
+      - name: FAST Pack and Registry validation
+        if: steps.gate-cache.outputs.cache-hit != 'true' && needs.classify.outputs.mode == 'FAST'
+        run: |
+          node scripts/generate-domain-pack-registry.mjs
+          git diff --exit-code -- src/config/generated/packRegistry.generated.ts
+          node --test scripts/domain-rollout-gate.test.mjs
+      - name: Install dependencies for HIGH Gate
+        if: steps.gate-cache.outputs.cache-hit != 'true' && needs.classify.outputs.mode == 'HIGH'
+        run: npm ci --no-audit --no-fund
+      - name: HIGH full domain validation
+        if: steps.gate-cache.outputs.cache-hit != 'true' && needs.classify.outputs.mode == 'HIGH'
+        run: |
+          npm run generate:domain-packs
+          git diff --exit-code -- src/config/generated/packRegistry.generated.ts
+          node --test scripts/domain-rollout-gate.test.mjs
+          npm run typecheck
+          npm test -- --passWithNoTests
+          npm run build
+      - name: Cache successful exact-head result
+        if: steps.gate-cache.outputs.cache-hit != 'true' && success()
+        run: mkdir -p .cache/domain-rollout-gate && printf '%s\n' '${{ needs.classify.outputs.mode }} ${{ github.sha }}' > .cache/domain-rollout-gate/result
+      - name: Reuse cached result
+        if: steps.gate-cache.outputs.cache-hit == 'true'
+        run: cat .cache/domain-rollout-gate/result

@@ -31,6 +31,9 @@ Royal Command Change Control, Conflict Guard, and Quality Gate must pass.
 ## Vercel Preview
 Required before production approval.
 
+## Domain Rollout Evidence (only for HIGH domain activation/DNS/Auth/Pack work)
+<!-- Leave blank for SKIP/FAST work. For HIGH work provide: Preview:, Rollback:, Auth:, DNS:, TLS:, Vercel: -->
+
 ## Rollback point
 Identify the stable baseline commit or PR.
 

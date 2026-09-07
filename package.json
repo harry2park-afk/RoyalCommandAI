@@ -11,6 +11,7 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "generate:domain-packs": "node scripts/generate-domain-pack-registry.mjs",
+    "test:domain-gate": "node --test scripts/domain-rollout-gate.test.mjs",
     "prebuild": "npm run generate:domain-packs && node -e \"require('node:fs').rmSync('tsconfig.tsbuildinfo', { force: true })\""
   },
   "dependencies": {
