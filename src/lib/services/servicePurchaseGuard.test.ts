@@ -54,8 +54,23 @@ describe("service purchase guard", () => {
     });
   });
 
-  it("allows an order only when fixed pricing and checkout are both ready", () => {
+  it("fails closed when checkout is configured but payment operations are not verified", () => {
     expect(evaluateServicePurchase({ pricing_type: "monthly", price_status: "fixed", price_minor: 4900, currency: "AUD" }, true)).toEqual({
+      paymentRequired: true,
+      canCreateOrder: false,
+      code: "PAYMENT_OPERATIONS_NOT_READY",
+      amountMinor: 4900,
+      currency: "AUD",
+    });
+
+    expect(evaluateServicePurchase({ pricing_type: "monthly", price_status: "fixed", price_minor: 4900, currency: "AUD" }, true, false)).toMatchObject({
+      canCreateOrder: false,
+      code: "PAYMENT_OPERATIONS_NOT_READY",
+    });
+  });
+
+  it("allows an order only when pricing, checkout, and payment operations are all ready", () => {
+    expect(evaluateServicePurchase({ pricing_type: "monthly", price_status: "fixed", price_minor: 4900, currency: "AUD" }, true, true)).toEqual({
       paymentRequired: true,
       canCreateOrder: true,
       code: "READY_FOR_CHECKOUT",
