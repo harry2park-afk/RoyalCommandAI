@@ -16,6 +16,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   dataResidency: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
   requiredIntegrations: "NEEDS_REVIEW",
+  roomFactoryTemplate: "NEEDS_REVIEW",
   previewSmokeTest: "NEEDS_REVIEW",
   rollbackPath: "NEEDS_REVIEW",
 };
@@ -28,6 +29,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   dataResidency: "VERIFIED",
   localization: "VERIFIED",
   requiredIntegrations: "VERIFIED",
+  roomFactoryTemplate: "VERIFIED",
   previewSmokeTest: "VERIFIED",
   rollbackPath: "VERIFIED",
 };
@@ -66,6 +68,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.launchable, countryCode).toBe(false);
       expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_TEMPLATE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROLLBACK_PATH_NOT_VERIFIED");
     }
@@ -96,7 +99,20 @@ describe("country operational launch readiness gate", () => {
     expect(gate.operationalBlockers).toEqual(["DATA_RESIDENCY_NOT_VERIFIED"]);
   });
 
-  it("only becomes launchable when both country and operational evidence are verified", () => {
+  it("fails closed when room factory/template evidence is omitted by an older caller", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+    const { roomFactoryTemplate: _roomFactoryTemplate, ...legacyEvidence } = verifiedEvidence;
+
+    const gate = evaluateCountryOperationalLaunch(ready, legacyEvidence);
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"]);
+  });
+
+  it("only becomes launchable when both country and operational evidence, including room factory/template readiness, are verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const ready = makeCountryGateReady(base!);
