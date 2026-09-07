@@ -1,5 +1,9 @@
 import type { CountryConfig } from "../types/countryConfig";
 import { evaluateCountryLaunch, type CountryLaunchGate } from "./countryLaunchGate";
+import {
+  evaluateCountryLocalizationStructure,
+  type CountryLocalizationStructureGate,
+} from "./countryLocalizationStructure";
 
 export type OperationalEvidenceStatus = "VERIFIED" | "NEEDS_REVIEW" | "BLOCKED";
 
@@ -69,6 +73,7 @@ export type CountryOperationalBlockerCode =
   | "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED"
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
+  | "LOCALIZATION_STRUCTURE_NOT_READY"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "COMMERCIAL_READINESS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
@@ -81,6 +86,7 @@ export type CountryOperationalBlockerCode =
 export type CountryOperationalLaunchGate = {
   launchable: boolean;
   countryGate: CountryLaunchGate;
+  localizationStructure: CountryLocalizationStructureGate;
   operationalBlockers: CountryOperationalBlockerCode[];
 };
 
@@ -117,20 +123,27 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * including tenant isolation, reviewed recording/consent evidence, external
  * legal/compliance evidence, commercial terms/pricing/provider readiness, Room
  * Factory readiness, operational payment safeguards, exact-head QA/security
- * evidence, and a protected deployment path.
+ * evidence, a structurally compatible country localization path, and a
+ * protected deployment path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
   evidence: CountryOperationalEvidence,
 ): CountryOperationalLaunchGate {
   const countryGate = evaluateCountryLaunch(config);
+  const localizationStructure = evaluateCountryLocalizationStructure(config);
   const operationalBlockers = OPERATIONAL_REQUIREMENTS
     .filter(({ key }) => evidence[key] !== "VERIFIED")
     .map(({ blocker }) => blocker);
 
+  if (!localizationStructure.ready) {
+    operationalBlockers.push("LOCALIZATION_STRUCTURE_NOT_READY");
+  }
+
   return {
     launchable: countryGate.launchable && operationalBlockers.length === 0,
     countryGate,
+    localizationStructure,
     operationalBlockers,
   };
 }
