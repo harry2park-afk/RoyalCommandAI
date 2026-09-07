@@ -3,9 +3,10 @@
 -- Authorization roles are server-controlled security state. End-user profile
 -- editing and auth signup metadata must never be able to mint staff/admin.
 --
--- Keep normal own-profile edits intact, but reject any role change made from a
--- JWT-backed end-user session. Trusted service/admin database contexts have no
--- auth.uid() and remain able to provision privileged roles deliberately.
+-- Keep normal own-profile edits intact, but reject privileged role inserts and
+-- any role change made from a JWT-backed end-user session. Trusted service/admin
+-- database contexts have no auth.uid() and remain able to provision privileged
+-- roles deliberately.
 
 create or replace function private.guard_profile_role_change()
 returns trigger
@@ -14,10 +15,16 @@ security definer
 set search_path = pg_catalog, auth, public, private
 as $$
 begin
-  if new.role is distinct from old.role and auth.uid() is not null then
-    raise exception using
-      errcode = '42501',
-      message = 'Profile role changes require trusted administrative context.';
+  if auth.uid() is not null then
+    if tg_op = 'INSERT' and new.role is distinct from 'client' then
+      raise exception using
+        errcode = '42501',
+        message = 'Profile role inserts require trusted administrative context.';
+    elsif tg_op = 'UPDATE' and new.role is distinct from old.role then
+      raise exception using
+        errcode = '42501',
+        message = 'Profile role changes require trusted administrative context.';
+    end if;
   end if;
 
   return new;
@@ -28,7 +35,7 @@ revoke all on function private.guard_profile_role_change() from public, anon, au
 
 drop trigger if exists guard_profile_role_change on public.profiles;
 create trigger guard_profile_role_change
-before update of role on public.profiles
+before insert or update of role on public.profiles
 for each row
 execute function private.guard_profile_role_change();
 
@@ -63,7 +70,7 @@ $$;
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 comment on function private.guard_profile_role_change() is
-  'Rejects JWT-backed end-user changes to public.profiles.role. Trusted service/admin contexts may provision roles deliberately.';
+  'Rejects JWT-backed end-user privileged role inserts and role changes on public.profiles. Trusted service/admin contexts may provision roles deliberately.';
 
 comment on function public.handle_new_user() is
   'Creates non-privileged client profiles from auth.users. User-controlled raw metadata cannot assign staff/admin and conflict updates never overwrite role.';
