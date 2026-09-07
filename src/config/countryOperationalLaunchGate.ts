@@ -22,6 +22,12 @@ export type CountryOperationalEvidence = {
   localization: OperationalEvidenceStatus;
   requiredIntegrations: OperationalEvidenceStatus;
   /**
+   * Commercial readiness is separate from payment connectivity. Country terms,
+   * positive local pricing, and a reviewed/available provider offer must be
+   * verified before a country can be promoted. Omitted evidence fails closed.
+   */
+  commercialReadiness?: OperationalEvidenceStatus;
+  /**
    * Room Factory/template readiness is optional at the type boundary so older
    * callers remain source-compatible, but the launch gate treats missing
    * evidence exactly like unverified evidence and therefore fails closed.
@@ -58,6 +64,7 @@ export type CountryOperationalBlockerCode =
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
+  | "COMMERCIAL_READINESS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "QA_SECURITY_REGRESSION_NOT_VERIFIED"
@@ -84,6 +91,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "dataResidency", blocker: "DATA_RESIDENCY_NOT_VERIFIED" },
   { key: "localization", blocker: "LOCALIZATION_NOT_VERIFIED" },
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
+  { key: "commercialReadiness", blocker: "COMMERCIAL_READINESS_NOT_VERIFIED" },
   { key: "roomFactoryTemplate", blocker: "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "qaSecurityRegression", blocker: "QA_SECURITY_REGRESSION_NOT_VERIFIED" },
@@ -99,9 +107,9 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * This gate adds the operational evidence required by the 100-country
  * onboarding contract without changing any existing production routing or
  * activation. Every item fails closed until evidence is explicitly VERIFIED,
- * including tenant isolation, external legal/compliance evidence, Room Factory
- * readiness, operational payment safeguards, exact-head QA/security evidence,
- * and a protected deployment path.
+ * including tenant isolation, external legal/compliance evidence, commercial
+ * terms/pricing/provider readiness, Room Factory readiness, operational payment
+ * safeguards, exact-head QA/security evidence, and a protected deployment path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
