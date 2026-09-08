@@ -5,7 +5,7 @@
 -- Run against the intended Hosted project and retain the raw output with the exact
 -- Git/Supabase project identity. Any missing/unsafe result is a launch blocker.
 --
--- First wave: AU, US, CA, KR, JP, GB.
+-- First wave: AU/AUD, US/USD, CA/CAD, KR/KRW, JP/JPY, GB/GBP.
 
 begin read only;
 set local statement_timeout = '15s';
@@ -37,23 +37,33 @@ select json_build_object(
 -- The current country-terms schema does not itself carry human review provenance,
 -- so non-zero rows must never be interpreted as legal/compliance approval.
 select c.country_code,
+       c.expected_currency,
        (select count(*)
           from public.rc_service_country_terms t
          where t.country_code = c.country_code) as terms_rows,
        (select count(*)
           from public.rc_service_country_terms t
          where t.country_code = c.country_code
+           and t.currency = c.expected_currency
            and t.availability_status = 'AVAILABLE'
-           and t.customer_price_minor > 0) as positive_available_prices,
+           and t.customer_price_minor > 0) as positive_available_local_prices,
        (select count(*)
           from public.rc_service_provider_offers o
          where o.country_code = c.country_code) as provider_offers,
        (select count(*)
           from public.rc_service_provider_offers o
          where o.country_code = c.country_code
+           and o.currency = c.expected_currency
            and o.active is true
-           and o.review_status = 'APPROVED') as approved_active_provider_offers
-  from (values ('AU'), ('US'), ('CA'), ('KR'), ('JP'), ('GB')) as c(country_code)
+           and o.review_status = 'APPROVED') as approved_active_local_currency_provider_offers
+  from (values
+    ('AU', 'AUD'),
+    ('US', 'USD'),
+    ('CA', 'CAD'),
+    ('KR', 'KRW'),
+    ('JP', 'JPY'),
+    ('GB', 'GBP')
+  ) as c(country_code, expected_currency)
  order by c.country_code;
 
 -- 3) Provider, recording/consent, review-provenance schema, and payment structure.
