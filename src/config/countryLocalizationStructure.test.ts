@@ -28,6 +28,7 @@ const VERIFIED_OPERATIONAL_EVIDENCE: CountryOperationalEvidence = {
   commercialReadiness: "VERIFIED",
   roomFactoryTemplate: "VERIFIED",
   paymentOperations: "VERIFIED",
+  observabilityIncidentResponse: "VERIFIED",
   qaSecurityRegression: "VERIFIED",
   previewSmokeTest: "VERIFIED",
   deploymentProtection: "VERIFIED",
