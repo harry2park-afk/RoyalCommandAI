@@ -57,7 +57,16 @@ incident_policies as (
     count(*) filter (
       where cmd = 'SELECT'
         and ('authenticated' = any(roles) or 'public' = any(roles) or 'anon' = any(roles))
-    ) as client_select_policy_count
+    ) as client_select_policy_count,
+    count(*) filter (
+      where cmd = 'SELECT'
+        and ('public' = any(roles) or 'anon' = any(roles))
+    ) as anonymous_or_public_select_policy_count,
+    count(*) filter (
+      where cmd = 'SELECT'
+        and ('authenticated' = any(roles) or 'public' = any(roles))
+        and (qual is null or lower(btrim(qual)) in ('true', '(true)'))
+    ) as unscoped_authenticated_select_policy_count
   from pg_policies
   where schemaname = 'public'
     and tablename = 'incident_events'
@@ -102,8 +111,9 @@ gates as (
     ) as incident_resolution_client_write_blocked,
     (
       coalesce((select rls_enabled from incident_relation), false)
-      and coalesce((select client_select_policy_count = 0 from incident_policies), false)
-    ) as incident_sensitive_reads_client_blocked,
+      and coalesce((select anonymous_or_public_select_policy_count = 0 from incident_policies), false)
+      and coalesce((select unscoped_authenticated_select_policy_count = 0 from incident_policies), false)
+    ) as incident_sensitive_reads_scoped,
     (
       select incidents_with_release_provenance > 0
       from incident_counts
@@ -121,7 +131,7 @@ select
   g.incident_provenance_schema_ready,
   g.incident_client_forgery_blocked,
   g.incident_resolution_client_write_blocked,
-  g.incident_sensitive_reads_client_blocked,
+  g.incident_sensitive_reads_scoped,
   g.release_provenance_smoke_evidence_present,
   g.resolution_workflow_smoke_evidence_present,
   c.total_incidents,
@@ -135,13 +145,15 @@ select
   p.client_update_policy_count,
   p.client_delete_policy_count,
   p.client_select_policy_count,
+  p.anonymous_or_public_select_policy_count,
+  p.unscoped_authenticated_select_policy_count,
   (
     g.incident_table_present
     and g.incident_rls_enabled
     and g.incident_provenance_schema_ready
     and g.incident_client_forgery_blocked
     and g.incident_resolution_client_write_blocked
-    and g.incident_sensitive_reads_client_blocked
+    and g.incident_sensitive_reads_scoped
     and g.release_provenance_smoke_evidence_present
     and g.resolution_workflow_smoke_evidence_present
   ) as database_observability_evidence_ready,
