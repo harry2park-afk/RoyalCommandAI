@@ -1,5 +1,6 @@
 import type { CountryConfig } from "../types/countryConfig";
 import { evaluateCountryLaunch, type CountryLaunchGate } from "./countryLaunchGate";
+import { evaluateCountryComplianceHookStructure } from "./countryComplianceHookStructure";
 import { evaluateCountryLocalizationStructure } from "./countryLocalizationStructure";
 
 export type OperationalEvidenceStatus = "VERIFIED" | "NEEDS_REVIEW" | "BLOCKED";
@@ -116,6 +117,7 @@ export type CountryOperationalBlockerCode =
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
   | "LOCALIZATION_STRUCTURE_NOT_READY"
+  | "COMPLIANCE_HOOK_STRUCTURE_NOT_READY"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "COMMERCIAL_READINESS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
@@ -179,8 +181,9 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * authority, reviewed recording/consent evidence, external legal/compliance and
  * privacy-lifecycle evidence, commercial terms/pricing/provider readiness, Room
  * Factory readiness, operational payment safeguards, trusted observability and
- * incident response, exact-head QA/security evidence, a structurally compatible
- * country localization path, and a protected deployment path.
+ * incident response, exact-head QA/security evidence, structurally wired country
+ * compliance hooks, a structurally compatible country localization path, and a
+ * protected deployment path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -188,12 +191,17 @@ export function evaluateCountryOperationalLaunch(
 ): CountryOperationalLaunchGate {
   const countryGate = evaluateCountryLaunch(config);
   const localizationStructure = evaluateCountryLocalizationStructure(config);
+  const complianceHookStructure = evaluateCountryComplianceHookStructure(config);
   const operationalBlockers = OPERATIONAL_REQUIREMENTS
     .filter(({ key }) => evidence[key] !== "VERIFIED")
     .map(({ blocker }) => blocker);
 
   if (!localizationStructure.ready) {
     operationalBlockers.push("LOCALIZATION_STRUCTURE_NOT_READY");
+  }
+
+  if (!complianceHookStructure.ready) {
+    operationalBlockers.push("COMPLIANCE_HOOK_STRUCTURE_NOT_READY");
   }
 
   return {
