@@ -33,7 +33,9 @@ select json_build_object(
     has_table_privilege('authenticated', 'public.room_factory_manifests', 'DELETE')
 ) as auth_room_factory_boundary;
 
--- 2) Country commercial/provider readiness. Zero rows are BLOCKED, never READY.
+-- 2) Country commercial/provider readiness. These are inventory checks only.
+-- The current country-terms schema does not itself carry human review provenance,
+-- so non-zero rows must never be interpreted as legal/compliance approval.
 select c.country_code,
        (select count(*)
           from public.rc_service_country_terms t
@@ -41,12 +43,8 @@ select c.country_code,
        (select count(*)
           from public.rc_service_country_terms t
          where t.country_code = c.country_code
-           and t.active is true
-           and t.review_status = 'APPROVED'
            and t.availability_status = 'AVAILABLE'
-           and t.customer_price_minor > 0
-           and t.reviewed_by is not null
-           and t.reviewed_at is not null) as reviewed_positive_available_prices,
+           and t.customer_price_minor > 0) as positive_available_prices,
        (select count(*)
           from public.rc_service_provider_offers o
          where o.country_code = c.country_code) as provider_offers,
@@ -54,22 +52,29 @@ select c.country_code,
           from public.rc_service_provider_offers o
          where o.country_code = c.country_code
            and o.active is true
-           and o.review_status = 'APPROVED'
-           and o.reviewed_by is not null
-           and o.reviewed_at is not null) as reviewed_active_provider_offers
+           and o.review_status = 'APPROVED') as approved_active_provider_offers
   from (values ('AU'), ('US'), ('CA'), ('KR'), ('JP'), ('GB')) as c(country_code)
  order by c.country_code;
 
--- 3) Provider, recording/consent and payment-operational structure.
+-- 3) Provider, recording/consent, review-provenance schema, and payment structure.
 select json_build_object(
   'providers_total', (select count(*) from public.rc_service_providers),
-  'providers_active_reviewed', (
-    select count(*)
-      from public.rc_service_providers
-     where active is true
-       and review_status = 'APPROVED'
-       and reviewed_by is not null
-       and reviewed_at is not null
+  'providers_active', (
+    select count(*) from public.rc_service_providers where active is true
+  ),
+  'country_terms_review_provenance_columns_exist', (
+    select count(*) = 3
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'rc_service_country_terms'
+       and column_name in ('review_status', 'reviewed_by', 'reviewed_at')
+  ),
+  'provider_offers_reviewer_provenance_columns_exist', (
+    select count(*) = 2
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'rc_service_provider_offers'
+       and column_name in ('reviewed_by', 'reviewed_at')
   ),
   'first_wave_recording_policy_rows', (
     select count(*)
