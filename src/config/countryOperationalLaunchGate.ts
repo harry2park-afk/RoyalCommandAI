@@ -21,6 +21,13 @@ export type CountryOperationalEvidence = {
    */
   tenantDataIsolation?: OperationalEvidenceStatus;
   /**
+   * Matter ownership and staff-assignment authority is independent of broad
+   * tenant RLS evidence. A country must not launch while an end-user session can
+   * rewrite a Matter's client owner or assigned staff. Omitted evidence fails
+   * closed at launch time.
+   */
+  matterOwnershipAssignmentAuthority?: OperationalEvidenceStatus;
+  /**
    * Authorization-role authority is independent of tenant isolation. A tenant
    * can be row-isolated while still being unsafe if an end-user can promote a
    * profile role or signup metadata can mint staff/admin authority. Omitted
@@ -80,6 +87,7 @@ export type CountryOperationalBlockerCode =
   | "SESSION_COOKIES_NOT_VERIFIED"
   | "DATABASE_MIGRATION_SAFETY_NOT_VERIFIED"
   | "TENANT_DATA_ISOLATION_NOT_VERIFIED"
+  | "MATTER_OWNERSHIP_ASSIGNMENT_AUTHORITY_NOT_VERIFIED"
   | "AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED"
   | "COMMUNICATIONS_RULES_NOT_VERIFIED"
   | "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED"
@@ -111,6 +119,10 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "sessionCookies", blocker: "SESSION_COOKIES_NOT_VERIFIED" },
   { key: "databaseMigrationSafety", blocker: "DATABASE_MIGRATION_SAFETY_NOT_VERIFIED" },
   { key: "tenantDataIsolation", blocker: "TENANT_DATA_ISOLATION_NOT_VERIFIED" },
+  {
+    key: "matterOwnershipAssignmentAuthority",
+    blocker: "MATTER_OWNERSHIP_ASSIGNMENT_AUTHORITY_NOT_VERIFIED",
+  },
   { key: "authorizationRoleAuthority", blocker: "AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED" },
   { key: "communicationsRules", blocker: "COMMUNICATIONS_RULES_NOT_VERIFIED" },
   { key: "recordingConsentEvidence", blocker: "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED" },
@@ -134,12 +146,12 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * This gate adds the operational evidence required by the 100-country
  * onboarding contract without changing any existing production routing or
  * activation. Every item fails closed until evidence is explicitly VERIFIED,
- * including exact linked database migration safety, tenant isolation,
- * authorization-role authority, reviewed recording/consent evidence, external
- * legal/compliance evidence, commercial terms/pricing/provider readiness, Room
- * Factory readiness, operational payment safeguards, exact-head QA/security
- * evidence, a structurally compatible country localization path, and a
- * protected deployment path.
+ * including exact linked database migration safety, tenant isolation, Matter
+ * ownership/assignment authority, authorization-role authority, reviewed
+ * recording/consent evidence, external legal/compliance evidence, commercial
+ * terms/pricing/provider readiness, Room Factory readiness, operational payment
+ * safeguards, exact-head QA/security evidence, a structurally compatible
+ * country localization path, and a protected deployment path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
