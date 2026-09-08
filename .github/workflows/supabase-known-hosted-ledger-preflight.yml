@@ -10,6 +10,9 @@ on:
       - "scripts/supabase-hosted-source-fingerprints-20260908.json"
       - "scripts/supabase-hosted-source-provenance.mjs"
       - "scripts/supabase-hosted-source-provenance.test.ts"
+      - "scripts/supabase-unresolved-local-migration-classification-20260908.json"
+      - "scripts/supabase-unresolved-local-migration-classification.mjs"
+      - "scripts/supabase-unresolved-local-migration-classification.test.ts"
       - "supabase/migrations/**"
       - ".github/workflows/supabase-known-hosted-ledger-preflight.yml"
   workflow_dispatch:
@@ -89,6 +92,24 @@ jobs:
             artifacts/supabase-known-hosted-ledger/reconciliation.json \
             "${expected[@]}"
 
+      - name: Classify unresolved LOCAL-only migration provenance
+        id: unresolved_classification
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          reconciliation="artifacts/supabase-known-hosted-ledger/reconciliation.json"
+          [[ -s "${reconciliation}" ]] || {
+            echo "BLOCKED: reconciliation evidence is missing; unresolved migration classification cannot run"
+            exit 1
+          }
+          node scripts/supabase-unresolved-local-migration-classification.mjs \
+            scripts/supabase-unresolved-local-migration-classification-20260908.json \
+            "${reconciliation}" \
+            supabase/migrations \
+            artifacts/supabase-known-hosted-ledger/unresolved-local-classification.json
+
       - name: Upload known-ledger evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -104,6 +125,7 @@ jobs:
         env:
           SOURCE_PROVENANCE_STATUS: ${{ steps.source_provenance.outputs.status }}
           LEDGER_RECONCILIATION_OUTCOME: ${{ steps.ledger_reconciliation.outcome }}
+          UNRESOLVED_CLASSIFICATION_OUTCOME: ${{ steps.unresolved_classification.outcome }}
         run: |
           set -euo pipefail
           failed=0
@@ -115,7 +137,11 @@ jobs:
             echo "BLOCKED: Hosted migration ledger reconciliation is unresolved."
             failed=1
           fi
+          if [[ "${UNRESOLVED_CLASSIFICATION_OUTCOME:-missing}" != "success" ]]; then
+            echo "BLOCKED: unresolved LOCAL-only migration provenance classification is incomplete or stale."
+            failed=1
+          fi
           if [[ "${failed}" -ne 0 ]]; then
             exit 1
           fi
-          echo "VERIFIED: Hosted source provenance and known-ledger reconciliation are both clean."
+          echo "VERIFIED: Hosted source provenance, known-ledger reconciliation, and unresolved LOCAL-only classification are clean."
