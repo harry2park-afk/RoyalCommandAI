@@ -10,11 +10,24 @@ export function normalizeMigrationSource(source) {
   return source.replace(/\r\n?/g, "\n").trim();
 }
 
+export function diagnosticNormalizeMigrationSource(source) {
+  return normalizeMigrationSource(source)
+    .split("\n")
+    .filter((line) => line.trim() !== "" && !/^\s*--/.test(line))
+    .join("\n")
+    .trim();
+}
+
+function sha256Text(source) {
+  return crypto.createHash("sha256").update(source, "utf8").digest("hex");
+}
+
 export function sha256MigrationSource(source) {
-  return crypto
-    .createHash("sha256")
-    .update(normalizeMigrationSource(source), "utf8")
-    .digest("hex");
+  return sha256Text(normalizeMigrationSource(source));
+}
+
+export function sha256DiagnosticMigrationSource(source) {
+  return sha256Text(diagnosticNormalizeMigrationSource(source));
 }
 
 function parseLocalMigrationBasename(basename) {
@@ -56,6 +69,11 @@ export function compareHostedSourceFingerprints({ snapshot, localMigrations }) {
 
     const local = localRows[0];
     const localSha256 = sha256MigrationSource(local.source);
+    const localDiagnosticSha256 = sha256DiagnosticMigrationSource(local.source);
+    const sourceStatus = localSha256 === remote.source_sha256 ? "MATCH" : "MISMATCH";
+    const diagnosticStatus =
+      localDiagnosticSha256 === remote.diagnostic_nonblank_noncomment_sha256 ? "MATCH" : "MISMATCH";
+
     checked.push({
       name: remote.name,
       remote_version: remote.version,
@@ -64,7 +82,15 @@ export function compareHostedSourceFingerprints({ snapshot, localMigrations }) {
       timestamp_drift: remote.version !== local.version,
       remote_source_sha256: remote.source_sha256,
       local_source_sha256: localSha256,
-      source_status: localSha256 === remote.source_sha256 ? "MATCH" : "MISMATCH",
+      source_status: sourceStatus,
+      remote_diagnostic_nonblank_noncomment_sha256:
+        remote.diagnostic_nonblank_noncomment_sha256 ?? null,
+      local_diagnostic_nonblank_noncomment_sha256: localDiagnosticSha256,
+      diagnostic_nonblank_noncomment_status: diagnosticStatus,
+      diagnostic_difference_scope:
+        sourceStatus === "MISMATCH" && diagnosticStatus === "MATCH"
+          ? "FULL_LINE_COMMENTS_OR_BLANK_LINES_ONLY"
+          : sourceStatus,
     });
   }
 
@@ -74,6 +100,9 @@ export function compareHostedSourceFingerprints({ snapshot, localMigrations }) {
 
   const source_match_count = checked.filter((row) => row.source_status === "MATCH").length;
   const source_mismatch_count = checked.filter((row) => row.source_status === "MISMATCH").length;
+  const comment_or_blank_only_count = checked.filter(
+    (row) => row.diagnostic_difference_scope === "FULL_LINE_COMMENTS_OR_BLANK_LINES_ONLY",
+  ).length;
   const ready_for_provenance_reconciliation =
     source_mismatch_count === 0 &&
     missing_local_names.length === 0 &&
@@ -83,14 +112,16 @@ export function compareHostedSourceFingerprints({ snapshot, localMigrations }) {
   return {
     contract_version: 1,
     evidence_scope:
-      "Migration source provenance only. A MATCH does not authorize migration repair, push, deploy, or Country READY.",
+      "Migration source provenance only. Diagnostic hashes may narrow raw source drift to full-line comments/blank lines but do not make a raw MISMATCH pass and do not authorize migration repair, push, deploy, or Country READY.",
     snapshot_captured_at: snapshot.captured_at ?? null,
+    diagnostic_captured_at: snapshot.diagnostic_captured_at ?? null,
     project_ref: snapshot.project_ref ?? null,
     counts: {
       fingerprinted_remote: (snapshot.migrations ?? []).length,
       checked: checked.length,
       source_match: source_match_count,
       source_mismatch: source_mismatch_count,
+      diagnostic_comment_or_blank_only: comment_or_blank_only_count,
       missing_local: missing_local_names.length,
       duplicate_local_name: duplicate_local_names.length,
     },
