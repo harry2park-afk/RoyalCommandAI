@@ -13,10 +13,15 @@ const VERIFIED_OPERATIONAL_EVIDENCE: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
   authCallback: "VERIFIED",
   sessionCookies: "VERIFIED",
+  authRecoveryEvidence: "VERIFIED",
+  databaseMigrationSafety: "VERIFIED",
   tenantDataIsolation: "VERIFIED",
+  matterOwnershipAssignmentAuthority: "VERIFIED",
+  authorizationRoleAuthority: "VERIFIED",
   communicationsRules: "VERIFIED",
   recordingConsentEvidence: "VERIFIED",
   legalComplianceEvidence: "VERIFIED",
+  privacyLifecycleEvidence: "VERIFIED",
   dataResidency: "VERIFIED",
   localization: "VERIFIED",
   requiredIntegrations: "VERIFIED",
@@ -56,8 +61,7 @@ describe("country localization structure launch gate", () => {
       localization: "NEEDS_REVIEW",
     });
 
-    expect(result.operationalBlockers).toContain("LOCALIZATION_NOT_VERIFIED");
-    expect(result.operationalBlockers).not.toContain("LOCALIZATION_STRUCTURE_NOT_READY");
+    expect(result.operationalBlockers).toEqual(["LOCALIZATION_NOT_VERIFIED"]);
     expect(result.launchable).toBe(false);
   });
 
