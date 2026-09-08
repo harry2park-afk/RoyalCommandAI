@@ -1,33 +1,39 @@
 {
   "contract_version": 1,
   "captured_at": "2026-09-08T11:55:47.826784Z",
+  "diagnostic_captured_at": "2026-09-08T12:04:00Z",
   "project_ref": "aygawkavujjmybekswrg",
   "normalization": "CRLF/CR to LF, trim leading/trailing whitespace, SHA-256",
-  "evidence_scope": "READ-ONLY fingerprints for same-name migrations with timestamp drift; not an apply approval",
+  "diagnostic_normalization": "CRLF/CR to LF, remove blank lines and full-line -- comments, preserve all remaining line text/order, trim boundary whitespace, SHA-256",
+  "evidence_scope": "READ-ONLY fingerprints for same-name migrations with timestamp drift; diagnostic hashes only narrow where source differences occur and do not authorize apply",
   "migrations": [
     {
       "version": "20260901021811",
       "name": "atomic_room_factory_encounter_creation",
       "statement_count": 1,
-      "source_sha256": "c7deb047da9999e1f192bfd43f71f5954d23fce3f3bc3f1bcc5611219cf4a1ec"
+      "source_sha256": "c7deb047da9999e1f192bfd43f71f5954d23fce3f3bc3f1bcc5611219cf4a1ec",
+      "diagnostic_nonblank_noncomment_sha256": "683d600b299abeb92882100b55d5892a3d5cc33d9b4e91c1ccfbe87e333603ae"
     },
     {
       "version": "20260905055756",
       "name": "customer_room_designer_v1",
       "statement_count": 1,
-      "source_sha256": "3daa94730f9a176eb896c567346f0af3b6525b4eb08c0abd207190212e66e1a0"
+      "source_sha256": "3daa94730f9a176eb896c567346f0af3b6525b4eb08c0abd207190212e66e1a0",
+      "diagnostic_nonblank_noncomment_sha256": "f6858779a28d8774675da2cf9b6279d4dc0cf2e2f5c861bfe758612ee3ad7d65"
     },
     {
       "version": "20260901023602",
       "name": "harden_room_factory_atomic_invoker",
       "statement_count": 1,
-      "source_sha256": "04114e5508e5012b344386042d3667d35d0b2e8b86eb98af6b5103629f9621b8"
+      "source_sha256": "04114e5508e5012b344386042d3667d35d0b2e8b86eb98af6b5103629f9621b8",
+      "diagnostic_nonblank_noncomment_sha256": "b9093445dfac1467361eba121e88989194b4ff0b14b3a3eba8dfe3bf95d35fa7"
     },
     {
       "version": "20260904100008",
       "name": "layout_editor_trusted_devices_v1",
       "statement_count": 1,
-      "source_sha256": "853fe7d7f0c4f973ab440700bf7a1bf04547f1bb3c4330a8f08cd8278216b576"
+      "source_sha256": "853fe7d7f0c4f973ab440700bf7a1bf04547f1bb3c4330a8f08cd8278216b576",
+      "diagnostic_nonblank_noncomment_sha256": "d1be18e73b317d19dc5b88e1b616970171f8c60712fe6c7adeb4a631691fb5eb"
     }
   ]
 }
