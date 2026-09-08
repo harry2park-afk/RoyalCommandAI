@@ -88,7 +88,6 @@ select json_build_object(
        and review_status = 'APPROVED'
        and reviewed_by is not null
        and reviewed_at is not null
-       and approved_at is not null
   ),
   'service_connection_orders', (select count(*) from public.rc_service_connection_orders),
   'payment_provider_registry_exists',
