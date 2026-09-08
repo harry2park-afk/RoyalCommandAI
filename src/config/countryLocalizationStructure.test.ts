@@ -46,6 +46,34 @@ describe("country localization structure launch gate", () => {
     }
   });
 
+  it("fails closed when a configured launch country is absent from Create Room selection", () => {
+    const config = getCountryConfigByCountryCode("AU");
+    expect(config).not.toBeNull();
+
+    const result = evaluateCountryLocalizationStructure({
+      ...config!,
+      countryCode: "ZZ",
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.blockers).toContain("ROOM_FACTORY_COUNTRY_PRESET_MISSING");
+    expect(result.blockers).toContain("CREATE_ROOM_COUNTRY_OPTION_MISSING");
+  });
+
+  it("fails closed when Create Room would default a launch country to the wrong language", () => {
+    const config = getCountryConfigByCountryCode("AU");
+    expect(config).not.toBeNull();
+
+    const result = evaluateCountryLocalizationStructure({
+      ...config!,
+      locale: "ko-KR",
+    });
+
+    expect(result.ready).toBe(false);
+    expect(result.blockers).toContain("ROOM_FACTORY_LOCALE_MISMATCH");
+    expect(result.blockers).toContain("CREATE_ROOM_COUNTRY_LOCALE_MISMATCH");
+  });
+
   it("supports Canada's declared French secondary locale in Create Room", () => {
     const config = getCountryConfigByCountryCode("CA");
     expect(config?.secondaryLocale).toBe("fr-CA");
