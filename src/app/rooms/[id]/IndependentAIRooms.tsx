@@ -284,6 +284,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   useEffect(() => {
     const fastProviderScroll = (event: DragEvent) => {
       if (!draggedProviderRef.current) return;
+      if (event.clientY <= 0) return;
       const search = document.querySelector<HTMLInputElement>('input[placeholder="Search AI providers"]');
       const list = search?.parentElement?.parentElement?.nextElementSibling;
       if (!(list instanceof HTMLElement)) return;
@@ -291,15 +292,19 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
       const upperTrigger = bounds.top + 110;
       const lowerTrigger = bounds.bottom - 110;
       if (event.clientY < upperTrigger) {
-        event.preventDefault();
+        if (event.type === "dragover") event.preventDefault();
         list.scrollTop -= Math.min(220, 35 + (upperTrigger - event.clientY) * 1.5);
       } else if (event.clientY > lowerTrigger) {
-        event.preventDefault();
+        if (event.type === "dragover") event.preventDefault();
         list.scrollTop += Math.min(220, 35 + (event.clientY - lowerTrigger) * 1.5);
       }
     };
+    document.addEventListener("drag", fastProviderScroll);
     document.addEventListener("dragover", fastProviderScroll);
-    return () => document.removeEventListener("dragover", fastProviderScroll);
+    return () => {
+      document.removeEventListener("drag", fastProviderScroll);
+      document.removeEventListener("dragover", fastProviderScroll);
+    };
   }, []);
 
   useEffect(() => {
