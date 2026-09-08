@@ -35,14 +35,18 @@ describe("first-wave country compliance hook structure", () => {
     for (const countryCode of FIRST_WAVE_COUNTRIES) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, `${countryCode} config`).not.toBeNull();
+      const legalStatusBefore = config!.compliance.legal;
+      const privacyStatusBefore = config!.compliance.privacy;
 
       const structure = evaluateCountryComplianceHookStructure(config!);
       expect(structure.ready, `${countryCode} structure`).toBe(true);
       expect(structure.blockers, `${countryCode} blockers`).toEqual([]);
 
-      // Structural readiness is deliberately independent of the country's
-      // substantive legal/privacy review state.
-      expect(config?.compliance.legal, `${countryCode} legal approval`).not.toBe("READY");
+      // Structural wiring must never mutate or auto-promote substantive review state.
+      expect(config!.compliance.legal, `${countryCode} legal status`).toBe(legalStatusBefore);
+      expect(config!.compliance.privacy, `${countryCode} privacy status`).toBe(
+        privacyStatusBefore,
+      );
     }
   });
 });
