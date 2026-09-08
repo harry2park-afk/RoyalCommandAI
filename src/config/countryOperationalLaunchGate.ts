@@ -79,6 +79,13 @@ export type CountryOperationalEvidence = {
    */
   paymentOperations?: OperationalEvidenceStatus;
   /**
+   * Production observability and incident response are independent of build QA.
+   * Country promotion requires trusted telemetry, alert/triage ownership, and a
+   * verified incident handling path. Omitted evidence fails closed so a green
+   * build cannot substitute for operational detection and response readiness.
+   */
+  observabilityIncidentResponse?: OperationalEvidenceStatus;
+  /**
    * Launch promotion requires exact-head QA/security/regression evidence rather
    * than relying on a preview smoke test alone. Omitted evidence fails closed.
    */
@@ -113,6 +120,7 @@ export type CountryOperationalBlockerCode =
   | "COMMERCIAL_READINESS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
+  | "OBSERVABILITY_INCIDENT_RESPONSE_NOT_VERIFIED"
   | "QA_SECURITY_REGRESSION_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
   | "DEPLOYMENT_PROTECTION_NOT_VERIFIED"
@@ -149,6 +157,10 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "commercialReadiness", blocker: "COMMERCIAL_READINESS_NOT_VERIFIED" },
   { key: "roomFactoryTemplate", blocker: "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
+  {
+    key: "observabilityIncidentResponse",
+    blocker: "OBSERVABILITY_INCIDENT_RESPONSE_NOT_VERIFIED",
+  },
   { key: "qaSecurityRegression", blocker: "QA_SECURITY_REGRESSION_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "deploymentProtection", blocker: "DEPLOYMENT_PROTECTION_NOT_VERIFIED" },
@@ -166,9 +178,9 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * tenant isolation, Matter ownership/assignment authority, authorization-role
  * authority, reviewed recording/consent evidence, external legal/compliance and
  * privacy-lifecycle evidence, commercial terms/pricing/provider readiness, Room
- * Factory readiness, operational payment safeguards, exact-head QA/security
- * evidence, a structurally compatible country localization path, and a
- * protected deployment path.
+ * Factory readiness, operational payment safeguards, trusted observability and
+ * incident response, exact-head QA/security evidence, a structurally compatible
+ * country localization path, and a protected deployment path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
