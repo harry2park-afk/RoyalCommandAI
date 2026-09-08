@@ -22,6 +22,15 @@
   z-index: 24 !important;
 }
 
+.root form[data-rc-composer-enhanced="true"] label[title="Attach files"] {
+  position: absolute !important;
+  left: 60px !important;
+  right: auto !important;
+  bottom: 8px !important;
+  pointer-events: auto !important;
+  z-index: 24 !important;
+}
+
 .root form[data-rc-composer-enhanced="true"] button[title="AI Helper"] {
   position: absolute !important;
   right: 18px !important;
