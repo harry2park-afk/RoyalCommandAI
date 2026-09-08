@@ -17,6 +17,7 @@ type ImportantConversation = {
 
 type UiPreferences = {
   selectedAi?: string[];
+  connectedAiProviders?: string[];
   aiSlots?: string[];
   compactAiDock?: string[];
   rightPanelApps?: string[];
@@ -80,6 +81,8 @@ function sanitise(value: unknown): UiPreferences {
 
   const selectedAi = sanitiseStringArray(input.selectedAi, 50);
   if (selectedAi) result.selectedAi = selectedAi;
+  const connectedAiProviders = sanitiseStringArray(input.connectedAiProviders, 26);
+  if (connectedAiProviders) result.connectedAiProviders = connectedAiProviders;
   const aiSlots = sanitiseStringArray(input.aiSlots, 25);
   if (aiSlots) result.aiSlots = aiSlots;
   const compactAiDock = sanitiseStringArray(input.compactAiDock, 25);
