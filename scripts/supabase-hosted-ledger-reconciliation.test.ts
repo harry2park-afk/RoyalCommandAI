@@ -32,7 +32,7 @@ describe("captured Hosted migration ledger reconciliation", () => {
       remote_only_by_version: 72,
       same_name_timestamp_drift: 35,
       unresolved_local_names: 7,
-      unresolved_hosted_names: 36,
+      unresolved_hosted_names: 37,
     });
 
     expect(reconciliation.local_only).toContainEqual({
