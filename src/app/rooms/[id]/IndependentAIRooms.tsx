@@ -282,6 +282,27 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   }, [roomId, selected, selectedLoaded]);
 
   useEffect(() => {
+    const fastProviderScroll = (event: DragEvent) => {
+      if (!draggedProviderRef.current) return;
+      const search = document.querySelector<HTMLInputElement>('input[placeholder="Search AI providers"]');
+      const list = search?.parentElement?.parentElement?.nextElementSibling;
+      if (!(list instanceof HTMLElement)) return;
+      const bounds = list.getBoundingClientRect();
+      const upperTrigger = bounds.top + 110;
+      const lowerTrigger = bounds.bottom - 110;
+      if (event.clientY < upperTrigger) {
+        event.preventDefault();
+        list.scrollTop -= Math.min(220, 35 + (upperTrigger - event.clientY) * 1.5);
+      } else if (event.clientY > lowerTrigger) {
+        event.preventDefault();
+        list.scrollTop += Math.min(220, 35 + (event.clientY - lowerTrigger) * 1.5);
+      }
+    };
+    document.addEventListener("dragover", fastProviderScroll);
+    return () => document.removeEventListener("dragover", fastProviderScroll);
+  }, []);
+
+  useEffect(() => {
     if (!providerOrderLoaded) return;
     localStorage.setItem(providerOrderKey(roomId), JSON.stringify(providerOrder));
   }, [providerOrder, providerOrderLoaded, roomId]);
