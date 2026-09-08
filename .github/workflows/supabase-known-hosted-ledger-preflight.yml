@@ -1,0 +1,76 @@
+name: Supabase Known Hosted Ledger Preflight
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "scripts/supabase-hosted-ledger-snapshot-20260908.json"
+      - "scripts/supabase-hosted-ledger-reconciliation.mjs"
+      - "scripts/supabase-hosted-ledger-reconciliation.test.ts"
+      - "supabase/migrations/**"
+      - ".github/workflows/supabase-known-hosted-ledger-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-supabase-known-ledger-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  known-ledger-preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_APPLY_MIGRATIONS: >-
+        20260831225500_scope_matter_staff_access.sql
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          [[ "${actual_sha}" == "${CANDIDATE_SHA}" ]] || {
+            echo "BLOCKED: checkout SHA ${actual_sha} does not match candidate ${CANDIDATE_SHA}"
+            exit 1
+          }
+          echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
+
+      - name: Reconcile captured Hosted ledger before credential-dependent linked CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a migrations <<< "${EXPECTED_APPLY_MIGRATIONS}"
+          expected=()
+          for migration in "${migrations[@]}"; do
+            migration="${migration#"${migration%%[![:space:]]*}"}"
+            migration="${migration%"${migration##*[![:space:]]}"}"
+            [[ -n "${migration}" ]] || {
+              echo "BLOCKED: EXPECTED_APPLY_MIGRATIONS contains an empty entry"
+              exit 1
+            }
+            expected+=("${migration}")
+          done
+
+          node scripts/supabase-hosted-ledger-reconciliation.mjs \
+            scripts/supabase-hosted-ledger-snapshot-20260908.json \
+            supabase/migrations \
+            artifacts/supabase-known-hosted-ledger/reconciliation.json \
+            "${expected[@]}"
+
+      - name: Upload known-ledger evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-known-hosted-ledger-${{ env.CANDIDATE_SHA }}
+          path: artifacts/supabase-known-hosted-ledger/
+          if-no-files-found: warn
+          retention-days: 7
