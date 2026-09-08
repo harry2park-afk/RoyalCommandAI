@@ -46,6 +46,7 @@ const PROVIDERS: Array<{ id: ProviderId; name: string; role: string }> = [
   { id: "codex", name: "Codex", role: "Independent AI Room" },
 ];
 const DEFAULT_SELECTED_PROVIDERS = PROVIDERS.map((provider) => provider.id);
+const DEFAULT_PROVIDER_ORDER = [...DEFAULT_SELECTED_PROVIDERS];
 
 const EMPTY: RoomState = { history: [], loading: false, error: "" };
 const HIDDEN_COUNTRIES_KEY = "royalcommand:hidden-countries";
@@ -123,7 +124,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [providerSearch, setProviderSearch] = useState("");
   const [languageSearch, setLanguageSearch] = useState("");
   const [providerRegistry, setProviderRegistry] = useState<ProviderInfo[]>([]);
-  const [providerOrder, setProviderOrder] = useState<string[]>([]);
+  const [providerOrder, setProviderOrder] = useState<string[]>(DEFAULT_PROVIDER_ORDER);
   const [providerOrderLoaded, setProviderOrderLoaded] = useState(false);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [chatSessionsLoaded, setChatSessionsLoaded] = useState(false);
@@ -189,9 +190,10 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     }
     try {
       const savedProviderOrder = JSON.parse(localStorage.getItem(providerOrderKey(roomId)) || "[]") as string[];
-      setProviderOrder(Array.isArray(savedProviderOrder) ? savedProviderOrder.filter((id): id is string => typeof id === "string") : []);
+      const validSavedOrder = Array.isArray(savedProviderOrder) ? savedProviderOrder.filter((id): id is string => typeof id === "string") : [];
+      setProviderOrder(validSavedOrder.length ? validSavedOrder : DEFAULT_PROVIDER_ORDER);
     } catch {
-      setProviderOrder([]);
+      setProviderOrder(DEFAULT_PROVIDER_ORDER);
     } finally {
       setProviderOrderLoaded(true);
     }
