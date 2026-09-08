@@ -45,6 +45,12 @@ export type CountryOperationalEvidence = {
    * configuration before a country can be promoted.
    */
   legalComplianceEvidence?: OperationalEvidenceStatus;
+  /**
+   * Privacy lifecycle evidence is independent of data-residency configuration.
+   * Launch requires reviewed controls for notice/consent, retention/deletion,
+   * and data-subject request handling. Omitted evidence fails closed.
+   */
+  privacyLifecycleEvidence?: OperationalEvidenceStatus;
   dataResidency: OperationalEvidenceStatus;
   localization: OperationalEvidenceStatus;
   requiredIntegrations: OperationalEvidenceStatus;
@@ -92,6 +98,7 @@ export type CountryOperationalBlockerCode =
   | "COMMUNICATIONS_RULES_NOT_VERIFIED"
   | "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED"
   | "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED"
+  | "PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED"
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
   | "LOCALIZATION_STRUCTURE_NOT_READY"
@@ -127,6 +134,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "communicationsRules", blocker: "COMMUNICATIONS_RULES_NOT_VERIFIED" },
   { key: "recordingConsentEvidence", blocker: "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED" },
   { key: "legalComplianceEvidence", blocker: "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
+  { key: "privacyLifecycleEvidence", blocker: "PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED" },
   { key: "dataResidency", blocker: "DATA_RESIDENCY_NOT_VERIFIED" },
   { key: "localization", blocker: "LOCALIZATION_NOT_VERIFIED" },
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
@@ -148,10 +156,11 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * activation. Every item fails closed until evidence is explicitly VERIFIED,
  * including exact linked database migration safety, tenant isolation, Matter
  * ownership/assignment authority, authorization-role authority, reviewed
- * recording/consent evidence, external legal/compliance evidence, commercial
- * terms/pricing/provider readiness, Room Factory readiness, operational payment
- * safeguards, exact-head QA/security evidence, a structurally compatible
- * country localization path, and a protected deployment path.
+ * recording/consent evidence, external legal/compliance and privacy-lifecycle
+ * evidence, commercial terms/pricing/provider readiness, Room Factory readiness,
+ * operational payment safeguards, exact-head QA/security evidence, a
+ * structurally compatible country localization path, and a protected deployment
+ * path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
