@@ -19,6 +19,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   communicationsRules: "NEEDS_REVIEW",
   recordingConsentEvidence: "NEEDS_REVIEW",
   legalComplianceEvidence: "NEEDS_REVIEW",
+  privacyLifecycleEvidence: "NEEDS_REVIEW",
   dataResidency: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
   requiredIntegrations: "NEEDS_REVIEW",
@@ -42,6 +43,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   communicationsRules: "VERIFIED",
   recordingConsentEvidence: "VERIFIED",
   legalComplianceEvidence: "VERIFIED",
+  privacyLifecycleEvidence: "VERIFIED",
   dataResidency: "VERIFIED",
   localization: "VERIFIED",
   requiredIntegrations: "VERIFIED",
@@ -96,6 +98,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMMERCIAL_READINESS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_TEMPLATE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
@@ -142,6 +145,7 @@ describe("country operational launch readiness gate", () => {
       authorizationRoleAuthority: _authorizationRoleAuthority,
       recordingConsentEvidence: _recordingConsentEvidence,
       legalComplianceEvidence: _legalComplianceEvidence,
+      privacyLifecycleEvidence: _privacyLifecycleEvidence,
       commercialReadiness: _commercialReadiness,
       paymentOperations: _paymentOperations,
       qaSecurityRegression: _qaSecurityRegression,
@@ -160,6 +164,7 @@ describe("country operational launch readiness gate", () => {
       "AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED",
       "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED",
       "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED",
+      "PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED",
       "COMMERCIAL_READINESS_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
       "QA_SECURITY_REGRESSION_NOT_VERIFIED",
@@ -242,6 +247,22 @@ describe("country operational launch readiness gate", () => {
 
     expect(gate.launchable).toBe(false);
     expect(gate.operationalBlockers).toEqual(["RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED"]);
+  });
+
+  it("requires privacy lifecycle evidence independently of legal review and data residency", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      legalComplianceEvidence: "VERIFIED",
+      dataResidency: "VERIFIED",
+      privacyLifecycleEvidence: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED"]);
   });
 
   it("requires commercial readiness independently of integrations and payment operations", () => {
