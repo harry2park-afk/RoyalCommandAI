@@ -9,6 +9,12 @@ export type CountryOperationalEvidence = {
   authCallback: OperationalEvidenceStatus;
   sessionCookies: OperationalEvidenceStatus;
   /**
+   * Authentication recovery is independent of callback/session setup. Country
+   * promotion requires verified reset/recovery delivery and token lifecycle
+   * behavior; omitted evidence fails closed at launch time.
+   */
+  authRecoveryEvidence?: OperationalEvidenceStatus;
+  /**
    * Database migration safety is independent of application QA. Launch-critical
    * schema changes require an exact linked migration inventory/dry-run plus
    * controlled Hosted staging/read-back evidence before country promotion.
@@ -91,6 +97,7 @@ export type CountryOperationalBlockerCode =
   | "DOMAIN_BINDING_NOT_VERIFIED"
   | "AUTH_CALLBACK_NOT_VERIFIED"
   | "SESSION_COOKIES_NOT_VERIFIED"
+  | "AUTH_RECOVERY_EVIDENCE_NOT_VERIFIED"
   | "DATABASE_MIGRATION_SAFETY_NOT_VERIFIED"
   | "TENANT_DATA_ISOLATION_NOT_VERIFIED"
   | "MATTER_OWNERSHIP_ASSIGNMENT_AUTHORITY_NOT_VERIFIED"
@@ -124,6 +131,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "domainBinding", blocker: "DOMAIN_BINDING_NOT_VERIFIED" },
   { key: "authCallback", blocker: "AUTH_CALLBACK_NOT_VERIFIED" },
   { key: "sessionCookies", blocker: "SESSION_COOKIES_NOT_VERIFIED" },
+  { key: "authRecoveryEvidence", blocker: "AUTH_RECOVERY_EVIDENCE_NOT_VERIFIED" },
   { key: "databaseMigrationSafety", blocker: "DATABASE_MIGRATION_SAFETY_NOT_VERIFIED" },
   { key: "tenantDataIsolation", blocker: "TENANT_DATA_ISOLATION_NOT_VERIFIED" },
   {
@@ -154,13 +162,13 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * This gate adds the operational evidence required by the 100-country
  * onboarding contract without changing any existing production routing or
  * activation. Every item fails closed until evidence is explicitly VERIFIED,
- * including exact linked database migration safety, tenant isolation, Matter
- * ownership/assignment authority, authorization-role authority, reviewed
- * recording/consent evidence, external legal/compliance and privacy-lifecycle
- * evidence, commercial terms/pricing/provider readiness, Room Factory readiness,
- * operational payment safeguards, exact-head QA/security evidence, a
- * structurally compatible country localization path, and a protected deployment
- * path.
+ * including authentication recovery, exact linked database migration safety,
+ * tenant isolation, Matter ownership/assignment authority, authorization-role
+ * authority, reviewed recording/consent evidence, external legal/compliance and
+ * privacy-lifecycle evidence, commercial terms/pricing/provider readiness, Room
+ * Factory readiness, operational payment safeguards, exact-head QA/security
+ * evidence, a structurally compatible country localization path, and a
+ * protected deployment path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
