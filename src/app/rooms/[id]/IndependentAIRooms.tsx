@@ -45,6 +45,7 @@ const PROVIDERS: Array<{ id: ProviderId; name: string; role: string }> = [
   { id: "xai", name: "Grok", role: "Independent AI Room" },
   { id: "codex", name: "Codex", role: "Independent AI Room" },
 ];
+const DEFAULT_SELECTED_PROVIDERS = PROVIDERS.map((provider) => provider.id);
 
 const EMPTY: RoomState = { history: [], loading: false, error: "" };
 const HIDDEN_COUNTRIES_KEY = "royalcommand:hidden-countries";
@@ -102,7 +103,8 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const params = useParams<{ id: string }>();
   const roomId = roomIdProp || params.id || "rca";
   const [connected, setConnected] = useState<Set<string>>(new Set());
-  const [selected, setSelected] = useState<ProviderId[]>(["openai"]);
+  const [selected, setSelected] = useState<ProviderId[]>(DEFAULT_SELECTED_PROVIDERS);
+  const [selectedLoaded, setSelectedLoaded] = useState(false);
   const [rooms, setRooms] = useState<Record<ProviderId, RoomState>>({
     openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY },
   });
@@ -165,7 +167,6 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
         const ids = new Set<string>(registry.filter((p) => p.available).map((p) => p.id));
         setProviderRegistry(registry);
         setConnected(ids);
-        setSelected((current) => current.filter((id) => ids.has(id)).length ? current.filter((id) => ids.has(id)) : PROVIDERS.filter((p) => ids.has(p.id)).slice(0, 1).map((p) => p.id));
       })
       .catch(() => setGlobalError("AI provider status could not be loaded."));
 
@@ -178,9 +179,14 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     }
     setRooms(next);
     try {
-      const savedSelected = JSON.parse(localStorage.getItem(selectedKey(roomId)) || "[]") as ProviderId[];
-      if (savedSelected.length) setSelected(savedSelected.filter((id) => PROVIDERS.some((p) => p.id === id)));
-    } catch {}
+      const storedSelected = localStorage.getItem(selectedKey(roomId));
+      const savedSelected = storedSelected === null ? DEFAULT_SELECTED_PROVIDERS : JSON.parse(storedSelected) as ProviderId[];
+      setSelected(Array.isArray(savedSelected) ? savedSelected.filter((id) => PROVIDERS.some((p) => p.id === id)) : DEFAULT_SELECTED_PROVIDERS);
+    } catch {
+      setSelected(DEFAULT_SELECTED_PROVIDERS);
+    } finally {
+      setSelectedLoaded(true);
+    }
     try {
       const savedProviderOrder = JSON.parse(localStorage.getItem(providerOrderKey(roomId)) || "[]") as string[];
       setProviderOrder(Array.isArray(savedProviderOrder) ? savedProviderOrder.filter((id): id is string => typeof id === "string") : []);
@@ -269,8 +275,9 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   }, []);
 
   useEffect(() => {
+    if (!selectedLoaded) return;
     localStorage.setItem(selectedKey(roomId), JSON.stringify(selected));
-  }, [roomId, selected]);
+  }, [roomId, selected, selectedLoaded]);
 
   useEffect(() => {
     if (!providerOrderLoaded) return;
