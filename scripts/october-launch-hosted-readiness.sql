@@ -1,4 +1,4 @@
--- October first-wave Hosted Supabase launch-readiness evidence.
+-- October country-rollout Hosted Supabase launch-readiness evidence.
 --
 -- SAFETY: read-only inspection only. This script does not authorize a migration,
 -- production deployment, provider activation, payment activation, or country READY state.
@@ -6,11 +6,16 @@
 -- Git/Supabase project identity. Any missing/unsafe result is a launch blocker.
 --
 -- First wave: AU/AUD, US/USD, CA/CAD, KR/KRW, JP/JPY, GB/GBP.
+-- Next priority (inventory only, never launch approval): SG/SGD, CN/CNY, HK/HKD,
+-- TW/TWD, IN/INR.
 
 begin read only;
 set local statement_timeout = '15s';
 
 -- 1) Authentication / tenant isolation and Room Factory write boundary.
+-- These structural checks mirror the narrow reviewed Matter/Profile hardening
+-- candidates. Missing helpers/triggers are blockers; their presence alone is not
+-- sufficient without authenticated negative tests after controlled staging.
 select json_build_object(
   'matters_total', (select count(*) from public.matters),
   'matters_assigned', (
@@ -18,10 +23,37 @@ select json_build_object(
   ),
   'profiles_role_update_authenticated',
     has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE'),
+  'profile_role_guard_function_exists',
+    to_regprocedure('private.guard_profile_role_change()') is not null,
+  'profile_role_guard_trigger_exists', exists (
+    select 1
+      from pg_trigger tg
+      join pg_class c on c.oid = tg.tgrelid
+      join pg_namespace n on n.oid = c.relnamespace
+     where n.nspname = 'public'
+       and c.relname = 'profiles'
+       and tg.tgname = 'guard_profile_role_change'
+       and not tg.tgisinternal
+  ),
+  'handle_new_user_exists',
+    to_regprocedure('public.handle_new_user()') is not null,
+  'handle_new_user_reads_role_metadata', case
+    when to_regprocedure('public.handle_new_user()') is null then null
+    else position(
+      'raw_user_meta_data->>''role'''
+      in pg_get_functiondef(to_regprocedure('public.handle_new_user()'))
+    ) > 0
+  end,
   'matters_client_id_update_authenticated',
     has_column_privilege('authenticated', 'public.matters', 'client_id', 'UPDATE'),
   'matters_assigned_staff_id_update_authenticated',
     has_column_privilege('authenticated', 'public.matters', 'assigned_staff_id', 'UPDATE'),
+  'matter_is_admin_helper_exists',
+    to_regprocedure('private.is_admin()') is not null,
+  'matter_assigned_staff_helper_exists',
+    to_regprocedure('private.is_assigned_matter_staff(uuid)') is not null,
+  'matter_assignment_rpc_exists',
+    to_regprocedure('public.set_matter_staff_assignment(uuid,uuid)') is not null,
   'room_factory_manifest_rows', (select count(*) from public.room_factory_manifests),
   'room_factory_manifest_insert_anon',
     has_table_privilege('anon', 'public.room_factory_manifests', 'INSERT'),
@@ -33,7 +65,7 @@ select json_build_object(
     has_table_privilege('authenticated', 'public.room_factory_manifests', 'DELETE')
 ) as auth_room_factory_boundary;
 
--- 2) Country commercial/provider readiness. These are inventory checks only.
+-- 2) First-wave country commercial/provider readiness. These are inventory checks only.
 -- The current country-terms schema does not itself carry human review provenance,
 -- so non-zero rows must never be interpreted as legal/compliance approval.
 select c.country_code,
@@ -66,7 +98,43 @@ select c.country_code,
   ) as c(country_code, expected_currency)
  order by c.country_code;
 
--- 3) Provider, recording/consent, review-provenance schema, and payment structure.
+-- 3) Next-priority expansion inventory. This section intentionally does not feed
+-- the first-wave launch gate. It records the same commercial/recording prerequisites
+-- early so SG/CN/HK/TW/IN cannot later be mistaken for READY merely because a Room
+-- Factory locale preset exists.
+select c.country_code,
+       c.expected_currency,
+       (select count(*)
+          from public.rc_service_country_terms t
+         where t.country_code = c.country_code) as terms_rows,
+       (select count(*)
+          from public.rc_service_country_terms t
+         where t.country_code = c.country_code
+           and t.currency = c.expected_currency
+           and t.availability_status = 'AVAILABLE'
+           and t.customer_price_minor > 0) as positive_available_local_prices,
+       (select count(*)
+          from public.rc_service_provider_offers o
+         where o.country_code = c.country_code) as provider_offers,
+       (select count(*)
+          from public.communication_recording_policies rp
+         where rp.country_code = c.country_code) as recording_policy_rows,
+       (select count(*)
+          from public.communication_recording_policies rp
+         where rp.country_code = c.country_code
+           and rp.review_status = 'APPROVED'
+           and rp.reviewed_by is not null
+           and rp.reviewed_at is not null) as recording_reviewer_proven_approved
+  from (values
+    ('SG', 'SGD'),
+    ('CN', 'CNY'),
+    ('HK', 'HKD'),
+    ('TW', 'TWD'),
+    ('IN', 'INR')
+  ) as c(country_code, expected_currency)
+ order by c.country_code;
+
+-- 4) Provider, recording/consent, review-provenance schema, and payment structure.
 select json_build_object(
   'providers_total', (select count(*) from public.rc_service_providers),
   'providers_active', (
@@ -113,7 +181,7 @@ select json_build_object(
   )
 ) as operational_readiness;
 
--- 4) Critical migration-history reconciliation. Presence alone is not approval;
+-- 5) Critical migration-history reconciliation. Presence alone is not approval;
 -- absence means linked inventory/dry-run and controlled staging remain mandatory.
 with required(name) as (
   values
