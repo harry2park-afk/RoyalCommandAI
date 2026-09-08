@@ -1,4 +1,4 @@
-import { CREATE_ROOM_LANGUAGES } from "../lib/rooms/create-room-i18n";
+import { CREATE_ROOM_COUNTRIES, CREATE_ROOM_LANGUAGES } from "../lib/rooms/create-room-i18n";
 import { COUNTRY_ROOM_PRESETS } from "../lib/rooms/countryPresets";
 import type { CountryConfig } from "../types/countryConfig";
 
@@ -7,6 +7,8 @@ export type CountryLocalizationStructureBlockerCode =
   | "ROOM_FACTORY_LOCALE_MISMATCH"
   | "ROOM_FACTORY_CURRENCY_MISMATCH"
   | "ROOM_FACTORY_TIMEZONE_MISMATCH"
+  | "CREATE_ROOM_COUNTRY_OPTION_MISSING"
+  | "CREATE_ROOM_COUNTRY_LOCALE_MISMATCH"
   | "PRIMARY_CREATE_ROOM_LOCALE_UNSUPPORTED"
   | "SECONDARY_CREATE_ROOM_LOCALE_UNSUPPORTED";
 
@@ -28,14 +30,18 @@ function languageBase(locale: string): string {
  *
  * This is deliberately narrower than human localization QA. It verifies only
  * that the configured country can be represented consistently by the Room
- * Factory preset and Create Room language registry. A passing result does not
- * prove translation quality, browser rendering, legal wording, or locale E2E.
+ * Factory preset, the Create Room country selector, and the Create Room language
+ * registry. A passing result does not prove translation quality, browser
+ * rendering, legal wording, or locale E2E.
  */
 export function evaluateCountryLocalizationStructure(
   config: CountryConfig,
 ): CountryLocalizationStructureGate {
   const blockers: CountryLocalizationStructureBlockerCode[] = [];
   const preset = COUNTRY_ROOM_PRESETS.find((candidate) => candidate.id === config.countryCode);
+  const createRoomCountry = CREATE_ROOM_COUNTRIES.find(
+    (candidate) => candidate.code === config.countryCode,
+  );
 
   if (!preset) {
     blockers.push("ROOM_FACTORY_COUNTRY_PRESET_MISSING");
@@ -45,6 +51,12 @@ export function evaluateCountryLocalizationStructure(
     if (!config.timezone.supportedExamples.includes(preset.timeZone)) {
       blockers.push("ROOM_FACTORY_TIMEZONE_MISMATCH");
     }
+  }
+
+  if (!createRoomCountry) {
+    blockers.push("CREATE_ROOM_COUNTRY_OPTION_MISSING");
+  } else if (createRoomCountry.locale !== languageBase(config.locale)) {
+    blockers.push("CREATE_ROOM_COUNTRY_LOCALE_MISMATCH");
   }
 
   if (!SUPPORTED_CREATE_ROOM_LANGUAGES.has(languageBase(config.locale))) {
