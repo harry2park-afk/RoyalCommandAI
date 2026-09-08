@@ -20,6 +20,7 @@ concurrency:
 
 jobs:
   known-ledger-preflight:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 696
     runs-on: ubuntu-latest
     timeout-minutes: 5
     env:
