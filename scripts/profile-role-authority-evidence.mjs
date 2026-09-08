@@ -69,12 +69,31 @@ async function main() {
     if (ownProfile.error) throw new Error(`Own profile read failed: ${ownProfile.error.message}`);
     assert.equal(ownProfile.data.role, "client", "Signup metadata minted a privileged profile role");
 
-    const escalation = await caller.from("profiles").update({ role: "admin" }).eq("id", attackerId).select("role");
-    assert.ok(escalation.error, "Authenticated user unexpectedly changed own profile role");
+    const staffEscalation = await caller
+      .from("profiles")
+      .update({ role: "staff" })
+      .eq("id", attackerId)
+      .select("role");
+    assert.ok(staffEscalation.error, "Authenticated user unexpectedly changed own profile role to staff");
 
-    const afterEscalation = await admin.from("profiles").select("role").eq("id", attackerId).single();
-    if (afterEscalation.error) throw new Error(`Post-escalation read failed: ${afterEscalation.error.message}`);
-    assert.equal(afterEscalation.data.role, "client", "Rejected escalation changed stored role");
+    const afterStaffEscalation = await admin.from("profiles").select("role").eq("id", attackerId).single();
+    if (afterStaffEscalation.error) {
+      throw new Error(`Post-staff-escalation read failed: ${afterStaffEscalation.error.message}`);
+    }
+    assert.equal(afterStaffEscalation.data.role, "client", "Rejected staff escalation changed stored role");
+
+    const adminEscalation = await caller
+      .from("profiles")
+      .update({ role: "admin" })
+      .eq("id", attackerId)
+      .select("role");
+    assert.ok(adminEscalation.error, "Authenticated user unexpectedly changed own profile role to admin");
+
+    const afterAdminEscalation = await admin.from("profiles").select("role").eq("id", attackerId).single();
+    if (afterAdminEscalation.error) {
+      throw new Error(`Post-admin-escalation read failed: ${afterAdminEscalation.error.message}`);
+    }
+    assert.equal(afterAdminEscalation.data.role, "client", "Rejected admin escalation changed stored role");
 
     const normalEdit = await caller
       .from("profiles")
@@ -118,8 +137,10 @@ async function main() {
     console.log(JSON.stringify({
       ok: true,
       signupMetadataAdminBlocked: true,
-      authenticatedSelfElevationBlocked: true,
-      rejectedElevationLeftRole: afterEscalation.data.role,
+      authenticatedSelfStaffElevationBlocked: true,
+      rejectedStaffElevationLeftRole: afterStaffEscalation.data.role,
+      authenticatedSelfAdminElevationBlocked: true,
+      rejectedAdminElevationLeftRole: afterAdminEscalation.data.role,
       normalOwnProfileEditPreserved: true,
       trustedAdminProvisioningPreserved: true,
       secondUserMetadataAdminBlocked: true,
