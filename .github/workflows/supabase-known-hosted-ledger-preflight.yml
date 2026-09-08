@@ -49,21 +49,25 @@ jobs:
           echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
 
       - name: Compare fingerprinted Hosted migration sources (provenance only)
-        continue-on-error: true
+        id: source_provenance
         shell: bash
         run: |
           set -uo pipefail
           mkdir -p artifacts/supabase-known-hosted-ledger
+          set +e
           node scripts/supabase-hosted-source-provenance.mjs \
             scripts/supabase-hosted-source-fingerprints-20260908.json \
             supabase/migrations \
             > artifacts/supabase-known-hosted-ledger/source-provenance.json
           status=$?
+          set -e
           cat artifacts/supabase-known-hosted-ledger/source-provenance.json
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
           echo "HOSTED_SOURCE_PROVENANCE_EXIT ${status}"
-          exit "${status}"
 
       - name: Reconcile captured Hosted ledger before credential-dependent linked CLI
+        id: ledger_reconciliation
+        continue-on-error: true
         shell: bash
         run: |
           set -euo pipefail
@@ -93,3 +97,25 @@ jobs:
           path: artifacts/supabase-known-hosted-ledger/
           if-no-files-found: warn
           retention-days: 7
+
+      - name: Enforce provenance and ledger gates
+        if: always()
+        shell: bash
+        env:
+          SOURCE_PROVENANCE_STATUS: ${{ steps.source_provenance.outputs.status }}
+          LEDGER_RECONCILIATION_OUTCOME: ${{ steps.ledger_reconciliation.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          if [[ "${SOURCE_PROVENANCE_STATUS:-missing}" != "0" ]]; then
+            echo "BLOCKED: Hosted same-name migration source provenance is unresolved."
+            failed=1
+          fi
+          if [[ "${LEDGER_RECONCILIATION_OUTCOME:-missing}" != "success" ]]; then
+            echo "BLOCKED: Hosted migration ledger reconciliation is unresolved."
+            failed=1
+          fi
+          if [[ "${failed}" -ne 0 ]]; then
+            exit 1
+          fi
+          echo "VERIFIED: Hosted source provenance and known-ledger reconciliation are both clean."
