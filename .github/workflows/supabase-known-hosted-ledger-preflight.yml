@@ -7,6 +7,9 @@ on:
       - "scripts/supabase-hosted-ledger-snapshot-20260908.json"
       - "scripts/supabase-hosted-ledger-reconciliation.mjs"
       - "scripts/supabase-hosted-ledger-reconciliation.test.ts"
+      - "scripts/supabase-hosted-source-fingerprints-20260908.json"
+      - "scripts/supabase-hosted-source-provenance.mjs"
+      - "scripts/supabase-hosted-source-provenance.test.ts"
       - "supabase/migrations/**"
       - ".github/workflows/supabase-known-hosted-ledger-preflight.yml"
   workflow_dispatch:
@@ -44,6 +47,21 @@ jobs:
             exit 1
           }
           echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
+
+      - name: Compare fingerprinted Hosted migration sources (provenance only)
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p artifacts/supabase-known-hosted-ledger
+          node scripts/supabase-hosted-source-provenance.mjs \
+            scripts/supabase-hosted-source-fingerprints-20260908.json \
+            supabase/migrations \
+            > artifacts/supabase-known-hosted-ledger/source-provenance.json
+          status=$?
+          cat artifacts/supabase-known-hosted-ledger/source-provenance.json
+          echo "HOSTED_SOURCE_PROVENANCE_EXIT ${status}"
+          exit "${status}"
 
       - name: Reconcile captured Hosted ledger before credential-dependent linked CLI
         shell: bash
