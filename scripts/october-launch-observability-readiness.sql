@@ -7,11 +7,11 @@
 -- and post-incident evidence remain independent launch gates.
 --
 -- IMPORTANT TRUST BOUNDARY:
--- Browser/client-generated telemetry may be useful for diagnostics, but a client-
--- writable row cannot by itself prove trusted release provenance. In particular,
--- commit_sha / deployment_id / request_id values remain client-forgeable whenever an
--- end-user role can directly INSERT incident_events. Launch evidence therefore fails
--- closed until trusted release-provenance writes are server-controlled.
+-- Authenticated client-generated telemetry may remain useful for diagnostics, but it
+-- must not be able to forge trusted release provenance. The client diagnostic insert
+-- contract therefore requires commit_sha/deployment_id to stay NULL and incident
+-- resolution fields to stay untouched. Trusted release-provenance ingestion remains a
+-- separate server-controlled launch gate and is intentionally false until verified.
 
 begin read only;
 set local statement_timeout = '15s';
@@ -50,9 +50,25 @@ incident_policies as (
     ) as client_insert_policy_count,
     count(*) filter (
       where cmd = 'INSERT'
+        and 'authenticated' = any(roles)
+        and not ('anon' = any(roles) or 'public' = any(roles))
+        and lower(coalesce(with_check, '')) like '%commit_sha is null%'
+        and lower(coalesce(with_check, '')) like '%deployment_id is null%'
+        and lower(coalesce(with_check, '')) like '%resolved = false%'
+        and lower(coalesce(with_check, '')) like '%resolved_at is null%'
+    ) as scoped_authenticated_diagnostic_insert_policy_count,
+    count(*) filter (
+      where cmd = 'INSERT'
         and ('anon' = any(roles) or 'authenticated' = any(roles) or 'public' = any(roles))
-        and (with_check is null or lower(btrim(with_check)) in ('true', '(true)'))
-    ) as unscoped_client_insert_policy_count,
+        and not (
+          'authenticated' = any(roles)
+          and not ('anon' = any(roles) or 'public' = any(roles))
+          and lower(coalesce(with_check, '')) like '%commit_sha is null%'
+          and lower(coalesce(with_check, '')) like '%deployment_id is null%'
+          and lower(coalesce(with_check, '')) like '%resolved = false%'
+          and lower(coalesce(with_check, '')) like '%resolved_at is null%'
+        )
+    ) as unsafe_client_insert_policy_count,
     count(*) filter (
       where cmd = 'UPDATE'
         and ('anon' = any(roles) or 'authenticated' = any(roles) or 'public' = any(roles))
@@ -83,9 +99,17 @@ incident_acl as (
     count(*) filter (where grantee = 'anon') as anon_table_privilege_count,
     count(*) filter (where grantee = 'authenticated') as authenticated_table_privilege_count,
     count(*) filter (
-      where grantee in ('anon', 'authenticated')
+      where grantee = 'anon'
         and privilege_type = 'INSERT'
-    ) as client_insert_grant_count,
+    ) as anon_insert_grant_count,
+    count(*) filter (
+      where grantee = 'authenticated'
+        and privilege_type = 'INSERT'
+    ) as authenticated_insert_grant_count,
+    count(*) filter (
+      where grantee = 'authenticated'
+        and privilege_type <> 'INSERT'
+    ) as authenticated_non_insert_grant_count,
     count(*) filter (
       where grantee in ('anon', 'authenticated')
         and privilege_type in ('UPDATE', 'DELETE', 'TRUNCATE', 'TRIGGER', 'REFERENCES')
@@ -109,6 +133,13 @@ incident_counts as (
     ) as incidents_with_release_provenance
   from public.incident_events
 ),
+migration_history as (
+  select
+    count(*) filter (
+      where name = 'harden_incident_event_client_boundary'
+    ) > 0 as incident_client_boundary_migration_present
+  from supabase_migrations.schema_migrations
+),
 gates as (
   select
     (select count(*) = 1 from incident_relation) as incident_table_present,
@@ -125,11 +156,17 @@ gates as (
         and has_resolved_at
       from incident_columns
     ) as incident_provenance_schema_ready,
+    coalesce((select incident_client_boundary_migration_present from migration_history), false)
+      as incident_client_boundary_migration_present,
     (
-      coalesce((select client_insert_policy_count = 0 from incident_policies), false)
-    ) as trusted_release_provenance_client_write_blocked,
+      coalesce((select client_insert_policy_count = 1 from incident_policies), false)
+      and coalesce((select scoped_authenticated_diagnostic_insert_policy_count = 1 from incident_policies), false)
+      and coalesce((select unsafe_client_insert_policy_count = 0 from incident_policies), false)
+      and coalesce((select anon_insert_grant_count = 0 from incident_acl), false)
+      and coalesce((select authenticated_insert_grant_count = 1 from incident_acl), false)
+    ) as trusted_release_provenance_client_forgery_blocked,
     (
-      coalesce((select unscoped_client_insert_policy_count = 0 from incident_policies), false)
+      coalesce((select unsafe_client_insert_policy_count = 0 from incident_policies), false)
     ) as unscoped_client_incident_insert_blocked,
     (
       coalesce((select client_update_policy_count = 0 from incident_policies), false)
@@ -141,7 +178,11 @@ gates as (
       and coalesce((select unscoped_authenticated_select_policy_count = 0 from incident_policies), false)
     ) as incident_sensitive_reads_scoped,
     (
-      coalesce((select unnecessary_client_write_or_ddl_grant_count = 0 from incident_acl), false)
+      coalesce((select anon_table_privilege_count = 0 from incident_acl), false)
+      and coalesce((select authenticated_table_privilege_count = 1 from incident_acl), false)
+      and coalesce((select authenticated_insert_grant_count = 1 from incident_acl), false)
+      and coalesce((select authenticated_non_insert_grant_count = 0 from incident_acl), false)
+      and coalesce((select unnecessary_client_write_or_ddl_grant_count = 0 from incident_acl), false)
     ) as incident_client_acl_minimized,
     (
       select incidents_with_release_provenance > 0
@@ -155,10 +196,12 @@ gates as (
 select
   'october_launch_observability_readiness' as evidence_type,
   now() as captured_at,
+  2 as contract_version,
   g.incident_table_present,
   g.incident_rls_enabled,
   g.incident_provenance_schema_ready,
-  g.trusted_release_provenance_client_write_blocked,
+  g.incident_client_boundary_migration_present,
+  g.trusted_release_provenance_client_forgery_blocked,
   g.unscoped_client_incident_insert_blocked,
   g.incident_resolution_client_write_blocked,
   g.incident_sensitive_reads_scoped,
@@ -172,7 +215,8 @@ select
   c.incidents_with_deployment_id,
   c.incidents_with_release_provenance,
   p.client_insert_policy_count,
-  p.unscoped_client_insert_policy_count,
+  p.scoped_authenticated_diagnostic_insert_policy_count,
+  p.unsafe_client_insert_policy_count,
   p.client_update_policy_count,
   p.client_delete_policy_count,
   p.client_select_policy_count,
@@ -180,13 +224,16 @@ select
   p.unscoped_authenticated_select_policy_count,
   a.anon_table_privilege_count,
   a.authenticated_table_privilege_count,
-  a.client_insert_grant_count,
+  a.anon_insert_grant_count,
+  a.authenticated_insert_grant_count,
+  a.authenticated_non_insert_grant_count,
   a.unnecessary_client_write_or_ddl_grant_count,
   (
     g.incident_table_present
     and g.incident_rls_enabled
     and g.incident_provenance_schema_ready
-    and g.trusted_release_provenance_client_write_blocked
+    and g.incident_client_boundary_migration_present
+    and g.trusted_release_provenance_client_forgery_blocked
     and g.unscoped_client_incident_insert_blocked
     and g.incident_resolution_client_write_blocked
     and g.incident_sensitive_reads_scoped
