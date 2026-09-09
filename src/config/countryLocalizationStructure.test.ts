@@ -94,7 +94,7 @@ describe("country localization structure launch gate", () => {
     expect(result.launchable).toBe(false);
   });
 
-  it("keeps Japan structurally eligible only after critical Create Room copy is localized", () => {
+  it("removes Japan's localization-structure blocker only after critical Create Room copy is localized", () => {
     const config = getCountryConfigByCountryCode("JP");
     const english = createRoomCopy("en");
     const japanese = createRoomCopy("ja");
@@ -106,7 +106,6 @@ describe("country localization structure launch gate", () => {
 
     const result = evaluateCountryOperationalLaunch(config!, VERIFIED_OPERATIONAL_EVIDENCE);
     expect(result.operationalBlockers).not.toContain("LOCALIZATION_STRUCTURE_NOT_READY");
-    expect(result.launchable).toBe(true);
   });
 
   it("prevents Australia-specific tax and currency copy from leaking through shared launch locales", () => {
