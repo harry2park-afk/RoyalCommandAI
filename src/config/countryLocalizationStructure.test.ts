@@ -36,20 +36,14 @@ const VERIFIED_OPERATIONAL_EVIDENCE: CountryOperationalEvidence = {
 };
 
 describe("country localization structure launch gate", () => {
-  it("keeps structurally complete first-wave country metadata aligned and exposes Japan's critical English fallback", () => {
+  it("keeps structurally complete first-wave country metadata aligned", () => {
     for (const countryCode of FIRST_WAVE_COUNTRIES) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
-      const result = evaluateCountryLocalizationStructure(config!);
-
-      if (countryCode === "JP") {
-        expect(result.ready, countryCode).toBe(false);
-        expect(result.blockers, countryCode).toEqual([
-          "PRIMARY_CREATE_ROOM_CRITICAL_COPY_INCOMPLETE",
-        ]);
-      } else {
-        expect(result, countryCode).toEqual({ ready: true, blockers: [] });
-      }
+      expect(evaluateCountryLocalizationStructure(config!), countryCode).toEqual({
+        ready: true,
+        blockers: [],
+      });
     }
   });
 
@@ -100,14 +94,19 @@ describe("country localization structure launch gate", () => {
     expect(result.launchable).toBe(false);
   });
 
-  it("does not allow generic localization evidence to bypass Japan's incomplete critical Create Room copy", () => {
+  it("keeps Japan structurally eligible only after critical Create Room copy is localized", () => {
     const config = getCountryConfigByCountryCode("JP");
+    const english = createRoomCopy("en");
+    const japanese = createRoomCopy("ja");
     expect(config).not.toBeNull();
 
-    const result = evaluateCountryOperationalLaunch(config!, VERIFIED_OPERATIONAL_EVIDENCE);
+    for (const key of ["step5Help", "agreement", "pendingIntegration", "priceToConfirm"] as const) {
+      expect(japanese[key], key).not.toBe(english[key]);
+    }
 
-    expect(result.operationalBlockers).toContain("LOCALIZATION_STRUCTURE_NOT_READY");
-    expect(result.launchable).toBe(false);
+    const result = evaluateCountryOperationalLaunch(config!, VERIFIED_OPERATIONAL_EVIDENCE);
+    expect(result.operationalBlockers).not.toContain("LOCALIZATION_STRUCTURE_NOT_READY");
+    expect(result.launchable).toBe(true);
   });
 
   it("prevents Australia-specific tax and currency copy from leaking through shared launch locales", () => {
