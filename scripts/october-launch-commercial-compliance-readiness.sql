@@ -9,8 +9,10 @@
 --    recording-review evidence repeatable instead of relying on manual counts.
 -- 2. Fail closed when commercial rows lack human-review provenance. A non-zero
 --    terms/offer row is not legal/commercial approval by itself.
--- 3. Inventory SG/CN/HK/TW/IN early without treating inventory as launch proof.
--- 4. Keep human legal/privacy review outside database automation: this snapshot
+-- 3. Require reviewer-proven recording evidence to include a non-empty legal
+--    basis, so an APPROVED label alone cannot satisfy the recording gate.
+-- 4. Inventory SG/CN/HK/TW/IN early without treating inventory as launch proof.
+-- 5. Keep human legal/privacy review outside database automation: this snapshot
 --    can prove database evidence shape only and can never grant legal approval.
 
 begin read only;
@@ -56,7 +58,14 @@ schema_state as (
       where table_schema = 'public'
         and table_name = 'communication_recording_policies'
         and column_name in ('review_status', 'reviewed_by', 'reviewed_at')
-    ) as recording_review_provenance_columns_exist
+    ) as recording_review_provenance_columns_exist,
+    exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'communication_recording_policies'
+        and column_name = 'legal_basis'
+    ) as recording_legal_basis_column_exists
 ),
 first_state as (
   select
@@ -113,6 +122,7 @@ first_state as (
         and upper(coalesce(rp.review_status, '')) = 'APPROVED'
         and rp.reviewed_by is not null
         and rp.reviewed_at is not null
+        and nullif(trim(coalesce(rp.legal_basis, '')), '') is not null
     ) as reviewer_proven_recording_rows
   from first_wave f
 ),
@@ -144,7 +154,7 @@ provider_state as (
   from public.rc_service_providers
 )
 select json_build_object(
-  'contract_version', 1,
+  'contract_version', 2,
   'captured_at_utc', now(),
   'scope', 'COMMERCIAL_COMPLIANCE_DATABASE_EVIDENCE_ONLY',
   'schema', to_jsonb(schema_state),
@@ -173,6 +183,7 @@ select json_build_object(
         country_terms_review_provenance_columns_exist
         and provider_offer_review_provenance_columns_exist
         and recording_review_provenance_columns_exist
+        and recording_legal_basis_column_exists
       from schema_state
     )
     and (select providers_active > 0 from provider_state)
