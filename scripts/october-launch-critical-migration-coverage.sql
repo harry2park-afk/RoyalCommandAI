@@ -17,6 +17,7 @@ with required(area, name) as (
     ('auth_data_isolation', 'scope_matter_staff_access'),
     ('auth_data_isolation', 'harden_profile_role_authority'),
     ('compliance', 'country_compliance_evidence_registry'),
+    ('compliance', 'harden_commercial_review_provenance'),
     ('payments', 'payment_operational_safeguards'),
     ('room_factory', 'room_factory_atomic_non_encounter'),
     ('room_factory', 'room_factory_manifest_atomic_only'),
@@ -38,7 +39,7 @@ observed as (
   ) sm on true
 )
 select json_build_object(
-  'contract_version', 1,
+  'contract_version', 2,
   'scope', 'OCTOBER_LAUNCH_CRITICAL_MIGRATION_COVERAGE',
   'captured_at_utc', now(),
   'required_migration_count', count(*),
