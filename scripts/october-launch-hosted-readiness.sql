@@ -181,16 +181,19 @@ select json_build_object(
   )
 ) as operational_readiness;
 
--- 5) Critical migration-history reconciliation. Presence alone is not approval;
+-- 5) Critical migration-history reconciliation. Keep this list aligned with
+-- october-launch-critical-migration-coverage.sql. Presence alone is not approval;
 -- absence means linked inventory/dry-run and controlled staging remain mandatory.
 with required(name) as (
   values
     ('scope_matter_staff_access'),
-    ('room_factory_atomic_non_encounter'),
-    ('room_factory_manifest_atomic_only'),
     ('harden_profile_role_authority'),
     ('country_compliance_evidence_registry'),
-    ('payment_operational_safeguards')
+    ('harden_commercial_review_provenance'),
+    ('payment_operational_safeguards'),
+    ('room_factory_atomic_non_encounter'),
+    ('room_factory_manifest_atomic_only'),
+    ('harden_incident_event_client_boundary')
 )
 select r.name as required_migration,
        exists (
