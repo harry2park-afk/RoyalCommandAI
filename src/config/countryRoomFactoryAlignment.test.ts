@@ -6,7 +6,33 @@ import {
 } from "./countryResolver";
 
 const FIRST_WAVE_COUNTRIES = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
-const NEXT_PRIORITY_COUNTRIES = ["SG", "CN", "HK", "TW", "IN"] as const;
+const NEXT_PRIORITY_PRESET_EXPECTATIONS = {
+  SG: {
+    languageTag: "en-SG",
+    currencyCode: "SGD",
+    timeZone: "Asia/Singapore",
+  },
+  CN: {
+    languageTag: "zh-CN",
+    currencyCode: "CNY",
+    timeZone: "Asia/Shanghai",
+  },
+  HK: {
+    languageTag: "zh-HK",
+    currencyCode: "HKD",
+    timeZone: "Asia/Hong_Kong",
+  },
+  TW: {
+    languageTag: "zh-TW",
+    currencyCode: "TWD",
+    timeZone: "Asia/Taipei",
+  },
+  IN: {
+    languageTag: "en-IN",
+    currencyCode: "INR",
+    timeZone: "Asia/Kolkata",
+  },
+} as const;
 
 describe("country configuration to Room Factory preset alignment", () => {
   it("keeps every first-wave country registered in both launch config and Room Factory presets", () => {
@@ -39,19 +65,21 @@ describe("country configuration to Room Factory preset alignment", () => {
     }
   });
 
-  it("prepares next-priority Room Factory presets without silently activating those countries", () => {
+  it("pins next-priority Room Factory locale identity without silently activating those countries", () => {
     const configuredCountries = new Set(getConfiguredCountryCodes());
     const presetsByCountry = new Map(
       COUNTRY_ROOM_PRESETS.map((preset) => [preset.id, preset] as const),
     );
 
-    for (const countryCode of NEXT_PRIORITY_COUNTRIES) {
+    for (const [countryCode, expected] of Object.entries(
+      NEXT_PRIORITY_PRESET_EXPECTATIONS,
+    )) {
       const preset = presetsByCountry.get(countryCode);
 
       expect(preset, `${countryCode} Room Factory preset`).toBeDefined();
-      expect(preset?.languageTag.length, `${countryCode} locale`).toBeGreaterThan(1);
-      expect(preset?.currencyCode, `${countryCode} currency`).toMatch(/^[A-Z]{3}$/);
-      expect(preset?.timeZone.length, `${countryCode} timezone`).toBeGreaterThan(2);
+      expect(preset?.languageTag, `${countryCode} locale`).toBe(expected.languageTag);
+      expect(preset?.currencyCode, `${countryCode} currency`).toBe(expected.currencyCode);
+      expect(preset?.timeZone, `${countryCode} timezone`).toBe(expected.timeZone);
       expect(
         configuredCountries.has(countryCode),
         `${countryCode} must stay outside the configured launch registry until its own launch gates are reviewed`,
