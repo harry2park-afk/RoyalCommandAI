@@ -55,10 +55,12 @@ required_migrations(name) as (
     ('room_factory_manifest_atomic_only'),
     ('harden_profile_role_authority'),
     ('country_compliance_evidence_registry'),
-    ('payment_operational_safeguards')
+    ('harden_commercial_review_provenance'),
+    ('payment_operational_safeguards'),
+    ('harden_incident_event_client_boundary')
 )
 select json_build_object(
-  'snapshot_contract_version', 1,
+  'snapshot_contract_version', 2,
   'captured_at_utc', now(),
   'auth_and_isolation', json_build_object(
     'matters_total', (select count(*) from public.matters),
