@@ -8,8 +8,9 @@
 -- Purpose:
 -- 1. Verify the existing service-order payment boundary without treating a
 --    payment-status column as proof of production payment readiness.
--- 2. Fail closed on provider registry, webhook/event replay, idempotency,
---    refund/cancel runtime safeguards and first-wave commercial offer evidence.
+-- 2. Fail closed on the canonical payment-provider registry/event-ledger contract,
+--    webhook/event replay, idempotency, refund/cancel runtime safeguards and
+--    first-wave commercial offer evidence.
 -- 3. Keep AU/US/CA/KR/JP/GB blocked until database shape AND separate sandbox,
 --    webhook, reconciliation, monitoring and human commercial evidence exist.
 --
@@ -31,7 +32,7 @@ first_wave(country_code, currency) as (
     ('GB', 'GBP')
 ),
 relations as (
-  select c.relname, c.relrowsecurity
+  select c.oid, c.relname, c.relrowsecurity
   from pg_class c
   join pg_namespace n on n.oid = c.relnamespace
   where n.nspname = 'public'
@@ -90,22 +91,96 @@ runtime_state as (
     exists (
       select 1
       from relations
-      where relname in (
-        'rc_payment_provider_registry',
-        'payment_provider_registry',
-        'rc_payment_providers'
-      )
+      where relname = 'rc_payment_provider_registry'
     ) as payment_provider_registry_exists,
     exists (
       select 1
       from relations
-      where relname in (
-        'rc_payment_event_ledger',
-        'payment_event_ledger',
-        'rc_payment_events',
-        'payment_events'
-      )
+      where relname = 'rc_payment_provider_events'
     ) as payment_event_ledger_exists,
+    coalesce((
+      select relrowsecurity
+      from relations
+      where relname = 'rc_payment_provider_registry'
+    ), false) as payment_provider_registry_rls_enabled,
+    coalesce((
+      select relrowsecurity
+      from relations
+      where relname = 'rc_payment_provider_events'
+    ), false) as payment_event_ledger_rls_enabled,
+    coalesce((
+      select
+        not has_table_privilege('authenticated', oid, 'SELECT')
+        and not has_table_privilege('authenticated', oid, 'INSERT')
+        and not has_table_privilege('authenticated', oid, 'UPDATE')
+        and not has_table_privilege('authenticated', oid, 'DELETE')
+      from relations
+      where relname = 'rc_payment_provider_registry'
+    ), false) as payment_provider_registry_authenticated_direct_access_blocked,
+    coalesce((
+      select
+        not has_table_privilege('authenticated', oid, 'SELECT')
+        and not has_table_privilege('authenticated', oid, 'INSERT')
+        and not has_table_privilege('authenticated', oid, 'UPDATE')
+        and not has_table_privilege('authenticated', oid, 'DELETE')
+      from relations
+      where relname = 'rc_payment_provider_events'
+    ), false) as payment_event_ledger_authenticated_direct_access_blocked,
+    exists (
+      select 1
+      from pg_constraint pc
+      join relations r on r.oid = pc.conrelid
+      where r.relname = 'rc_payment_provider_registry'
+        and pc.conname = 'rc_payment_provider_registry_review_provenance'
+        and pc.contype = 'c'
+    ) as payment_provider_review_provenance_constraint_present,
+    exists (
+      select 1
+      from pg_constraint pc
+      join relations r on r.oid = pc.conrelid
+      where r.relname = 'rc_payment_provider_registry'
+        and pc.conname = 'rc_payment_provider_registry_production_capabilities'
+        and pc.contype = 'c'
+    ) as payment_provider_production_capabilities_constraint_present,
+    exists (
+      select 1
+      from pg_constraint pc
+      join relations r on r.oid = pc.conrelid
+      where r.relname = 'rc_payment_provider_events'
+        and pc.conname = 'rc_payment_provider_events_processing_requires_verified_signature'
+        and pc.contype = 'c'
+    ) as payment_event_signature_constraint_present,
+    exists (
+      select 1
+      from pg_constraint pc
+      join relations r on r.oid = pc.conrelid
+      where r.relname = 'rc_payment_provider_events'
+        and pc.conname = 'rc_payment_provider_events_payload_sha256'
+        and pc.contype = 'c'
+    ) as payment_event_payload_digest_constraint_present,
+    exists (
+      select 1
+      from pg_constraint pc
+      join relations r on r.oid = pc.conrelid
+      where r.relname = 'rc_payment_provider_events'
+        and pc.contype = 'u'
+        and pg_get_constraintdef(pc.oid) ilike '%provider_key%'
+        and pg_get_constraintdef(pc.oid) ilike '%environment%'
+        and pg_get_constraintdef(pc.oid) ilike '%external_event_id%'
+    ) as payment_event_replay_unique_guard_present,
+    not exists (
+      select 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'rc_payment_provider_events'
+        and lower(column_name) in (
+          'payload',
+          'raw_payload',
+          'payload_json',
+          'payload_body',
+          'raw_webhook_payload'
+        )
+    ) as payment_event_raw_payload_columns_absent,
     exists (
       select 1
       from pg_proc p
@@ -162,7 +237,7 @@ migration_state as (
   ) as payment_operational_safeguards_migration_present
 )
 select json_build_object(
-  'contract_version', 1,
+  'contract_version', 2,
   'captured_at_utc', now(),
   'scope', 'PAYMENT_OPERATIONAL_READINESS_ONLY',
   'base_order_boundary', to_jsonb(order_state),
@@ -191,6 +266,16 @@ select json_build_object(
     and service_order_external_idempotency_unique_guard
     and payment_provider_registry_exists
     and payment_event_ledger_exists
+    and payment_provider_registry_rls_enabled
+    and payment_event_ledger_rls_enabled
+    and payment_provider_registry_authenticated_direct_access_blocked
+    and payment_event_ledger_authenticated_direct_access_blocked
+    and payment_provider_review_provenance_constraint_present
+    and payment_provider_production_capabilities_constraint_present
+    and payment_event_signature_constraint_present
+    and payment_event_payload_digest_constraint_present
+    and payment_event_replay_unique_guard_present
+    and payment_event_raw_payload_columns_absent
     and payment_operational_safeguards_migration_present
     and (select bool_and(approved_available_local_currency_offers > 0) from country_state)
   ),
