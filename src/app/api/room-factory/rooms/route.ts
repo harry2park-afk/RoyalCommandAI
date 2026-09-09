@@ -6,10 +6,12 @@ import { defaultRoomName, resolveDomainProfile } from "@/lib/rooms/factory-v2";
 import { DEFAULT_GLOBAL_ROOM_SETTINGS, GLOBAL_ROOM_PRESETS } from "@/lib/rooms/global";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
+import { getProfessionalRoomByCatalogId, resolveProfessionalRoomTemplate } from "@/lib/rooms/professional-room-directory";
 
 const factoryCreateSchema = z.object({
   roomName: z.string().min(1).max(120).optional(),
   templateId: z.string().min(1).max(80),
+  professionalCatalogId: z.string().min(1).max(80).optional(),
   countryCode: z.string().min(1).max(8).optional(),
   languageTag: z.string().min(1).max(35).optional(),
   languageTags: z.array(z.string().min(1).max(35)).max(10).optional(),
@@ -83,11 +85,16 @@ export async function POST(request: Request) {
     }
 
     const rawInput = factoryCreateSchema.parse(await request.json());
-    const resolved = resolveDomainProfile(rawInput.templateId);
+    const professionalDirectoryItem = rawInput.professionalCatalogId ? getProfessionalRoomByCatalogId(rawInput.professionalCatalogId) : null;
+    const professionalRoom = rawInput.professionalCatalogId ? resolveProfessionalRoomTemplate(rawInput.professionalCatalogId) : null;
+    if (rawInput.professionalCatalogId && (!professionalDirectoryItem || !professionalRoom)) {
+      return NextResponse.json({ error: "Unknown Professional Room catalog ID." }, { status: 400 });
+    }
+    const resolved = resolveDomainProfile(professionalRoom?.templateId || rawInput.templateId);
     const countryCode = (rawInput.countryCode || user.countryCode || "GLOBAL").trim().toUpperCase().slice(0, 8) || "GLOBAL";
     const defaults = localeDefaults(countryCode);
     const languageTag = (rawInput.languageTag || user.defaultLanguage || defaults.languageTag || "en").trim().slice(0, 35) || "en";
-    const roomName = (rawInput.roomName || defaultRoomName(user.fullName, resolved.profile)).trim().slice(0, 120);
+    const roomName = (professionalDirectoryItem?.label || rawInput.roomName || defaultRoomName(user.fullName, resolved.profile)).trim().slice(0, 120);
 
     const input = {
       roomName,
@@ -108,6 +115,27 @@ export async function POST(request: Request) {
     }
 
     const supabase = await createClient();
+
+    if (professionalRoom) {
+      const { data: existingManifest, error: existingProfessionalError } = await supabase
+        .from("room_factory_manifests")
+        .select("id, room_id, factory_version, template_id, country_code, language_tag, country_profile_status, created_at, manifest")
+        .eq("owner_id", user.id)
+        .contains("manifest", { professionalRoom: { catalogId: rawInput.professionalCatalogId } })
+        .limit(1)
+        .maybeSingle();
+      if (existingProfessionalError) return NextResponse.json({ error: existingProfessionalError.message }, { status: 500 });
+      if (existingManifest?.room_id) {
+        const { data: existingRoom, error: existingRoomError } = await supabase
+          .from("rooms")
+          .select("*")
+          .eq("id", existingManifest.room_id)
+          .eq("room_owner_id", user.id)
+          .maybeSingle();
+        if (existingRoomError) return NextResponse.json({ error: existingRoomError.message }, { status: 500 });
+        if (existingRoom) return NextResponse.json({ room: existingRoom, manifest: existingManifest, blueprint, reused: true }, { status: 200 });
+      }
+    }
 
     if (rawInput.encounterSessionId) {
       const { data: existingManifest, error: existingManifestError } = await supabase
@@ -192,9 +220,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: roomMemberError.message }, { status: 500 });
     }
 
-    const storedManifest = rawInput.encounterSessionId
-      ? { ...blueprint, encounterSessionId: rawInput.encounterSessionId }
-      : blueprint;
+    const storedManifest = {
+      ...blueprint,
+      ...(rawInput.encounterSessionId ? { encounterSessionId: rawInput.encounterSessionId } : {}),
+      ...(professionalRoom && professionalDirectoryItem ? { professionalRoom: { ...professionalDirectoryItem, ...professionalRoom } } : {}),
+    };
 
     const { data: manifest, error: manifestError } = await supabase
       .from("room_factory_manifests")
