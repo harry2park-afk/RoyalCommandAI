@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 // statement text using a READ-ONLY query on 2026-09-09. They are evidence for
 // structural reconciliation only. Matching these fingerprints does NOT prove an
 // exact linked migration apply set and does not authorize migration repair/push.
-const roomFactoryHostedFingerprints = [
+const verifiedRoomFactoryParity = [
   {
     name: 'room_factory_manifests',
     file: '20260829211500_room_factory_manifests.sql',
@@ -32,11 +32,6 @@ const roomFactoryHostedFingerprints = [
     name: 'room_factory_evidence_review',
     file: '20260829231500_room_factory_evidence_review.sql',
     hostedSha256: '4cc23fb3e7e0ecd730643a1a1438926008c03bb45fced2501d7ed36ef2781150',
-  },
-  {
-    name: 'room_factory_start_execution',
-    file: '20260829234500_room_factory_start_execution.sql',
-    hostedSha256: '4dcf8147f0b4d1396c84d653d83cf7abb97f6f87025ede2722c11c4f9f33363c',
   },
   {
     name: 'harden_prepare_room_factory_rpc_wrapper',
@@ -90,6 +85,13 @@ const roomFactoryHostedFingerprints = [
   },
 ] as const;
 
+const unresolvedRoomFactoryDrift = {
+  name: 'room_factory_start_execution',
+  file: '20260829234500_room_factory_start_execution.sql',
+  repositorySha256: '9ffc05d56ace1f8dda54c7cfe01a6682b9cec74624bfcc66820644025377fc92',
+  hostedSha256: '4dcf8147f0b4d1396c84d653d83cf7abb97f6f87025ede2722c11c4f9f33363c',
+} as const;
+
 function canonicalStructuralFingerprint(sql: string): string {
   // Use multiline anchoring so every full-line SQL comment is removed,
   // including adjacent comment lines. Do not consume the preceding newline;
@@ -108,15 +110,29 @@ describe('Room Factory migration Hosted structural provenance', () => {
     );
   });
 
-  it('tracks the complete 16-migration Room Factory Hosted inventory', () => {
-    expect(roomFactoryHostedFingerprints).toHaveLength(16);
+  it('accounts for the complete 16-migration Room Factory Hosted inventory', () => {
+    expect(verifiedRoomFactoryParity).toHaveLength(15);
+    expect(unresolvedRoomFactoryDrift.name).toBe('room_factory_start_execution');
   });
 
-  it.each(roomFactoryHostedFingerprints)(
+  it.each(verifiedRoomFactoryParity)(
     '$name repository source structurally matches the observed Hosted statement',
     ({ file, hostedSha256 }) => {
       const sql = readFileSync(join(process.cwd(), 'supabase', 'migrations', file), 'utf8');
       expect(canonicalStructuralFingerprint(sql)).toBe(hostedSha256);
     },
   );
+
+  it('keeps room_factory_start_execution fail-closed until its Hosted/source drift is reconciled', () => {
+    const sql = readFileSync(
+      join(process.cwd(), 'supabase', 'migrations', unresolvedRoomFactoryDrift.file),
+      'utf8',
+    );
+    const repositorySha256 = canonicalStructuralFingerprint(sql);
+
+    // Pin both sides so accidental source edits or evidence changes cannot silently
+    // turn this unresolved migration into a false parity claim.
+    expect(repositorySha256).toBe(unresolvedRoomFactoryDrift.repositorySha256);
+    expect(repositorySha256).not.toBe(unresolvedRoomFactoryDrift.hostedSha256);
+  });
 });
