@@ -917,8 +917,8 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     <main className={`${styles.root} min-h-[100dvh] bg-[#07101d] text-[#f4f0e7]`}>
       <header className="sticky top-0 z-50 border-b border-[#d7b64d]/25 bg-[#07101d]/95 backdrop-blur">
         <div data-rc-top-controls className="relative flex h-14 items-center gap-2 px-3 sm:px-4">
-          <button onClick={() => { setMenuOpen((v) => !v); setChatsOpen(false); setLanguageOpen(false); }} className="flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><Menu size={16}/>AI Rooms</button>
-          <button onClick={() => { setChatsOpen((v) => !v); setMenuOpen(false); setLanguageOpen(false); }} className="flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><MessageSquare size={16}/>Chat History</button>
+          <button onClick={() => { setMenuOpen((v) => !v); setChatsOpen(false); setLanguageOpen(false); }} className="flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><MessageSquare size={16}/>Chat History</button>
+          <button onClick={() => { setChatsOpen((v) => !v); setMenuOpen(false); setLanguageOpen(false); }} className="flex items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><Menu size={16}/>AI Rooms</button>
           <button onClick={() => { setLanguageOpen((v) => !v); setMenuOpen(false); setChatsOpen(false); }} className="flex max-w-44 items-center gap-2 rounded-lg border border-white/15 bg-[#0b1524] px-3 py-2 text-sm"><CountryFlag countryCode={selectedCountryCode}/><span className="truncate">{selectedCountryCode}</span><ChevronDown size={14}/></button>
           <div className="ml-auto text-right"><div className="font-serif text-lg text-[#f1d77a]">Royal Command AI</div><div className="text-[10px] uppercase tracking-[.22em] text-[#8d98a8]">Independent Rooms V1</div></div>
 
