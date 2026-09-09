@@ -36,14 +36,20 @@ const VERIFIED_OPERATIONAL_EVIDENCE: CountryOperationalEvidence = {
 };
 
 describe("country localization structure launch gate", () => {
-  it("keeps the configured first-wave country metadata structurally aligned", () => {
+  it("keeps structurally complete first-wave country metadata aligned and exposes Japan's critical English fallback", () => {
     for (const countryCode of FIRST_WAVE_COUNTRIES) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
-      expect(evaluateCountryLocalizationStructure(config!), countryCode).toEqual({
-        ready: true,
-        blockers: [],
-      });
+      const result = evaluateCountryLocalizationStructure(config!);
+
+      if (countryCode === "JP") {
+        expect(result.ready, countryCode).toBe(false);
+        expect(result.blockers, countryCode).toEqual([
+          "PRIMARY_CREATE_ROOM_CRITICAL_COPY_INCOMPLETE",
+        ]);
+      } else {
+        expect(result, countryCode).toEqual({ ready: true, blockers: [] });
+      }
     }
   });
 
@@ -75,7 +81,7 @@ describe("country localization structure launch gate", () => {
     expect(result.blockers).toContain("CREATE_ROOM_COUNTRY_LOCALE_MISMATCH");
   });
 
-  it("supports Canada's declared French secondary locale in Create Room", () => {
+  it("supports Canada's declared French secondary locale in Create Room without critical English fallback", () => {
     const config = getCountryConfigByCountryCode("CA");
     expect(config?.secondaryLocale).toBe("fr-CA");
     expect(CREATE_ROOM_LANGUAGES.map(({ locale }) => locale)).toContain("fr");
@@ -91,6 +97,16 @@ describe("country localization structure launch gate", () => {
     });
 
     expect(result.operationalBlockers).toEqual(["LOCALIZATION_NOT_VERIFIED"]);
+    expect(result.launchable).toBe(false);
+  });
+
+  it("does not allow generic localization evidence to bypass Japan's incomplete critical Create Room copy", () => {
+    const config = getCountryConfigByCountryCode("JP");
+    expect(config).not.toBeNull();
+
+    const result = evaluateCountryOperationalLaunch(config!, VERIFIED_OPERATIONAL_EVIDENCE);
+
+    expect(result.operationalBlockers).toContain("LOCALIZATION_STRUCTURE_NOT_READY");
     expect(result.launchable).toBe(false);
   });
 
