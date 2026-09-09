@@ -7,6 +7,11 @@ const coverageSql = readFileSync(
   "utf8",
 ).toLowerCase();
 
+const hostedReadinessSql = readFileSync(
+  resolve(process.cwd(), "scripts/october-launch-hosted-readiness.sql"),
+  "utf8",
+).toLowerCase();
+
 const REQUIRED_MIGRATIONS = [
   "scope_matter_staff_access",
   "harden_profile_role_authority",
@@ -39,6 +44,15 @@ describe("October launch critical migration coverage contract", () => {
       "observability",
     ]) {
       expect(coverageSql, area).toContain(area);
+    }
+  });
+
+  it("keeps the broader Hosted readiness migration inventory aligned", () => {
+    expect(hostedReadinessSql).toContain("begin read only;");
+    expect(hostedReadinessSql).toContain("rollback;");
+
+    for (const migration of REQUIRED_MIGRATIONS) {
+      expect(hostedReadinessSql, migration).toContain(migration);
     }
   });
 
