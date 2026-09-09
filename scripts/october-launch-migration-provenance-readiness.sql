@@ -7,12 +7,12 @@
 -- migration name. A mismatch is evidence to reconcile first; it is never
 -- authorization to run `migration repair` or apply migrations to Production.
 --
--- For the two final atomic Room Factory migrations, this report also compares a
--- repository-derived SHA-256 structural fingerprint with the Hosted migration
--- statement text. The fingerprint intentionally ignores full-line SQL comments
--- and whitespace so timestamp-only/source-comment drift can be distinguished
--- from a structural SQL mismatch. This is additional provenance evidence only:
--- it does not replace `supabase migration list --linked` plus
+-- For three individually verified Room Factory migrations, this report also
+-- compares a repository-derived SHA-256 structural fingerprint with the Hosted
+-- migration statement text. The fingerprint intentionally ignores full-line SQL
+-- comments and whitespace so timestamp-only/source-comment drift can be
+-- distinguished from a structural SQL mismatch. This is additional provenance
+-- evidence only: it does not replace `supabase migration list --linked` plus
 -- `supabase db push --linked --dry-run`, and it is not byte-for-byte proof.
 
 begin read only;
@@ -22,7 +22,12 @@ with expected(name, repository_source_version, area, repository_canonical_sha256
   values
     ('add_incident_events_monitoring', '20260815110624', 'observability', null::text),
     ('restrict_incident_event_reads', '20260815110907', 'observability', null::text),
-    ('room_factory_manifests', '20260829211500', 'room_factory', null::text),
+    (
+      'room_factory_manifests',
+      '20260829211500',
+      'room_factory',
+      'da7df1d7b16c018b6ca77fe05461776e03a244a2d95ab7866f9326d24a60e719'
+    ),
     ('room_factory_prepare_work_plan', '20260829220000', 'room_factory', null::text),
     ('revoke_anon_room_factory_prepare', '20260829220500', 'room_factory', null::text),
     ('room_factory_active_locks', '20260829223000', 'room_factory', null::text),
@@ -54,6 +59,7 @@ hosted as (
          sm.version,
          case
            when sm.name in (
+             'room_factory_manifests',
              'atomic_room_factory_encounter_creation',
              'harden_room_factory_atomic_invoker'
            ) then encode(
@@ -113,7 +119,12 @@ with expected(name, repository_source_version, area, repository_canonical_sha256
   values
     ('add_incident_events_monitoring', '20260815110624', 'observability', null::text),
     ('restrict_incident_event_reads', '20260815110907', 'observability', null::text),
-    ('room_factory_manifests', '20260829211500', 'room_factory', null::text),
+    (
+      'room_factory_manifests',
+      '20260829211500',
+      'room_factory',
+      'da7df1d7b16c018b6ca77fe05461776e03a244a2d95ab7866f9326d24a60e719'
+    ),
     ('room_factory_prepare_work_plan', '20260829220000', 'room_factory', null::text),
     ('revoke_anon_room_factory_prepare', '20260829220500', 'room_factory', null::text),
     ('room_factory_active_locks', '20260829223000', 'room_factory', null::text),
@@ -145,6 +156,7 @@ hosted as (
          sm.version,
          case
            when sm.name in (
+             'room_factory_manifests',
              'atomic_room_factory_encounter_creation',
              'harden_room_factory_atomic_invoker'
            ) then encode(
@@ -249,7 +261,7 @@ select json_build_object(
   ), '[]'::json),
   'exact_linked_apply_set_proven', false,
   'launch_gate', 'BLOCKED',
-  'note', 'Canonical source fingerprints reduce uncertainty for the two final atomic Room Factory migrations, while all launch-critical unapplied migrations are tracked explicitly. Timestamp drift and missing linked dry-run evidence still require reconciliation before any Hosted migration apply/repair. This report cannot authorize a migration or Country READY transition.'
+  'note', 'Canonical source fingerprints reduce uncertainty for three individually verified Room Factory migrations, while all launch-critical unapplied migrations are tracked explicitly. Timestamp drift and missing linked dry-run evidence still require reconciliation before any Hosted migration apply/repair. This report cannot authorize a migration or Country READY transition.'
 ) as migration_provenance_readiness;
 
 rollback;
