@@ -192,7 +192,10 @@ required_unapplied(name, area) as (
   values
     ('scope_matter_staff_access', 'auth_data_isolation'),
     ('harden_profile_role_authority', 'auth_data_isolation'),
-    ('payment_operational_safeguards', 'payments')
+    ('country_compliance_evidence_registry', 'compliance'),
+    ('payment_operational_safeguards', 'payments'),
+    ('room_factory_atomic_non_encounter', 'room_factory'),
+    ('room_factory_manifest_atomic_only', 'room_factory')
 ),
 unapplied_status as (
   select r.area,
@@ -246,7 +249,7 @@ select json_build_object(
   ), '[]'::json),
   'exact_linked_apply_set_proven', false,
   'launch_gate', 'BLOCKED',
-  'note', 'Canonical source fingerprints reduce uncertainty for the two final atomic Room Factory migrations, but timestamp drift and missing linked dry-run evidence still require reconciliation before any Hosted migration apply/repair. This report cannot authorize a migration or Country READY transition.'
+  'note', 'Canonical source fingerprints reduce uncertainty for the two final atomic Room Factory migrations, while all launch-critical unapplied migrations are tracked explicitly. Timestamp drift and missing linked dry-run evidence still require reconciliation before any Hosted migration apply/repair. This report cannot authorize a migration or Country READY transition.'
 ) as migration_provenance_readiness;
 
 rollback;
