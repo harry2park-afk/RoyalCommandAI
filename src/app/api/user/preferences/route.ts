@@ -23,6 +23,7 @@ type UiPreferences = {
   rightPanelApps?: string[];
   hiddenRoomIds?: string[];
   hiddenCountries?: string[];
+  languageCountryOrder?: string[];
   language?: string;
   uiLocale?: string;
   countryCode?: string;
@@ -95,6 +96,11 @@ function sanitise(value: unknown): UiPreferences {
     ?.map((code) => code.trim().toUpperCase())
     .filter((code, index, values) => /^[A-Z]{2}$/.test(code) && values.indexOf(code) === index);
   if (hiddenCountries) result.hiddenCountries = hiddenCountries;
+  const languageCountryOrder = sanitiseStringArray(input.languageCountryOrder, 250)
+    ?.filter((locale, index, values) => {
+      try { return Intl.getCanonicalLocales(locale)[0] === locale && values.indexOf(locale) === index; } catch { return false; }
+    });
+  if (languageCountryOrder) result.languageCountryOrder = languageCountryOrder;
 
   if (typeof input.language === "string" && input.language.length <= 32) result.language = input.language;
   if (typeof input.uiLocale === "string" && input.uiLocale.length <= 32) {

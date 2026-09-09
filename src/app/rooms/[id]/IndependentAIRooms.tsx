@@ -5,6 +5,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useParams } from "next/navigation";
 import { Check, ChevronDown, Copy, GripVertical, Menu, MessageSquare, Mic, Paperclip, Pencil, Plus, Search, Send, Sparkles, Trash2, X } from "lucide-react";
 import { FEATURED_LANGUAGE_ENTRIES, LOCALE_SEARCH_REGISTRY } from "@/lib/locale/localeSearchRegistry";
+import { moveLanguageCountryLocale, normaliseLanguageCountryOrder, promoteLanguageCountryLocale } from "@/lib/locale/languageCountryOrder";
 import { CREATE_ROOM_COUNTRIES, createRoomCopy } from "@/lib/rooms/create-room-i18n";
 import styles from "./IndependentAIRooms.module.css";
 import { useDomainRuntime } from "@/components/DomainRuntimeProvider";
@@ -48,9 +49,11 @@ const PROVIDERS: Array<{ id: ProviderId; name: string; role: string }> = [
 ];
 const DEFAULT_SELECTED_PROVIDERS = PROVIDERS.map((provider) => provider.id);
 const DEFAULT_PROVIDER_ORDER = [...DEFAULT_SELECTED_PROVIDERS];
+const DEFAULT_LANGUAGE_COUNTRY_ORDER = FEATURED_LANGUAGE_ENTRIES.map((entry) => entry.locale);
 
 const EMPTY: RoomState = { history: [], loading: false, error: "" };
 const HIDDEN_COUNTRIES_KEY = "royalcommand:hidden-countries";
+const LANGUAGE_COUNTRY_ORDER_KEY = "royalcommand:language-country-order";
 
 function emptyHistories(): Record<ProviderId, ChatItem[]> {
   return { openai: [], anthropic: [], google: [], xai: [], codex: [] };
@@ -130,6 +133,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [language, setLanguage] = useState(() => runtimeContext.locale.split("-")[0].toLowerCase());
   const [selectedLocale, setSelectedLocale] = useState(runtimeContext.locale);
   const [hiddenCountries, setHiddenCountries] = useState<Set<string>>(new Set());
+  const [languageCountryOrder, setLanguageCountryOrder] = useState<string[]>(DEFAULT_LANGUAGE_COUNTRY_ORDER);
   const [providerSearch, setProviderSearch] = useState("");
   const [languageSearch, setLanguageSearch] = useState("");
   const [providerRegistry, setProviderRegistry] = useState<ProviderInfo[]>([]);
@@ -163,6 +167,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const consumedFinalKeysRef = useRef(new Set<string>());
   const consumedFinalTranscriptsRef = useRef(new Set<string>());
   const draggedProviderRef = useRef<string | null>(null);
+  const draggedLanguageLocaleRef = useRef<string | null>(null);
   const openRoomRef = useRef<ProviderId | null>(null);
   const roomPromptRef = useRef<HTMLTextAreaElement | null>(null);
   const followLatestRoomPromptRef = useRef(true);
@@ -216,6 +221,12 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
       const savedHiddenCountries = JSON.parse(localStorage.getItem(HIDDEN_COUNTRIES_KEY) || "[]") as string[];
       setHiddenCountries(new Set(savedHiddenCountries.filter((code) => /^[A-Z]{2}$/.test(code))));
     } catch {}
+    try {
+      const savedLanguageOrder = JSON.parse(localStorage.getItem(LANGUAGE_COUNTRY_ORDER_KEY) || "[]") as string[];
+      const validLocales = new Set(LOCALE_SEARCH_REGISTRY.map((entry) => entry.locale));
+      const nextOrder = normaliseLanguageCountryOrder(savedLanguageOrder, validLocales);
+      if (nextOrder.length) setLanguageCountryOrder(nextOrder);
+    } catch {}
     void fetch("/api/user/preferences", { cache: "no-store", credentials: "same-origin" })
       .then((response) => response.ok ? response.json() : null)
       .then((data) => {
@@ -236,6 +247,14 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
           const nextHidden = preferences.hiddenCountries.filter((code: unknown): code is string => typeof code === "string" && /^[A-Z]{2}$/.test(code));
           setHiddenCountries(new Set(nextHidden));
           localStorage.setItem(HIDDEN_COUNTRIES_KEY, JSON.stringify(nextHidden));
+        }
+        if (Array.isArray(preferences.languageCountryOrder)) {
+          const validLocales = new Set(LOCALE_SEARCH_REGISTRY.map((entry) => entry.locale));
+          const nextOrder = normaliseLanguageCountryOrder(preferences.languageCountryOrder, validLocales);
+          if (nextOrder.length) {
+            setLanguageCountryOrder(nextOrder);
+            localStorage.setItem(LANGUAGE_COUNTRY_ORDER_KEY, JSON.stringify(nextOrder));
+          }
         }
       })
       .catch(() => {});
@@ -814,6 +833,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     setSelectedLocale(locale);
     setLanguage(locale.split("-")[0].toLowerCase());
     localStorage.setItem("royalcommand:ui-locale", locale);
+    if (languageSearch.trim() && !languageCountryOrder.includes(locale)) promoteLanguageLocale(locale);
     void saveLocalePreferences({ uiLocale: locale, countryCode, language: locale.split("-")[0].toLowerCase() });
     window.dispatchEvent(new Event("royalcommand:language-change"));
     setLanguageOpen(false);
@@ -823,6 +843,24 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     try {
       await fetch("/api/user/preferences", { method: "PATCH", credentials: "same-origin", headers: { "Content-Type": "application/json" }, body: JSON.stringify(preferences) });
     } catch {}
+  }
+
+  function persistLanguageCountryOrder(nextOrder: string[]) {
+    setLanguageCountryOrder(nextOrder);
+    localStorage.setItem(LANGUAGE_COUNTRY_ORDER_KEY, JSON.stringify(nextOrder));
+    void saveLocalePreferences({ languageCountryOrder: nextOrder });
+  }
+
+  function promoteLanguageLocale(locale: string) {
+    persistLanguageCountryOrder(promoteLanguageCountryLocale(languageCountryOrder, locale));
+  }
+
+  function dropLanguageLocale(targetLocale: string, placeAfter: boolean) {
+    const draggedLocale = draggedLanguageLocaleRef.current;
+    if (!draggedLocale || draggedLocale === targetLocale) return;
+    const next = moveLanguageCountryLocale(languageCountryOrder, draggedLocale, targetLocale, placeAfter);
+    draggedLanguageLocaleRef.current = null;
+    persistLanguageCountryOrder(next);
   }
 
   function hideCountry(countryCode: string) {
@@ -841,6 +879,8 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     const values = Array.from(next);
     localStorage.setItem(HIDDEN_COUNTRIES_KEY, JSON.stringify(values));
     void saveLocalePreferences({ hiddenCountries: values });
+    const restoredEntry = LOCALE_SEARCH_REGISTRY.find((entry) => countryCodeForLocale(entry.locale) === countryCode);
+    if (restoredEntry) promoteLanguageLocale(restoredEntry.locale);
   }
 
   function cancelAll() {
@@ -889,10 +929,15 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
 
   const filteredLocales = useMemo(() => {
     const query = languageSearch.trim().toLowerCase();
-    return (query ? LOCALE_SEARCH_REGISTRY.filter((entry) => entry.searchText.includes(query)) : FEATURED_LANGUAGE_ENTRIES)
+    const rank = new Map(languageCountryOrder.map((locale, index) => [locale, index]));
+    const entries = query
+      ? LOCALE_SEARCH_REGISTRY.filter((entry) => entry.searchText.includes(query))
+      : languageCountryOrder.map((locale) => LOCALE_SEARCH_REGISTRY.find((entry) => entry.locale === locale)).filter((entry): entry is (typeof LOCALE_SEARCH_REGISTRY)[number] => Boolean(entry));
+    return entries
       .filter((entry) => !hiddenCountries.has(countryCodeForLocale(entry.locale)))
+      .sort((a, b) => (rank.get(a.locale) ?? Number.MAX_SAFE_INTEGER) - (rank.get(b.locale) ?? Number.MAX_SAFE_INTEGER))
       .slice(0, 80);
-  }, [hiddenCountries, languageSearch]);
+  }, [hiddenCountries, languageCountryOrder, languageSearch]);
 
   const hiddenCountryEntries = useMemo(() => {
     const entries = new Map<string, (typeof LOCALE_SEARCH_REGISTRY)[number]>();
@@ -926,7 +971,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
 
           {chatsOpen && <div className="absolute left-24 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="mb-2 flex justify-end"><a href={`/room-builder?returnRoom=${encodeURIComponent(roomId)}`} className="inline-flex h-[34px] items-center gap-2 rounded-lg border border-[#d9b44a] bg-[#7A0C2E] px-3 text-xs font-bold text-[#fff4c2] shadow-[0_0_14px_rgba(217,180,74,.4)] transition hover:bg-[#94113a]" title={createRoomLabel}><span aria-hidden="true">＋</span><span>{createRoomLabel}</span></a></div><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} autoFocus placeholder="Search AI providers" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2" onDragOver={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); const edge = 110; if (event.clientY < bounds.top + edge) event.currentTarget.scrollTop -= 90; else if (event.clientY > bounds.bottom - edge) event.currentTarget.scrollTop += 90; }}>{filteredProviders.map((provider) => { const cardProvider = PROVIDERS.find((item) => item.id === provider.id); const selectable = Boolean(cardProvider && provider.available); const chosen = Boolean(cardProvider && selected.includes(cardProvider.id)); const status = accountConnectedProviders.has(provider.id) ? "Connected" : "Not Connected"; return <div key={provider.id} draggable onDragStart={(event) => { draggedProviderRef.current = provider.id; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", provider.id); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); dropProvider(provider.id, event.clientY > bounds.top + bounds.height / 2); }} onDragEnd={() => { draggedProviderRef.current = null; }} className={`mb-1 flex cursor-grab items-center rounded-lg border active:cursor-grabbing ${chosen ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><GripVertical size={15} className="ml-2 shrink-0 text-[#8d98a8]" aria-hidden="true"/><button type="button" disabled={!selectable} onClick={() => chooseProvider(provider.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2.5 text-left disabled:cursor-not-allowed disabled:opacity-60"><span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${chosen ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/20"}`}>{chosen ? <Check size={13}/> : null}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{provider.name}</span><span className={`shrink-0 text-[10px] ${status === "Connected" ? "text-emerald-300" : "text-[#8d98a8]"}`}>{status}</span></button></div>; })}</div></div>}
 
-          {languageOpen && <div className="absolute right-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-96 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl sm:right-auto sm:left-48"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={languageSearch} onChange={(event) => setLanguageSearch(event.target.value)} autoFocus placeholder="Search languages, countries or codes" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2">{filteredLocales.length ? filteredLocales.map((entry) => { const countryCode = countryCodeForLocale(entry.locale); return <div key={entry.locale} className={`mb-1 flex items-center rounded-lg border ${selectedLocale === entry.locale ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><button type="button" onClick={() => chooseLocale(entry.locale)} className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2.5 text-left"><CountryFlag countryCode={countryCode}/><span className="truncate text-sm">{countryNameForLocale(entry.locale, entry.label)}</span></button><button type="button" onClick={() => hideCountry(countryCode)} className="mr-2 rounded px-2 py-1 text-[10px] text-[#8d98a8] hover:bg-white/10 hover:text-[#f0d36a]">Hide</button></div>; }) : <div className="px-3 py-8 text-center text-sm text-[#8d98a8]">No matching locale</div>}{hiddenCountryEntries.length ? <div className="mt-3 border-t border-white/10 pt-2"><div className="px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Hidden countries</div>{hiddenCountryEntries.map(([countryCode, entry]) => <div key={countryCode} className="mb-1 flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2"><CountryFlag countryCode={countryCode}/><span className="min-w-0 flex-1 truncate text-sm">{countryNameForLocale(entry.locale, entry.label)}</span><button type="button" onClick={() => restoreCountry(countryCode)} className="rounded border border-[#d7b64d]/30 px-2 py-1 text-xs text-[#f0d36a] hover:bg-[#2a2109]">Restore</button></div>)}</div> : null}</div></div>}
+          {languageOpen && <div className="absolute right-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-96 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl sm:right-auto sm:left-48"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={languageSearch} onChange={(event) => setLanguageSearch(event.target.value)} autoFocus placeholder="Search languages, countries or codes" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2" onDragOver={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); const edge = 90; if (event.clientY < bounds.top + edge) event.currentTarget.scrollTop -= 120; else if (event.clientY > bounds.bottom - edge) event.currentTarget.scrollTop += 120; }}>{filteredLocales.length ? filteredLocales.map((entry) => { const countryCode = countryCodeForLocale(entry.locale); return <div key={entry.locale} draggable onDragStart={(event) => { draggedLanguageLocaleRef.current = entry.locale; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", entry.locale); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); dropLanguageLocale(entry.locale, event.clientY > bounds.top + bounds.height / 2); }} onDragEnd={() => { draggedLanguageLocaleRef.current = null; }} className={`mb-1 flex cursor-grab items-center rounded-lg border active:cursor-grabbing ${selectedLocale === entry.locale ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><GripVertical size={15} className="ml-2 shrink-0 text-[#8d98a8]" aria-hidden="true"/><button type="button" onClick={() => chooseLocale(entry.locale)} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2.5 text-left"><CountryFlag countryCode={countryCode}/><span className="truncate text-sm">{countryNameForLocale(entry.locale, entry.label)}</span></button><button type="button" onClick={() => hideCountry(countryCode)} className="mr-2 rounded px-2 py-1 text-[10px] text-[#8d98a8] hover:bg-white/10 hover:text-[#f0d36a]">Hide</button></div>; }) : <div className="px-3 py-8 text-center text-sm text-[#8d98a8]">No matching locale</div>}{hiddenCountryEntries.length ? <div className="mt-3 border-t border-white/10 pt-2"><div className="px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Hidden countries</div>{hiddenCountryEntries.map(([countryCode, entry]) => <div key={countryCode} className="mb-1 flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2"><CountryFlag countryCode={countryCode}/><span className="min-w-0 flex-1 truncate text-sm">{countryNameForLocale(entry.locale, entry.label)}</span><button type="button" onClick={() => restoreCountry(countryCode)} className="rounded border border-[#d7b64d]/30 px-2 py-1 text-xs text-[#f0d36a] hover:bg-[#2a2109]">Restore</button></div>)}</div> : null}</div></div>}
         </div>
       </header>
 
