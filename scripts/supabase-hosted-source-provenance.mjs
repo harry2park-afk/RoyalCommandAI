@@ -73,6 +73,10 @@ export function compareHostedSourceFingerprints({ snapshot, localMigrations }) {
     const sourceStatus = localSha256 === remote.source_sha256 ? "MATCH" : "MISMATCH";
     const diagnosticStatus =
       localDiagnosticSha256 === remote.diagnostic_nonblank_noncomment_sha256 ? "MATCH" : "MISMATCH";
+    const differenceScope =
+      sourceStatus === "MISMATCH" && diagnosticStatus === "MATCH"
+        ? "FULL_LINE_COMMENTS_OR_BLANK_LINES_ONLY"
+        : sourceStatus;
 
     checked.push({
       name: remote.name,
@@ -87,10 +91,9 @@ export function compareHostedSourceFingerprints({ snapshot, localMigrations }) {
         remote.diagnostic_nonblank_noncomment_sha256 ?? null,
       local_diagnostic_nonblank_noncomment_sha256: localDiagnosticSha256,
       diagnostic_nonblank_noncomment_status: diagnosticStatus,
-      diagnostic_difference_scope:
-        sourceStatus === "MISMATCH" && diagnosticStatus === "MATCH"
-          ? "FULL_LINE_COMMENTS_OR_BLANK_LINES_ONLY"
-          : sourceStatus,
+      diagnostic_difference_scope: differenceScope,
+      provenance_equivalent:
+        sourceStatus === "MATCH" || differenceScope === "FULL_LINE_COMMENTS_OR_BLANK_LINES_ONLY",
     });
   }
 
@@ -103,16 +106,22 @@ export function compareHostedSourceFingerprints({ snapshot, localMigrations }) {
   const comment_or_blank_only_count = checked.filter(
     (row) => row.diagnostic_difference_scope === "FULL_LINE_COMMENTS_OR_BLANK_LINES_ONLY",
   ).length;
+  const semantic_mismatch_count = checked.filter(
+    (row) => row.source_status === "MISMATCH" && row.diagnostic_nonblank_noncomment_status !== "MATCH",
+  ).length;
+  const provenance_equivalent_count = checked.filter((row) => row.provenance_equivalent).length;
+
   const ready_for_provenance_reconciliation =
-    source_mismatch_count === 0 &&
+    semantic_mismatch_count === 0 &&
     missing_local_names.length === 0 &&
     duplicate_local_names.length === 0 &&
-    checked.length === (snapshot.migrations ?? []).length;
+    checked.length === (snapshot.migrations ?? []).length &&
+    provenance_equivalent_count === checked.length;
 
   return {
-    contract_version: 1,
+    contract_version: 2,
     evidence_scope:
-      "Migration source provenance only. Diagnostic hashes may narrow raw source drift to full-line comments/blank lines but do not make a raw MISMATCH pass and do not authorize migration repair, push, deploy, or Country READY.",
+      "Migration source provenance only. Raw SHA matches pass directly. A raw mismatch may pass provenance reconciliation only when the diagnostic hash proves the difference is limited to full-line SQL comments and blank lines; any executable-source drift still fails closed. This evidence never authorizes migration repair, push, deploy, or Country READY.",
     snapshot_captured_at: snapshot.captured_at ?? null,
     diagnostic_captured_at: snapshot.diagnostic_captured_at ?? null,
     project_ref: snapshot.project_ref ?? null,
@@ -122,6 +131,8 @@ export function compareHostedSourceFingerprints({ snapshot, localMigrations }) {
       source_match: source_match_count,
       source_mismatch: source_mismatch_count,
       diagnostic_comment_or_blank_only: comment_or_blank_only_count,
+      semantic_mismatch: semantic_mismatch_count,
+      provenance_equivalent: provenance_equivalent_count,
       missing_local: missing_local_names.length,
       duplicate_local_name: duplicate_local_names.length,
     },
