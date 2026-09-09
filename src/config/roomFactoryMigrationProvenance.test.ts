@@ -91,12 +91,23 @@ const roomFactoryHostedFingerprints = [
 ] as const;
 
 function canonicalStructuralFingerprint(sql: string): string {
-  const withoutFullLineComments = sql.replace(/(^|\n)[\t ]*--[^\n]*(\n|$)/g, '$1');
+  // Use multiline anchoring so every full-line SQL comment is removed,
+  // including adjacent comment lines. Do not consume the preceding newline;
+  // doing so makes a global regexp skip the next consecutive comment line.
+  const withoutFullLineComments = sql.replace(/^[\t ]*--[^\n]*(?:\n|$)/gm, '');
   const withoutWhitespace = withoutFullLineComments.replace(/\s+/g, '');
   return createHash('sha256').update(withoutWhitespace, 'utf8').digest('hex');
 }
 
 describe('Room Factory migration Hosted structural provenance', () => {
+  it('normalizes consecutive full-line comments deterministically', () => {
+    const withComments = '-- one\n-- two\nselect 1;\n-- three\n';
+    const withoutComments = 'select 1;\n';
+    expect(canonicalStructuralFingerprint(withComments)).toBe(
+      canonicalStructuralFingerprint(withoutComments),
+    );
+  });
+
   it('tracks the complete 16-migration Room Factory Hosted inventory', () => {
     expect(roomFactoryHostedFingerprints).toHaveLength(16);
   });
