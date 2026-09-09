@@ -50,10 +50,10 @@ describe("October commercial compliance evidence contract", () => {
 
   it("keeps first-wave and next-wave country evidence separate", () => {
     for (const code of ["au", "us", "ca", "kr", "jp", "gb"]) {
-      expect(commercialComplianceEvidenceSql).toContain(`('${code.toUpperCase()}',` .toLowerCase());
+      expect(commercialComplianceEvidenceSql).toContain(`('${code}',`);
     }
     for (const code of ["sg", "cn", "hk", "tw", "in"]) {
-      expect(commercialComplianceEvidenceSql).toContain(`('${code.toUpperCase()}',` .toLowerCase());
+      expect(commercialComplianceEvidenceSql).toContain(`('${code}',`);
     }
     expect(commercialComplianceEvidenceSql).toContain("'next_wave_inventory'");
   });
