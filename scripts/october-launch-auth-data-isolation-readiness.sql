@@ -113,7 +113,7 @@ profile_role_state as (
     coalesce((select prosecdef from profile_guard_function), false)
       as guard_security_definer,
     coalesce((
-      select function_config like '%search_path=pg_catalog, auth, public, private%'
+      select function_config = 'search_path=pg_catalog'
       from profile_guard_function
     ), false) as guard_search_path_locked,
     coalesce((
@@ -145,7 +145,7 @@ profile_role_state as (
     coalesce((select prosecdef from handle_new_user_function), false)
       as handle_new_user_security_definer,
     coalesce((
-      select function_config like '%search_path=public%'
+      select function_config = 'search_path=pg_catalog'
       from handle_new_user_function
     ), false) as handle_new_user_search_path_locked,
     case
