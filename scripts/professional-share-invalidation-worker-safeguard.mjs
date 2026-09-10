@@ -59,6 +59,16 @@ function makeHarness(jobs) {
 function makeAdapter(target, trace, overrides = {}) {
   return {
     idempotent: true,
+    provenance: {
+      status: 'VERIFIED',
+      target,
+      grantScoped: true,
+      tenantScoped: true,
+      resource: `test://${target}`,
+      eraseSelector: `grant+tenant:${target}:erase`,
+      readbackSelector: `grant+tenant:${target}:readback`,
+      evidenceRef: `fixture://provenance/${target}`,
+    },
     async erase() {
       trace.push(`erase:${target}`);
     },
@@ -70,7 +80,8 @@ function makeAdapter(target, trace, overrides = {}) {
   };
 }
 
-// Happy path: every target erases, read-backs, then and only then succeeds.
+// Happy path: every target has explicit verified provenance, erases, read-backs,
+// then and only then succeeds.
 {
   const jobs = EXPECTED_TARGETS.map(makeJob);
   const { queue, completions, trace } = makeHarness(jobs);
@@ -118,9 +129,40 @@ function makeAdapter(target, trace, overrides = {}) {
   assert.equal(trace.includes('erase:cache'), false);
 }
 
+// A configured adapter cannot run until its target provenance is explicitly verified.
+{
+  const job = makeJob('derived_copy', 22);
+  const { queue, completions, trace } = makeHarness([job]);
+  const adapters = {
+    derived_copy: makeAdapter('derived_copy', trace, {
+      provenance: { status: 'BLOCKED_UNPROVEN', target: 'derived_copy' },
+    }),
+  };
+  const results = await processProfessionalShareInvalidationBatch({ queue, adapters, batchSize: 1 });
+  assert.equal(results[0].code, 'UNVERIFIED_TARGET_PROVENANCE');
+  assert.equal(completions[0].succeeded, false);
+  assert.equal(trace.includes('erase:derived_copy'), false);
+}
+
+// Provenance for one target cannot be rebound to another target.
+{
+  const job = makeJob('vector', 23);
+  const { queue, completions, trace } = makeHarness([job]);
+  const adapter = makeAdapter('vector', trace);
+  adapter.provenance.target = 'embedding';
+  const results = await processProfessionalShareInvalidationBatch({
+    queue,
+    adapters: { vector: adapter },
+    batchSize: 1,
+  });
+  assert.equal(results[0].code, 'TARGET_PROVENANCE_MISMATCH');
+  assert.equal(completions[0].succeeded, false);
+  assert.equal(trace.includes('erase:vector'), false);
+}
+
 // Erase exception must become failure, never success.
 {
-  const job = makeJob('embedding', 22);
+  const job = makeJob('embedding', 24);
   const { queue, completions, trace } = makeHarness([job]);
   const adapters = {
     embedding: makeAdapter('embedding', trace, {
@@ -138,7 +180,7 @@ function makeAdapter(target, trace, overrides = {}) {
 
 // A read-back that still finds material must fail closed.
 {
-  const job = makeJob('ai_memory', 23);
+  const job = makeJob('ai_memory', 25);
   const { queue, completions, trace } = makeHarness([job]);
   const adapters = {
     ai_memory: makeAdapter('ai_memory', trace, {
@@ -155,7 +197,7 @@ function makeAdapter(target, trace, overrides = {}) {
 
 // Even a positive read-back cannot succeed without an evidence reference.
 {
-  const job = makeJob('search_index', 24);
+  const job = makeJob('search_index', 26);
   const { queue, completions, trace } = makeHarness([job]);
   const adapters = {
     search_index: makeAdapter('search_index', trace, {
@@ -172,7 +214,7 @@ function makeAdapter(target, trace, overrides = {}) {
 
 // Context cannot be rebound to another grant/tenant lane.
 {
-  const job = makeJob('prompt_context', 25);
+  const job = makeJob('prompt_context', 27);
   const { queue, completions, trace } = makeHarness([job]);
   queue.loadContext = async () => ({
     eventId: job.event_id,
@@ -189,7 +231,7 @@ function makeAdapter(target, trace, overrides = {}) {
 
 // Unknown target identity must fail before any storage adapter can run.
 {
-  const job = { ...makeJob('vector', 26), target: 'untrusted_target' };
+  const job = { ...makeJob('vector', 28), target: 'untrusted_target' };
   const { queue, completions } = makeHarness([job]);
   const results = await processProfessionalShareInvalidationBatch({ queue, adapters: {}, batchSize: 1 });
   assert.equal(results[0].code, 'UNKNOWN_TARGET');
