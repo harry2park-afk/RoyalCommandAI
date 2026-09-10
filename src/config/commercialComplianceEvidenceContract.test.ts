@@ -7,6 +7,11 @@ const commercialComplianceEvidenceSql = readFileSync(
   "utf8",
 ).toLowerCase();
 
+const machineSnapshotSql = readFileSync(
+  resolve(process.cwd(), "scripts/october-launch-hosted-machine-snapshot.sql"),
+  "utf8",
+).toLowerCase();
+
 describe("October commercial compliance evidence contract", () => {
   it("stays read-only and fail-closed", () => {
     expect(commercialComplianceEvidenceSql).toContain("begin read only;");
@@ -32,20 +37,22 @@ describe("October commercial compliance evidence contract", () => {
   });
 
   it("requires recording approval, reviewer provenance and a non-empty legal basis", () => {
+    for (const sql of [commercialComplianceEvidenceSql, machineSnapshotSql]) {
+      expect(sql).toContain("rp.review_status = 'approved'");
+      expect(sql).toContain("rp.reviewed_by is not null");
+      expect(sql).toContain("rp.reviewed_at is not null");
+      expect(sql).toContain(
+        "nullif(trim(coalesce(rp.legal_basis, '')), '') is not null",
+      );
+    }
+
     expect(commercialComplianceEvidenceSql).toContain(
       "recording_review_provenance_columns_exist",
     );
     expect(commercialComplianceEvidenceSql).toContain(
       "recording_legal_basis_column_exists",
     );
-    expect(commercialComplianceEvidenceSql).toContain(
-      "upper(coalesce(rp.review_status, '')) = 'approved'",
-    );
-    expect(commercialComplianceEvidenceSql).toContain("rp.reviewed_by is not null");
-    expect(commercialComplianceEvidenceSql).toContain("rp.reviewed_at is not null");
-    expect(commercialComplianceEvidenceSql).toContain(
-      "nullif(trim(coalesce(rp.legal_basis, '')), '') is not null",
-    );
+    expect(machineSnapshotSql).toContain("'recording_legal_basis_column_exists'");
   });
 
   it("keeps first-wave and next-wave country evidence separate", () => {
