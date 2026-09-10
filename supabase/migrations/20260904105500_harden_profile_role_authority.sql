@@ -46,7 +46,7 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = pg_catalog, public
 as $$
 begin
   insert into public.profiles (id, email, full_name, default_language, role)
