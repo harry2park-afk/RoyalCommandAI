@@ -1,0 +1,55 @@
+{
+  "countryCode": "SG",
+  "locale": "en-SG",
+  "secondaryLocale": null,
+  "currency": "SGD",
+  "phoneCountryCode": "+65",
+  "dateFormat": "DD/MM/YYYY",
+  "timeFormat": "24h",
+  "addressFormat": [
+    "street",
+    "building_detail",
+    "postal_code"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Asia/Singapore"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "business_registration_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "NOT_SELECTED",
+    "status": "NOT_CONNECTED",
+    "future": [
+      "Provider selection after review",
+      "Local payment methods after review"
+    ]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": []
+  },
+  "taxStructure": {
+    "system": "TBD",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "sgPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "sgLegalProvider": { "status": "NOT_CONNECTED" },
+    "sgPrivacyProvider": { "status": "NOT_CONNECTED" }
+  }
+}
