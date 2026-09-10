@@ -10,6 +10,13 @@ on:
       - "scripts/supabase-hosted-source-fingerprints-20260908.json"
       - "scripts/supabase-hosted-source-provenance.mjs"
       - "scripts/supabase-hosted-source-provenance.test.ts"
+      - "scripts/supabase-hosted-source-provenance-gate.mjs"
+      - "scripts/supabase-residual-simple-source-equivalence-20260911.json"
+      - "scripts/supabase-residual-simple-source-equivalence.test.ts"
+      - "scripts/supabase-legal-story-split-history-equivalence-20260911.json"
+      - "scripts/supabase-legal-story-split-history-equivalence.test.ts"
+      - "scripts/supabase-room-factory-plpgsql-token-equivalence-20260911.json"
+      - "scripts/supabase-room-factory-plpgsql-token-equivalence.test.ts"
       - "scripts/supabase-unresolved-local-migration-classification-20260908.json"
       - "scripts/supabase-unresolved-local-migration-classification.mjs"
       - "scripts/supabase-unresolved-local-migration-classification.test.ts"
@@ -51,14 +58,14 @@ jobs:
           }
           echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
 
-      - name: Compare fingerprinted Hosted migration sources (provenance only)
+      - name: Verify fingerprinted and supplemental Hosted migration source provenance
         id: source_provenance
         shell: bash
         run: |
           set -uo pipefail
           mkdir -p artifacts/supabase-known-hosted-ledger
           set +e
-          node scripts/supabase-hosted-source-provenance.mjs \
+          node scripts/supabase-hosted-source-provenance-gate.mjs \
             scripts/supabase-hosted-source-fingerprints-20260908.json \
             supabase/migrations \
             > artifacts/supabase-known-hosted-ledger/source-provenance.json
