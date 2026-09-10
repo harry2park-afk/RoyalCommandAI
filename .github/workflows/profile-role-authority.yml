@@ -119,6 +119,25 @@ jobs:
               raise exception 'profile role guard trigger must exist and be enabled exactly once';
             end if;
 
+            if not exists (
+              select 1
+              from pg_proc p
+              join pg_namespace n on n.oid = p.pronamespace
+              where n.nspname = 'public'
+                and p.proname = 'handle_new_user'
+                and pg_get_function_identity_arguments(p.oid) = ''
+                and p.prosecdef
+                and p.proconfig @> array['search_path=pg_catalog, public']::text[]
+            ) then
+              raise exception 'handle_new_user must be SECURITY DEFINER with hardened pg_catalog-first search_path';
+            end if;
+
+            if has_function_privilege('public', 'public.handle_new_user()', 'EXECUTE')
+               or has_function_privilege('anon', 'public.handle_new_user()', 'EXECUTE')
+               or has_function_privilege('authenticated', 'public.handle_new_user()', 'EXECUTE') then
+              raise exception 'handle_new_user must not be directly executable by public/anon/authenticated';
+            end if;
+
             if not has_table_privilege('authenticated', 'public.profiles', 'UPDATE') then
               raise exception 'authenticated own-profile UPDATE path must remain available';
             end if;
