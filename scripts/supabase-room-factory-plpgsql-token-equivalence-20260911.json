@@ -1,0 +1,62 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-11T05:46:00+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "migration_source_ref": "801280816088c33ddee7570f0aa6cbd8561c72fd",
+  "source": "Fresh Hosted Supabase READ-ONLY schema_migrations statement read-back plus exact GitHub migration source at the pinned candidate ref.",
+  "purpose": "Narrow the last two complex formatting residuals with an explicit SQL/PLpgSQL token stream comparison. This proof ignores whitespace and line comments while preserving quoted literals and executable tokens. For room_factory_start_execution only, two exact local COMMENT ON FUNCTION metadata statements that are absent from the captured Hosted migration are explicitly excluded; no executable statement is excluded.",
+  "tokenization_contract": {
+    "token_separator": "ASCII Unit Separator (0x1f)",
+    "preserve": [
+      "single-quoted literals including doubled quotes",
+      "double-quoted identifiers including doubled quotes",
+      "dollar delimiters",
+      "identifiers and numbers",
+      "operators and punctuation"
+    ],
+    "ignore": [
+      "whitespace between tokens",
+      "SQL line comments beginning with --"
+    ],
+    "block_comments_allowed": false,
+    "tagged_dollar_quotes_allowed": false,
+    "hash": "sha256"
+  },
+  "entries": [
+    {
+      "name": "room_factory_evidence_review",
+      "remote_version": "20260828221419",
+      "local_version": "20260829231500",
+      "local_path": "supabase/migrations/20260829231500_room_factory_evidence_review.sql",
+      "local_blob_sha": "3d4efead5904975072b5d71480adfa90506f32bf",
+      "remote_token_count": 1000,
+      "remote_token_sha256": "3be7a99156141796a93de33e557d6f696eabd9f1f7c0ff45ebbaa7a2ae30673f",
+      "excluded_local_comment_metadata": [],
+      "executable_token_source_equivalent": true,
+      "ledger_identity_claimed": false
+    },
+    {
+      "name": "room_factory_start_execution",
+      "remote_version": "20260828222515",
+      "local_version": "20260829234500",
+      "local_path": "supabase/migrations/20260829234500_room_factory_start_execution.sql",
+      "local_blob_sha": "90f811807506255d143d87d1c5074cb63b7071cb",
+      "remote_token_count": 1118,
+      "remote_token_sha256": "1a07d144b872dbebb133b668f082f9a44376e2806ce8413d8c2b8ec238b2ca15",
+      "excluded_local_comment_metadata": [
+        "public.start_room_factory_lane_execution(uuid, uuid, text, integer)",
+        "public.fail_room_factory_lane_execution(uuid, uuid, text, uuid[], text)"
+      ],
+      "executable_token_source_equivalent": true,
+      "ledger_identity_claimed": false
+    }
+  ],
+  "summary": {
+    "complex_formatting_source_proofs": 2,
+    "executable_token_source_equivalent": 2,
+    "ledger_identity_verified": 0,
+    "ready_for_linked_apply": false
+  },
+  "remaining_source_provenance_note": "The three formerly complex residual source cases now have narrow machine-checkable evidence: legal_story_entries has split-history source composition proof, and the two Room Factory migrations have executable token-stream proof. Migration-version/ledger identity remains unreconciled and is intentionally not inferred from source equivalence.",
+  "remaining_gate": "Exact credentialed supabase migration list --linked and db push --linked --dry-run evidence remain mandatory. Do not repair migration history or apply Hosted migrations from this source-equivalence evidence alone."
+}
