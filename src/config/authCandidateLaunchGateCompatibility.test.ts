@@ -33,15 +33,15 @@ const readinessSql = readFileSync(
 ).toLowerCase();
 
 describe("October auth candidate / launch-gate compatibility", () => {
-  it("keeps the currently proven cross-PR mismatch explicit and fail closed", () => {
-    expect(evidence.integration_compatible).toBe(false);
+  it("keeps the #691 SECURITY DEFINER contract aligned without claiming release readiness", () => {
+    expect(evidence.integration_compatible).toBe(true);
     expect(evidence.release_ready).toBe(false);
 
     expect(evidence.launch_gate.guard_search_path_expected).toBe(
-      "search_path=pg_catalog, auth, public, private",
+      "search_path=pg_catalog",
     );
     expect(evidence.launch_gate.handle_new_user_search_path_expected).toBe(
-      "search_path=public",
+      "search_path=pg_catalog",
     );
     expect(evidence.auth_candidate.guard_search_path_declared).toBe(
       "search_path=pg_catalog",
@@ -51,11 +51,15 @@ describe("October auth candidate / launch-gate compatibility", () => {
     );
   });
 
-  it("proves the launch readiness SQL still encodes the incompatible expectations", () => {
-    expect(readinessSql).toContain(
-      "function_config like '%search_path=pg_catalog, auth, public, private%'",
+  it("proves the full launch readiness SQL requires both isolated pg_catalog paths", () => {
+    const isolatedPathChecks =
+      readinessSql.match(/function_config = 'search_path=pg_catalog'/g) ?? [];
+
+    expect(isolatedPathChecks).toHaveLength(2);
+    expect(readinessSql).not.toContain(
+      "search_path=pg_catalog, auth, public, private",
     );
-    expect(readinessSql).toContain(
+    expect(readinessSql).not.toContain(
       "function_config like '%search_path=public%'",
     );
   });
