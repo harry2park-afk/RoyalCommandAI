@@ -7,6 +7,11 @@ const commercialComplianceEvidenceSql = readFileSync(
   "utf8",
 ).toLowerCase();
 
+const hostedReadinessSql = readFileSync(
+  resolve(process.cwd(), "scripts/october-launch-hosted-readiness.sql"),
+  "utf8",
+).toLowerCase();
+
 const machineSnapshotSql = readFileSync(
   resolve(process.cwd(), "scripts/october-launch-hosted-machine-snapshot.sql"),
   "utf8",
@@ -34,6 +39,8 @@ describe("October commercial compliance evidence contract", () => {
     expect(commercialComplianceEvidenceSql).toContain(
       "reviewer_proven_provider_offers",
     );
+    expect(hostedReadinessSql).toContain("to_jsonb(o)->>'reviewed_by'");
+    expect(hostedReadinessSql).toContain("to_jsonb(o)->>'reviewed_at'");
   });
 
   it("requires recording approval, reviewer provenance and a non-empty legal basis", () => {
@@ -41,14 +48,30 @@ describe("October commercial compliance evidence contract", () => {
       "upper(coalesce(rp.review_status, '')) = 'approved'",
     );
     expect(machineSnapshotSql).toContain("rp.review_status = 'approved'");
+    expect(hostedReadinessSql).toContain("review_status = 'approved'");
 
-    for (const sql of [commercialComplianceEvidenceSql, machineSnapshotSql]) {
-      expect(sql).toContain("rp.reviewed_by is not null");
-      expect(sql).toContain("rp.reviewed_at is not null");
-      expect(sql).toContain(
-        "nullif(trim(coalesce(rp.legal_basis, '')), '') is not null",
-      );
+    for (const sql of [
+      commercialComplianceEvidenceSql,
+      hostedReadinessSql,
+      machineSnapshotSql,
+    ]) {
+      expect(sql).toContain("reviewed_by is not null");
+      expect(sql).toContain("reviewed_at is not null");
+      expect(sql).toContain("legal_basis");
     }
+
+    expect(commercialComplianceEvidenceSql).toContain(
+      "nullif(trim(coalesce(rp.legal_basis, '')), '') is not null",
+    );
+    expect(machineSnapshotSql).toContain(
+      "nullif(trim(coalesce(rp.legal_basis, '')), '') is not null",
+    );
+    expect(hostedReadinessSql).toContain(
+      "nullif(trim(coalesce(rp.legal_basis, '')), '') is not null",
+    );
+    expect(hostedReadinessSql).toContain(
+      "nullif(trim(coalesce(legal_basis, '')), '') is not null",
+    );
 
     expect(commercialComplianceEvidenceSql).toContain(
       "recording_review_provenance_columns_exist",
@@ -57,6 +80,7 @@ describe("October commercial compliance evidence contract", () => {
       "recording_legal_basis_column_exists",
     );
     expect(machineSnapshotSql).toContain("'recording_legal_basis_column_exists'");
+    expect(hostedReadinessSql).toContain("'recording_legal_basis_column_exists'");
   });
 
   it("keeps first-wave and next-wave country evidence separate", () => {
