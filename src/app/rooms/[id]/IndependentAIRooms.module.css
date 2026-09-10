@@ -2,6 +2,14 @@
   overflow: visible !important;
 }
 
+.root form[data-rc-composer-enhanced="true"] > textarea {
+  box-sizing: border-box;
+  min-height: 184px !important;
+  padding-right: 188px !important;
+  padding-bottom: 72px !important;
+  scroll-padding-bottom: 72px;
+}
+
 .root form[data-rc-composer-enhanced="true"] > div[data-rc-composer-controls="true"] {
   left: 0 !important;
   right: 0 !important;
@@ -18,15 +26,19 @@
   left: 12px !important;
   right: auto !important;
   bottom: 8px !important;
+  width: 34px !important;
+  height: 34px !important;
   pointer-events: auto !important;
   z-index: 24 !important;
 }
 
 .root form[data-rc-composer-enhanced="true"] label[title="Attach files"] {
   position: absolute !important;
-  left: 60px !important;
+  left: 52px !important;
   right: auto !important;
   bottom: 8px !important;
+  width: 34px !important;
+  height: 34px !important;
   pointer-events: auto !important;
   z-index: 24 !important;
 }
@@ -35,10 +47,10 @@
   position: absolute !important;
   right: 18px !important;
   left: auto !important;
-  bottom: -2px !important;
-  width: 158px !important;
-  height: 164px !important;
-  min-width: 158px !important;
+  bottom: 63px !important;
+  width: 122px !important;
+  height: 126px !important;
+  min-width: 122px !important;
   padding: 0 !important;
   border: 0 !important;
   border-radius: 0 !important;
@@ -64,7 +76,7 @@
   content: "✦";
   position: absolute;
   left: 8px;
-  top: 58px;
+  top: 42px;
   color: rgba(240, 211, 106, 0.88);
   font-size: 22px;
   line-height: 1;
@@ -73,31 +85,41 @@
 
 .root form[data-rc-composer-enhanced="true"] button[type="submit"] {
   position: absolute !important;
-  right: 3px !important;
+  right: 12px !important;
   left: auto !important;
-  bottom: 3px !important;
-  width: 34px !important;
-  height: 34px !important;
-  min-width: 34px !important;
-  padding: 0 !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  color: rgba(244, 240, 231, 0.70) !important;
-  opacity: 0.78 !important;
+  bottom: 8px !important;
+  width: 150px !important;
+  height: 55px !important;
+  min-width: 150px !important;
+  padding: 0 14px 0 18px !important;
+  border: 1px solid rgba(215, 182, 77, 0.62) !important;
+  border-radius: 10px !important;
+  background: rgba(30, 58, 138, 0.94) !important;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.26) !important;
+  color: #f8df7a !important;
+  opacity: 1 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
   pointer-events: auto !important;
   z-index: 26 !important;
 }
 
 .root form[data-rc-composer-enhanced="true"] button[type="submit"]:hover {
-  color: rgba(248, 223, 122, 0.92) !important;
-  opacity: 1 !important;
+  background: rgba(39, 77, 179, 0.98) !important;
+}
+
+.root form[data-rc-composer-enhanced="true"] button[type="submit"]:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.4 !important;
 }
 
 .root form[data-rc-composer-enhanced="true"] button[type="submit"] svg {
-  width: 22px !important;
-  height: 22px !important;
+  width: 18px !important;
+  height: 18px !important;
   stroke-width: 1.25 !important;
 }
 
@@ -160,10 +182,16 @@
 }
 
 @media (max-width: 700px) {
+  .root form[data-rc-composer-enhanced="true"] > textarea {
+    min-height: 176px !important;
+    padding-right: 158px !important;
+    padding-bottom: 70px !important;
+  }
+
   .root form[data-rc-composer-enhanced="true"] button[title="AI Helper"] {
-    width: 122px !important;
-    height: 132px !important;
-    min-width: 122px !important;
+    width: 108px !important;
+    height: 112px !important;
+    min-width: 108px !important;
   }
 
   .root section[data-rc-multi-ai-grid="true"] {
