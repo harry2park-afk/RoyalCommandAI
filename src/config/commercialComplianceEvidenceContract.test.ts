@@ -37,8 +37,12 @@ describe("October commercial compliance evidence contract", () => {
   });
 
   it("requires recording approval, reviewer provenance and a non-empty legal basis", () => {
+    expect(commercialComplianceEvidenceSql).toContain(
+      "upper(coalesce(rp.review_status, '')) = 'approved'",
+    );
+    expect(machineSnapshotSql).toContain("rp.review_status = 'approved'");
+
     for (const sql of [commercialComplianceEvidenceSql, machineSnapshotSql]) {
-      expect(sql).toContain("rp.review_status = 'approved'");
       expect(sql).toContain("rp.reviewed_by is not null");
       expect(sql).toContain("rp.reviewed_at is not null");
       expect(sql).toContain(
