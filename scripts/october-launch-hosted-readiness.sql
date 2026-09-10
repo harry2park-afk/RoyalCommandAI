@@ -66,8 +66,8 @@ select json_build_object(
 ) as auth_room_factory_boundary;
 
 -- 2) First-wave country commercial/provider readiness. These are inventory checks only.
--- The current country-terms schema does not itself carry human review provenance,
--- so non-zero rows must never be interpreted as legal/compliance approval.
+-- Review provenance is checked through to_jsonb so this read-only evidence still runs
+-- fail-closed on Hosted schemas where the provenance columns have not yet been staged.
 select c.country_code,
        c.expected_currency,
        (select count(*)
@@ -87,7 +87,10 @@ select c.country_code,
          where o.country_code = c.country_code
            and o.currency = c.expected_currency
            and o.active is true
-           and o.review_status = 'APPROVED') as approved_active_local_currency_provider_offers
+           and o.review_status = 'APPROVED'
+           and nullif(trim(coalesce(to_jsonb(o)->>'reviewed_by', '')), '') is not null
+           and nullif(trim(coalesce(to_jsonb(o)->>'reviewed_at', '')), '') is not null
+       ) as approved_active_local_currency_provider_offers
   from (values
     ('AU', 'AUD'),
     ('US', 'USD'),
@@ -124,7 +127,9 @@ select c.country_code,
          where rp.country_code = c.country_code
            and rp.review_status = 'APPROVED'
            and rp.reviewed_by is not null
-           and rp.reviewed_at is not null) as recording_reviewer_proven_approved
+           and rp.reviewed_at is not null
+           and nullif(trim(coalesce(rp.legal_basis, '')), '') is not null
+       ) as recording_reviewer_proven_approved
   from (values
     ('SG', 'SGD'),
     ('CN', 'CNY'),
@@ -154,6 +159,13 @@ select json_build_object(
        and table_name = 'rc_service_provider_offers'
        and column_name in ('reviewed_by', 'reviewed_at')
   ),
+  'recording_legal_basis_column_exists', exists (
+    select 1
+      from information_schema.columns
+     where table_schema = 'public'
+       and table_name = 'communication_recording_policies'
+       and column_name = 'legal_basis'
+  ),
   'first_wave_recording_policy_rows', (
     select count(*)
       from public.communication_recording_policies
@@ -166,6 +178,7 @@ select json_build_object(
        and review_status = 'APPROVED'
        and reviewed_by is not null
        and reviewed_at is not null
+       and nullif(trim(coalesce(legal_basis, '')), '') is not null
   ),
   'service_connection_orders', (select count(*) from public.rc_service_connection_orders),
   'payment_provider_registry_exists',
