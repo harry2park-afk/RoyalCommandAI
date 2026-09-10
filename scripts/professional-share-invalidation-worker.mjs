@@ -10,15 +10,9 @@ export const PROFESSIONAL_SHARE_INVALIDATION_TARGETS = Object.freeze([
 ]);
 
 const TARGET_SET = new Set(PROFESSIONAL_SHARE_INVALIDATION_TARGETS);
-const MAX_ERROR_LENGTH = 500;
 
 function nonEmptyString(value) {
   return typeof value === 'string' && value.trim().length > 0;
-}
-
-function safeError(error) {
-  const text = error instanceof Error ? error.message : String(error ?? 'unknown error');
-  return text.replace(/[\r\n\t]+/g, ' ').slice(0, MAX_ERROR_LENGTH);
 }
 
 function validateQueue(queue) {
@@ -46,12 +40,13 @@ function validateContext(job, context) {
   return null;
 }
 
-async function completeFailure(queue, job, code, error = null) {
-  const detail = error == null ? code : `${code}: ${safeError(error)}`;
+async function completeFailure(queue, job, code) {
+  // Persist only a stable failure code. Provider/storage exception text can
+  // contain internal identifiers or secrets and must not enter the evidence DB.
   await queue.complete({
     eventId: job?.event_id,
     succeeded: false,
-    error: detail,
+    error: code,
     evidenceRef: null,
   });
   return {
@@ -82,8 +77,8 @@ async function processOne({ queue, adapters, job }) {
   let context;
   try {
     context = await queue.loadContext(job);
-  } catch (error) {
-    return completeFailure(queue, job, 'CONTEXT_LOAD_FAILED', error);
+  } catch {
+    return completeFailure(queue, job, 'CONTEXT_LOAD_FAILED');
   }
 
   const contextError = validateContext(job, context);
@@ -93,15 +88,15 @@ async function processOne({ queue, adapters, job }) {
 
   try {
     await adapter.erase(context);
-  } catch (error) {
-    return completeFailure(queue, job, 'ERASE_FAILED', error);
+  } catch {
+    return completeFailure(queue, job, 'ERASE_FAILED');
   }
 
   let proof;
   try {
     proof = await adapter.verifyAbsent(context);
-  } catch (error) {
-    return completeFailure(queue, job, 'READBACK_FAILED', error);
+  } catch {
+    return completeFailure(queue, job, 'READBACK_FAILED');
   }
 
   if (proof?.absent !== true) {
@@ -139,6 +134,8 @@ async function processOne({ queue, adapters, job }) {
  * A job can be marked succeeded only after target-specific erase completes and a
  * separate read-back returns { absent: true, evidenceRef: <non-empty> }.
  * Missing/unknown/non-idempotent adapters fail closed and never produce success.
+ * Failure persistence uses stable codes only; raw downstream exceptions are not
+ * written into the evidence database.
  */
 export async function processProfessionalShareInvalidationBatch({
   queue,
