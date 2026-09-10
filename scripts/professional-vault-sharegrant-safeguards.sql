@@ -122,6 +122,7 @@ declare
   legal_object uuid;
   active_grant uuid;
   short_grant uuid;
+  invalidation_id uuid;
   target_count integer;
 begin
   insert into public.professional_vaults(
@@ -154,24 +155,33 @@ begin
       '11111111-1111-4111-8111-111111111111',
       'v2.3-evidence'
     );
-    raise exception 'Cross-tenant Vault substitution was accepted';
+    raise exception '__vault_cross_tenant_not_blocked__';
   exception
     when raise_exception then
-      if sqlerrm = 'Cross-tenant Vault substitution was accepted' then
-        raise;
-      end if;
+      if sqlerrm <> 'Professional vault Room/tenant boundary mismatch' then raise; end if;
   end;
 
   begin
-    insert into public.professional_vaults(
-      tenant_id, room_id, domain, policy_version
-    ) values (
+    update public.professional_vaults
+    set tenant_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        room_id = 'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb',
+        authority_user_id = '22222222-2222-4222-8222-222222222222'
+    where id = legal_vault;
+    raise exception '__vault_rehome_not_blocked__';
+  exception
+    when raise_exception then
+      if sqlerrm <> 'Professional vault tenant/Room/domain identity is immutable' then raise; end if;
+  end;
+
+  begin
+    insert into public.professional_vaults(tenant_id, room_id, domain, policy_version)
+    values (
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
       'virtual_bridge',
       'v2.3-evidence'
     );
-    raise exception 'virtual_bridge was incorrectly accepted as persistent vault storage';
+    raise exception '__virtual_bridge_storage_not_blocked__';
   exception
     when check_violation then null;
   end;
@@ -200,27 +210,27 @@ begin
       'document',
       'vault://evidence/bad-object'
     );
-    raise exception 'Cross-tenant Vault object substitution was accepted';
+    raise exception '__object_cross_tenant_not_blocked__';
   exception
     when raise_exception then
-      if sqlerrm = 'Cross-tenant Vault object substitution was accepted' then
-        raise;
-      end if;
+      if sqlerrm <> 'Professional object Vault/Room/tenant boundary mismatch or inactive vault' then raise; end if;
+  end;
+
+  begin
+    update public.professional_vault_objects
+    set vault_id = accounting_vault,
+        object_key = 'moved-object'
+    where id = legal_object;
+    raise exception '__object_rehome_not_blocked__';
+  exception
+    when raise_exception then
+      if sqlerrm <> 'Professional vault object identity/content reference is immutable; create a new object version' then raise; end if;
   end;
 
   insert into public.professional_share_grants(
-    tenant_id,
-    source_vault_id,
-    source_object_id,
-    source_room_id,
-    destination_room_id,
-    destination_domain,
-    grantor_user_id,
-    field_scope,
-    purpose,
-    policy_version,
-    idempotency_key,
-    expires_at
+    tenant_id, source_vault_id, source_object_id, source_room_id,
+    destination_room_id, destination_domain, grantor_user_id, field_scope,
+    purpose, policy_version, idempotency_key, expires_at
   ) values (
     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     legal_vault,
@@ -244,19 +254,17 @@ begin
     update public.professional_share_grants
     set field_scope = array['document_text', 'expanded_scope']
     where id = active_grant;
-    raise exception 'ShareGrant scope mutation was accepted';
+    raise exception '__grant_scope_mutation_not_blocked__';
   exception
     when raise_exception then
-      if sqlerrm = 'ShareGrant scope mutation was accepted' then
-        raise;
-      end if;
+      if sqlerrm <> 'ShareGrant authority/scope is immutable; issue a new grant instead' then raise; end if;
   end;
 
   begin
     insert into public.professional_share_grants(
       tenant_id, source_vault_id, source_object_id, source_room_id,
-      destination_room_id, destination_domain, purpose, policy_version,
-      idempotency_key, expires_at
+      destination_room_id, destination_domain, grantor_user_id, purpose,
+      policy_version, idempotency_key, expires_at
     ) values (
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       legal_vault,
@@ -264,24 +272,23 @@ begin
       'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
       'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
       'legal',
+      '11111111-1111-4111-8111-111111111111',
       'Invalid same-domain evidence grant',
       'v2.3-evidence',
       'grant-same-domain',
       now() + interval '1 hour'
     );
-    raise exception 'Same-domain ShareGrant was accepted instead of cross-vault Virtual View';
+    raise exception '__same_domain_grant_not_blocked__';
   exception
     when raise_exception then
-      if sqlerrm = 'Same-domain ShareGrant was accepted instead of cross-vault Virtual View' then
-        raise;
-      end if;
+      if sqlerrm <> 'ShareGrant Virtual View must cross Legal/Accounting vault domains' then raise; end if;
   end;
 
   begin
     insert into public.professional_share_grants(
       tenant_id, source_vault_id, source_object_id, source_room_id,
-      destination_room_id, destination_domain, purpose, policy_version,
-      idempotency_key, expires_at
+      destination_room_id, destination_domain, grantor_user_id, purpose,
+      policy_version, idempotency_key, expires_at
     ) values (
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       legal_vault,
@@ -289,24 +296,23 @@ begin
       'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
       'bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb',
       'accounting',
+      '11111111-1111-4111-8111-111111111111',
       'Invalid cross-tenant destination evidence grant',
       'v2.3-evidence',
       'grant-cross-tenant',
       now() + interval '1 hour'
     );
-    raise exception 'Cross-tenant ShareGrant destination was accepted';
+    raise exception '__cross_tenant_grant_not_blocked__';
   exception
     when raise_exception then
-      if sqlerrm = 'Cross-tenant ShareGrant destination was accepted' then
-        raise;
-      end if;
+      if sqlerrm <> 'ShareGrant destination Room is outside the source tenant' then raise; end if;
   end;
 
   begin
     insert into public.professional_share_grants(
       tenant_id, source_vault_id, source_object_id, source_room_id,
-      destination_room_id, destination_domain, purpose, policy_version,
-      idempotency_key, expires_at
+      destination_room_id, destination_domain, grantor_user_id, purpose,
+      policy_version, idempotency_key, expires_at
     ) values (
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
       legal_vault,
@@ -314,12 +320,13 @@ begin
       'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
       'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
       'accounting',
+      '11111111-1111-4111-8111-111111111111',
       'Duplicate idempotency evidence grant',
       'v2.3-evidence',
       'grant-evidence-1',
       now() + interval '1 hour'
     );
-    raise exception 'Duplicate ShareGrant idempotency key was accepted';
+    raise exception '__duplicate_grant_not_blocked__';
   exception
     when unique_violation then null;
   end;
@@ -337,28 +344,34 @@ begin
 
   begin
     update public.professional_share_grants
-    set status = 'active',
-        revoked_at = null,
-        revocation_reason = null
+    set status = 'active', revoked_at = null, revocation_reason = null
     where id = active_grant;
-    raise exception 'Revoked ShareGrant was reactivated';
+    raise exception '__revoked_grant_reactivated__';
   exception
     when raise_exception then
-      if sqlerrm = 'Revoked ShareGrant was reactivated' then
-        raise;
-      end if;
+      if sqlerrm <> 'Revoked ShareGrant cannot be reactivated' then raise; end if;
   end;
 
   insert into public.professional_share_invalidation_events(tenant_id, grant_id, target)
-  select
-    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
-    active_grant,
-    target
+  values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', active_grant, 'cache')
+  returning id into invalidation_id;
+
+  begin
+    update public.professional_share_invalidation_events
+    set target = 'vector_db'
+    where id = invalidation_id;
+    raise exception '__invalidation_identity_mutation_not_blocked__';
+  exception
+    when raise_exception then
+      if sqlerrm <> 'ShareGrant invalidation identity is immutable' then raise; end if;
+  end;
+
+  insert into public.professional_share_invalidation_events(tenant_id, grant_id, target)
+  select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', active_grant, target
   from unnest(array[
     'vector_db',
     'embeddings',
     'search_index',
-    'cache',
     'prompt_context',
     'ai_memory',
     'derived_copy',
@@ -376,25 +389,16 @@ begin
   begin
     insert into public.professional_share_invalidation_events(tenant_id, grant_id, target)
     values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', active_grant, 'cache');
-    raise exception 'Cross-tenant invalidation event was accepted';
+    raise exception '__cross_tenant_invalidation_not_blocked__';
   exception
     when raise_exception then
-      if sqlerrm = 'Cross-tenant invalidation event was accepted' then
-        raise;
-      end if;
+      if sqlerrm <> 'ShareGrant invalidation event tenant mismatch' then raise; end if;
   end;
 
   insert into public.professional_share_grants(
-    tenant_id,
-    source_vault_id,
-    source_object_id,
-    source_room_id,
-    destination_room_id,
-    destination_domain,
-    purpose,
-    policy_version,
-    idempotency_key,
-    expires_at
+    tenant_id, source_vault_id, source_object_id, source_room_id,
+    destination_room_id, destination_domain, grantor_user_id, purpose,
+    policy_version, idempotency_key, expires_at
   ) values (
     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     legal_vault,
@@ -402,6 +406,7 @@ begin
     'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
     'aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa',
     'accounting',
+    '11111111-1111-4111-8111-111111111111',
     'Short-lived expiry evidence grant',
     'v2.3-evidence',
     'grant-short-expiry',
