@@ -12,7 +12,7 @@ create or replace function private.guard_profile_role_change()
 returns trigger
 language plpgsql
 security definer
-set search_path = pg_catalog, auth, public, private
+set search_path = pg_catalog
 as $$
 begin
   if auth.uid() is not null then
@@ -46,7 +46,7 @@ create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = pg_catalog, public
+set search_path = pg_catalog
 as $$
 begin
   insert into public.profiles (id, email, full_name, default_language, role)
