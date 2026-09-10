@@ -6,9 +6,9 @@
   box-sizing: border-box;
   height: 128px !important;
   min-height: 128px !important;
-  padding-right: 140px !important;
-  padding-bottom: 44px !important;
-  scroll-padding-bottom: 44px;
+  padding-right: 132px !important;
+  padding-bottom: 56px !important;
+  scroll-padding-bottom: 56px;
 }
 
 .root form[data-rc-composer-enhanced="true"] > div[data-rc-composer-controls="true"] {
@@ -186,8 +186,8 @@
   .root form[data-rc-composer-enhanced="true"] > textarea {
     height: 128px !important;
     min-height: 128px !important;
-    padding-right: 132px !important;
-    padding-bottom: 44px !important;
+    padding-right: 124px !important;
+    padding-bottom: 56px !important;
   }
 
   .root form[data-rc-composer-enhanced="true"] button[title="AI Helper"] {
