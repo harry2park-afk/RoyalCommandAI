@@ -352,9 +352,14 @@ begin
       if sqlerrm <> 'Revoked ShareGrant cannot be reactivated' then raise; end if;
   end;
 
-  insert into public.professional_share_invalidation_events(tenant_id, grant_id, target)
-  values ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', active_grant, 'cache')
-  returning id into invalidation_id;
+  select id into invalidation_id
+  from public.professional_share_invalidation_events
+  where grant_id = active_grant
+    and target = 'cache';
+
+  if invalidation_id is null then
+    raise exception 'Revocation did not automatically enqueue cache invalidation';
+  end if;
 
   begin
     update public.professional_share_invalidation_events
@@ -366,34 +371,37 @@ begin
       if sqlerrm <> 'ShareGrant invalidation identity is immutable' then raise; end if;
   end;
 
-  insert into public.professional_share_invalidation_events(tenant_id, grant_id, target)
-  select 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', active_grant, target
-  from unnest(array[
-    'vector_db',
-    'embeddings',
-    'search_index',
-    'prompt_context',
-    'ai_memory',
-    'derived_copy',
-    'active_session'
-  ]::text[]) as target;
-
   select count(*) into target_count
   from public.professional_share_invalidation_events
   where grant_id = active_grant;
 
   if target_count <> 8 then
-    raise exception 'Expected all 8 invalidation target records, got %', target_count;
+    raise exception 'Revocation must automatically enqueue all 8 invalidation target records, got %', target_count;
   end if;
 
-  begin
-    insert into public.professional_share_invalidation_events(tenant_id, grant_id, target)
-    values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', active_grant, 'cache');
-    raise exception '__cross_tenant_invalidation_not_blocked__';
-  exception
-    when raise_exception then
-      if sqlerrm <> 'ShareGrant invalidation event tenant mismatch' then raise; end if;
-  end;
+  if exists (
+    select required.target
+    from unnest(array[
+      'vector_db',
+      'embeddings',
+      'search_index',
+      'cache',
+      'prompt_context',
+      'ai_memory',
+      'derived_copy',
+      'active_session'
+    ]::text[]) as required(target)
+    where not exists (
+      select 1
+      from public.professional_share_invalidation_events e
+      where e.grant_id = active_grant
+        and e.target = required.target
+        and e.status = 'pending'
+        and e.attempt_count = 0
+    )
+  ) then
+    raise exception 'Revocation queue is missing a required pending invalidation target';
+  end if;
 
   insert into public.professional_share_grants(
     tenant_id, source_vault_id, source_object_id, source_room_id,
@@ -412,6 +420,15 @@ begin
     'grant-short-expiry',
     now() + interval '2 seconds'
   ) returning id into short_grant;
+
+  begin
+    insert into public.professional_share_invalidation_events(tenant_id, grant_id, target)
+    values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', short_grant, 'cache');
+    raise exception '__cross_tenant_invalidation_not_blocked__';
+  exception
+    when raise_exception then
+      if sqlerrm <> 'ShareGrant invalidation event tenant mismatch' then raise; end if;
+  end;
 
   create temporary table if not exists professional_evidence_ids(grant_id uuid);
   insert into professional_evidence_ids(grant_id) values (short_grant);
