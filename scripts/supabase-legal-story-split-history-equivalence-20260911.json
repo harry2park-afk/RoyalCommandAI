@@ -1,0 +1,42 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-11T05:46:00+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "migration_source_ref": "96f843789c1680c29483e7c9b35b41b23328ae33",
+  "source": "Fresh Hosted Supabase READ-ONLY schema_migrations read-back plus exact GitHub migration source at the pinned candidate ref.",
+  "purpose": "Prove the specific legal_story_entries source split without claiming migration-ledger identity. The local base migration folds one audio_document_id column into table creation; Hosted created the same base without that column and immediately added the same column in a separate migration.",
+  "local": {
+    "name": "legal_story_entries",
+    "version": "20260829142500",
+    "path": "supabase/migrations/20260829142500_legal_story_entries.sql",
+    "blob_sha": "639d956e946808dbdf477a2c4ff92bb78fb4e658"
+  },
+  "hosted_base": {
+    "name": "legal_story_entries",
+    "version": "20260829042019",
+    "statements_sha256": "23cbee3256864644f0c4e64d0d3cc490acd3fc1d915c09977ed150ac241176c3"
+  },
+  "hosted_followup": {
+    "name": "legal_story_entry_audio",
+    "version": "20260829042153",
+    "statements_sha256": "1e637481cab6eadcd5994196d96886c1473fa712433dfc5c3382c08640089340"
+  },
+  "composition_contract": {
+    "folded_local_declaration": "audio_document_id uuid null references public.documents(id) on delete set null",
+    "derivation": "Remove exactly the folded audio_document_id declaration from the local create-table migration. The remaining bytes must hash exactly to the Hosted base statement. Then derive ALTER TABLE ... ADD COLUMN IF NOT EXISTS from that exact declaration; the derived bytes must hash exactly to the Hosted follow-up statement.",
+    "source_composition_equivalent": true,
+    "ledger_identity_claimed": false,
+    "execution_order_identity_claimed": false
+  },
+  "summary": {
+    "complex_source_composition_proven": 1,
+    "remaining_complex_formatting_source_proofs": 2,
+    "ledger_identity_verified": 0,
+    "ready_for_linked_apply": false
+  },
+  "remaining_complex_formatting_names": [
+    "room_factory_evidence_review",
+    "room_factory_start_execution"
+  ],
+  "remaining_gate": "The split-history proof does not reconcile migration versions or authorize repair. Exact credentialed supabase migration list --linked and db push --linked --dry-run evidence remain mandatory before any Hosted migration apply is considered."
+}
