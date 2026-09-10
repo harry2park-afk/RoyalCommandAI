@@ -408,7 +408,7 @@ begin
     now() + interval '2 seconds'
   ) returning id into short_grant;
 
-  create temporary table if not exists professional_evidence_ids(grant_id uuid) on commit drop;
+  create temporary table if not exists professional_evidence_ids(grant_id uuid);
   insert into professional_evidence_ids(grant_id) values (short_grant);
 end;
 $$;
