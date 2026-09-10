@@ -26,6 +26,15 @@ command -v supabase >/dev/null 2>&1 || fail "Supabase CLI is required"
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || fail "run from a Git checkout"
 cd "$repo_root"
 
+# Project identity is a release-safety boundary. Refuse to link if the repository
+# config and this evidence harness do not name the same Hosted project.
+config_file="supabase/config.toml"
+[[ -f "$config_file" ]] || fail "supabase/config.toml is missing"
+configured_project_ref="$(awk -F'"' '/^[[:space:]]*project_id[[:space:]]*=/{print $2; exit}' "$config_file")"
+[[ "$configured_project_ref" =~ ^[a-z0-9]+$ ]] || fail "configured project ref is missing or malformed"
+[[ "$configured_project_ref" == "$EXPECTED_PROJECT_REF" ]] \
+  || fail "configured project ref mismatch: expected $EXPECTED_PROJECT_REF, got $configured_project_ref"
+
 # Do not collect release evidence from a dirty checkout.
 if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   fail "tracked files are dirty; use an exact clean candidate checkout"
@@ -41,6 +50,7 @@ cli_version="$(supabase --version)"
   printf 'git_head=%s\n' "$head_sha"
   printf 'git_branch=%s\n' "$branch_name"
   printf 'expected_project_ref=%s\n' "$EXPECTED_PROJECT_REF"
+  printf 'configured_project_ref=%s\n' "$configured_project_ref"
   printf 'expected_apply_migrations=%s\n' "$EXPECTED_APPLY_MIGRATIONS"
   printf 'supabase_cli=%s\n' "$cli_version"
   printf 'generated_at_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
