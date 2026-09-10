@@ -9,7 +9,16 @@ export type IndependentReceiptPayload = {
 };
 
 function signingSecret() {
-  return process.env.RCA_RECEIPT_SECRET || process.env.AU_V2_SESSION_SECRET || "";
+  return (
+    process.env.RCA_RECEIPT_SECRET ||
+    process.env.AU_V2_SESSION_SECRET ||
+    process.env.OPENAI_API_KEY ||
+    process.env.ANTHROPIC_API_KEY ||
+    process.env.GOOGLE_API_KEY ||
+    process.env.GEMINI_API_KEY ||
+    process.env.XAI_API_KEY ||
+    ""
+  );
 }
 
 function serialized(userId: string, receipt: IndependentReceiptPayload) {
