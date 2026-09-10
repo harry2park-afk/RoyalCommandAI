@@ -1,0 +1,33 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-10T08:50:33Z",
+  "project_ref": "aygawkavujjmybekswrg",
+  "scope": "READ_ONLY_SCHEMA_EVIDENCE_ONLY",
+  "authorization": "This snapshot does not authorize Hosted mutation, adapter activation, migration apply, Production deployment, or Country READY.",
+  "hosted_schema_observation": {
+    "candidate_tables": {
+      "active_session": ["public.communication_sessions", "public.layout_editor_sessions"],
+      "prompt_context": [],
+      "ai_memory": [],
+      "cache": [],
+      "search_index": [],
+      "embedding": [],
+      "vector": [],
+      "derived_copy": ["public.documents", "public.matter_documents"]
+    },
+    "direct_sharegrant_link_columns": [],
+    "direct_tenant_or_provenance_columns": [],
+    "observed_linkage": "Candidate user-data tables expose room_id/owner_id/matter_id style linkage, but the inspected public schema exposes no direct ShareGrant identifier and no verified target-specific ShareGrant provenance chain. Therefore no concrete erasure adapter is authorized from this observation alone."
+  },
+  "targets": [
+    {"target":"active_session","status":"BLOCKED_UNPROVEN","reason":"Candidate session tables have no direct ShareGrant linkage in the inspected public schema."},
+    {"target":"prompt_context","status":"BLOCKED_UNPROVEN","reason":"No canonical persisted prompt-context resource with direct ShareGrant provenance was identified."},
+    {"target":"ai_memory","status":"BLOCKED_UNPROVEN","reason":"No canonical persisted AI-memory resource with direct ShareGrant provenance was identified."},
+    {"target":"cache","status":"BLOCKED_UNPROVEN","reason":"No canonical cache resource with direct ShareGrant provenance was identified."},
+    {"target":"search_index","status":"BLOCKED_UNPROVEN","reason":"No canonical search-index resource with direct ShareGrant provenance was identified."},
+    {"target":"embedding","status":"BLOCKED_UNPROVEN","reason":"No canonical embedding resource with direct ShareGrant provenance was identified."},
+    {"target":"vector","status":"BLOCKED_UNPROVEN","reason":"No canonical vector-store resource with direct ShareGrant provenance was identified."},
+    {"target":"derived_copy","status":"BLOCKED_UNPROVEN","reason":"Document tables exist, but no direct ShareGrant linkage proving which rows are derived from a grant was identified."}
+  ],
+  "release_ready": false
+}

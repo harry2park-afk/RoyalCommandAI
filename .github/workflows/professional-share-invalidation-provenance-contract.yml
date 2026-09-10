@@ -1,0 +1,56 @@
+name: Professional Share Invalidation Provenance Contract
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "scripts/professional-share-invalidation-provenance-snapshot-20260910.json"
+      - "scripts/professional-share-invalidation-provenance-safeguard.mjs"
+      - "scripts/professional-share-invalidation-worker.mjs"
+      - "scripts/professional-share-invalidation-worker-safeguard.mjs"
+      - ".github/workflows/professional-share-invalidation-provenance-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-professional-share-provenance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  provenance-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          [[ "${actual_sha}" == "${CANDIDATE_SHA}" ]] || {
+            echo "BLOCKED: checkout SHA ${actual_sha} does not match candidate ${CANDIDATE_SHA}"
+            exit 1
+          }
+          echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
+
+      - name: Verify read-only provenance inventory stays fail-closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          node --version
+          node scripts/professional-share-invalidation-provenance-safeguard.mjs
+
+      - name: Verify worker requires explicit verified provenance
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/professional-share-invalidation-worker-safeguard.mjs
