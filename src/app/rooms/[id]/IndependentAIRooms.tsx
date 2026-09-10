@@ -9,6 +9,7 @@ import { moveLanguageCountryLocale, normaliseLanguageCountryOrder, promoteLangua
 import { CREATE_ROOM_COUNTRIES, createRoomCopy } from "@/lib/rooms/create-room-i18n";
 import styles from "./IndependentAIRooms.module.css";
 import { useDomainRuntime } from "@/components/DomainRuntimeProvider";
+import { getIntegrationEligibility } from "@/lib/ai/integrationEligibility";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string; title?: string; titleEdited?: boolean };
@@ -153,8 +154,10 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [frozenQuestion, setFrozenQuestion] = useState("");
   const [integrated, setIntegrated] = useState("");
   const [integrating, setIntegrating] = useState(false);
+  const [integrationError, setIntegrationError] = useState("");
   const [globalError, setGlobalError] = useState("");
   const aborters = useRef(new Map<string, AbortController>());
+  const integrationInFlightRef = useRef(false);
   const executionGeneration = useRef(0);
   const recognitionRef = useRef<any>(null);
   const recognitionActiveRef = useRef(false);
@@ -373,8 +376,13 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   }, [roomPrompt]);
 
   const selectedConnected = useMemo(() => selected.filter((id) => connected.has(id)), [selected, connected]);
-  const frozenList = useMemo(() => selectedConnected.map((id) => frozenResults[id]).filter(Boolean), [selectedConnected, frozenResults]);
-  const canIntegrate = Boolean(frozenQuestion && frozenList.length && frozenList.length === selectedConnected.length && selectedConnected.every((id) => frozenResults[id]?.receipt?.terminal));
+  const integrationEligibility = useMemo(
+    () => getIntegrationEligibility(selectedConnected, frozenResults),
+    [selectedConnected, frozenResults],
+  );
+  const frozenList = integrationEligibility.successfulResults;
+  const failedFrozenList = integrationEligibility.failedResults;
+  const canIntegrate = Boolean(frozenQuestion && integrationEligibility.canIntegrate && !integrated);
 
   function setProviderState(provider: ProviderId, patch: Partial<RoomState>) {
     setRooms((prev) => ({ ...prev, [provider]: { ...prev[provider], ...patch } }));
@@ -668,9 +676,11 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     aborters.current.forEach((controller) => controller.abort());
     aborters.current.clear();
     const generation = ++executionGeneration.current;
+    integrationInFlightRef.current = false;
     setFrozenQuestion(prompt);
     setFrozenResults({});
     setIntegrated("");
+    setIntegrationError("");
     setGlobalError("");
     const snapshot = [...target];
     const chatTitlePromise = generateChatTitle(prompt);
@@ -742,7 +752,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     archiveCurrentSession();
     cancelAll();
     setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } });
-    activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
+    activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError(""); setMenuOpen(false);
   }
 
   async function loadChatSession(session: ChatSession) {
@@ -768,7 +778,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
       }
     }
     setRooms(Object.fromEntries(PROVIDERS.map((provider) => [provider.id, { ...EMPTY, history: [...(histories[provider.id] || [])] }])) as Record<ProviderId, RoomState>);
-    activeChatSessionIdRef.current = session.id; setActiveChatSessionId(session.id); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError(""); setMenuOpen(false);
+    activeChatSessionIdRef.current = session.id; setActiveChatSessionId(session.id); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError(""); setMenuOpen(false);
   }
 
   function editCurrentChatTitle() {
@@ -794,7 +804,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     cancelAll();
     stopMic();
     setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } });
-    activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setGlobalError("");
+    activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError("");
   }
 
   function deleteChatSession(sessionId: string) {
@@ -891,9 +901,11 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   }
 
   async function integrate() {
-    if (!canIntegrate || integrating) return;
+    if (!canIntegrate || integrating || integrationInFlightRef.current) return;
+    integrationInFlightRef.current = true;
     setIntegrating(true);
-    setGlobalError("");
+    setIntegrationError("");
+    let succeeded = false;
     try {
       const res = await fetch("/api/ai/integrate", {
         method: "POST",
@@ -902,10 +914,14 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || data?.error) throw new Error(data?.error || "Integration failed");
-      setIntegrated(String(data.content || ""));
+      const content = String(data.content || "").trim();
+      if (!content) throw new Error("Integration returned no answer");
+      setIntegrated(content);
+      succeeded = true;
     } catch (error) {
-      setGlobalError(error instanceof Error ? error.message : "Integration failed");
+      setIntegrationError(error instanceof Error ? error.message : "Integration failed");
     } finally {
+      if (!succeeded) integrationInFlightRef.current = false;
       setIntegrating(false);
     }
   }
@@ -1017,7 +1033,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
                 </article>;
               })}
 
-              <article className="flex min-h-[360px] flex-col rounded-2xl border border-[#7a5b18]/60 bg-[#17130a] p-4 shadow-lg"><div className="flex items-center justify-between"><div><h3 className="text-xl font-semibold text-[#f0d36a]">Final Integrator</h3><p className="text-xs text-[#a59a76]">Read-only · Frozen results only</p></div><span className={`h-2 w-2 rounded-full ${canIntegrate ? "bg-emerald-400" : "bg-slate-600"}`}/></div><div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#7a5b18]/30 bg-black/15 p-3 text-[15px] leading-6 text-[#d6cfb5]">{integrated ? integrated : canIntegrate ? `${frozenList.length} frozen results ready.` : "No integrated answer yet"}</div><button disabled={!canIntegrate || integrating} onClick={integrate} className="mt-3 w-full rounded-lg border border-[#d7b64d]/40 bg-[#2a2109] px-3 py-2.5 text-sm font-semibold text-[#f0d36a] disabled:opacity-35">{integrating ? "Integrating…" : "Create integrated answer"}</button></article>
+              <article className="flex min-h-[360px] flex-col rounded-2xl border border-[#7a5b18]/60 bg-[#17130a] p-4 shadow-lg"><div className="flex items-center justify-between"><div><h3 className="text-xl font-semibold text-[#f0d36a]">Final Integrator</h3><p className="text-xs text-[#a59a76]">Read-only · Frozen results only</p></div><span className={`h-2 w-2 rounded-full ${canIntegrate ? "bg-emerald-400" : "bg-slate-600"}`}/></div><div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#7a5b18]/30 bg-black/15 p-3 text-[15px] leading-6 text-[#d6cfb5]">{integrating ? "Creating integrated answer…" : integrated ? integrated : integrationError ? `Integration failed: ${integrationError}` : canIntegrate ? `${frozenList.length} successful result${frozenList.length === 1 ? "" : "s"} ready.` : frozenQuestion && failedFrozenList.length ? "Integration unavailable: no successful AI answers." : "No integrated answer yet"}</div>{failedFrozenList.length ? <div className="mt-2 rounded-lg border border-red-400/25 bg-red-950/20 px-3 py-2 text-xs text-red-200"><div className="font-semibold">Excluded failed AI</div>{failedFrozenList.map((result) => <div key={result.provider}>{result.providerName}: {result.error || "No completed answer"}</div>)}</div> : null}<button disabled={!canIntegrate || integrating} onClick={integrate} className="mt-3 w-full rounded-lg border border-[#d7b64d]/40 bg-[#2a2109] px-3 py-2.5 text-sm font-semibold text-[#f0d36a] disabled:opacity-35">{integrating ? "Integrating…" : integrated ? "Integrated answer created" : "Create integrated answer"}</button></article>
             </section>
           </>
         ) : (
