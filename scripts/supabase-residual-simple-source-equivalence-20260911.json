@@ -1,0 +1,45 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-11T01:52:00+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "migration_source_ref": "967da8975f9a9b831259307af62f352442f89fe7",
+  "source": "Fresh Hosted Supabase READ-ONLY schema_migrations statement read-back plus exact GitHub migration source at the pinned candidate ref.",
+  "purpose": "Narrow two residual source-drift cases only. This proves whitespace/full-line-comment canonical source equivalence for an explicit two-migration allow-list. It does not prove migration-ledger identity, authorize migration repair, authorize a push/deploy, or change Country READY.",
+  "normalization_contract": {
+    "method": "Remove full-line SQL comments, trim, then collapse runs of whitespace to one ASCII space.",
+    "scope_restriction": "Only the two explicitly listed simple migrations are eligible. CI rejects block comments, dollar-quoted bodies, and quoted string/identifier literals containing whitespace before accepting this proof.",
+    "hash": "sha256"
+  },
+  "summary": {
+    "eligible_migrations": 2,
+    "source_provenance_equivalent": 2,
+    "ledger_identity_verified": 0,
+    "ready_for_linked_apply": false
+  },
+  "entries": [
+    {
+      "name": "add_room_work_records",
+      "remote_version": "20260825044842",
+      "local_version": "20260825044500",
+      "local_path": "supabase/migrations/20260825044500_add_room_work_records.sql",
+      "remote_whitespace_canonical_sha256": "791faf3141104edbdd13302d7106827c5141361897d22f2a9d26b4faa7bdbbee",
+      "source_provenance_equivalent": true,
+      "ledger_identity_claimed": false
+    },
+    {
+      "name": "legal_case_file_numbers",
+      "remote_version": "20260829070456",
+      "local_version": "20260829171000",
+      "local_path": "supabase/migrations/20260829171000_legal_case_file_numbers.sql",
+      "remote_whitespace_canonical_sha256": "9100f6697d75ac787e547f53d7f0eba9fd89d626e5eb61e2352e6a25509c1211",
+      "source_provenance_equivalent": true,
+      "ledger_identity_claimed": false
+    }
+  ],
+  "remaining_residual_names": [
+    "legal_story_entries",
+    "room_factory_evidence_review",
+    "room_factory_start_execution"
+  ],
+  "remaining_gate": "Migration-ledger reconciliation plus exact credentialed supabase migration list --linked and db push --linked --dry-run evidence remain mandatory before any Hosted migration apply is considered."
+}
