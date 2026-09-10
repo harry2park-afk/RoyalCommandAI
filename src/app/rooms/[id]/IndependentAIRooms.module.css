@@ -4,7 +4,7 @@
 
 .root form[data-rc-composer-enhanced="true"] > textarea {
   box-sizing: border-box;
-  min-height: 184px !important;
+  min-height: 128px !important;
   padding-right: 188px !important;
   padding-bottom: 72px !important;
   scroll-padding-bottom: 72px;
@@ -183,7 +183,7 @@
 
 @media (max-width: 700px) {
   .root form[data-rc-composer-enhanced="true"] > textarea {
-    min-height: 176px !important;
+    min-height: 128px !important;
     padding-right: 158px !important;
     padding-bottom: 70px !important;
   }
