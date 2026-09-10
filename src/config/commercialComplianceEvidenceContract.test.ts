@@ -41,6 +41,13 @@ describe("October commercial compliance evidence contract", () => {
     );
     expect(hostedReadinessSql).toContain("to_jsonb(o)->>'reviewed_by'");
     expect(hostedReadinessSql).toContain("to_jsonb(o)->>'reviewed_at'");
+
+    expect(machineSnapshotSql).toContain("'reviewer_proven_terms'");
+    expect(machineSnapshotSql).toContain("'reviewer_proven_provider_offers'");
+    expect(machineSnapshotSql).toContain("to_jsonb(t)->>'reviewed_by'");
+    expect(machineSnapshotSql).toContain("to_jsonb(t)->>'reviewed_at'");
+    expect(machineSnapshotSql).toContain("to_jsonb(o)->>'reviewed_by'");
+    expect(machineSnapshotSql).toContain("to_jsonb(o)->>'reviewed_at'");
   });
 
   it("requires recording approval, reviewer provenance and a non-empty legal basis", () => {
