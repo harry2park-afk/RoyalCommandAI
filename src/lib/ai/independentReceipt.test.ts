@@ -1,15 +1,17 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { signIndependentReceipt, verifyIndependentReceipt } from "./independentReceipt";
+import { signIndependentReceipt, verifyIndependentReceipt, verifyIndependentReceiptForIntegration } from "./independentReceipt";
 
 const receipt = { requestId: "request-1", provider: "openai" as const, terminal: true as const, completedAt: "2026-09-06T00:00:00.000Z" };
 const previous = process.env.RCA_RECEIPT_SECRET;
 const previousSessionSecret = process.env.AU_V2_SESSION_SECRET;
 const previousOpenAiKey = process.env.OPENAI_API_KEY;
+const previousVercelEnv = process.env.VERCEL_ENV;
 
 afterEach(() => {
   process.env.RCA_RECEIPT_SECRET = previous;
   process.env.AU_V2_SESSION_SECRET = previousSessionSecret;
   process.env.OPENAI_API_KEY = previousOpenAiKey;
+  process.env.VERCEL_ENV = previousVercelEnv;
 });
 
 describe("independent provider receipts", () => {
@@ -29,5 +31,12 @@ describe("independent provider receipts", () => {
     const signature = signIndependentReceipt("user-a", receipt);
     expect(signature).toBeTruthy();
     expect(verifyIndependentReceipt("user-a", receipt, signature)).toBe(true);
+  });
+
+  it("accepts only legacy unsigned receipts in Preview and keeps Production strict", () => {
+    process.env.VERCEL_ENV = "preview";
+    expect(verifyIndependentReceiptForIntegration("user-a", receipt, null)).toBe(true);
+    process.env.VERCEL_ENV = "production";
+    expect(verifyIndependentReceiptForIntegration("user-a", receipt, null)).toBe(false);
   });
 });

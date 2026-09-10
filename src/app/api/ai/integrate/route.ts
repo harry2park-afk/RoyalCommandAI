@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getAvailableProviderIds, getConnector } from "@/lib/ai/connectors";
 import { AI_PROVIDER_IDS, type AIProviderId } from "@/lib/ai/types";
-import { verifyIndependentReceipt, type IndependentReceiptPayload } from "@/lib/ai/independentReceipt";
+import { verifyIndependentReceiptForIntegration, type IndependentReceiptPayload } from "@/lib/ai/independentReceipt";
 import { isDomainFeatureReady } from "@/config/countryResolver";
 import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
 
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
     const receipt = provider && receiptRow.terminal === true && receiptRow.provider === provider && typeof receiptRow.requestId === "string" && typeof receiptRow.completedAt === "string"
       ? { requestId: receiptRow.requestId, provider, terminal: true as const, completedAt: receiptRow.completedAt }
       : null;
-    if (!provider || !receipt || !verifyIndependentReceipt(user.id, receipt, receiptRow.signature)) return null;
+    if (!provider || !receipt || !verifyIndependentReceiptForIntegration(user.id, receipt, receiptRow.signature)) return null;
     return {
       provider,
       providerName: String(row.providerName || row.provider || "unknown"),
