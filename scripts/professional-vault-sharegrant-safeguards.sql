@@ -7,31 +7,31 @@ begin;
 
 do $$
 declare
-  table_name text;
+  target_table text;
 begin
-  foreach table_name in array array[
+  foreach target_table in array array[
     'professional_vaults',
     'professional_vault_objects',
     'professional_share_grants',
     'professional_share_invalidation_events'
   ] loop
-    if to_regclass('public.' || table_name) is null then
-      raise exception 'Missing professional persistence table: %', table_name;
+    if to_regclass('public.' || target_table) is null then
+      raise exception 'Missing professional persistence table: %', target_table;
     end if;
 
-    if not (select relrowsecurity from pg_class where oid = to_regclass('public.' || table_name)) then
-      raise exception 'RLS must be enabled on %', table_name;
+    if not (select relrowsecurity from pg_class where oid = to_regclass('public.' || target_table)) then
+      raise exception 'RLS must be enabled on %', target_table;
     end if;
 
-    if has_table_privilege('anon', 'public.' || table_name, 'SELECT')
-      or has_table_privilege('anon', 'public.' || table_name, 'INSERT')
-      or has_table_privilege('anon', 'public.' || table_name, 'UPDATE')
-      or has_table_privilege('anon', 'public.' || table_name, 'DELETE')
-      or has_table_privilege('authenticated', 'public.' || table_name, 'SELECT')
-      or has_table_privilege('authenticated', 'public.' || table_name, 'INSERT')
-      or has_table_privilege('authenticated', 'public.' || table_name, 'UPDATE')
-      or has_table_privilege('authenticated', 'public.' || table_name, 'DELETE') then
-      raise exception '% must remain server-only', table_name;
+    if has_table_privilege('anon', 'public.' || target_table, 'SELECT')
+      or has_table_privilege('anon', 'public.' || target_table, 'INSERT')
+      or has_table_privilege('anon', 'public.' || target_table, 'UPDATE')
+      or has_table_privilege('anon', 'public.' || target_table, 'DELETE')
+      or has_table_privilege('authenticated', 'public.' || target_table, 'SELECT')
+      or has_table_privilege('authenticated', 'public.' || target_table, 'INSERT')
+      or has_table_privilege('authenticated', 'public.' || target_table, 'UPDATE')
+      or has_table_privilege('authenticated', 'public.' || target_table, 'DELETE') then
+      raise exception '% must remain server-only', target_table;
     end if;
   end loop;
 
