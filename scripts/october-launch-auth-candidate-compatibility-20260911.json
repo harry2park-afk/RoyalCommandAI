@@ -1,0 +1,38 @@
+{
+  "contract_version": 1,
+  "captured_at_utc": "2026-09-10T21:53:02.61538Z",
+  "scope": "AUTH_CANDIDATE_LAUNCH_GATE_COMPATIBILITY_EVIDENCE_ONLY",
+  "launch_gate": {
+    "pr": 753,
+    "head": "e41f8aa2f1ceed0f50dd4ec72fef6da164e7e247",
+    "guard_search_path_expected": "search_path=pg_catalog, auth, public, private",
+    "handle_new_user_search_path_expected": "search_path=public"
+  },
+  "auth_candidate": {
+    "pr": 691,
+    "head": "edaba498a81da38e38226f161fef82fb0ba61c5e",
+    "guard_search_path_declared": "search_path=pg_catalog",
+    "handle_new_user_search_path_declared": "search_path=pg_catalog",
+    "signup_role_metadata_consumed": false,
+    "direct_end_user_execute_blocked": true
+  },
+  "hosted_read_only_snapshot": {
+    "project_ref": "aygawkavujjmybekswrg",
+    "profile_guard_present": false,
+    "handle_new_user_search_path": "search_path=public",
+    "handle_new_user_uses_role_metadata": true,
+    "role_guard_trigger_count": 0,
+    "authenticated_role_update_grant": true,
+    "authenticated_matter_client_update_grant": true,
+    "authenticated_matter_staff_update_grant": true,
+    "candidate_migration_history_rows": 0
+  },
+  "integration_compatible": false,
+  "release_ready": false,
+  "blocker": "PR #753 auth readiness SQL still encodes pre-hardening SECURITY DEFINER search-path expectations, while PR #691 intentionally isolates both role-authority functions to pg_catalog. The launch gate must be reconciled before controlled Hosted staging can produce a valid auth/data-isolation PASS.",
+  "safety": {
+    "hosted_mutation_performed": false,
+    "production_change_authorized": false,
+    "country_ready_authorized": false
+  }
+}
