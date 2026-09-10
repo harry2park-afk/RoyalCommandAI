@@ -85,15 +85,15 @@
 
 .root form[data-rc-composer-enhanced="true"] button[type="submit"] {
   position: absolute !important;
-  right: 12px !important;
+  right: 4px !important;
   left: auto !important;
   bottom: 8px !important;
-  width: 150px !important;
-  height: 55px !important;
-  min-width: 150px !important;
-  padding: 0 14px 0 18px !important;
+  width: 120px !important;
+  height: 28px !important;
+  min-width: 120px !important;
+  padding: 0 10px 0 13px !important;
   border: 1px solid rgba(215, 182, 77, 0.62) !important;
-  border-radius: 10px !important;
+  border-radius: 8px !important;
   background: rgba(30, 58, 138, 0.94) !important;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.26) !important;
   color: #f8df7a !important;
@@ -102,7 +102,7 @@
   align-items: center !important;
   justify-content: space-between !important;
   gap: 10px !important;
-  font-size: 15px !important;
+  font-size: 13px !important;
   font-weight: 700 !important;
   pointer-events: auto !important;
   z-index: 26 !important;
@@ -118,8 +118,8 @@
 }
 
 .root form[data-rc-composer-enhanced="true"] button[type="submit"] svg {
-  width: 18px !important;
-  height: 18px !important;
+  width: 15px !important;
+  height: 15px !important;
   stroke-width: 1.25 !important;
 }
 
