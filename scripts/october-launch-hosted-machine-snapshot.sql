@@ -60,7 +60,7 @@ required_migrations(name) as (
     ('harden_incident_event_client_boundary')
 )
 select json_build_object(
-  'snapshot_contract_version', 3,
+  'snapshot_contract_version', 4,
   'captured_at_utc', now(),
   'auth_and_isolation', json_build_object(
     'matters_total', (select count(*) from public.matters),
@@ -143,6 +143,16 @@ select json_build_object(
            and t.availability_status = 'AVAILABLE'
            and t.customer_price_minor > 0
       ),
+      'reviewer_proven_terms', (
+        select count(*) from public.rc_service_country_terms t
+         where t.country_code = c.country_code
+           and t.currency = c.expected_currency
+           and t.availability_status = 'AVAILABLE'
+           and t.customer_price_minor > 0
+           and upper(coalesce(to_jsonb(t)->>'review_status', '')) = 'APPROVED'
+           and nullif(trim(coalesce(to_jsonb(t)->>'reviewed_by', '')), '') is not null
+           and nullif(trim(coalesce(to_jsonb(t)->>'reviewed_at', '')), '') is not null
+      ),
       'provider_offers', (
         select count(*) from public.rc_service_provider_offers o
          where o.country_code = c.country_code
@@ -153,6 +163,15 @@ select json_build_object(
            and o.currency = c.expected_currency
            and o.active is true
            and o.review_status = 'APPROVED'
+      ),
+      'reviewer_proven_provider_offers', (
+        select count(*) from public.rc_service_provider_offers o
+         where o.country_code = c.country_code
+           and o.currency = c.expected_currency
+           and o.active is true
+           and upper(coalesce(to_jsonb(o)->>'review_status', '')) = 'APPROVED'
+           and nullif(trim(coalesce(to_jsonb(o)->>'reviewed_by', '')), '') is not null
+           and nullif(trim(coalesce(to_jsonb(o)->>'reviewed_at', '')), '') is not null
       ),
       'recording_policy_rows', (
         select count(*) from public.communication_recording_policies rp
