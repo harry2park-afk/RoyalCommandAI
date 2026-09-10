@@ -3,7 +3,7 @@
 -- SAFETY / SCOPE:
 -- - additive schema only; seeds no customer, vault, object, grant or invalidation rows;
 -- - Room-scoped tenant authority is the existing rooms.household_id boundary;
--- - Legal and Accounting vault storage stays physically distinct by domain;
+-- - Legal and Accounting vault identities stay logically distinct by immutable domain;
 -- - no virtual_bridge vault domain exists: bridge_la remains a ShareGrant Virtual View concept;
 -- - all new tables are server-only with RLS enabled and anon/authenticated privileges revoked;
 -- - this migration does not expose UI/runtime, enable payments, approve jurisdictions or authorize Production.
@@ -120,6 +120,11 @@ security definer
 set search_path = pg_catalog, public, private
 as $$
 begin
+  if tg_op = 'UPDATE' and row(new.tenant_id, new.room_id, new.domain, new.created_at)
+    is distinct from row(old.tenant_id, old.room_id, old.domain, old.created_at) then
+    raise exception 'Professional vault tenant/Room/domain identity is immutable';
+  end if;
+
   if not exists (
     select 1
     from public.rooms r
@@ -157,6 +162,38 @@ security definer
 set search_path = pg_catalog, public, private
 as $$
 begin
+  if tg_op = 'UPDATE' and row(
+    new.vault_id,
+    new.tenant_id,
+    new.room_id,
+    new.object_key,
+    new.object_type,
+    new.classification,
+    new.payload_ref,
+    new.payload_sha256,
+    new.source_system,
+    new.mime_type,
+    new.byte_size,
+    new.created_by,
+    new.created_at
+  ) is distinct from row(
+    old.vault_id,
+    old.tenant_id,
+    old.room_id,
+    old.object_key,
+    old.object_type,
+    old.classification,
+    old.payload_ref,
+    old.payload_sha256,
+    old.source_system,
+    old.mime_type,
+    old.byte_size,
+    old.created_by,
+    old.created_at
+  ) then
+    raise exception 'Professional vault object identity/content reference is immutable; create a new object version';
+  end if;
+
   if not exists (
     select 1
     from public.professional_vaults v
@@ -181,9 +218,18 @@ as $$
 declare
   source_domain text;
 begin
+  if tg_op = 'INSERT' and new.grantor_user_id is null then
+    raise exception 'ShareGrant requires an attributable grantor';
+  end if;
+
   if tg_op = 'UPDATE' then
     if old.status = 'revoked' and new.status <> 'revoked' then
       raise exception 'Revoked ShareGrant cannot be reactivated';
+    end if;
+
+    if new.grantor_user_id is distinct from old.grantor_user_id
+      and not (old.grantor_user_id is not null and new.grantor_user_id is null) then
+      raise exception 'ShareGrant grantor identity cannot be reassigned';
     end if;
 
     if row(
@@ -193,7 +239,6 @@ begin
       new.source_room_id,
       new.destination_room_id,
       new.destination_domain,
-      new.grantor_user_id,
       new.action,
       new.field_scope,
       new.purpose,
@@ -208,7 +253,6 @@ begin
       old.source_room_id,
       old.destination_room_id,
       old.destination_domain,
-      old.grantor_user_id,
       old.action,
       old.field_scope,
       old.purpose,
@@ -284,6 +328,11 @@ security definer
 set search_path = pg_catalog, public, private
 as $$
 begin
+  if tg_op = 'UPDATE' and row(new.tenant_id, new.grant_id, new.target, new.created_at)
+    is distinct from row(old.tenant_id, old.grant_id, old.target, old.created_at) then
+    raise exception 'ShareGrant invalidation identity is immutable';
+  end if;
+
   if not exists (
     select 1
     from public.professional_share_grants g
@@ -323,7 +372,9 @@ as $$
       and g.status = 'active'
       and g.revoked_at is null
       and g.expires_at > now()
+      and g.grantor_user_id is not null
       and v.status = 'active'
+      and v.authority_user_id is not null
       and o.deleted_at is null
   );
 $$;
