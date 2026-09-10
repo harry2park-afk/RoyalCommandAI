@@ -80,8 +80,18 @@ with rls_no_policy as (
   select
     r.schema_name,
     r.table_name,
-    has_table_privilege('anon', format('%I.%I', r.schema_name, r.table_name), 'SELECT, INSERT, UPDATE, DELETE') as anon_any_dml,
-    has_table_privilege('authenticated', format('%I.%I', r.schema_name, r.table_name), 'SELECT, INSERT, UPDATE, DELETE') as authenticated_any_dml
+    (
+      has_table_privilege('anon', format('%I.%I', r.schema_name, r.table_name), 'SELECT')
+      or has_table_privilege('anon', format('%I.%I', r.schema_name, r.table_name), 'INSERT')
+      or has_table_privilege('anon', format('%I.%I', r.schema_name, r.table_name), 'UPDATE')
+      or has_table_privilege('anon', format('%I.%I', r.schema_name, r.table_name), 'DELETE')
+    ) as anon_any_dml,
+    (
+      has_table_privilege('authenticated', format('%I.%I', r.schema_name, r.table_name), 'SELECT')
+      or has_table_privilege('authenticated', format('%I.%I', r.schema_name, r.table_name), 'INSERT')
+      or has_table_privilege('authenticated', format('%I.%I', r.schema_name, r.table_name), 'UPDATE')
+      or has_table_privilege('authenticated', format('%I.%I', r.schema_name, r.table_name), 'DELETE')
+    ) as authenticated_any_dml
   from rls_no_policy r
 )
 select
