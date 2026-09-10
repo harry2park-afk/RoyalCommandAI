@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "supabase/migrations/20260904105500_harden_profile_role_authority.sql"
+      - "supabase/migrations/20260831225500_scope_matter_staff_access.sql"
       - "scripts/profile-role-authority-evidence.mjs"
       - ".github/workflows/profile-role-authority.yml"
   workflow_dispatch:
@@ -91,6 +92,57 @@ jobs:
           export RC_PROFILE_ROLE_TEST_PASSWORD="RC-Role-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
           export RC_PROFILE_ROLE_ALLOW_LOCALHOST=1
           node scripts/profile-role-authority-evidence.mjs
+
+      - name: Prove combined profile and matter authority boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            trigger_count integer;
+          begin
+            -- Profile role remains protected behaviorally by the trusted trigger
+            -- while normal own-profile UPDATE capability is preserved.
+            select count(*) into trigger_count
+            from pg_trigger t
+            join pg_class c on c.oid = t.tgrelid
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public'
+              and c.relname = 'profiles'
+              and t.tgname = 'guard_profile_role_change'
+              and not t.tgisinternal
+              and t.tgenabled <> 'D';
+
+            if trigger_count <> 1 then
+              raise exception 'profile role guard trigger must exist and be enabled exactly once';
+            end if;
+
+            if not has_table_privilege('authenticated', 'public.profiles', 'UPDATE') then
+              raise exception 'authenticated own-profile UPDATE path must remain available';
+            end if;
+
+            -- Matter tenant ownership and staff assignment must be removed from
+            -- ordinary authenticated direct UPDATE while normal mutable fields stay usable.
+            if has_table_privilege('authenticated', 'public.matters', 'UPDATE') then
+              raise exception 'authenticated must not retain whole-table UPDATE on matters';
+            end if;
+            if has_column_privilege('authenticated', 'public.matters', 'client_id', 'UPDATE') then
+              raise exception 'authenticated must not UPDATE matters.client_id';
+            end if;
+            if has_column_privilege('authenticated', 'public.matters', 'assigned_staff_id', 'UPDATE') then
+              raise exception 'authenticated must not UPDATE matters.assigned_staff_id';
+            end if;
+            if not has_column_privilege('authenticated', 'public.matters', 'title', 'UPDATE') then
+              raise exception 'authenticated must retain UPDATE on matters.title';
+            end if;
+            if not has_column_privilege('authenticated', 'public.matters', 'summary', 'UPDATE') then
+              raise exception 'authenticated must retain UPDATE on matters.summary';
+            end if;
+          end;
+          $$;
+          SQL
 
       - name: Stop disposable Supabase
         if: always()
