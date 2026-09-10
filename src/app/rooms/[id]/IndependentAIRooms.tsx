@@ -84,6 +84,10 @@ function providerOrderKey(roomId: string) {
   return `royalcommand:independent-ai:v1:${roomId}:provider-order`;
 }
 
+function integrationSnapshotKey(roomId: string) {
+  return `royalcommand:independent-ai:v1:${roomId}:final-integrator`;
+}
+
 function countryCodeForLocale(locale: string) {
   const parts = locale.split("-");
   for (let index = parts.length - 1; index >= 0; index -= 1) {
@@ -155,6 +159,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [integrated, setIntegrated] = useState("");
   const [integrating, setIntegrating] = useState(false);
   const [integrationError, setIntegrationError] = useState("");
+  const [integrationSnapshotLoaded, setIntegrationSnapshotLoaded] = useState(false);
   const [globalError, setGlobalError] = useState("");
   const aborters = useRef(new Map<string, AbortController>());
   const integrationInFlightRef = useRef(false);
@@ -214,6 +219,22 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
       setProviderOrder(DEFAULT_PROVIDER_ORDER);
     } finally {
       setProviderOrderLoaded(true);
+    }
+    try {
+      const savedIntegration = JSON.parse(localStorage.getItem(integrationSnapshotKey(roomId)) || "null") as {
+        question?: unknown;
+        results?: unknown;
+        integrated?: unknown;
+      } | null;
+      if (savedIntegration && typeof savedIntegration.question === "string" && savedIntegration.results && typeof savedIntegration.results === "object") {
+        setFrozenQuestion(savedIntegration.question);
+        setFrozenResults(savedIntegration.results as Record<string, ProviderResult>);
+        if (typeof savedIntegration.integrated === "string") setIntegrated(savedIntegration.integrated);
+      }
+    } catch {
+      localStorage.removeItem(integrationSnapshotKey(roomId));
+    } finally {
+      setIntegrationSnapshotLoaded(true);
     }
     const savedLocale = localStorage.getItem("royalcommand:ui-locale");
     if (savedLocale && LOCALE_SEARCH_REGISTRY.some((entry) => entry.locale === savedLocale)) {
@@ -355,6 +376,19 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
       localStorage.setItem(historyKey(roomId, provider.id), JSON.stringify(rooms[provider.id].history.slice(-120)));
     }
   }, [roomId, rooms]);
+
+  useEffect(() => {
+    if (!integrationSnapshotLoaded) return;
+    if (!frozenQuestion) {
+      localStorage.removeItem(integrationSnapshotKey(roomId));
+      return;
+    }
+    localStorage.setItem(integrationSnapshotKey(roomId), JSON.stringify({
+      question: frozenQuestion,
+      results: frozenResults,
+      integrated,
+    }));
+  }, [frozenQuestion, frozenResults, integrated, integrationSnapshotLoaded, roomId]);
 
   useEffect(() => () => {
     aborters.current.forEach((controller) => controller.abort());
