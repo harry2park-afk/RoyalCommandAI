@@ -60,7 +60,7 @@ required_migrations(name) as (
     ('harden_incident_event_client_boundary')
 )
 select json_build_object(
-  'snapshot_contract_version', 2,
+  'snapshot_contract_version', 3,
   'captured_at_utc', now(),
   'auth_and_isolation', json_build_object(
     'matters_total', (select count(*) from public.matters),
@@ -164,6 +164,7 @@ select json_build_object(
            and rp.review_status = 'APPROVED'
            and rp.reviewed_by is not null
            and rp.reviewed_at is not null
+           and nullif(trim(coalesce(rp.legal_basis, '')), '') is not null
       )
     ) order by c.country_code)
       from first_wave c
@@ -197,6 +198,7 @@ select json_build_object(
            and rp.review_status = 'APPROVED'
            and rp.reviewed_by is not null
            and rp.reviewed_at is not null
+           and nullif(trim(coalesce(rp.legal_basis, '')), '') is not null
       )
     ) order by c.country_code)
       from next_priority c
@@ -217,6 +219,13 @@ select json_build_object(
        where table_schema = 'public'
          and table_name = 'rc_service_provider_offers'
          and column_name in ('reviewed_by', 'reviewed_at')
+    ),
+    'recording_legal_basis_column_exists', exists (
+      select 1
+        from information_schema.columns
+       where table_schema = 'public'
+         and table_name = 'communication_recording_policies'
+         and column_name = 'legal_basis'
     ),
     'service_connection_orders', (select count(*) from public.rc_service_connection_orders),
     'payment_provider_registry_exists',
