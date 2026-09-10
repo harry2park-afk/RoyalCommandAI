@@ -9,6 +9,7 @@
     "name": "legal_story_entries",
     "version": "20260829142500",
     "path": "supabase/migrations/20260829142500_legal_story_entries.sql",
+    "local_path": "supabase/migrations/20260829142500_legal_story_entries.sql",
     "blob_sha": "639d956e946808dbdf477a2c4ff92bb78fb4e658"
   },
   "hosted_base": {
