@@ -31,6 +31,18 @@ function validateClaim(job) {
   return null;
 }
 
+function validateAdapterProvenance(job, adapter) {
+  const provenance = adapter?.provenance;
+  if (!provenance || typeof provenance !== 'object') return 'UNVERIFIED_TARGET_PROVENANCE';
+  if (provenance.status !== 'VERIFIED') return 'UNVERIFIED_TARGET_PROVENANCE';
+  if (provenance.target !== job.target) return 'TARGET_PROVENANCE_MISMATCH';
+  if (provenance.grantScoped !== true || provenance.tenantScoped !== true) return 'UNVERIFIED_TARGET_PROVENANCE';
+  for (const field of ['resource', 'eraseSelector', 'readbackSelector', 'evidenceRef']) {
+    if (!nonEmptyString(provenance[field])) return 'UNVERIFIED_TARGET_PROVENANCE';
+  }
+  return null;
+}
+
 function validateContext(job, context) {
   if (!context || typeof context !== 'object') return 'MISSING_CONTEXT';
   if (context.eventId !== job.event_id) return 'EVENT_CONTEXT_MISMATCH';
@@ -72,6 +84,11 @@ async function processOne({ queue, adapters, job }) {
   }
   if (adapter.idempotent !== true) {
     return completeFailure(queue, job, 'NON_IDEMPOTENT_TARGET_ADAPTER');
+  }
+
+  const provenanceError = validateAdapterProvenance(job, adapter);
+  if (provenanceError) {
+    return completeFailure(queue, job, provenanceError);
   }
 
   let context;
@@ -129,11 +146,19 @@ async function processOne({ queue, adapters, job }) {
  *   queue.claim(batchSize) -> claimed DB events
  *   queue.loadContext(job) -> authoritative tenant/grant/target context
  *   queue.complete(result) -> service-role completion RPC
- *   adapters[target] -> { idempotent: true, erase(context), verifyAbsent(context) }
+ *   adapters[target] -> {
+ *     idempotent: true,
+ *     provenance: {
+ *       status: 'VERIFIED', target, grantScoped: true, tenantScoped: true,
+ *       resource, eraseSelector, readbackSelector, evidenceRef
+ *     },
+ *     erase(context), verifyAbsent(context)
+ *   }
  *
- * A job can be marked succeeded only after target-specific erase completes and a
+ * A job can be marked succeeded only after target-specific provenance is marked
+ * VERIFIED, target/tenant/grant scoping is explicit, erase completes, and a
  * separate read-back returns { absent: true, evidenceRef: <non-empty> }.
- * Missing/unknown/non-idempotent adapters fail closed and never produce success.
+ * Missing/unknown/non-idempotent adapters and unverified provenance fail closed.
  * Failure persistence uses stable codes only; raw downstream exceptions are not
  * written into the evidence database.
  */
