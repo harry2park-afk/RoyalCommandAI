@@ -15,6 +15,14 @@ const EXPECTED_FIRST_WAVE_UI_LOCALES = {
   GB: "en",
 } as const;
 
+const NEXT_PRIORITY_UI_LOCALES = {
+  SG: "en",
+  CN: "zh",
+  HK: "zh",
+  TW: "zh",
+  IN: "en",
+} as const;
+
 describe("Create Room country selector", () => {
   it("includes every October first-wave country", () => {
     const codes = new Set(CREATE_ROOM_COUNTRIES.map((country) => country.code));
@@ -41,6 +49,17 @@ describe("Create Room country selector", () => {
       const country = CREATE_ROOM_COUNTRIES.find((candidate) => candidate.code === code);
       expect(country).toBeDefined();
       expect(supportedLocales.has(country!.locale)).toBe(true);
+    }
+  });
+
+  it("locks the next-priority Create Room primary locale mapping to Room Factory language families", () => {
+    const supportedLocales = new Set(CREATE_ROOM_LANGUAGES.map(({ locale }) => locale));
+
+    for (const [code, locale] of Object.entries(NEXT_PRIORITY_UI_LOCALES)) {
+      const country = CREATE_ROOM_COUNTRIES.find((candidate) => candidate.code === code);
+      expect(country).toBeDefined();
+      expect(country?.locale).toBe(locale);
+      expect(supportedLocales.has(locale)).toBe(true);
     }
   });
 
