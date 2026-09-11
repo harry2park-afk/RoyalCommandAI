@@ -20,22 +20,10 @@ describe("next-priority inactive country config drafts", () => {
       "IN",
     ]);
 
-    for (const countryCode of ["SG", "CN", "TW"] as const) {
-      expect(
-        evaluateCountryLocalizationStructure(
-          DRAFTS.find((config) => config.countryCode === countryCode)!,
-        ),
-      ).toEqual({ ready: true, blockers: [] });
-    }
-
-    for (const countryCode of ["HK", "IN"] as const) {
-      expect(
-        evaluateCountryLocalizationStructure(
-          DRAFTS.find((config) => config.countryCode === countryCode)!,
-        ),
-      ).toEqual({
-        ready: false,
-        blockers: ["CREATE_ROOM_COUNTRY_LOCALE_MISMATCH"],
+    for (const config of DRAFTS) {
+      expect(evaluateCountryLocalizationStructure(config)).toEqual({
+        ready: true,
+        blockers: [],
       });
     }
   });
