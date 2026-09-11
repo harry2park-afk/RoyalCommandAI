@@ -30,15 +30,19 @@ export type FirstWaveReleaseReadinessReport = {
  * aggregator. It does not activate countries, mutate configuration, deploy, or
  * infer missing evidence. Release tooling can consume this report without
  * reimplementing legal/compliance, Auth/Data Isolation, payment, Room Factory,
- * QA/security, or exact-head provenance rules.
+ * QA/security, or exact-head provenance rules. When an evaluation clock is
+ * supplied by Preview/Production review, it is forwarded so country operational
+ * evidence freshness is evaluated consistently with other release proof.
  */
 export function buildFirstWaveReleaseReadinessReport(
   expectedExactHeadSha: string,
   inputs: readonly FirstWaveCountryEvidenceInput[],
+  evaluatedAtUtc?: string,
 ): FirstWaveReleaseReadinessReport {
   const aggregation = evaluateFirstWaveCountryOperationalAggregation(
     expectedExactHeadSha,
     inputs,
+    evaluatedAtUtc,
   );
 
   const countries = FIRST_WAVE_COUNTRY_CODES.map((countryCode) => {
