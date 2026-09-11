@@ -18,6 +18,10 @@ import {
   evaluateHostedSnapshotFreshness,
   type HostedSnapshotFreshnessDecision,
 } from "./hostedSnapshotFreshnessGate";
+import {
+  evaluateHostedSnapshotProvenance,
+  type HostedSnapshotProvenanceDecision,
+} from "./hostedSnapshotProvenanceGate";
 
 export type FirstWaveProductionReviewBlocker =
   | "PREVIEW_PROMOTION_NOT_READY"
@@ -34,6 +38,7 @@ export type FirstWaveProductionReviewDecision = {
   paymentRuntime: FirstWavePaymentRuntimeEvidenceGate;
   hostedSnapshot: HostedLaunchCriticalSnapshotDecision;
   hostedSnapshotFreshness: HostedSnapshotFreshnessDecision;
+  hostedSnapshotProvenance: HostedSnapshotProvenanceDecision;
 };
 
 /**
@@ -49,7 +54,8 @@ export type FirstWaveProductionReviewDecision = {
  * payment-safeguard, required-migration, and first-wave commercial/recording
  * read-back from the intended Hosted project. The snapshot must also be recent:
  * an older exact-SHA snapshot cannot be reused after Hosted state may have
- * drifted.
+ * drifted. Its machine contract version and reviewer-proven terms/provider
+ * provenance must survive evidence normalization rather than being discarded.
  *
  * This wrapper requires all gates to pass for the same exact candidate SHA and
  * Preview deployment. It never calls a payment provider, deploys code, mutates
@@ -86,6 +92,9 @@ export function evaluateFirstWaveProductionReview(
   const hostedSnapshotFreshness = evaluateHostedSnapshotFreshness(
     hostedSnapshotEvidence,
   );
+  const hostedSnapshotProvenance = evaluateHostedSnapshotProvenance(
+    hostedSnapshotEvidence,
+  );
 
   const blockers: FirstWaveProductionReviewBlocker[] = [];
   if (!previewPromotion.safeForProductionReview) {
@@ -94,7 +103,11 @@ export function evaluateFirstWaveProductionReview(
   if (!paymentRuntime.ready) {
     blockers.push("PAYMENT_RUNTIME_NOT_READY");
   }
-  if (!hostedSnapshot.ready || !hostedSnapshotFreshness.ready) {
+  if (
+    !hostedSnapshot.ready ||
+    !hostedSnapshotFreshness.ready ||
+    !hostedSnapshotProvenance.ready
+  ) {
     blockers.push("HOSTED_CRITICAL_SNAPSHOT_NOT_READY");
   }
 
@@ -110,5 +123,6 @@ export function evaluateFirstWaveProductionReview(
     paymentRuntime,
     hostedSnapshot,
     hostedSnapshotFreshness,
+    hostedSnapshotProvenance,
   };
 }
