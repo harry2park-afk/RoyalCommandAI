@@ -228,4 +228,23 @@ describe("first-wave Production review gate", () => {
     expect(result.blockers).toContain("PAYMENT_RUNTIME_NOT_READY");
     expect(result.safeForProductionReview).toBe(false);
   });
+
+  it("keeps Production review on HOLD when Preview proof has gone stale", () => {
+    const preview = previewEvidence();
+    const result = evaluateFirstWaveProductionReview(
+      EXACT_HEAD,
+      allFirstWaveCountryInputs(),
+      {
+        ...preview,
+        capturedAtUtc: "2026-09-11T12:40:00Z",
+      },
+      allFirstWavePaymentEvidence(),
+      undefined,
+      EVALUATED_AT,
+    );
+
+    expect(result.previewPromotion.blockers).toContain("PREVIEW_EVIDENCE_STALE");
+    expect(result.blockers).toContain("PREVIEW_PROMOTION_NOT_READY");
+    expect(result.safeForProductionReview).toBe(false);
+  });
 });
