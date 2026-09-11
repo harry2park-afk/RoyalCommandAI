@@ -40,10 +40,13 @@ export type FirstWavePreviewPromotionEvidence = {
 
 export type FirstWavePreviewPromotionBlocker =
   | "FIRST_WAVE_RELEASE_NOT_READY"
+  | "PREVIEW_EVALUATION_TIMESTAMP_INVALID"
   | "PREVIEW_EVIDENCE_ID_MISSING"
   | "PREVIEW_EVIDENCE_HEAD_SHA_INVALID"
   | "PREVIEW_EVIDENCE_HEAD_SHA_MISMATCH"
   | "PREVIEW_EVIDENCE_TIMESTAMP_INVALID"
+  | "PREVIEW_EVIDENCE_STALE"
+  | "PREVIEW_EVIDENCE_FROM_FUTURE"
   | "PREVIEW_DEPLOYMENT_ID_MISSING"
   | "PREVIEW_AUTHENTICATED_SMOKE_NOT_VERIFIED"
   | "PREVIEW_LOCALIZATION_REGRESSION_NOT_VERIFIED"
@@ -52,6 +55,8 @@ export type FirstWavePreviewPromotionBlocker =
   | "PREVIEW_SECURITY_EVIDENCE_HEAD_SHA_INVALID"
   | "PREVIEW_SECURITY_EVIDENCE_HEAD_SHA_MISMATCH"
   | "PREVIEW_SECURITY_EVIDENCE_TIMESTAMP_INVALID"
+  | "PREVIEW_SECURITY_EVIDENCE_STALE"
+  | "PREVIEW_SECURITY_EVIDENCE_FROM_FUTURE"
   | "PREVIEW_SECURITY_EVIDENCE_DEPLOYMENT_ID_MISMATCH"
   | "PREVIEW_SECURITY_EVIDENCE_NOT_VERIFIED"
   | "PREVIEW_ROLLBACK_NOT_VERIFIED"
@@ -59,6 +64,8 @@ export type FirstWavePreviewPromotionBlocker =
   | "PREVIEW_ROLLBACK_EVIDENCE_HEAD_SHA_INVALID"
   | "PREVIEW_ROLLBACK_EVIDENCE_HEAD_SHA_MISMATCH"
   | "PREVIEW_ROLLBACK_EVIDENCE_TIMESTAMP_INVALID"
+  | "PREVIEW_ROLLBACK_EVIDENCE_STALE"
+  | "PREVIEW_ROLLBACK_EVIDENCE_FROM_FUTURE"
   | "PREVIEW_ROLLBACK_EVIDENCE_DEPLOYMENT_ID_MISMATCH"
   | "PREVIEW_ROLLBACK_EVIDENCE_NOT_VERIFIED"
   | "PREVIEW_FIRST_WAVE_COUNTRY_COVERAGE_INCOMPLETE"
@@ -87,6 +94,8 @@ export type FirstWavePreviewPromotionDecision = {
 const EXACT_SHA_PATTERN = /^[0-9a-f]{40}$/;
 const UTC_TIMESTAMP_PATTERN = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$/;
 const FIRST_WAVE_COUNTRY_SET = new Set<string>(FIRST_WAVE_COUNTRY_CODES);
+const PREVIEW_EVIDENCE_MAX_AGE_MS = 60 * 60 * 1000;
+const PREVIEW_EVIDENCE_MAX_FUTURE_SKEW_MS = 5 * 60 * 1000;
 
 function isValidUtcTimestamp(value: string): boolean {
   return UTC_TIMESTAMP_PATTERN.test(value) && !Number.isNaN(Date.parse(value));
@@ -101,10 +110,31 @@ function pushUnique(
   }
 }
 
+function validateFreshTimestamp(
+  capturedAtUtc: string,
+  evaluatedAtMs: number | null,
+  staleBlocker: FirstWavePreviewPromotionBlocker,
+  futureBlocker: FirstWavePreviewPromotionBlocker,
+  blockers: FirstWavePreviewPromotionBlocker[],
+): void {
+  if (evaluatedAtMs === null || !isValidUtcTimestamp(capturedAtUtc)) {
+    return;
+  }
+
+  const capturedAtMs = Date.parse(capturedAtUtc);
+  if (evaluatedAtMs - capturedAtMs > PREVIEW_EVIDENCE_MAX_AGE_MS) {
+    pushUnique(blockers, staleBlocker);
+  }
+  if (capturedAtMs - evaluatedAtMs > PREVIEW_EVIDENCE_MAX_FUTURE_SKEW_MS) {
+    pushUnique(blockers, futureBlocker);
+  }
+}
+
 function validateSecurityEvidence(
   evidence: PreviewBoundVerificationEvidence | null | undefined,
   candidateSha: string,
   previewDeploymentId: string,
+  evaluatedAtMs: number | null,
   blockers: FirstWavePreviewPromotionBlocker[],
 ): void {
   if (!evidence || !evidence.evidenceId.trim()) {
@@ -119,8 +149,17 @@ function validateSecurityEvidence(
     pushUnique(blockers, "PREVIEW_SECURITY_EVIDENCE_HEAD_SHA_MISMATCH");
   }
 
-  if (!isValidUtcTimestamp(evidence.capturedAtUtc.trim())) {
+  const capturedAtUtc = evidence.capturedAtUtc.trim();
+  if (!isValidUtcTimestamp(capturedAtUtc)) {
     pushUnique(blockers, "PREVIEW_SECURITY_EVIDENCE_TIMESTAMP_INVALID");
+  } else {
+    validateFreshTimestamp(
+      capturedAtUtc,
+      evaluatedAtMs,
+      "PREVIEW_SECURITY_EVIDENCE_STALE",
+      "PREVIEW_SECURITY_EVIDENCE_FROM_FUTURE",
+      blockers,
+    );
   }
 
   if (
@@ -140,6 +179,7 @@ function validateRollbackEvidence(
   evidence: PreviewBoundVerificationEvidence | null | undefined,
   candidateSha: string,
   previewDeploymentId: string,
+  evaluatedAtMs: number | null,
   blockers: FirstWavePreviewPromotionBlocker[],
 ): void {
   if (!evidence || !evidence.evidenceId.trim()) {
@@ -154,8 +194,17 @@ function validateRollbackEvidence(
     pushUnique(blockers, "PREVIEW_ROLLBACK_EVIDENCE_HEAD_SHA_MISMATCH");
   }
 
-  if (!isValidUtcTimestamp(evidence.capturedAtUtc.trim())) {
+  const capturedAtUtc = evidence.capturedAtUtc.trim();
+  if (!isValidUtcTimestamp(capturedAtUtc)) {
     pushUnique(blockers, "PREVIEW_ROLLBACK_EVIDENCE_TIMESTAMP_INVALID");
+  } else {
+    validateFreshTimestamp(
+      capturedAtUtc,
+      evaluatedAtMs,
+      "PREVIEW_ROLLBACK_EVIDENCE_STALE",
+      "PREVIEW_ROLLBACK_EVIDENCE_FROM_FUTURE",
+      blockers,
+    );
   }
 
   if (
@@ -185,16 +234,27 @@ function validateRollbackEvidence(
  * and GB independently, and duplicate/unsupported country rows fail closed.
  * Security-regression and rollback evidence must also be independently bound
  * to the exact candidate SHA and the exact Preview deployment ID so stale
- * evidence cannot be reused for a different candidate or deployment.
+ * evidence cannot be reused for a different candidate or deployment. All
+ * Preview-bound proof must also be fresh at evaluation time: evidence older
+ * than one hour or more than five minutes in the future fails closed.
  */
 export function evaluateFirstWavePreviewPromotion(
   expectedExactHeadSha: string,
   countryInputs: readonly FirstWaveCountryEvidenceInput[],
   previewEvidence: FirstWavePreviewPromotionEvidence,
+  evaluatedAtUtc = new Date().toISOString(),
 ): FirstWavePreviewPromotionDecision {
   const candidateSha = expectedExactHeadSha.trim();
   const releaseReadiness = buildFirstWaveReleaseReadinessReport(candidateSha, countryInputs);
   const blockers: FirstWavePreviewPromotionBlocker[] = [];
+  const normalizedEvaluatedAtUtc = evaluatedAtUtc.trim();
+  const evaluatedAtMs = isValidUtcTimestamp(normalizedEvaluatedAtUtc)
+    ? Date.parse(normalizedEvaluatedAtUtc)
+    : null;
+
+  if (evaluatedAtMs === null) {
+    blockers.push("PREVIEW_EVALUATION_TIMESTAMP_INVALID");
+  }
 
   if (!releaseReadiness.safeToPromote) {
     blockers.push("FIRST_WAVE_RELEASE_NOT_READY");
@@ -211,8 +271,17 @@ export function evaluateFirstWavePreviewPromotion(
     blockers.push("PREVIEW_EVIDENCE_HEAD_SHA_MISMATCH");
   }
 
-  if (!isValidUtcTimestamp(previewEvidence.capturedAtUtc.trim())) {
+  const previewCapturedAtUtc = previewEvidence.capturedAtUtc.trim();
+  if (!isValidUtcTimestamp(previewCapturedAtUtc)) {
     blockers.push("PREVIEW_EVIDENCE_TIMESTAMP_INVALID");
+  } else {
+    validateFreshTimestamp(
+      previewCapturedAtUtc,
+      evaluatedAtMs,
+      "PREVIEW_EVIDENCE_STALE",
+      "PREVIEW_EVIDENCE_FROM_FUTURE",
+      blockers,
+    );
   }
 
   const previewDeploymentId = previewEvidence.previewDeploymentId.trim();
@@ -236,6 +305,7 @@ export function evaluateFirstWavePreviewPromotion(
     previewEvidence.securityRegressionEvidence,
     candidateSha,
     previewDeploymentId,
+    evaluatedAtMs,
     blockers,
   );
 
@@ -247,6 +317,7 @@ export function evaluateFirstWavePreviewPromotion(
     previewEvidence.rollbackEvidence,
     candidateSha,
     previewDeploymentId,
+    evaluatedAtMs,
     blockers,
   );
 
