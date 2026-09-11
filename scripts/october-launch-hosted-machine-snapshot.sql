@@ -140,14 +140,14 @@ select json_build_object(
         select count(*) from public.rc_service_country_terms t
          where t.country_code = c.country_code
            and t.currency = c.expected_currency
-           and t.availability_status = 'AVAILABLE'
+           and upper(coalesce(to_jsonb(t)->>'availability_status', '')) = 'AVAILABLE'
            and t.customer_price_minor > 0
       ),
       'reviewer_proven_terms', (
         select count(*) from public.rc_service_country_terms t
          where t.country_code = c.country_code
            and t.currency = c.expected_currency
-           and t.availability_status = 'AVAILABLE'
+           and upper(coalesce(to_jsonb(t)->>'availability_status', '')) = 'AVAILABLE'
            and t.customer_price_minor > 0
            and upper(coalesce(to_jsonb(t)->>'review_status', '')) = 'APPROVED'
            and nullif(trim(coalesce(to_jsonb(t)->>'reviewed_by', '')), '') is not null
@@ -162,7 +162,7 @@ select json_build_object(
          where o.country_code = c.country_code
            and o.currency = c.expected_currency
            and o.active is true
-           and o.review_status = 'APPROVED'
+           and upper(coalesce(to_jsonb(o)->>'review_status', '')) = 'APPROVED'
       ),
       'reviewer_proven_provider_offers', (
         select count(*) from public.rc_service_provider_offers o
@@ -200,7 +200,7 @@ select json_build_object(
         select count(*) from public.rc_service_country_terms t
          where t.country_code = c.country_code
            and t.currency = c.expected_currency
-           and t.availability_status = 'AVAILABLE'
+           and upper(coalesce(to_jsonb(t)->>'availability_status', '')) = 'AVAILABLE'
            and t.customer_price_minor > 0
       ),
       'provider_offers', (
@@ -233,11 +233,11 @@ select json_build_object(
          and column_name in ('review_status', 'reviewed_by', 'reviewed_at')
     ),
     'provider_offers_reviewer_provenance_columns_exist', (
-      select count(*) = 2
+      select count(*) = 3
         from information_schema.columns
        where table_schema = 'public'
          and table_name = 'rc_service_provider_offers'
-         and column_name in ('reviewed_by', 'reviewed_at')
+         and column_name in ('review_status', 'reviewed_by', 'reviewed_at')
     ),
     'recording_legal_basis_column_exists', exists (
       select 1
