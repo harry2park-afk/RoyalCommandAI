@@ -10,11 +10,13 @@ const obj=(v:unknown):Json=>v&&typeof v==="object"&&!Array.isArray(v)?v as Json:
 const str=(v:unknown)=>typeof v==="string"&&v.trim()?v.trim():null;
 const tel=(v:unknown)=>str(v)?.replace(/[^+\d]/g,"")??null;
 export function verifyRetellWebhook(raw:string,signature:string|null,key:string,now=Date.now()){
- if(!signature)return false;
- const f=Object.fromEntries(signature.split(",").map(p=>{const [k,...v]=p.trim().split("=");return[k,v.join("=")]}));
+ const normalizedSignature=signature?.trim();
+ const normalizedKey=key.trim();
+ if(!normalizedSignature||!normalizedKey)return false;
+ const f=Object.fromEntries(normalizedSignature.split(",").map(p=>{const [k,...v]=p.trim().split("=");return[k,v.join("=").trim()]}));
  if(!f.v||!f.d||!/^\d+$/.test(f.v)||!/^[a-f0-9]{64}$/i.test(f.d)||Math.abs(now-Number(f.v))>300000)return false;
- const expected=createHmac("sha256",key).update(raw+f.v).digest("hex");
- return timingSafeEqual(Buffer.from(expected),Buffer.from(f.d.toLowerCase()));
+ const expected=createHmac("sha256",normalizedKey).update(raw+f.v).digest("hex");
+ return timingSafeEqual(Buffer.from(expected,"hex"),Buffer.from(f.d,"hex"));
 }
 async function roomFor(call:Json){
  const meta=obj(call.metadata),vars=obj(call.retell_llm_dynamic_variables);
