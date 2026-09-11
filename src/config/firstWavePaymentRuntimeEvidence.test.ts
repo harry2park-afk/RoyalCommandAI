@@ -11,6 +11,7 @@ import {
 const EXACT_HEAD = "63027b780539da2d4990eb329a2e2751fa4fce99";
 const DIFFERENT_HEAD = "33da2a917dc6adcf266f59f0b27d18a56f1271d8";
 const PREVIEW_DEPLOYMENT_ID = "vercel-preview-payment-evidence-only";
+const EVALUATED_AT = "2026-09-11T13:00:00Z";
 
 const currencies: Record<FirstWaveCountryCode, string> = {
   AU: "AUD",
@@ -48,11 +49,12 @@ function allFirstWavePaymentEvidence(): FirstWavePaymentRuntimeEvidence[] {
 }
 
 describe("first-wave payment runtime evidence", () => {
-  it("accepts only complete country-scoped sandbox proof for the exact head and Preview", () => {
+  it("accepts only complete fresh country-scoped sandbox proof for the exact head and Preview", () => {
     const result = evaluateFirstWavePaymentRuntimeEvidence(
       EXACT_HEAD,
       PREVIEW_DEPLOYMENT_ID,
       allFirstWavePaymentEvidence(),
+      EVALUATED_AT,
     );
 
     expect(result.ready).toBe(true);
@@ -65,6 +67,7 @@ describe("first-wave payment runtime evidence", () => {
       EXACT_HEAD,
       PREVIEW_DEPLOYMENT_ID,
       allFirstWavePaymentEvidence().filter(({ countryCode }) => countryCode !== "GB"),
+      EVALUATED_AT,
     );
 
     expect(result.aggregationBlockers).toContainEqual({
@@ -85,6 +88,7 @@ describe("first-wave payment runtime evidence", () => {
       EXACT_HEAD,
       PREVIEW_DEPLOYMENT_ID,
       inputs,
+      EVALUATED_AT,
     );
 
     expect(result.aggregationBlockers).toEqual(
@@ -112,6 +116,7 @@ describe("first-wave payment runtime evidence", () => {
       EXACT_HEAD,
       PREVIEW_DEPLOYMENT_ID,
       inputs,
+      EVALUATED_AT,
     );
     const kr = result.countries.find(({ countryCode }) => countryCode === "KR");
 
@@ -140,6 +145,7 @@ describe("first-wave payment runtime evidence", () => {
       EXACT_HEAD,
       PREVIEW_DEPLOYMENT_ID,
       inputs,
+      EVALUATED_AT,
     );
     const jp = result.countries.find(({ countryCode }) => countryCode === "JP");
 
@@ -174,6 +180,7 @@ describe("first-wave payment runtime evidence", () => {
       EXACT_HEAD,
       PREVIEW_DEPLOYMENT_ID,
       inputs,
+      EVALUATED_AT,
     );
     const us = result.countries.find(({ countryCode }) => countryCode === "US");
 
@@ -209,6 +216,7 @@ describe("first-wave payment runtime evidence", () => {
       EXACT_HEAD,
       PREVIEW_DEPLOYMENT_ID,
       inputs,
+      EVALUATED_AT,
     );
     const ca = result.countries.find(({ countryCode }) => countryCode === "CA");
 
@@ -220,6 +228,60 @@ describe("first-wave payment runtime evidence", () => {
         "PAYMENT_PROVIDER_KEY_MISSING",
       ]),
     );
+    expect(result.ready).toBe(false);
+  });
+
+  it("rejects stale payment proof even when SHA, Preview and sandbox checks still match", () => {
+    const inputs = allFirstWavePaymentEvidence().map((item) =>
+      item.countryCode === "US"
+        ? { ...item, capturedAtUtc: "2026-09-11T11:59:00Z" }
+        : item,
+    );
+
+    const result = evaluateFirstWavePaymentRuntimeEvidence(
+      EXACT_HEAD,
+      PREVIEW_DEPLOYMENT_ID,
+      inputs,
+      EVALUATED_AT,
+    );
+    const us = result.countries.find(({ countryCode }) => countryCode === "US");
+
+    expect(us?.blockers).toContain("PAYMENT_EVIDENCE_STALE");
+    expect(result.ready).toBe(false);
+  });
+
+  it("rejects payment proof captured beyond the allowed future clock skew", () => {
+    const inputs = allFirstWavePaymentEvidence().map((item) =>
+      item.countryCode === "JP"
+        ? { ...item, capturedAtUtc: "2026-09-11T13:06:00Z" }
+        : item,
+    );
+
+    const result = evaluateFirstWavePaymentRuntimeEvidence(
+      EXACT_HEAD,
+      PREVIEW_DEPLOYMENT_ID,
+      inputs,
+      EVALUATED_AT,
+    );
+    const jp = result.countries.find(({ countryCode }) => countryCode === "JP");
+
+    expect(jp?.blockers).toContain("PAYMENT_EVIDENCE_FROM_FUTURE");
+    expect(result.ready).toBe(false);
+  });
+
+  it("fails closed when the evaluation clock is not a valid UTC timestamp", () => {
+    const result = evaluateFirstWavePaymentRuntimeEvidence(
+      EXACT_HEAD,
+      PREVIEW_DEPLOYMENT_ID,
+      allFirstWavePaymentEvidence(),
+      "2026-09-11 13:00:00",
+    );
+
+    expect(
+      result.countries.every(({ blockers }) =>
+        blockers.includes("PAYMENT_EVIDENCE_EVALUATION_TIMESTAMP_INVALID"),
+      ),
+    ).toBe(true);
     expect(result.ready).toBe(false);
   });
 });
