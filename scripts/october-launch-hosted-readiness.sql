@@ -66,8 +66,8 @@ select json_build_object(
 ) as auth_room_factory_boundary;
 
 -- 2) First-wave country commercial/provider readiness. These are inventory checks only.
--- Review provenance is checked through to_jsonb so this read-only evidence still runs
--- fail-closed on Hosted schemas where the provenance columns have not yet been staged.
+-- Review provenance and planned availability status are checked through to_jsonb so
+-- this read-only evidence still runs fail-closed before those columns are staged.
 select c.country_code,
        c.expected_currency,
        (select count(*)
@@ -77,7 +77,7 @@ select c.country_code,
           from public.rc_service_country_terms t
          where t.country_code = c.country_code
            and t.currency = c.expected_currency
-           and t.availability_status = 'AVAILABLE'
+           and upper(coalesce(to_jsonb(t)->>'availability_status', '')) = 'AVAILABLE'
            and t.customer_price_minor > 0) as positive_available_local_prices,
        (select count(*)
           from public.rc_service_provider_offers o
@@ -114,7 +114,7 @@ select c.country_code,
           from public.rc_service_country_terms t
          where t.country_code = c.country_code
            and t.currency = c.expected_currency
-           and t.availability_status = 'AVAILABLE'
+           and upper(coalesce(to_jsonb(t)->>'availability_status', '')) = 'AVAILABLE'
            and t.customer_price_minor > 0) as positive_available_local_prices,
        (select count(*)
           from public.rc_service_provider_offers o
@@ -153,11 +153,11 @@ select json_build_object(
        and column_name in ('review_status', 'reviewed_by', 'reviewed_at')
   ),
   'provider_offers_reviewer_provenance_columns_exist', (
-    select count(*) = 2
+    select count(*) = 3
       from information_schema.columns
      where table_schema = 'public'
        and table_name = 'rc_service_provider_offers'
-       and column_name in ('reviewed_by', 'reviewed_at')
+       and column_name in ('review_status', 'reviewed_by', 'reviewed_at')
   ),
   'recording_legal_basis_column_exists', exists (
     select 1
