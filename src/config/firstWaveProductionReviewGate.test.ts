@@ -135,7 +135,9 @@ describe("first-wave Production review gate", () => {
 
     expect(result.paymentRuntime.ready).toBe(true);
     expect(result.previewPromotion.safeForProductionReview).toBe(false);
+    expect(result.hostedSnapshot.blockers).toEqual(["HOSTED_SNAPSHOT_MISSING"]);
     expect(result.blockers).toContain("PREVIEW_PROMOTION_NOT_READY");
+    expect(result.blockers).toContain("HOSTED_CRITICAL_SNAPSHOT_NOT_READY");
     expect(result.safeForProductionReview).toBe(false);
     expect(result.decision).toBe("HOLD");
   });
