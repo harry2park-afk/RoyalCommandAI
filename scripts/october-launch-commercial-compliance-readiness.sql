@@ -81,7 +81,7 @@ first_state as (
       from public.rc_service_country_terms t
       where upper(t.country_code) = f.country_code
         and upper(t.currency) = f.currency
-        and upper(t.availability_status) = 'AVAILABLE'
+        and upper(coalesce(to_jsonb(t)->>'availability_status', '')) = 'AVAILABLE'
         and coalesce(t.customer_price_minor, 0) > 0
     ) as positive_available_local_prices,
     (
@@ -89,7 +89,7 @@ first_state as (
       from public.rc_service_country_terms t
       where upper(t.country_code) = f.country_code
         and upper(t.currency) = f.currency
-        and upper(t.availability_status) = 'AVAILABLE'
+        and upper(coalesce(to_jsonb(t)->>'availability_status', '')) = 'AVAILABLE'
         and coalesce(t.customer_price_minor, 0) > 0
         and upper(coalesce(to_jsonb(t)->>'review_status', '')) = 'APPROVED'
         and nullif(trim(coalesce(to_jsonb(t)->>'reviewed_by', '')), '') is not null
