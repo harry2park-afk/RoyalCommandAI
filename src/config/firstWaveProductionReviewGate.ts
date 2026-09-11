@@ -10,6 +10,10 @@ import {
   type FirstWavePreviewPromotionEvidence,
 } from "./firstWavePreviewPromotionGate";
 import {
+  buildFirstWaveReleaseReadinessReport,
+  type FirstWaveReleaseReadinessReport,
+} from "./firstWaveReleaseReadinessReport";
+import {
   evaluateHostedLaunchCriticalSnapshot,
   type HostedLaunchCriticalSnapshotDecision,
   type HostedLaunchCriticalSnapshotEvidence,
@@ -25,6 +29,7 @@ import {
 
 export type FirstWaveProductionReviewBlocker =
   | "PREVIEW_PROMOTION_NOT_READY"
+  | "COUNTRY_OPERATIONAL_EVIDENCE_NOT_FRESH"
   | "PAYMENT_RUNTIME_NOT_READY"
   | "HOSTED_CRITICAL_SNAPSHOT_NOT_READY";
 
@@ -35,11 +40,18 @@ export type FirstWaveProductionReviewDecision = {
   safeForProductionReview: boolean;
   blockers: FirstWaveProductionReviewBlocker[];
   previewPromotion: FirstWavePreviewPromotionDecision;
+  countryOperationalReadinessAtReviewTime: FirstWaveReleaseReadinessReport;
   paymentRuntime: FirstWavePaymentRuntimeEvidenceGate;
   hostedSnapshot: HostedLaunchCriticalSnapshotDecision;
   hostedSnapshotFreshness: HostedSnapshotFreshnessDecision;
   hostedSnapshotProvenance: HostedSnapshotProvenanceDecision;
 };
+
+const COUNTRY_FRESHNESS_BLOCKERS = new Set([
+  "COUNTRY_EVIDENCE_EVALUATION_TIME_INVALID",
+  "COUNTRY_EVIDENCE_STALE",
+  "COUNTRY_EVIDENCE_FROM_FUTURE",
+]);
 
 /**
  * Final fail-closed composition point for first-wave Production review.
@@ -51,6 +63,12 @@ export type FirstWaveProductionReviewDecision = {
  * Preview and payment proof are evaluated against the same review clock used
  * for Hosted snapshot freshness so stale exact-SHA/exact-deployment browser,
  * security, rollback or provider-state evidence cannot be reused later.
+ *
+ * Country operational evidence is re-evaluated against that same explicit
+ * review clock. Its provenance envelope is no longer allowed to remain valid
+ * indefinitely merely because country/SHA/evidence-id binding is structurally
+ * correct: evidence older than one hour, more than five minutes in the future,
+ * or evaluated against an invalid review clock fails closed here.
  *
  * A machine-bound Hosted Supabase snapshot is also required so manually marked
  * operational statuses cannot stand in for actual authorization, Room Factory,
@@ -84,6 +102,16 @@ export function evaluateFirstWaveProductionReview(
     evaluatedAtUtc,
   );
 
+  const countryOperationalReadinessAtReviewTime = buildFirstWaveReleaseReadinessReport(
+    candidateSha,
+    countryInputs,
+    evaluatedAtUtc,
+  );
+  const countryOperationalEvidenceFresh = countryOperationalReadinessAtReviewTime.countries.every(
+    ({ evidenceBindingBlockers }) =>
+      !evidenceBindingBlockers.some((blocker) => COUNTRY_FRESHNESS_BLOCKERS.has(blocker)),
+  );
+
   const paymentRuntime = evaluateFirstWavePaymentRuntimeEvidence(
     candidateSha,
     previewDeploymentId,
@@ -107,6 +135,9 @@ export function evaluateFirstWaveProductionReview(
   if (!previewPromotion.safeForProductionReview) {
     blockers.push("PREVIEW_PROMOTION_NOT_READY");
   }
+  if (!countryOperationalEvidenceFresh) {
+    blockers.push("COUNTRY_OPERATIONAL_EVIDENCE_NOT_FRESH");
+  }
   if (!paymentRuntime.ready) {
     blockers.push("PAYMENT_RUNTIME_NOT_READY");
   }
@@ -127,6 +158,7 @@ export function evaluateFirstWaveProductionReview(
     safeForProductionReview,
     blockers,
     previewPromotion,
+    countryOperationalReadinessAtReviewTime,
     paymentRuntime,
     hostedSnapshot,
     hostedSnapshotFreshness,
