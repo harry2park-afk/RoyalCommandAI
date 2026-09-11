@@ -15,6 +15,7 @@ import { evaluateFirstWaveProductionReview } from "./firstWaveProductionReviewGa
 
 const EXACT_HEAD = "7f31f39ff1d3e7e5bca7a4de4a5f10c2ea40ce41";
 const PREVIEW_DEPLOYMENT_ID = "vercel-preview-first-wave-production-review";
+const EVALUATED_AT = "2026-09-11T13:50:00Z";
 
 const currencies: Record<FirstWaveCountryCode, string> = {
   AU: "AUD",
@@ -131,6 +132,8 @@ describe("first-wave Production review gate", () => {
       allFirstWaveCountryInputs(),
       previewEvidence(),
       allFirstWavePaymentEvidence(),
+      undefined,
+      EVALUATED_AT,
     );
 
     expect(result.paymentRuntime.ready).toBe(true);
@@ -149,6 +152,8 @@ describe("first-wave Production review gate", () => {
       allFirstWaveCountryInputs(),
       previewEvidence(),
       payments,
+      undefined,
+      EVALUATED_AT,
     );
 
     expect(result.paymentRuntime.aggregationBlockers).toContainEqual({
@@ -170,6 +175,8 @@ describe("first-wave Production review gate", () => {
       allFirstWaveCountryInputs(),
       previewEvidence(),
       payments,
+      undefined,
+      EVALUATED_AT,
     );
     const kr = result.paymentRuntime.countries.find(({ countryCode }) => countryCode === "KR");
 
@@ -189,6 +196,8 @@ describe("first-wave Production review gate", () => {
       allFirstWaveCountryInputs(),
       previewEvidence(),
       payments,
+      undefined,
+      EVALUATED_AT,
     );
     const us = result.paymentRuntime.countries.find(({ countryCode }) => countryCode === "US");
 
@@ -197,5 +206,26 @@ describe("first-wave Production review gate", () => {
     );
     expect(result.blockers).toContain("PAYMENT_RUNTIME_NOT_READY");
     expect(result.decision).toBe("HOLD");
+  });
+
+  it("keeps Production review on HOLD when payment proof has gone stale", () => {
+    const payments = allFirstWavePaymentEvidence().map((evidence) =>
+      evidence.countryCode === "CA"
+        ? { ...evidence, capturedAtUtc: "2026-09-11T12:40:00Z" }
+        : evidence,
+    );
+    const result = evaluateFirstWaveProductionReview(
+      EXACT_HEAD,
+      allFirstWaveCountryInputs(),
+      previewEvidence(),
+      payments,
+      undefined,
+      EVALUATED_AT,
+    );
+    const ca = result.paymentRuntime.countries.find(({ countryCode }) => countryCode === "CA");
+
+    expect(ca?.blockers).toContain("PAYMENT_EVIDENCE_STALE");
+    expect(result.blockers).toContain("PAYMENT_RUNTIME_NOT_READY");
+    expect(result.safeForProductionReview).toBe(false);
   });
 });
