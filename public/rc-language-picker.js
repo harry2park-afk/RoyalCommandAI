@@ -13,6 +13,11 @@
   const ORDER_KEY = "royalcommand:language-order-v3";
   const HIDDEN_KEY = "royalcommand:hidden-countries";
   const SELECTED_KEY = "royalcommand:ui-locale";
+  const ROOM_BACK_LABELS = {
+    en: "← RC AI Room", ko: "← RC AI 룸", zh: "← RC AI 房间", ja: "← RC AI ルーム",
+    es: "← Sala RC AI", fr: "← Salle RC AI", de: "← RC AI-Raum",
+    vi: "← Phòng RC AI", th: "← ห้อง RC AI", id: "← Ruang RC AI"
+  };
   const byValue = new Map(LANGS.map((x) => [x[0], x]));
   const flagUrl = (cc) => `/api/flags/${cc}`;
   const DEFAULT_ORDER = LANGS.slice().sort((a,b)=>a[1].localeCompare(b[1],"en") || a[3].localeCompare(b[3],"en")).map(x=>x[0]);
@@ -31,6 +36,14 @@
   function loadHidden(){try{return new Set(JSON.parse(localStorage.getItem(HIDDEN_KEY)||"[]").filter(v=>/^[A-Z]{2}$/.test(v)));}catch{return new Set();}}
   function savePreferences(value){void fetch("/api/user/preferences",{method:"PATCH",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify(value)}).catch(()=>{});}
   function saveHidden(hidden){const values=[...hidden];localStorage.setItem(HIDDEN_KEY,JSON.stringify(values));savePreferences({hiddenCountries:values});}
+  function updateRoomBackLabel(locale){
+    const back=document.getElementById("rc-ai-room-back");
+    if(!(back instanceof HTMLButtonElement))return;
+    const language=String(locale||"en").toLowerCase().split("-")[0];
+    const label=ROOM_BACK_LABELS[language]||ROOM_BACK_LABELS.en;
+    back.textContent=label;back.setAttribute("aria-label",label);back.title=label;
+  }
+  window.addEventListener("rc:room-back-mounted",()=>updateRoomBackLabel(localStorage.getItem(SELECTED_KEY)||"en"));
   function saveSelected(item){localStorage.setItem(SELECTED_KEY,item[0]);savePreferences({uiLocale:item[0],countryCode:item[1],language:item[0].split("-")[0].toLowerCase()});}
 
   function setReactSelect(select,value){
@@ -63,7 +76,7 @@
     hidden.delete(current[1]); saveHidden(hidden);
     localStorage.setItem(SELECTED_KEY,current[0]); setReactSelect(select,current[0]);
 
-    function renderButton(){button.innerHTML=`<span style="display:flex;align-items:center;gap:7px"><img src="${flagUrl(current[2])}" width="22" height="15" style="width:22px;height:15px;object-fit:cover;border-radius:2px"><strong>${current[1]}</strong></span><span style="opacity:.8">⌄</span>`;}
+    function renderButton(){button.innerHTML=`<span style="display:flex;align-items:center;gap:7px"><img src="${flagUrl(current[2])}" width="22" height="15" style="width:22px;height:15px;object-fit:cover;border-radius:2px"><strong>${current[1]}</strong></span><span style="opacity:.8">⌄</span>`;updateRoomBackLabel(current[0]);}
     function positionMenu(){const rect=button.getBoundingClientRect();const top=Math.max(4,rect.bottom+4);const right=Math.max(8,window.innerWidth-rect.right);const available=Math.max(220,window.innerHeight-top-8);menu.style.top=`${top}px`;menu.style.right=`${right}px`;menu.style.height=`${available}px`;menu.style.maxHeight=`${available}px`;}
     function moveTo(dragValue,targetValue,after=false){if(!dragValue||!targetValue||dragValue===targetValue)return;const next=order.filter(v=>v!==dragValue);let i=next.indexOf(targetValue);if(i<0)i=next.length;if(after)i+=1;next.splice(i,0,dragValue);order=next;saveOrder(order);}
 
