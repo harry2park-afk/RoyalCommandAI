@@ -14,7 +14,7 @@ import { getIntegrationEligibility } from "@/lib/ai/integrationEligibility";
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string; title?: string; titleEdited?: boolean };
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
-type CustomerRoom = { id: string; name: string; status?: string };
+type CustomerRoom = { id: string; roomId?: string; name: string; status?: string };
 type ProviderResult = {
   requestId: string;
   provider: ProviderId;
@@ -201,16 +201,20 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
       })
       .catch(() => setGlobalError("AI provider status could not be loaded."));
 
-    void fetch("/api/rooms", { cache: "no-store" })
-      .then((res) => res.ok ? res.json() : null)
-      .then((data) => {
-        const list = Array.isArray(data?.rooms) ? data.rooms as CustomerRoom[] : [];
-        setCustomerRooms(list.filter((room) =>
-          room && room.id && room.name && room.status !== "archived" &&
-          String(room.id).toLowerCase() !== "rca"
-        ));
-      })
-      .catch(() => setCustomerRooms([]));
+    void Promise.all([
+      fetch("/api/rooms", { cache: "no-store" }).then((res) => res.ok ? res.json() : { rooms: [] }),
+      fetch("/api/room-factory/rooms", { cache: "no-store" }).then((res) => res.ok ? res.json() : { rooms: [] }),
+    ]).then(([standardData, factoryData]) => {
+      const standardRooms = Array.isArray(standardData?.rooms) ? standardData.rooms as CustomerRoom[] : [];
+      const factoryRooms = Array.isArray(factoryData?.rooms) ? factoryData.rooms as CustomerRoom[] : [];
+      const unique = new Map<string, CustomerRoom>();
+      for (const room of [...factoryRooms, ...standardRooms]) {
+        const id = String(room?.roomId || room?.id || "");
+        if (!id || !room?.name || room.status === "archived" || id.toLowerCase() === "rca") continue;
+        if (!unique.has(id)) unique.set(id, { ...room, id });
+      }
+      setCustomerRooms(Array.from(unique.values()));
+    }).catch(() => setCustomerRooms([]));
 
     const next = { openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } } as Record<ProviderId, RoomState>;
     for (const provider of PROVIDERS) {
