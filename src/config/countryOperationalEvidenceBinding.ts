@@ -1,3 +1,10 @@
+import type { CountryConfig } from "../types/countryConfig";
+import {
+  evaluateCountryOperationalLaunch,
+  type CountryOperationalEvidence,
+  type CountryOperationalLaunchGate,
+} from "./countryOperationalLaunchGate";
+
 export type CountryOperationalEvidenceEnvelope = {
   countryCode: string;
   exactHeadSha: string;
@@ -15,6 +22,10 @@ export type CountryOperationalEvidenceBindingBlocker =
 export type CountryOperationalEvidenceBindingResult = {
   ready: boolean;
   blockers: CountryOperationalEvidenceBindingBlocker[];
+};
+
+export type CountryBoundOperationalLaunchGate = CountryOperationalLaunchGate & {
+  evidenceBinding: CountryOperationalEvidenceBindingResult;
 };
 
 const EXACT_GIT_SHA_PATTERN = /^[0-9a-f]{40}$/i;
@@ -61,5 +72,29 @@ export function evaluateCountryOperationalEvidenceBinding(
   return {
     ready: blockers.length === 0,
     blockers,
+  };
+}
+
+/**
+ * Country-bound launch evaluator for rollout aggregation.
+ *
+ * The existing operational gate remains unchanged for source compatibility.
+ * New launch aggregation should use this wrapper so otherwise-valid evidence
+ * cannot authorize a different country or an unidentified source revision.
+ * A valid envelope is provenance only; all country, legal, operational,
+ * payment, QA and deployment gates must still pass independently.
+ */
+export function evaluateCountryBoundOperationalLaunch(
+  config: CountryConfig,
+  evidence: CountryOperationalEvidence,
+  envelope: CountryOperationalEvidenceEnvelope | null | undefined,
+): CountryBoundOperationalLaunchGate {
+  const operationalGate = evaluateCountryOperationalLaunch(config, evidence);
+  const evidenceBinding = evaluateCountryOperationalEvidenceBinding(config.countryCode, envelope);
+
+  return {
+    ...operationalGate,
+    launchable: operationalGate.launchable && evidenceBinding.ready,
+    evidenceBinding,
   };
 }
