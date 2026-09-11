@@ -9,10 +9,16 @@ import {
   type FirstWavePreviewPromotionDecision,
   type FirstWavePreviewPromotionEvidence,
 } from "./firstWavePreviewPromotionGate";
+import {
+  evaluateHostedLaunchCriticalSnapshot,
+  type HostedLaunchCriticalSnapshotDecision,
+  type HostedLaunchCriticalSnapshotEvidence,
+} from "./hostedLaunchCriticalSnapshotGate";
 
 export type FirstWaveProductionReviewBlocker =
   | "PREVIEW_PROMOTION_NOT_READY"
-  | "PAYMENT_RUNTIME_NOT_READY";
+  | "PAYMENT_RUNTIME_NOT_READY"
+  | "HOSTED_CRITICAL_SNAPSHOT_NOT_READY";
 
 export type FirstWaveProductionReviewDecision = {
   candidateSha: string;
@@ -22,6 +28,7 @@ export type FirstWaveProductionReviewDecision = {
   blockers: FirstWaveProductionReviewBlocker[];
   previewPromotion: FirstWavePreviewPromotionDecision;
   paymentRuntime: FirstWavePaymentRuntimeEvidenceGate;
+  hostedSnapshot: HostedLaunchCriticalSnapshotDecision;
 };
 
 /**
@@ -32,17 +39,23 @@ export type FirstWaveProductionReviewDecision = {
  * evidence. Payment runtime evidence is deliberately separate because real
  * sandbox payment proof has its own country/currency/provider lifecycle.
  *
- * This wrapper requires both gates to pass for the same exact candidate SHA
- * and the same Preview deployment ID. It never calls a payment provider,
- * deploys code, mutates Hosted Supabase, activates a country, or grants
- * Production deployment approval; it only decides whether the evidence bundle
- * is complete enough to enter human Production review.
+ * A machine-bound Hosted Supabase snapshot is also required so manually marked
+ * operational statuses cannot stand in for actual authorization, Room Factory,
+ * payment-safeguard, required-migration, and first-wave commercial/recording
+ * read-back from the intended Hosted project.
+ *
+ * This wrapper requires all gates to pass for the same exact candidate SHA and
+ * Preview deployment. It never calls a payment provider, deploys code, mutates
+ * Hosted Supabase, activates a country, or grants Production deployment
+ * approval; it only decides whether the evidence bundle is complete enough to
+ * enter human Production review.
  */
 export function evaluateFirstWaveProductionReview(
   expectedExactHeadSha: string,
   countryInputs: readonly FirstWaveCountryEvidenceInput[],
   previewEvidence: FirstWavePreviewPromotionEvidence,
   paymentEvidence: readonly FirstWavePaymentRuntimeEvidence[],
+  hostedSnapshotEvidence?: HostedLaunchCriticalSnapshotEvidence | null,
 ): FirstWaveProductionReviewDecision {
   const candidateSha = expectedExactHeadSha.trim();
   const previewDeploymentId = previewEvidence.previewDeploymentId.trim();
@@ -59,12 +72,20 @@ export function evaluateFirstWaveProductionReview(
     paymentEvidence,
   );
 
+  const hostedSnapshot = evaluateHostedLaunchCriticalSnapshot(
+    candidateSha,
+    hostedSnapshotEvidence,
+  );
+
   const blockers: FirstWaveProductionReviewBlocker[] = [];
   if (!previewPromotion.safeForProductionReview) {
     blockers.push("PREVIEW_PROMOTION_NOT_READY");
   }
   if (!paymentRuntime.ready) {
     blockers.push("PAYMENT_RUNTIME_NOT_READY");
+  }
+  if (!hostedSnapshot.ready) {
+    blockers.push("HOSTED_CRITICAL_SNAPSHOT_NOT_READY");
   }
 
   const safeForProductionReview = blockers.length === 0;
@@ -77,5 +98,6 @@ export function evaluateFirstWaveProductionReview(
     blockers,
     previewPromotion,
     paymentRuntime,
+    hostedSnapshot,
   };
 }
