@@ -5,6 +5,9 @@ import {
 
 export type PaymentRuntimeVerificationState = "VERIFIED" | "NOT_VERIFIED";
 
+export const PAYMENT_RUNTIME_EVIDENCE_MAX_AGE_MINUTES = 60;
+export const PAYMENT_RUNTIME_EVIDENCE_MAX_FUTURE_SKEW_MINUTES = 5;
+
 export type FirstWavePaymentRuntimeEvidence = {
   countryCode: string;
   currency: string;
@@ -30,6 +33,9 @@ export type FirstWavePaymentRuntimeCountryBlocker =
   | "PAYMENT_EVIDENCE_HEAD_SHA_INVALID"
   | "PAYMENT_EVIDENCE_HEAD_SHA_MISMATCH"
   | "PAYMENT_EVIDENCE_TIMESTAMP_INVALID"
+  | "PAYMENT_EVIDENCE_EVALUATION_TIMESTAMP_INVALID"
+  | "PAYMENT_EVIDENCE_STALE"
+  | "PAYMENT_EVIDENCE_FROM_FUTURE"
   | "PAYMENT_PREVIEW_DEPLOYMENT_ID_MISMATCH"
   | "PAYMENT_PROVIDER_KEY_MISSING"
   | "PAYMENT_SANDBOX_REQUIRED"
@@ -77,8 +83,14 @@ const FIRST_WAVE_CURRENCY: Record<FirstWaveCountryCode, string> = {
   GB: "GBP",
 };
 
-function isValidUtcTimestamp(value: string): boolean {
-  return UTC_TIMESTAMP_PATTERN.test(value) && !Number.isNaN(Date.parse(value));
+function parseUtcTimestamp(value: string): number | null {
+  const trimmed = value.trim();
+  if (!UTC_TIMESTAMP_PATTERN.test(trimmed)) {
+    return null;
+  }
+
+  const timestamp = Date.parse(trimmed);
+  return Number.isNaN(timestamp) ? null : timestamp;
 }
 
 function evaluateCountryPaymentEvidence(
@@ -86,6 +98,9 @@ function evaluateCountryPaymentEvidence(
   expectedExactHeadSha: string,
   expectedPreviewDeploymentId: string,
   evidence: FirstWavePaymentRuntimeEvidence,
+  evaluatedAtUtc: string,
+  maxAgeMinutes: number,
+  maxFutureSkewMinutes: number,
 ): FirstWavePaymentRuntimeCountryBlocker[] {
   const blockers: FirstWavePaymentRuntimeCountryBlocker[] = [];
   const evidenceHead = evidence.exactHeadSha.trim();
@@ -101,8 +116,24 @@ function evaluateCountryPaymentEvidence(
     blockers.push("PAYMENT_EVIDENCE_HEAD_SHA_MISMATCH");
   }
 
-  if (!isValidUtcTimestamp(evidence.capturedAtUtc.trim())) {
+  const capturedAt = parseUtcTimestamp(evidence.capturedAtUtc);
+  if (capturedAt === null) {
     blockers.push("PAYMENT_EVIDENCE_TIMESTAMP_INVALID");
+  }
+
+  const evaluatedAt = parseUtcTimestamp(evaluatedAtUtc);
+  if (evaluatedAt === null) {
+    blockers.push("PAYMENT_EVIDENCE_EVALUATION_TIMESTAMP_INVALID");
+  }
+
+  if (capturedAt !== null && evaluatedAt !== null) {
+    const ageMinutes = (evaluatedAt - capturedAt) / 60_000;
+    if (ageMinutes > maxAgeMinutes) {
+      blockers.push("PAYMENT_EVIDENCE_STALE");
+    }
+    if (ageMinutes < -maxFutureSkewMinutes) {
+      blockers.push("PAYMENT_EVIDENCE_FROM_FUTURE");
+    }
   }
 
   if (
@@ -160,6 +191,10 @@ function evaluateCountryPaymentEvidence(
  * Bind first-wave payment runtime proof to the exact country, candidate SHA and
  * Preview deployment before it can be consumed by release tooling.
  *
+ * Payment-provider state can drift independently of an immutable Preview SHA,
+ * so evidence must also be recent. By default, proof older than 60 minutes or
+ * more than five minutes in the future fails closed.
+ *
  * This is evidence validation only. It never creates a checkout, calls a payment
  * provider, enables live mode, mutates Hosted Supabase, activates a country, or
  * grants Production approval. Evidence must come from sandbox execution, and
@@ -169,6 +204,9 @@ export function evaluateFirstWavePaymentRuntimeEvidence(
   expectedExactHeadSha: string,
   expectedPreviewDeploymentId: string,
   inputs: readonly FirstWavePaymentRuntimeEvidence[],
+  evaluatedAtUtc = new Date().toISOString(),
+  maxAgeMinutes = PAYMENT_RUNTIME_EVIDENCE_MAX_AGE_MINUTES,
+  maxFutureSkewMinutes = PAYMENT_RUNTIME_EVIDENCE_MAX_FUTURE_SKEW_MINUTES,
 ): FirstWavePaymentRuntimeEvidenceGate {
   const candidateSha = expectedExactHeadSha.trim();
   const previewDeploymentId = expectedPreviewDeploymentId.trim();
@@ -222,6 +260,9 @@ export function evaluateFirstWavePaymentRuntimeEvidence(
       candidateSha,
       previewDeploymentId,
       evidence,
+      evaluatedAtUtc,
+      maxAgeMinutes,
+      maxFutureSkewMinutes,
     );
 
     return {
