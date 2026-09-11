@@ -7,6 +7,7 @@ type TaskStatus = "todo" | "in_progress" | "approval_required" | "completed";
 type Task = { id: string; title: string; status: TaskStatus; createdAt: string; updatedAt: string; result?: string; error?: string };
 type Chat = { id: string; role: "user" | "assistant"; text: string; at: string };
 type FileRecord = { id: string; name: string; size: number; at: string };
+type RetellCall = { id: string; call_id?: string; from_number?: string; duration_ms?: number; message?: string; recording_url?: string; transcript?: string; summary?: string; created_at?: string };
 type SecretaryData = { connected: boolean; name: string; chats: Chat[]; tasks: Task[]; files: FileRecord[]; logs: string[] };
 
 const TABS = ["대화", "오늘의 보고", "업무", "메일·전화", "일정", "파일", "기록"] as const;
@@ -38,6 +39,7 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
   const [tab, setTab] = useState<Tab>("대화");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [calls, setCalls] = useState<RetellCall[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -54,14 +56,26 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
     window.localStorage.setItem(storageKey(roomId), JSON.stringify(data));
   }, [data, loaded, roomId]);
 
+  useEffect(() => {
+    if (!loaded || !roomId || roomId.toLowerCase() === "rca") return;
+    let active = true;
+    const loadCalls = () => fetch(`/api/rooms/${encodeURIComponent(roomId)}/ai-secretary/calls`, { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((payload) => { if (active && Array.isArray(payload?.calls)) setCalls(payload.calls); })
+      .catch(() => undefined);
+    loadCalls();
+    const timer = window.setInterval(loadCalls, 30000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [loaded, roomId]);
+
   const report = useMemo(() => ({
-    calls: data.logs.filter((x) => x.includes("전화")).length,
-    voicemail: data.logs.filter((x) => x.includes("음성메시지")).length,
+    calls: calls.length + data.logs.filter((x) => x.includes("전화")).length,
+    voicemail: calls.filter((x) => x.message || x.transcript).length + data.logs.filter((x) => x.includes("음성메시지")).length,
     email: data.logs.filter((x) => x.includes("메일")).length,
     schedule: data.tasks.filter((x) => /일정|예약/.test(x.title) && x.status !== "completed").length,
     reminders: data.tasks.filter((x) => x.status === "approval_required").length,
     active: data.tasks.filter((x) => x.status === "todo" || x.status === "in_progress").length,
-  }), [data]);
+  }), [calls, data]);
 
   if (!roomId || roomId.toLowerCase() === "rca") return null;
 
@@ -151,7 +165,7 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
               ["일정", report.schedule, CalendarDays], ["알림·승인", report.reminders, Clock3], ["진행 업무", report.active, ChevronRight],
             ].map(([label, count, Icon]: any) => <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4"><Icon className="mb-3 text-[#f0d36a]" size={20}/><div className="text-sm text-white/60">{label}</div><div className="mt-1 text-3xl font-bold">{count}</div></div>)}</div> : null}
             {tab === "업무" ? <div className="grid gap-3 lg:grid-cols-4">{(["todo","in_progress","approval_required","completed"] as TaskStatus[]).map((status) => <div key={status} className="rounded-xl border border-white/10 bg-black/15 p-3"><h3 className="mb-3 font-bold text-[#f0d36a]">{STATUS[status]}</h3>{data.tasks.filter((task) => task.status === status).map((task) => <article key={task.id} className="mb-2 rounded-lg border border-white/10 bg-[#0c1a2d] p-3 text-sm"><div>{task.title}</div><div className="mt-2 text-[9px] text-white/35">{stamp(task.updatedAt)}</div><div className="mt-2 flex gap-1">{status === "todo" ? <button onClick={() => updateTask(task.id,"in_progress")} className="rounded bg-blue-700 px-2 py-1 text-[10px]">시작</button> : null}{status === "approval_required" ? <button onClick={() => updateTask(task.id,"in_progress")} className="rounded bg-amber-600 px-2 py-1 text-[10px]">고객 승인</button> : null}{status === "in_progress" ? <button onClick={() => updateTask(task.id,"completed")} className="rounded bg-emerald-700 px-2 py-1 text-[10px]">완료</button> : null}</div>{task.result ? <div className="mt-2 text-[10px] text-emerald-300">{task.result}</div> : null}</article>)}</div>)}</div> : null}
-            {tab === "메일·전화" ? <div className="rounded-xl border border-amber-400/30 bg-amber-950/15 p-5"><h3 className="font-bold text-amber-200">외부 실행 안전 잠금</h3><p className="mt-2 text-sm leading-6 text-white/70">실제 이메일 발송·전화 회신은 연결하지 않았습니다. 관련 지시는 반드시 ‘승인 필요’에 저장되며 고객 승인 전 실행되지 않습니다.</p></div> : null}
+            {tab === "메일·전화" ? <div className="space-y-3">{calls.length ? calls.map((call) => <article key={call.call_id ?? call.id} className="rounded-xl border border-white/10 bg-white/5 p-4"><div className="flex items-center gap-2 font-bold text-[#f0d36a]"><Phone size={16}/> {call.from_number || "발신번호 비공개"}</div><div className="mt-1 text-xs text-white/45">{call.created_at ? stamp(call.created_at) : ""}{typeof call.duration_ms === "number" ? ` · ${Math.round(call.duration_ms / 1000)}초` : ""}</div>{call.summary ? <p className="mt-3 text-sm leading-6">{call.summary}</p> : null}{call.message && call.message !== call.summary ? <p className="mt-2 text-sm text-white/70">{call.message}</p> : null}{call.transcript ? <details className="mt-3"><summary className="cursor-pointer text-xs text-[#f0d36a]">Transcript</summary><pre className="mt-2 whitespace-pre-wrap text-xs leading-5 text-white/65">{call.transcript}</pre></details> : null}{call.recording_url ? <audio controls preload="none" className="mt-3 w-full" src={call.recording_url}/> : null}</article>) : <div className="rounded-xl border border-white/10 p-5 text-sm text-white/55">저장된 전화 기록이 없습니다.</div>}<div className="rounded-xl border border-amber-400/30 bg-amber-950/15 p-4"><h3 className="font-bold text-amber-200">외부 실행 안전 잠금</h3><p className="mt-2 text-sm leading-6 text-white/70">전화 회신과 이메일 발송은 고객 승인 전 실행되지 않습니다.</p></div></div> : null}
             {tab === "일정" ? <div className="space-y-2">{data.tasks.filter((task) => /일정|예약|schedule|booking/i.test(task.title)).map((task) => <div key={task.id} className="rounded-lg border border-white/10 p-3 text-sm">{task.title} · {STATUS[task.status]}</div>)}</div> : null}
             {tab === "파일" ? <div><input ref={fileRef} type="file" multiple className="hidden" onChange={(e) => addFiles(e.target.files)}/><button onClick={() => fileRef.current?.click()} className="rounded-lg border border-[#d7b64d] bg-[#173663] px-4 py-2 text-sm text-[#ffe18a]"><FileText className="mr-2 inline" size={16}/>파일 추가</button><div className="mt-4 space-y-2">{data.files.map((file) => <div key={file.id} className="rounded-lg border border-white/10 p-3 text-sm">{file.name}<span className="ml-2 text-xs text-white/40">{Math.ceil(file.size/1024)} KB · {stamp(file.at)}</span></div>)}</div></div> : null}
             {tab === "기록" ? <div className="space-y-2">{data.logs.map((log,index) => <div key={index} className="rounded-lg border border-white/10 px-3 py-2 text-sm text-white/70">{log}</div>)}</div> : null}
