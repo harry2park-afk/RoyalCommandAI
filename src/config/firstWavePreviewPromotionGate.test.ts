@@ -66,6 +66,11 @@ function verifiedPreviewEvidence(): FirstWavePreviewPromotionEvidence {
     localizationBrowserRegression: "VERIFIED",
     securityRegression: "VERIFIED",
     rollbackVerification: "VERIFIED",
+    countryVerifications: FIRST_WAVE_COUNTRY_CODES.map((countryCode) => ({
+      countryCode,
+      authenticatedSmokeTest: "VERIFIED",
+      localizationBrowserRegression: "VERIFIED",
+    })),
   };
 }
 
@@ -79,6 +84,7 @@ describe("first-wave Preview-first promotion gate", () => {
 
     expect(result.releaseReadiness.safeToPromote).toBe(false);
     expect(result.blockers).toContain("FIRST_WAVE_RELEASE_NOT_READY");
+    expect(result.countryVerifications.every(({ ready }) => ready)).toBe(true);
     expect(result.safeForProductionReview).toBe(false);
     expect(result.decision).toBe("HOLD");
   });
@@ -128,6 +134,81 @@ describe("first-wave Preview-first promotion gate", () => {
 
     expect(result.blockers).toContain("PREVIEW_EVIDENCE_HEAD_SHA_INVALID");
     expect(result.blockers).not.toContain("PREVIEW_EVIDENCE_HEAD_SHA_MISMATCH");
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("requires Preview verification coverage for every first-wave country", () => {
+    const evidence = verifiedPreviewEvidence();
+    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+      ...evidence,
+      countryVerifications: evidence.countryVerifications.filter(
+        ({ countryCode }) => countryCode !== "GB",
+      ),
+    });
+
+    expect(result.blockers).toContain("PREVIEW_FIRST_WAVE_COUNTRY_COVERAGE_INCOMPLETE");
+    expect(result.countryVerifications.find(({ countryCode }) => countryCode === "GB")).toMatchObject({
+      evaluated: false,
+      ready: false,
+    });
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("rejects duplicate or unsupported country Preview rows", () => {
+    const evidence = verifiedPreviewEvidence();
+    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+      ...evidence,
+      countryVerifications: [
+        ...evidence.countryVerifications,
+        {
+          countryCode: "AU",
+          authenticatedSmokeTest: "VERIFIED",
+          localizationBrowserRegression: "VERIFIED",
+        },
+        {
+          countryCode: "SG",
+          authenticatedSmokeTest: "VERIFIED",
+          localizationBrowserRegression: "VERIFIED",
+        },
+      ],
+    });
+
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        "PREVIEW_FIRST_WAVE_COUNTRY_DUPLICATE",
+        "PREVIEW_FIRST_WAVE_COUNTRY_UNSUPPORTED",
+      ]),
+    );
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("does not let one country's Preview pass stand in for another", () => {
+    const evidence = verifiedPreviewEvidence();
+    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+      ...evidence,
+      countryVerifications: evidence.countryVerifications.map((verification) =>
+        verification.countryCode === "KR"
+          ? {
+              ...verification,
+              authenticatedSmokeTest: "NOT_VERIFIED" as const,
+              localizationBrowserRegression: "NOT_VERIFIED" as const,
+            }
+          : verification,
+      ),
+    });
+
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        "PREVIEW_FIRST_WAVE_COUNTRY_AUTHENTICATED_SMOKE_NOT_VERIFIED",
+        "PREVIEW_FIRST_WAVE_COUNTRY_LOCALIZATION_REGRESSION_NOT_VERIFIED",
+      ]),
+    );
+    expect(result.countryVerifications.find(({ countryCode }) => countryCode === "KR")).toMatchObject({
+      evaluated: true,
+      ready: false,
+      authenticatedSmokeTest: "NOT_VERIFIED",
+      localizationBrowserRegression: "NOT_VERIFIED",
+    });
     expect(result.safeForProductionReview).toBe(false);
   });
 });
