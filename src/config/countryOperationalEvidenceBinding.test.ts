@@ -10,6 +10,7 @@ import type { CountryOperationalEvidence } from "./countryOperationalLaunchGate"
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
 const EXACT_HEAD = "fa398d701d8059df403f581d6c646e769dc23e65";
+const DIFFERENT_VALID_HEAD = "33da2a917dc6adcf266f59f0b27d18a56f1271d8";
 
 const verifiedOperationalEvidence: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
@@ -37,10 +38,13 @@ const verifiedOperationalEvidence: CountryOperationalEvidence = {
   rollbackPath: "VERIFIED",
 };
 
-function envelope(countryCode: string): CountryOperationalEvidenceEnvelope {
+function envelope(
+  countryCode: string,
+  exactHeadSha = EXACT_HEAD,
+): CountryOperationalEvidenceEnvelope {
   return {
     countryCode,
-    exactHeadSha: EXACT_HEAD,
+    exactHeadSha,
     evidenceId: `october-launch-${countryCode.toLowerCase()}-evidence`,
     capturedAtUtc: "2026-09-11T06:55:00Z",
   };
@@ -67,7 +71,9 @@ function makeCountryGateReady(config: CountryConfig): CountryConfig {
 describe("country operational evidence binding", () => {
   it("accepts a complete exact-head envelope only for its own first-wave country", () => {
     for (const countryCode of FIRST_WAVE) {
-      expect(evaluateCountryOperationalEvidenceBinding(countryCode, envelope(countryCode))).toEqual({
+      expect(
+        evaluateCountryOperationalEvidenceBinding(countryCode, EXACT_HEAD, envelope(countryCode)),
+      ).toEqual({
         ready: true,
         blockers: [],
       });
@@ -75,14 +81,27 @@ describe("country operational evidence binding", () => {
   });
 
   it("rejects cross-country evidence reuse", () => {
-    expect(evaluateCountryOperationalEvidenceBinding("US", envelope("AU"))).toEqual({
+    expect(evaluateCountryOperationalEvidenceBinding("US", EXACT_HEAD, envelope("AU"))).toEqual({
       ready: false,
       blockers: ["COUNTRY_EVIDENCE_COUNTRY_MISMATCH"],
     });
   });
 
+  it("rejects evidence from a different valid commit SHA", () => {
+    expect(
+      evaluateCountryOperationalEvidenceBinding(
+        "AU",
+        EXACT_HEAD,
+        envelope("AU", DIFFERENT_VALID_HEAD),
+      ),
+    ).toEqual({
+      ready: false,
+      blockers: ["COUNTRY_EVIDENCE_HEAD_SHA_MISMATCH"],
+    });
+  });
+
   it("fails closed when the evidence envelope is missing", () => {
-    expect(evaluateCountryOperationalEvidenceBinding("AU", null)).toEqual({
+    expect(evaluateCountryOperationalEvidenceBinding("AU", EXACT_HEAD, null)).toEqual({
       ready: false,
       blockers: [
         "COUNTRY_EVIDENCE_COUNTRY_MISSING",
@@ -93,9 +112,22 @@ describe("country operational evidence binding", () => {
     });
   });
 
+  it("rejects an invalid expected head even when the evidence head is well formed", () => {
+    expect(
+      evaluateCountryOperationalEvidenceBinding(
+        "AU",
+        "launch/room-factory-operational-gate-20260907",
+        envelope("AU"),
+      ),
+    ).toEqual({
+      ready: false,
+      blockers: ["COUNTRY_EVIDENCE_EXPECTED_HEAD_SHA_INVALID"],
+    });
+  });
+
   it("rejects branch labels, empty evidence ids and timestamps without explicit UTC", () => {
     expect(
-      evaluateCountryOperationalEvidenceBinding("AU", {
+      evaluateCountryOperationalEvidenceBinding("AU", EXACT_HEAD, {
         countryCode: "AU",
         exactHeadSha: "launch/room-factory-operational-gate-20260907",
         evidenceId: " ",
@@ -118,6 +150,7 @@ describe("country operational evidence binding", () => {
     const gate = evaluateCountryBoundOperationalLaunch(
       makeCountryGateReady(us!),
       verifiedOperationalEvidence,
+      EXACT_HEAD,
       envelope("AU"),
     );
 
@@ -130,6 +163,26 @@ describe("country operational evidence binding", () => {
     expect(gate.launchable).toBe(false);
   });
 
+  it("prevents otherwise launchable evidence from being reused across exact heads", () => {
+    const au = getCountryConfigByCountryCode("AU");
+    expect(au).not.toBeNull();
+
+    const gate = evaluateCountryBoundOperationalLaunch(
+      makeCountryGateReady(au!),
+      verifiedOperationalEvidence,
+      EXACT_HEAD,
+      envelope("AU", DIFFERENT_VALID_HEAD),
+    );
+
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual([]);
+    expect(gate.evidenceBinding).toEqual({
+      ready: false,
+      blockers: ["COUNTRY_EVIDENCE_HEAD_SHA_MISMATCH"],
+    });
+    expect(gate.launchable).toBe(false);
+  });
+
   it("keeps a matching envelope subordinate to all existing launch gates", () => {
     const au = getCountryConfigByCountryCode("AU");
     expect(au).not.toBeNull();
@@ -137,6 +190,7 @@ describe("country operational evidence binding", () => {
     const gate = evaluateCountryBoundOperationalLaunch(
       makeCountryGateReady(au!),
       verifiedOperationalEvidence,
+      EXACT_HEAD,
       envelope("AU"),
     );
 
