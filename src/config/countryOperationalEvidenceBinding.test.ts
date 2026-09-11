@@ -11,6 +11,7 @@ import type { CountryOperationalEvidence } from "./countryOperationalLaunchGate"
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
 const EXACT_HEAD = "fa398d701d8059df403f581d6c646e769dc23e65";
 const DIFFERENT_VALID_HEAD = "33da2a917dc6adcf266f59f0b27d18a56f1271d8";
+const EVALUATED_AT = "2026-09-11T07:10:00Z";
 
 const verifiedOperationalEvidence: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
@@ -78,6 +79,45 @@ describe("country operational evidence binding", () => {
         blockers: [],
       });
     }
+  });
+
+  it("accepts fresh exact-head evidence when an explicit release clock is supplied", () => {
+    expect(
+      evaluateCountryOperationalEvidenceBinding("AU", EXACT_HEAD, envelope("AU"), EVALUATED_AT),
+    ).toEqual({ ready: true, blockers: [] });
+  });
+
+  it("fails closed when country operational evidence is older than one hour", () => {
+    expect(
+      evaluateCountryOperationalEvidenceBinding(
+        "AU",
+        EXACT_HEAD,
+        { ...envelope("AU"), capturedAtUtc: "2026-09-11T06:09:59Z" },
+        EVALUATED_AT,
+      ),
+    ).toEqual({ ready: false, blockers: ["COUNTRY_EVIDENCE_STALE"] });
+  });
+
+  it("fails closed when country operational evidence is more than five minutes in the future", () => {
+    expect(
+      evaluateCountryOperationalEvidenceBinding(
+        "AU",
+        EXACT_HEAD,
+        { ...envelope("AU"), capturedAtUtc: "2026-09-11T07:15:01Z" },
+        EVALUATED_AT,
+      ),
+    ).toEqual({ ready: false, blockers: ["COUNTRY_EVIDENCE_FROM_FUTURE"] });
+  });
+
+  it("fails closed when the explicit release evaluation clock is invalid", () => {
+    expect(
+      evaluateCountryOperationalEvidenceBinding(
+        "AU",
+        EXACT_HEAD,
+        envelope("AU"),
+        "2026-09-11T17:10:00+10:00",
+      ),
+    ).toEqual({ ready: false, blockers: ["COUNTRY_EVIDENCE_EVALUATION_TIME_INVALID"] });
   });
 
   it("rejects cross-country evidence reuse", () => {
@@ -192,6 +232,7 @@ describe("country operational evidence binding", () => {
       verifiedOperationalEvidence,
       EXACT_HEAD,
       envelope("AU"),
+      EVALUATED_AT,
     );
 
     expect(gate.evidenceBinding).toEqual({ ready: true, blockers: [] });
