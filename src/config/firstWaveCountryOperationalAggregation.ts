@@ -37,12 +37,17 @@ const FIRST_WAVE_COUNTRY_SET = new Set<string>(FIRST_WAVE_COUNTRY_CODES);
  * cannot be reused across countries, and each country is still evaluated by the
  * full country-bound operational gate for the exact candidate SHA.
  *
+ * When the release path supplies an evaluation clock, it is propagated to every
+ * country evidence binding so stale or future-dated operational proof cannot be
+ * silently reused during Preview/Production review.
+ *
  * This helper does not activate countries, change routing, or weaken any existing
  * legal/compliance, payment, Auth/Data Isolation, QA or deployment requirement.
  */
 export function evaluateFirstWaveCountryOperationalAggregation(
   expectedExactHeadSha: string,
   inputs: readonly FirstWaveCountryEvidenceInput[],
+  evaluatedAtUtc?: string,
 ): FirstWaveCountryOperationalAggregation {
   const blockers: FirstWaveAggregationBlocker[] = [];
   const byCountry = new Map<FirstWaveCountryCode, FirstWaveCountryEvidenceInput>();
@@ -97,6 +102,7 @@ export function evaluateFirstWaveCountryOperationalAggregation(
       input.operationalEvidence,
       expectedExactHeadSha,
       input.envelope,
+      evaluatedAtUtc,
     );
   }
 
