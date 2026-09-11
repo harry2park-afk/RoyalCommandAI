@@ -75,18 +75,6 @@
     return document.querySelector(".royal-room-main main > div.fixed:first-of-type > div:first-child");
   }
 
-  const BACK_LABELS = {
-    en: "← RC AI Room", ko: "← RC AI 룸", zh: "← RC AI 房间", ja: "← RC AI ルーム",
-    es: "← Sala RC AI", fr: "← Salle RC AI", de: "← RC AI-Raum",
-    vi: "← Phòng RC AI", th: "← ห้อง RC AI", id: "← Ruang RC AI"
-  };
-
-  function selectedLanguage() {
-    const select = document.querySelector('select[aria-label="Language"]');
-    const raw = String(select?.value || localStorage.getItem("royalcommand:ui-locale") || "en").toLowerCase();
-    return raw.split("-")[0];
-  }
-
   function mountBackButton() {
     const old = document.getElementById(BACK_ID);
     if (currentRoomId.toLowerCase() === "rca") { old?.remove(); return; }
@@ -97,18 +85,13 @@
       button = document.createElement("button");
       button.id = BACK_ID;
       button.type = "button";
+      button.textContent = "← RC AI Room";
+      button.setAttribute("aria-label", button.textContent);
+      button.title = button.textContent;
       button.addEventListener("click", () => window.location.assign("/rooms/rca"));
-      const updateLabel = () => {
-        const language = selectedLanguage();
-        button.textContent = BACK_LABELS[language] || BACK_LABELS.en;
-        button.setAttribute("aria-label", button.textContent);
-        button.title = button.textContent;
-      };
-      document.addEventListener("change", updateLabel, true);
-      window.addEventListener("rc:language-change", updateLabel);
-      updateLabel();
     }
     if (row.firstElementChild !== button) row.prepend(button);
+    window.dispatchEvent(new CustomEvent("rc:room-back-mounted"));
   }
 
   function ensureFinder(header, dock) {
