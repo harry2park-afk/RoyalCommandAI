@@ -215,7 +215,9 @@ country_state as (
         and lower(o.connection_status) = 'available'
         and upper(o.currency) = f.currency
         and coalesce(o.customer_price_minor, 0) > 0
-        and lower(o.review_status) = 'approved'
+        and lower(coalesce(to_jsonb(o)->>'review_status', '')) = 'approved'
+        and nullif(btrim(coalesce(to_jsonb(o)->>'reviewed_by', '')), '') is not null
+        and nullif(btrim(coalesce(to_jsonb(o)->>'reviewed_at', '')), '') is not null
     ) as approved_available_local_currency_offers
   from first_wave f
   left join public.rc_service_provider_offers o
