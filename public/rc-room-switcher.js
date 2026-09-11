@@ -5,6 +5,7 @@
   const SWITCHER_ID = "rc-room-switcher";
   const COUNTRY_ID = "rc-country-shortcut";
   const FINDER_ID = "rc-room-finder-top";
+  const BACK_ID = "rc-ai-room-back";
   const currentRoomId = window.location.pathname.split("/").filter(Boolean).pop() || "";
 
   const isCountryRoom = (room) => {
@@ -52,6 +53,14 @@
       #${SWITCHER_ID} .rc-room-tone-2 { border-color:#a98ed6 !important; background:linear-gradient(135deg,#3c245f 0%,#65439a 52%,#2b1948 100%) !important; }
       #${SWITCHER_ID} .rc-room-switcher-real[aria-current="page"] { outline:2px solid rgba(255,225,120,.85) !important; outline-offset:1px !important; }
       #${FINDER_ID} { flex:0 0 112px !important; width:112px !important; height:30px !important; margin-left:auto !important; margin-right:72px !important; border:1px solid #d9b44a !important; border-radius:6px !important; background:#7A0C2E !important; color:#fff4c2 !important; font:700 11px/28px "Times New Roman",Times,serif !important; text-align:center !important; white-space:nowrap !important; cursor:pointer !important; }
+      #${BACK_ID} {
+        order:-100 !important; flex:0 0 130px !important; width:130px !important; min-width:130px !important; max-width:130px !important;
+        height:38px !important; min-height:38px !important; max-height:38px !important; margin:0 !important; padding:0 10px !important;
+        border:1px solid #d7b64d !important; border-radius:6px !important; background:#14284f !important; color:#f0d36a !important;
+        font:700 13px/36px "Times New Roman",Times,serif !important; text-align:center !important; white-space:nowrap !important;
+        cursor:pointer !important; box-sizing:border-box !important; display:block !important; pointer-events:auto !important;
+      }
+      #${BACK_ID}:hover { background:#1b376c !important; }
       .royal-room-main main > div.fixed:first-of-type > div:first-child > a[href="/dashboard"] { display:none !important; }
       @media (max-width:1200px) {
         #${COUNTRY_ID} { flex-basis:120px !important; width:120px !important; min-width:120px !important; max-width:120px !important; height:30px !important; font-size:12px !important; line-height:28px !important; margin-left:4px !important; padding:0 6px !important; }
@@ -64,6 +73,42 @@
 
   function findHeaderRow() {
     return document.querySelector(".royal-room-main main > div.fixed:first-of-type > div:first-child");
+  }
+
+  const BACK_LABELS = {
+    en: "← RC AI Room", ko: "← RC AI 룸", zh: "← RC AI 房间", ja: "← RC AI ルーム",
+    es: "← Sala RC AI", fr: "← Salle RC AI", de: "← RC AI-Raum",
+    vi: "← Phòng RC AI", th: "← ห้อง RC AI", id: "← Ruang RC AI"
+  };
+
+  function selectedLanguage() {
+    const select = document.querySelector('select[aria-label="Language"]');
+    const raw = String(select?.value || localStorage.getItem("royalcommand:ui-locale") || "en").toLowerCase();
+    return raw.split("-")[0];
+  }
+
+  function mountBackButton() {
+    const old = document.getElementById(BACK_ID);
+    if (currentRoomId.toLowerCase() === "rca") { old?.remove(); return; }
+    const row = document.querySelector(".royal-room-main main > div.fixed:first-of-type > div:nth-child(2)");
+    if (!(row instanceof HTMLElement)) return;
+    let button = old;
+    if (!(button instanceof HTMLButtonElement)) {
+      button = document.createElement("button");
+      button.id = BACK_ID;
+      button.type = "button";
+      button.addEventListener("click", () => window.location.assign("/rooms/rca"));
+      const updateLabel = () => {
+        const language = selectedLanguage();
+        button.textContent = BACK_LABELS[language] || BACK_LABELS.en;
+        button.setAttribute("aria-label", button.textContent);
+        button.title = button.textContent;
+      };
+      document.addEventListener("change", updateLabel, true);
+      window.addEventListener("rc:language-change", updateLabel);
+      updateLabel();
+    }
+    if (row.firstElementChild !== button) row.prepend(button);
   }
 
   function ensureFinder(header, dock) {
@@ -96,6 +141,7 @@
     const header = findHeaderRow();
     if (!(header instanceof HTMLElement)) return false;
     installStyle();
+    mountBackButton();
 
     const active = rooms.filter((room) => room && room.id && room.name && room.status !== "archived");
     const countryRoom = active.find(isCountryRoom) || null;
