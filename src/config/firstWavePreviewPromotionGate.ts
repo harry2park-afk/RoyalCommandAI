@@ -16,6 +16,14 @@ export type FirstWaveCountryPreviewVerification = {
   localizationBrowserRegression: PreviewVerificationState;
 };
 
+export type PreviewBoundVerificationEvidence = {
+  evidenceId: string;
+  exactHeadSha: string;
+  capturedAtUtc: string;
+  previewDeploymentId: string;
+  verification: PreviewVerificationState;
+};
+
 export type FirstWavePreviewPromotionEvidence = {
   exactHeadSha: string;
   evidenceId: string;
@@ -25,6 +33,8 @@ export type FirstWavePreviewPromotionEvidence = {
   localizationBrowserRegression: PreviewVerificationState;
   securityRegression: PreviewVerificationState;
   rollbackVerification: PreviewVerificationState;
+  securityRegressionEvidence?: PreviewBoundVerificationEvidence | null;
+  rollbackEvidence?: PreviewBoundVerificationEvidence | null;
   countryVerifications: readonly FirstWaveCountryPreviewVerification[];
 };
 
@@ -38,7 +48,19 @@ export type FirstWavePreviewPromotionBlocker =
   | "PREVIEW_AUTHENTICATED_SMOKE_NOT_VERIFIED"
   | "PREVIEW_LOCALIZATION_REGRESSION_NOT_VERIFIED"
   | "PREVIEW_SECURITY_REGRESSION_NOT_VERIFIED"
+  | "PREVIEW_SECURITY_EVIDENCE_MISSING"
+  | "PREVIEW_SECURITY_EVIDENCE_HEAD_SHA_INVALID"
+  | "PREVIEW_SECURITY_EVIDENCE_HEAD_SHA_MISMATCH"
+  | "PREVIEW_SECURITY_EVIDENCE_TIMESTAMP_INVALID"
+  | "PREVIEW_SECURITY_EVIDENCE_DEPLOYMENT_ID_MISMATCH"
+  | "PREVIEW_SECURITY_EVIDENCE_NOT_VERIFIED"
   | "PREVIEW_ROLLBACK_NOT_VERIFIED"
+  | "PREVIEW_ROLLBACK_EVIDENCE_MISSING"
+  | "PREVIEW_ROLLBACK_EVIDENCE_HEAD_SHA_INVALID"
+  | "PREVIEW_ROLLBACK_EVIDENCE_HEAD_SHA_MISMATCH"
+  | "PREVIEW_ROLLBACK_EVIDENCE_TIMESTAMP_INVALID"
+  | "PREVIEW_ROLLBACK_EVIDENCE_DEPLOYMENT_ID_MISMATCH"
+  | "PREVIEW_ROLLBACK_EVIDENCE_NOT_VERIFIED"
   | "PREVIEW_FIRST_WAVE_COUNTRY_COVERAGE_INCOMPLETE"
   | "PREVIEW_FIRST_WAVE_COUNTRY_DUPLICATE"
   | "PREVIEW_FIRST_WAVE_COUNTRY_UNSUPPORTED"
@@ -79,6 +101,76 @@ function pushUnique(
   }
 }
 
+function validateSecurityEvidence(
+  evidence: PreviewBoundVerificationEvidence | null | undefined,
+  candidateSha: string,
+  previewDeploymentId: string,
+  blockers: FirstWavePreviewPromotionBlocker[],
+): void {
+  if (!evidence || !evidence.evidenceId.trim()) {
+    pushUnique(blockers, "PREVIEW_SECURITY_EVIDENCE_MISSING");
+    return;
+  }
+
+  const evidenceHeadSha = evidence.exactHeadSha.trim();
+  if (!EXACT_SHA_PATTERN.test(evidenceHeadSha)) {
+    pushUnique(blockers, "PREVIEW_SECURITY_EVIDENCE_HEAD_SHA_INVALID");
+  } else if (evidenceHeadSha !== candidateSha) {
+    pushUnique(blockers, "PREVIEW_SECURITY_EVIDENCE_HEAD_SHA_MISMATCH");
+  }
+
+  if (!isValidUtcTimestamp(evidence.capturedAtUtc.trim())) {
+    pushUnique(blockers, "PREVIEW_SECURITY_EVIDENCE_TIMESTAMP_INVALID");
+  }
+
+  if (
+    !previewDeploymentId ||
+    !evidence.previewDeploymentId.trim() ||
+    evidence.previewDeploymentId.trim() !== previewDeploymentId
+  ) {
+    pushUnique(blockers, "PREVIEW_SECURITY_EVIDENCE_DEPLOYMENT_ID_MISMATCH");
+  }
+
+  if (evidence.verification !== "VERIFIED") {
+    pushUnique(blockers, "PREVIEW_SECURITY_EVIDENCE_NOT_VERIFIED");
+  }
+}
+
+function validateRollbackEvidence(
+  evidence: PreviewBoundVerificationEvidence | null | undefined,
+  candidateSha: string,
+  previewDeploymentId: string,
+  blockers: FirstWavePreviewPromotionBlocker[],
+): void {
+  if (!evidence || !evidence.evidenceId.trim()) {
+    pushUnique(blockers, "PREVIEW_ROLLBACK_EVIDENCE_MISSING");
+    return;
+  }
+
+  const evidenceHeadSha = evidence.exactHeadSha.trim();
+  if (!EXACT_SHA_PATTERN.test(evidenceHeadSha)) {
+    pushUnique(blockers, "PREVIEW_ROLLBACK_EVIDENCE_HEAD_SHA_INVALID");
+  } else if (evidenceHeadSha !== candidateSha) {
+    pushUnique(blockers, "PREVIEW_ROLLBACK_EVIDENCE_HEAD_SHA_MISMATCH");
+  }
+
+  if (!isValidUtcTimestamp(evidence.capturedAtUtc.trim())) {
+    pushUnique(blockers, "PREVIEW_ROLLBACK_EVIDENCE_TIMESTAMP_INVALID");
+  }
+
+  if (
+    !previewDeploymentId ||
+    !evidence.previewDeploymentId.trim() ||
+    evidence.previewDeploymentId.trim() !== previewDeploymentId
+  ) {
+    pushUnique(blockers, "PREVIEW_ROLLBACK_EVIDENCE_DEPLOYMENT_ID_MISMATCH");
+  }
+
+  if (evidence.verification !== "VERIFIED") {
+    pushUnique(blockers, "PREVIEW_ROLLBACK_EVIDENCE_NOT_VERIFIED");
+  }
+}
+
 /**
  * Fail-closed bridge between first-wave country readiness and Preview-first
  * release review.
@@ -91,6 +183,9 @@ function pushUnique(
  * Preview evidence is required both globally and per first-wave country. A
  * single successful browser/smoke pass cannot stand in for AU, US, CA, KR, JP
  * and GB independently, and duplicate/unsupported country rows fail closed.
+ * Security-regression and rollback evidence must also be independently bound
+ * to the exact candidate SHA and the exact Preview deployment ID so stale
+ * evidence cannot be reused for a different candidate or deployment.
  */
 export function evaluateFirstWavePreviewPromotion(
   expectedExactHeadSha: string,
@@ -120,7 +215,8 @@ export function evaluateFirstWavePreviewPromotion(
     blockers.push("PREVIEW_EVIDENCE_TIMESTAMP_INVALID");
   }
 
-  if (!previewEvidence.previewDeploymentId.trim()) {
+  const previewDeploymentId = previewEvidence.previewDeploymentId.trim();
+  if (!previewDeploymentId) {
     blockers.push("PREVIEW_DEPLOYMENT_ID_MISSING");
   }
 
@@ -136,9 +232,23 @@ export function evaluateFirstWavePreviewPromotion(
     blockers.push("PREVIEW_SECURITY_REGRESSION_NOT_VERIFIED");
   }
 
+  validateSecurityEvidence(
+    previewEvidence.securityRegressionEvidence,
+    candidateSha,
+    previewDeploymentId,
+    blockers,
+  );
+
   if (previewEvidence.rollbackVerification !== "VERIFIED") {
     blockers.push("PREVIEW_ROLLBACK_NOT_VERIFIED");
   }
+
+  validateRollbackEvidence(
+    previewEvidence.rollbackEvidence,
+    candidateSha,
+    previewDeploymentId,
+    blockers,
+  );
 
   const countryEvidence = new Map<FirstWaveCountryCode, FirstWaveCountryPreviewVerification>();
 
