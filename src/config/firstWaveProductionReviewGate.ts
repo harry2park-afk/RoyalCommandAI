@@ -14,6 +14,10 @@ import {
   type HostedLaunchCriticalSnapshotDecision,
   type HostedLaunchCriticalSnapshotEvidence,
 } from "./hostedLaunchCriticalSnapshotGate";
+import {
+  evaluateHostedSnapshotFreshness,
+  type HostedSnapshotFreshnessDecision,
+} from "./hostedSnapshotFreshnessGate";
 
 export type FirstWaveProductionReviewBlocker =
   | "PREVIEW_PROMOTION_NOT_READY"
@@ -29,6 +33,7 @@ export type FirstWaveProductionReviewDecision = {
   previewPromotion: FirstWavePreviewPromotionDecision;
   paymentRuntime: FirstWavePaymentRuntimeEvidenceGate;
   hostedSnapshot: HostedLaunchCriticalSnapshotDecision;
+  hostedSnapshotFreshness: HostedSnapshotFreshnessDecision;
 };
 
 /**
@@ -42,7 +47,9 @@ export type FirstWaveProductionReviewDecision = {
  * A machine-bound Hosted Supabase snapshot is also required so manually marked
  * operational statuses cannot stand in for actual authorization, Room Factory,
  * payment-safeguard, required-migration, and first-wave commercial/recording
- * read-back from the intended Hosted project.
+ * read-back from the intended Hosted project. The snapshot must also be recent:
+ * an older exact-SHA snapshot cannot be reused after Hosted state may have
+ * drifted.
  *
  * This wrapper requires all gates to pass for the same exact candidate SHA and
  * Preview deployment. It never calls a payment provider, deploys code, mutates
@@ -76,6 +83,9 @@ export function evaluateFirstWaveProductionReview(
     candidateSha,
     hostedSnapshotEvidence,
   );
+  const hostedSnapshotFreshness = evaluateHostedSnapshotFreshness(
+    hostedSnapshotEvidence,
+  );
 
   const blockers: FirstWaveProductionReviewBlocker[] = [];
   if (!previewPromotion.safeForProductionReview) {
@@ -84,7 +94,7 @@ export function evaluateFirstWaveProductionReview(
   if (!paymentRuntime.ready) {
     blockers.push("PAYMENT_RUNTIME_NOT_READY");
   }
-  if (!hostedSnapshot.ready) {
+  if (!hostedSnapshot.ready || !hostedSnapshotFreshness.ready) {
     blockers.push("HOSTED_CRITICAL_SNAPSHOT_NOT_READY");
   }
 
@@ -99,5 +109,6 @@ export function evaluateFirstWaveProductionReview(
     previewPromotion,
     paymentRuntime,
     hostedSnapshot,
+    hostedSnapshotFreshness,
   };
 }
