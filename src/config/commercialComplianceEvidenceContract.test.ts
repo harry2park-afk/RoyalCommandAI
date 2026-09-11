@@ -28,6 +28,17 @@ describe("October commercial compliance evidence contract", () => {
     expect(commercialComplianceEvidenceSql).toContain("'overall_launch_approval', false");
   });
 
+  it("keeps pre-staging availability checks schema-compatible and fail-closed", () => {
+    for (const sql of [commercialComplianceEvidenceSql, hostedReadinessSql]) {
+      expect(sql).toContain("to_jsonb(t)->>'availability_status'");
+      expect(sql).not.toContain("t.availability_status");
+    }
+
+    expect(hostedReadinessSql).toContain(
+      "column_name in ('review_status', 'reviewed_by', 'reviewed_at')",
+    );
+  });
+
   it("requires review provenance for terms and provider offers", () => {
     expect(commercialComplianceEvidenceSql).toContain(
       "country_terms_review_provenance_columns_exist",
