@@ -44,6 +44,13 @@ describe("October payment operational evidence contract", () => {
     expect(paymentEvidenceSql).toContain("payment_event_raw_payload_columns_absent");
   });
 
+  it("requires reviewer provenance for first-wave commercial offer evidence", () => {
+    expect(paymentEvidenceSql).toContain("to_jsonb(o)->>'review_status'");
+    expect(paymentEvidenceSql).toContain("to_jsonb(o)->>'reviewed_by'");
+    expect(paymentEvidenceSql).toContain("to_jsonb(o)->>'reviewed_at'");
+    expect(paymentEvidenceSql).not.toContain("lower(o.review_status)");
+  });
+
   it("keeps Hosted migration and country offer evidence mandatory", () => {
     expect(paymentEvidenceSql).toContain("payment_operational_safeguards");
     expect(paymentEvidenceSql).toContain("approved_available_local_currency_offers");
