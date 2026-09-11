@@ -15,33 +15,48 @@ describe("next-priority country localization preparation", () => {
     }
   });
 
-  it("proves the already aligned countries and pins the two current locale blockers", () => {
+  it("proves Room Factory and Create Room primary locales are structurally aligned", () => {
     const evidence = evaluateNextPriorityLocalizationReadiness();
     const byCountry = new Map(
       evidence.countries.map((country) => [country.countryCode, country] as const),
     );
 
-    for (const countryCode of ["SG", "CN", "TW"] as const) {
-      expect(byCountry.get(countryCode)?.readyForCountryConfigAuthoring).toBe(true);
-      expect(byCountry.get(countryCode)?.blockers).toEqual([]);
-    }
-
+    expect(byCountry.get("SG")).toMatchObject({
+      presetLocale: "en-SG",
+      expectedCreateRoomLocale: "en",
+      configuredCreateRoomLocale: "en",
+      readyForCountryConfigAuthoring: true,
+      blockers: [],
+    });
+    expect(byCountry.get("CN")).toMatchObject({
+      presetLocale: "zh-CN",
+      expectedCreateRoomLocale: "zh",
+      configuredCreateRoomLocale: "zh",
+      readyForCountryConfigAuthoring: true,
+      blockers: [],
+    });
     expect(byCountry.get("HK")).toMatchObject({
       presetLocale: "zh-HK",
       expectedCreateRoomLocale: "zh",
-      configuredCreateRoomLocale: "en",
-      readyForCountryConfigAuthoring: false,
-      blockers: ["CREATE_ROOM_PRIMARY_LOCALE_MISMATCH"],
+      configuredCreateRoomLocale: "zh",
+      readyForCountryConfigAuthoring: true,
+      blockers: [],
     });
-
+    expect(byCountry.get("TW")).toMatchObject({
+      presetLocale: "zh-TW",
+      expectedCreateRoomLocale: "zh",
+      configuredCreateRoomLocale: "zh",
+      readyForCountryConfigAuthoring: true,
+      blockers: [],
+    });
     expect(byCountry.get("IN")).toMatchObject({
       presetLocale: "en-IN",
       expectedCreateRoomLocale: "en",
-      configuredCreateRoomLocale: "hi",
-      readyForCountryConfigAuthoring: false,
-      blockers: ["CREATE_ROOM_PRIMARY_LOCALE_MISMATCH"],
+      configuredCreateRoomLocale: "en",
+      readyForCountryConfigAuthoring: true,
+      blockers: [],
     });
 
-    expect(evidence.ready).toBe(false);
+    expect(evidence.ready).toBe(true);
   });
 });
