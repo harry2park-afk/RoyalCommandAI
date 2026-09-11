@@ -48,6 +48,8 @@ export type FirstWaveProductionReviewDecision = {
  * legal/compliance, auth/data-isolation, QA/security, browser and rollback
  * evidence. Payment runtime evidence is deliberately separate because real
  * sandbox payment proof has its own country/currency/provider lifecycle.
+ * Payment proof is evaluated against the same review clock used for Hosted
+ * snapshot freshness so stale provider-state evidence cannot be reused later.
  *
  * A machine-bound Hosted Supabase snapshot is also required so manually marked
  * operational statuses cannot stand in for actual authorization, Room Factory,
@@ -69,6 +71,7 @@ export function evaluateFirstWaveProductionReview(
   previewEvidence: FirstWavePreviewPromotionEvidence,
   paymentEvidence: readonly FirstWavePaymentRuntimeEvidence[],
   hostedSnapshotEvidence?: HostedLaunchCriticalSnapshotEvidence | null,
+  evaluatedAtUtc = new Date().toISOString(),
 ): FirstWaveProductionReviewDecision {
   const candidateSha = expectedExactHeadSha.trim();
   const previewDeploymentId = previewEvidence.previewDeploymentId.trim();
@@ -83,6 +86,7 @@ export function evaluateFirstWaveProductionReview(
     candidateSha,
     previewDeploymentId,
     paymentEvidence,
+    evaluatedAtUtc,
   );
 
   const hostedSnapshot = evaluateHostedLaunchCriticalSnapshot(
@@ -91,6 +95,7 @@ export function evaluateFirstWaveProductionReview(
   );
   const hostedSnapshotFreshness = evaluateHostedSnapshotFreshness(
     hostedSnapshotEvidence,
+    evaluatedAtUtc,
   );
   const hostedSnapshotProvenance = evaluateHostedSnapshotProvenance(
     hostedSnapshotEvidence,
