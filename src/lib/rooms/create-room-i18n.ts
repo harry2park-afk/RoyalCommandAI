@@ -12,7 +12,7 @@ export const CREATE_ROOM_COUNTRIES: CountryOption[] = [
   { code: "CA", label: "Canada", locale: "en" },
   { code: "GB", label: "United Kingdom", locale: "en" },
   { code: "SG", label: "Singapore", locale: "en" },
-  { code: "HK", label: "Hong Kong", locale: "en" },
+  { code: "HK", label: "Hong Kong", locale: "zh" },
   { code: "KR", label: "대한민국 / Korea", locale: "ko" },
   { code: "JP", label: "日本 / Japan", locale: "ja" },
   { code: "CN", label: "中国 / China", locale: "zh" },
@@ -20,7 +20,7 @@ export const CREATE_ROOM_COUNTRIES: CountryOption[] = [
   { code: "VN", label: "Việt Nam", locale: "vi" },
   { code: "ID", label: "Indonesia", locale: "id" },
   { code: "TH", label: "ประเทศไทย / Thailand", locale: "th" },
-  { code: "IN", label: "India", locale: "hi" },
+  { code: "IN", label: "India", locale: "en" },
 ];
 
 export const CREATE_ROOM_LANGUAGES: Array<{ locale: CreateRoomLocale; label: string }> = [
