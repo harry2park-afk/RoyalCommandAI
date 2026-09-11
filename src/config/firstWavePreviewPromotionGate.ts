@@ -245,7 +245,11 @@ export function evaluateFirstWavePreviewPromotion(
   evaluatedAtUtc = new Date().toISOString(),
 ): FirstWavePreviewPromotionDecision {
   const candidateSha = expectedExactHeadSha.trim();
-  const releaseReadiness = buildFirstWaveReleaseReadinessReport(candidateSha, countryInputs);
+  const releaseReadiness = buildFirstWaveReleaseReadinessReport(
+    candidateSha,
+    countryInputs,
+    evaluatedAtUtc,
+  );
   const blockers: FirstWavePreviewPromotionBlocker[] = [];
   const normalizedEvaluatedAtUtc = evaluatedAtUtc.trim();
   const evaluatedAtMs = isValidUtcTimestamp(normalizedEvaluatedAtUtc)
