@@ -6,7 +6,7 @@
   box-sizing: border-box;
   height: 128px !important;
   min-height: 128px !important;
-  padding: 8px 132px 8px 96px !important;
+  padding: 8px 132px 8px 52px !important;
   line-height: 22px !important;
   overflow-y: auto !important;
   resize: none !important;
@@ -37,9 +37,10 @@
 
 .root form[data-rc-composer-enhanced="true"] label[title="Attach files"] {
   position: absolute !important;
-  left: 52px !important;
+  left: 12px !important;
   right: auto !important;
-  bottom: 8px !important;
+  top: 8px !important;
+  bottom: auto !important;
   width: 34px !important;
   height: 34px !important;
   pointer-events: auto !important;
@@ -188,7 +189,7 @@
   .root form[data-rc-composer-enhanced="true"] > textarea {
     height: 128px !important;
     min-height: 128px !important;
-    padding: 8px 124px 8px 96px !important;
+    padding: 8px 124px 8px 52px !important;
   }
 
   .root form[data-rc-composer-enhanced="true"] button[title="AI Helper"] {
