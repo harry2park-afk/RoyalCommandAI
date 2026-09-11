@@ -8,10 +8,12 @@ import {
 import {
   evaluateFirstWavePreviewPromotion,
   type FirstWavePreviewPromotionEvidence,
+  type PreviewBoundVerificationEvidence,
 } from "./firstWavePreviewPromotionGate";
 
 const EXACT_HEAD = "19fd5f8069d9ae2ed4c9d97c0c4f4eda08398501";
 const DIFFERENT_VALID_HEAD = "33da2a917dc6adcf266f59f0b27d18a56f1271d8";
+const PREVIEW_DEPLOYMENT_ID = "vercel-preview-evidence-only";
 
 const verifiedOperationalEvidence: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
@@ -56,16 +58,28 @@ function allFirstWaveInputs(): FirstWaveCountryEvidenceInput[] {
   }));
 }
 
+function boundEvidence(evidenceId: string): PreviewBoundVerificationEvidence {
+  return {
+    evidenceId,
+    exactHeadSha: EXACT_HEAD,
+    capturedAtUtc: "2026-09-11T09:52:30Z",
+    previewDeploymentId: PREVIEW_DEPLOYMENT_ID,
+    verification: "VERIFIED",
+  };
+}
+
 function verifiedPreviewEvidence(): FirstWavePreviewPromotionEvidence {
   return {
     exactHeadSha: EXACT_HEAD,
     evidenceId: "preview-verification-first-wave",
     capturedAtUtc: "2026-09-11T09:52:00Z",
-    previewDeploymentId: "vercel-preview-evidence-only",
+    previewDeploymentId: PREVIEW_DEPLOYMENT_ID,
     authenticatedSmokeTest: "VERIFIED",
     localizationBrowserRegression: "VERIFIED",
     securityRegression: "VERIFIED",
     rollbackVerification: "VERIFIED",
+    securityRegressionEvidence: boundEvidence("security-regression-first-wave"),
+    rollbackEvidence: boundEvidence("rollback-first-wave"),
     countryVerifications: FIRST_WAVE_COUNTRY_CODES.map((countryCode) => ({
       countryCode,
       authenticatedSmokeTest: "VERIFIED",
@@ -109,6 +123,8 @@ describe("first-wave Preview-first promotion gate", () => {
       localizationBrowserRegression: "NOT_VERIFIED",
       securityRegression: "NOT_VERIFIED",
       rollbackVerification: "NOT_VERIFIED",
+      securityRegressionEvidence: null,
+      rollbackEvidence: null,
     });
 
     expect(result.blockers).toEqual(
@@ -119,7 +135,9 @@ describe("first-wave Preview-first promotion gate", () => {
         "PREVIEW_AUTHENTICATED_SMOKE_NOT_VERIFIED",
         "PREVIEW_LOCALIZATION_REGRESSION_NOT_VERIFIED",
         "PREVIEW_SECURITY_REGRESSION_NOT_VERIFIED",
+        "PREVIEW_SECURITY_EVIDENCE_MISSING",
         "PREVIEW_ROLLBACK_NOT_VERIFIED",
+        "PREVIEW_ROLLBACK_EVIDENCE_MISSING",
       ]),
     );
     expect(result.safeForProductionReview).toBe(false);
@@ -134,6 +152,87 @@ describe("first-wave Preview-first promotion gate", () => {
 
     expect(result.blockers).toContain("PREVIEW_EVIDENCE_HEAD_SHA_INVALID");
     expect(result.blockers).not.toContain("PREVIEW_EVIDENCE_HEAD_SHA_MISMATCH");
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("requires security proof to belong to the exact candidate and Preview deployment", () => {
+    const evidence = verifiedPreviewEvidence();
+    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+      ...evidence,
+      securityRegressionEvidence: {
+        ...boundEvidence("security-regression-stale"),
+        exactHeadSha: DIFFERENT_VALID_HEAD,
+        previewDeploymentId: "different-preview-deployment",
+      },
+    });
+
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        "PREVIEW_SECURITY_EVIDENCE_HEAD_SHA_MISMATCH",
+        "PREVIEW_SECURITY_EVIDENCE_DEPLOYMENT_ID_MISMATCH",
+      ]),
+    );
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("requires rollback proof to belong to the exact candidate and Preview deployment", () => {
+    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+      ...verifiedPreviewEvidence(),
+      rollbackEvidence: {
+        ...boundEvidence("rollback-stale"),
+        exactHeadSha: DIFFERENT_VALID_HEAD,
+        previewDeploymentId: "different-preview-deployment",
+      },
+    });
+
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        "PREVIEW_ROLLBACK_EVIDENCE_HEAD_SHA_MISMATCH",
+        "PREVIEW_ROLLBACK_EVIDENCE_DEPLOYMENT_ID_MISMATCH",
+      ]),
+    );
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("does not infer bound security or rollback proof from top-level VERIFIED flags", () => {
+    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+      ...verifiedPreviewEvidence(),
+      securityRegressionEvidence: null,
+      rollbackEvidence: null,
+    });
+
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        "PREVIEW_SECURITY_EVIDENCE_MISSING",
+        "PREVIEW_ROLLBACK_EVIDENCE_MISSING",
+      ]),
+    );
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("requires valid timestamps and explicit VERIFIED state on bound evidence", () => {
+    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+      ...verifiedPreviewEvidence(),
+      securityRegressionEvidence: {
+        ...boundEvidence("security-regression-invalid"),
+        capturedAtUtc: "2026-09-11 09:52:30",
+        verification: "NOT_VERIFIED",
+      },
+      rollbackEvidence: {
+        ...boundEvidence("rollback-invalid"),
+        capturedAtUtc: "not-a-timestamp",
+        verification: "NOT_VERIFIED",
+      },
+    });
+
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        "PREVIEW_SECURITY_EVIDENCE_TIMESTAMP_INVALID",
+        "PREVIEW_SECURITY_EVIDENCE_NOT_VERIFIED",
+        "PREVIEW_ROLLBACK_EVIDENCE_TIMESTAMP_INVALID",
+        "PREVIEW_ROLLBACK_EVIDENCE_NOT_VERIFIED",
+      ]),
+    );
     expect(result.safeForProductionReview).toBe(false);
   });
 
