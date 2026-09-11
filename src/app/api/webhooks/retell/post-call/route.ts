@@ -37,7 +37,7 @@ async function roomFor(call:Json){
 export async function POST(request:NextRequest){
  const started=Date.now();let event="unknown",callId="unknown";
  try{
-  const raw=await request.text(),key=process.env.RETELL_API_KEY;
+  const raw=await request.text(),key=process.env.RETELL_API_KEY_PREVIEW||process.env.RETELL_API_KEY;
   if(!key||!verifyRetellWebhook(raw,request.headers.get("x-retell-signature"),key)){
    console.warn(JSON.stringify({level:"warn",msg:"retell_webhook_rejected",reason:key?"invalid_signature":"missing_key"}));
    return NextResponse.json({error:"Unauthorized"},{status:401});
