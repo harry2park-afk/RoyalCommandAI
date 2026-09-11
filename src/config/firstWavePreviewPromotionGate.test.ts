@@ -14,6 +14,7 @@ import {
 const EXACT_HEAD = "19fd5f8069d9ae2ed4c9d97c0c4f4eda08398501";
 const DIFFERENT_VALID_HEAD = "33da2a917dc6adcf266f59f0b27d18a56f1271d8";
 const PREVIEW_DEPLOYMENT_ID = "vercel-preview-evidence-only";
+const EVALUATED_AT = "2026-09-11T10:00:00Z";
 
 const verifiedOperationalEvidence: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
@@ -88,13 +89,17 @@ function verifiedPreviewEvidence(): FirstWavePreviewPromotionEvidence {
   };
 }
 
+function evaluatePreview(
+  evidence: FirstWavePreviewPromotionEvidence,
+  countryInputs = allFirstWaveInputs(),
+  evaluatedAtUtc = EVALUATED_AT,
+) {
+  return evaluateFirstWavePreviewPromotion(EXACT_HEAD, countryInputs, evidence, evaluatedAtUtc);
+}
+
 describe("first-wave Preview-first promotion gate", () => {
   it("does not turn complete Preview evidence into launch approval while country readiness is blocked", () => {
-    const result = evaluateFirstWavePreviewPromotion(
-      EXACT_HEAD,
-      allFirstWaveInputs(),
-      verifiedPreviewEvidence(),
-    );
+    const result = evaluatePreview(verifiedPreviewEvidence());
 
     expect(result.releaseReadiness.safeToPromote).toBe(false);
     expect(result.blockers).toContain("FIRST_WAVE_RELEASE_NOT_READY");
@@ -104,7 +109,7 @@ describe("first-wave Preview-first promotion gate", () => {
   });
 
   it("fails closed when Preview evidence belongs to a different exact head", () => {
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...verifiedPreviewEvidence(),
       exactHeadSha: DIFFERENT_VALID_HEAD,
     });
@@ -114,7 +119,7 @@ describe("first-wave Preview-first promotion gate", () => {
   });
 
   it("keeps missing Preview/runtime/rollback proof visible instead of inferring it", () => {
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...verifiedPreviewEvidence(),
       evidenceId: " ",
       capturedAtUtc: "2026-09-11 09:52:00",
@@ -145,7 +150,7 @@ describe("first-wave Preview-first promotion gate", () => {
   });
 
   it("rejects malformed Preview commit provenance", () => {
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...verifiedPreviewEvidence(),
       exactHeadSha: "launch/room-factory-operational-gate-20260907",
     });
@@ -157,7 +162,7 @@ describe("first-wave Preview-first promotion gate", () => {
 
   it("requires security proof to belong to the exact candidate and Preview deployment", () => {
     const evidence = verifiedPreviewEvidence();
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...evidence,
       securityRegressionEvidence: {
         ...boundEvidence("security-regression-stale"),
@@ -176,7 +181,7 @@ describe("first-wave Preview-first promotion gate", () => {
   });
 
   it("requires rollback proof to belong to the exact candidate and Preview deployment", () => {
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...verifiedPreviewEvidence(),
       rollbackEvidence: {
         ...boundEvidence("rollback-stale"),
@@ -195,7 +200,7 @@ describe("first-wave Preview-first promotion gate", () => {
   });
 
   it("does not infer bound security or rollback proof from top-level VERIFIED flags", () => {
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...verifiedPreviewEvidence(),
       securityRegressionEvidence: null,
       rollbackEvidence: null,
@@ -211,7 +216,7 @@ describe("first-wave Preview-first promotion gate", () => {
   });
 
   it("requires valid timestamps and explicit VERIFIED state on bound evidence", () => {
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...verifiedPreviewEvidence(),
       securityRegressionEvidence: {
         ...boundEvidence("security-regression-invalid"),
@@ -236,9 +241,72 @@ describe("first-wave Preview-first promotion gate", () => {
     expect(result.safeForProductionReview).toBe(false);
   });
 
+  it("fails closed when top-level Preview evidence is older than one hour", () => {
+    const result = evaluatePreview({
+      ...verifiedPreviewEvidence(),
+      capturedAtUtc: "2026-09-11T08:59:59Z",
+    });
+
+    expect(result.blockers).toContain("PREVIEW_EVIDENCE_STALE");
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("fails closed when bound security or rollback proof is stale", () => {
+    const result = evaluatePreview({
+      ...verifiedPreviewEvidence(),
+      securityRegressionEvidence: {
+        ...boundEvidence("security-regression-too-old"),
+        capturedAtUtc: "2026-09-11T08:59:59Z",
+      },
+      rollbackEvidence: {
+        ...boundEvidence("rollback-too-old"),
+        capturedAtUtc: "2026-09-11T08:59:59Z",
+      },
+    });
+
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        "PREVIEW_SECURITY_EVIDENCE_STALE",
+        "PREVIEW_ROLLBACK_EVIDENCE_STALE",
+      ]),
+    );
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("fails closed when Preview-bound proof is more than five minutes in the future", () => {
+    const result = evaluatePreview({
+      ...verifiedPreviewEvidence(),
+      capturedAtUtc: "2026-09-11T10:05:01Z",
+      securityRegressionEvidence: {
+        ...boundEvidence("security-regression-future"),
+        capturedAtUtc: "2026-09-11T10:05:01Z",
+      },
+      rollbackEvidence: {
+        ...boundEvidence("rollback-future"),
+        capturedAtUtc: "2026-09-11T10:05:01Z",
+      },
+    });
+
+    expect(result.blockers).toEqual(
+      expect.arrayContaining([
+        "PREVIEW_EVIDENCE_FROM_FUTURE",
+        "PREVIEW_SECURITY_EVIDENCE_FROM_FUTURE",
+        "PREVIEW_ROLLBACK_EVIDENCE_FROM_FUTURE",
+      ]),
+    );
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
+  it("fails closed when the Preview review clock is invalid", () => {
+    const result = evaluatePreview(verifiedPreviewEvidence(), allFirstWaveInputs(), "invalid-clock");
+
+    expect(result.blockers).toContain("PREVIEW_EVALUATION_TIMESTAMP_INVALID");
+    expect(result.safeForProductionReview).toBe(false);
+  });
+
   it("requires Preview verification coverage for every first-wave country", () => {
     const evidence = verifiedPreviewEvidence();
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...evidence,
       countryVerifications: evidence.countryVerifications.filter(
         ({ countryCode }) => countryCode !== "GB",
@@ -255,7 +323,7 @@ describe("first-wave Preview-first promotion gate", () => {
 
   it("rejects duplicate or unsupported country Preview rows", () => {
     const evidence = verifiedPreviewEvidence();
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...evidence,
       countryVerifications: [
         ...evidence.countryVerifications,
@@ -283,7 +351,7 @@ describe("first-wave Preview-first promotion gate", () => {
 
   it("does not let one country's Preview pass stand in for another", () => {
     const evidence = verifiedPreviewEvidence();
-    const result = evaluateFirstWavePreviewPromotion(EXACT_HEAD, allFirstWaveInputs(), {
+    const result = evaluatePreview({
       ...evidence,
       countryVerifications: evidence.countryVerifications.map((verification) =>
         verification.countryCode === "KR"
