@@ -1,21 +1,41 @@
 import { describe, expect, it } from "vitest";
 import cnConfig from "./countries/cn.json";
+import hkConfig from "./countries/hk.json";
+import inConfig from "./countries/in.json";
 import sgConfig from "./countries/sg.json";
 import twConfig from "./countries/tw.json";
 import { evaluateCountryLocalizationStructure } from "./countryLocalizationStructure";
 import { getConfiguredCountryCodes } from "./countryResolver";
 import type { CountryConfig } from "../types/countryConfig";
 
-const DRAFTS = [sgConfig, cnConfig, twConfig] as CountryConfig[];
+const DRAFTS = [sgConfig, cnConfig, hkConfig, twConfig, inConfig] as CountryConfig[];
 
 describe("next-priority inactive country config drafts", () => {
-  it("authors only the structurally aligned SG/CN/TW drafts", () => {
-    expect(DRAFTS.map((config) => config.countryCode)).toEqual(["SG", "CN", "TW"]);
+  it("authors the complete SG/CN/HK/TW/IN inactive draft inventory", () => {
+    expect(DRAFTS.map((config) => config.countryCode)).toEqual([
+      "SG",
+      "CN",
+      "HK",
+      "TW",
+      "IN",
+    ]);
 
-    for (const config of DRAFTS) {
-      expect(evaluateCountryLocalizationStructure(config)).toEqual({
-        ready: true,
-        blockers: [],
+    for (const countryCode of ["SG", "CN", "TW"] as const) {
+      expect(
+        evaluateCountryLocalizationStructure(
+          DRAFTS.find((config) => config.countryCode === countryCode)!,
+        ),
+      ).toEqual({ ready: true, blockers: [] });
+    }
+
+    for (const countryCode of ["HK", "IN"] as const) {
+      expect(
+        evaluateCountryLocalizationStructure(
+          DRAFTS.find((config) => config.countryCode === countryCode)!,
+        ),
+      ).toEqual({
+        ready: false,
+        blockers: ["CREATE_ROOM_COUNTRY_LOCALE_MISMATCH"],
       });
     }
   });
