@@ -247,4 +247,33 @@ describe("first-wave Production review gate", () => {
     expect(result.blockers).toContain("PREVIEW_PROMOTION_NOT_READY");
     expect(result.safeForProductionReview).toBe(false);
   });
+
+  it("keeps Production review on HOLD when country operational proof has gone stale", () => {
+    const countries = allFirstWaveCountryInputs().map((input) =>
+      input.countryCode === "JP"
+        ? {
+            ...input,
+            envelope: {
+              ...input.envelope!,
+              capturedAtUtc: "2026-09-11T12:49:59Z",
+            },
+          }
+        : input,
+    );
+    const result = evaluateFirstWaveProductionReview(
+      EXACT_HEAD,
+      countries,
+      previewEvidence(),
+      allFirstWavePaymentEvidence(),
+      undefined,
+      EVALUATED_AT,
+    );
+    const jp = result.countryOperationalReadinessAtReviewTime.countries.find(
+      ({ countryCode }) => countryCode === "JP",
+    );
+
+    expect(jp?.evidenceBindingBlockers).toContain("COUNTRY_EVIDENCE_STALE");
+    expect(result.blockers).toContain("COUNTRY_OPERATIONAL_EVIDENCE_NOT_FRESH");
+    expect(result.safeForProductionReview).toBe(false);
+  });
 });
