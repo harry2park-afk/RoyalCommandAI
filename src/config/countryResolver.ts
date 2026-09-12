@@ -3,6 +3,7 @@ import caConfig from "./countries/ca.json";
 import cnConfig from "./countries/cn.json";
 import gbConfig from "./countries/gb.json";
 import hkConfig from "./countries/hk.json";
+import inConfig from "./countries/in.json";
 import jpConfig from "./countries/jp.json";
 import krConfig from "./countries/kr.json";
 import sgConfig from "./countries/sg.json";
@@ -23,6 +24,7 @@ const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   CN: cnConfig as CountryConfig,
   GB: gbConfig as CountryConfig,
   HK: hkConfig as CountryConfig,
+  IN: inConfig as CountryConfig,
   JP: jpConfig as CountryConfig,
   KR: krConfig as CountryConfig,
   SG: sgConfig as CountryConfig,
