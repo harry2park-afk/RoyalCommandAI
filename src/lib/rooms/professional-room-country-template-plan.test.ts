@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getCountryConfigByCountryCode } from "../../config/countryResolver";
 import { PROFESSIONAL_ROOM_DIRECTORY } from "./professional-room-directory";
 import { buildProfessionalRoomCountryTemplatePlan } from "./professional-room-country-template-plan";
 
@@ -21,7 +22,9 @@ describe("Professional Room country template plan", () => {
     for (const room of PROFESSIONAL_ROOM_DIRECTORY) {
       for (const [countryCode, expected] of Object.entries(FIRST_WAVE)) {
         const plan = buildProfessionalRoomCountryTemplatePlan(room.id, countryCode);
+        const countryConfig = getCountryConfigByCountryCode(countryCode);
 
+        expect(countryConfig, countryCode).not.toBeNull();
         expect(plan, `${room.id}:${countryCode}`).not.toBeNull();
         expect(plan?.catalogId).toBe(room.id);
         expect(plan?.productId).toBe(room.productId);
@@ -34,7 +37,25 @@ describe("Professional Room country template plan", () => {
         expect(plan?.timeZoneStorage).toBe("UTC");
         expect(plan?.timeZoneDisplay).toBe("IANA");
         expect(plan?.supportedTimeZones.length).toBeGreaterThan(0);
+        expect(plan?.complianceHook).toEqual({
+          legal: countryConfig?.compliance.legal,
+          privacy: countryConfig?.compliance.privacy,
+          tax: countryConfig?.compliance.tax,
+          medical: countryConfig?.compliance.medical,
+          investment: countryConfig?.compliance.investment,
+        });
+        expect(plan?.paymentHook).toEqual({
+          primaryProvider: countryConfig?.payments.primary,
+          connectionStatus: countryConfig?.payments.status,
+        });
+        expect(plan?.taxHook).toEqual({
+          provider: countryConfig?.tax.provider,
+          connectionStatus: countryConfig?.tax.status,
+        });
         expect(plan?.launchAuthority).toBe("COUNTRY_GATE_REQUIRED");
+        expect(plan?.humanApprovalRequired).toBe(true);
+        expect(plan?.regulatedExecutionAllowed).toBe(false);
+        expect(plan?.livePaymentExecutionAllowed).toBe(false);
         expect(plan?.createsRoom).toBe(false);
         expect(plan?.activatesCountry).toBe(false);
         preparedPlans += 1;
@@ -54,6 +75,9 @@ describe("Professional Room country template plan", () => {
     expect(plan?.locale).toBe("en-CA");
     expect(plan?.secondaryLocale).toBe("fr-CA");
     expect(plan?.launchAuthority).toBe("COUNTRY_GATE_REQUIRED");
+    expect(plan?.humanApprovalRequired).toBe(true);
+    expect(plan?.regulatedExecutionAllowed).toBe(false);
+    expect(plan?.livePaymentExecutionAllowed).toBe(false);
     expect(plan?.createsRoom).toBe(false);
   });
 
