@@ -75,6 +75,7 @@ const REGISTRY: RegistryItem[] = [
 ];
 
 const ORIGINALS = new WeakMap<HTMLElement, OriginalState>();
+const RUNTIME_IDS = new Map<string, CustomerRoomDesignElementId>();
 
 function stableHash(value: string) {
   let hash = 2166136261;
@@ -103,6 +104,14 @@ function semanticIdentity(element: HTMLElement) {
   const parent = element.closest("header,nav,main,aside,section,[role='dialog']");
   const surface = parent?.getAttribute("aria-label") || parent?.id || parent?.tagName || "room";
   return `${surface}|${element.tagName}|${explicit}`.toLowerCase();
+}
+
+function structuralIdentity(element: HTMLElement) {
+  const surface = element.closest("header,nav,main,aside,section,[role='dialog']") || document.body;
+  const buttons = Array.from(surface.querySelectorAll(BUTTON_SELECTOR))
+    .filter((node): node is HTMLElement => node instanceof HTMLElement)
+    .filter((node) => !node.closest("[data-rc-customer-room-designer-ui='true']"));
+  return `${surface.tagName}|${surface.id}|${buttons.indexOf(element)}|${element.tagName}`.toLowerCase();
 }
 
 function discoverRegistry() {
@@ -135,9 +144,11 @@ function discoverRegistry() {
     const occurrence = occurrences.get(identity) || 0;
     occurrences.set(identity, occurrence + 1);
     const existingId = element.dataset.rcDesignerId;
+    const structure = structuralIdentity(element);
     const id = existingId && /^auto-[a-z0-9]{8}$/.test(existingId)
       ? existingId
-      : `auto-${stableHash(`${identity}|${occurrence}`)}`;
+      : RUNTIME_IDS.get(structure) || `auto-${stableHash(`${identity}|${occurrence}`)}`;
+    RUNTIME_IDS.set(structure, id);
     element.dataset.rcDesignerId = id;
     const label = readableLabel(element).slice(0, 80);
     const protectedAction = PROTECTED_ACTION.test(`${identity} ${label}`);
