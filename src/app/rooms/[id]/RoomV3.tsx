@@ -542,7 +542,7 @@ export default function RoomV3() {
               title="Katie AI 비서 사무실 열기"
               aria-label="Katie AI 비서 사무실 열기"
             >
-              <img src="/images/katie-avatar.png" alt="Katie AI 비서" className="h-auto w-full translate-y-1 object-contain" />
+              <img src="/images/katie-avatar.png" alt="Katie AI 비서" className="h-auto w-full translate-y-3 object-contain" />
             </button>
           </div>
         </div>
