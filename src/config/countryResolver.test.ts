@@ -41,8 +41,8 @@ describe("country domain routing", () => {
     expect(getCountryConfigByDomain("example.invalid")).toBeNull();
   });
 
-  it("registers the first six launch-country configs plus fail-closed Singapore, China, Hong Kong and Taiwan without activating their domains", () => {
-    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "CN", "GB", "HK", "JP", "KR", "SG", "TW", "US"]);
+  it("registers the first six launch-country configs plus fail-closed Singapore, China, Hong Kong, Taiwan and India without activating their domains", () => {
+    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "CN", "GB", "HK", "IN", "JP", "KR", "SG", "TW", "US"]);
     expect(hasCountryConfig("au")).toBe(true);
     expect(hasCountryConfig("JP")).toBe(true);
     expect(hasCountryConfig("KR")).toBe(true);
@@ -51,6 +51,7 @@ describe("country domain routing", () => {
     expect(hasCountryConfig("cn")).toBe(true);
     expect(hasCountryConfig("hk")).toBe(true);
     expect(hasCountryConfig("tw")).toBe(true);
+    expect(hasCountryConfig("in")).toBe(true);
 
     expect(getCountryConfigByCountryCode("US")?.currency).toBe("USD");
     expect(getCountryConfigByCountryCode("GB")?.currency).toBe("GBP");
@@ -60,6 +61,7 @@ describe("country domain routing", () => {
     expect(getCountryConfigByCountryCode("CN")?.currency).toBe("CNY");
     expect(getCountryConfigByCountryCode("HK")?.currency).toBe("HKD");
     expect(getCountryConfigByCountryCode("TW")?.currency).toBe("TWD");
+    expect(getCountryConfigByCountryCode("IN")?.currency).toBe("INR");
     expect(getCountryConfigByCountryCode("SG")?.timezone.supportedExamples).toEqual([
       "Asia/Singapore",
     ]);
@@ -72,9 +74,14 @@ describe("country domain routing", () => {
     expect(getCountryConfigByCountryCode("TW")?.timezone.supportedExamples).toEqual([
       "Asia/Taipei",
     ]);
+    expect(getCountryConfigByCountryCode("IN")?.timezone.supportedExamples).toEqual([
+      "Asia/Kolkata",
+    ]);
     expect(getCountryConfigByCountryCode("HK")?.secondaryLocale).toBe("zh-HK");
     expect(getCountryConfigByCountryCode("TW")?.locale).toBe("zh-TW");
     expect(getCountryConfigByCountryCode("TW")?.secondaryLocale).toBe("en-TW");
+    expect(getCountryConfigByCountryCode("IN")?.locale).toBe("en-IN");
+    expect(getCountryConfigByCountryCode("IN")?.payments.status).toBe("NOT_CONNECTED");
 
     // Configuration is not activation. Country domains remain unbound until
     // ownership, hosting, auth callbacks and launch gates are verified.
@@ -85,6 +92,7 @@ describe("country domain routing", () => {
     expect(getCountryCodeByDomain("royalcommand.example.cn")).toBeNull();
     expect(getCountryCodeByDomain("royalcommand.example.hk")).toBeNull();
     expect(getCountryCodeByDomain("royalcommand.example.tw")).toBeNull();
+    expect(getCountryCodeByDomain("royalcommand.example.in")).toBeNull();
   });
 
   it("requires explicit tax-structure review metadata for every configured country", () => {
