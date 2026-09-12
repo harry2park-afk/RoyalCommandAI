@@ -1,0 +1,154 @@
+name: Supabase Known Hosted Ledger Preflight
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "scripts/supabase-hosted-ledger-snapshot-20260908.json"
+      - "scripts/supabase-hosted-ledger-reconciliation.mjs"
+      - "scripts/supabase-hosted-ledger-reconciliation.test.ts"
+      - "scripts/supabase-hosted-source-fingerprints-20260908.json"
+      - "scripts/supabase-hosted-source-provenance.mjs"
+      - "scripts/supabase-hosted-source-provenance.test.ts"
+      - "scripts/supabase-hosted-source-provenance-gate.mjs"
+      - "scripts/supabase-residual-simple-source-equivalence-20260911.json"
+      - "scripts/supabase-residual-simple-source-equivalence.test.ts"
+      - "scripts/supabase-legal-story-split-history-equivalence-20260911.json"
+      - "scripts/supabase-legal-story-split-history-equivalence.test.ts"
+      - "scripts/supabase-room-factory-plpgsql-token-equivalence-20260911.json"
+      - "scripts/supabase-room-factory-plpgsql-token-equivalence.test.ts"
+      - "scripts/supabase-unresolved-local-migration-classification-20260908.json"
+      - "scripts/supabase-unresolved-local-migration-classification.mjs"
+      - "scripts/supabase-unresolved-local-migration-classification.test.ts"
+      - "supabase/migrations/**"
+      - ".github/workflows/supabase-known-hosted-ledger-preflight.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-supabase-known-ledger-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  known-ledger-preflight:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.number == 696
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_APPLY_MIGRATIONS: >-
+        20260831225500_scope_matter_staff_access.sql
+    steps:
+      - name: Checkout exact candidate head
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+
+      - name: Verify exact candidate head
+        shell: bash
+        run: |
+          set -euo pipefail
+          actual_sha="$(git rev-parse HEAD)"
+          [[ "${actual_sha}" == "${CANDIDATE_SHA}" ]] || {
+            echo "BLOCKED: checkout SHA ${actual_sha} does not match candidate ${CANDIDATE_SHA}"
+            exit 1
+          }
+          echo "VERIFIED_EXACT_CANDIDATE_SHA ${actual_sha}"
+
+      - name: Verify fingerprinted and supplemental Hosted migration source provenance
+        id: source_provenance
+        shell: bash
+        run: |
+          set -uo pipefail
+          mkdir -p artifacts/supabase-known-hosted-ledger
+          set +e
+          node scripts/supabase-hosted-source-provenance-gate.mjs \
+            scripts/supabase-hosted-source-fingerprints-20260908.json \
+            supabase/migrations \
+            > artifacts/supabase-known-hosted-ledger/source-provenance.json
+          status=$?
+          set -e
+          cat artifacts/supabase-known-hosted-ledger/source-provenance.json
+          echo "status=${status}" >> "${GITHUB_OUTPUT}"
+          echo "HOSTED_SOURCE_PROVENANCE_EXIT ${status}"
+
+      - name: Reconcile captured Hosted ledger before credential-dependent linked CLI
+        id: ledger_reconciliation
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          IFS=',' read -r -a migrations <<< "${EXPECTED_APPLY_MIGRATIONS}"
+          expected=()
+          for migration in "${migrations[@]}"; do
+            migration="${migration#"${migration%%[![:space:]]*}"}"
+            migration="${migration%"${migration##*[![:space:]]}"}"
+            [[ -n "${migration}" ]] || {
+              echo "BLOCKED: EXPECTED_APPLY_MIGRATIONS contains an empty entry"
+              exit 1
+            }
+            expected+=("${migration}")
+          done
+
+          node scripts/supabase-hosted-ledger-reconciliation.mjs \
+            scripts/supabase-hosted-ledger-snapshot-20260908.json \
+            supabase/migrations \
+            artifacts/supabase-known-hosted-ledger/reconciliation.json \
+            "${expected[@]}"
+
+      - name: Classify unresolved LOCAL-only migration provenance
+        id: unresolved_classification
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          reconciliation="artifacts/supabase-known-hosted-ledger/reconciliation.json"
+          [[ -s "${reconciliation}" ]] || {
+            echo "BLOCKED: reconciliation evidence is missing; unresolved migration classification cannot run"
+            exit 1
+          }
+          node scripts/supabase-unresolved-local-migration-classification.mjs \
+            scripts/supabase-unresolved-local-migration-classification-20260908.json \
+            "${reconciliation}" \
+            supabase/migrations \
+            artifacts/supabase-known-hosted-ledger/unresolved-local-classification.json
+
+      - name: Upload known-ledger evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: supabase-known-hosted-ledger-${{ env.CANDIDATE_SHA }}
+          path: artifacts/supabase-known-hosted-ledger/
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Enforce provenance and ledger gates
+        if: always()
+        shell: bash
+        env:
+          SOURCE_PROVENANCE_STATUS: ${{ steps.source_provenance.outputs.status }}
+          LEDGER_RECONCILIATION_OUTCOME: ${{ steps.ledger_reconciliation.outcome }}
+          UNRESOLVED_CLASSIFICATION_OUTCOME: ${{ steps.unresolved_classification.outcome }}
+        run: |
+          set -euo pipefail
+          failed=0
+          if [[ "${SOURCE_PROVENANCE_STATUS:-missing}" != "0" ]]; then
+            echo "BLOCKED: Hosted same-name migration source provenance is unresolved."
+            failed=1
+          fi
+          if [[ "${LEDGER_RECONCILIATION_OUTCOME:-missing}" != "success" ]]; then
+            echo "BLOCKED: Hosted migration ledger reconciliation is unresolved."
+            failed=1
+          fi
+          if [[ "${UNRESOLVED_CLASSIFICATION_OUTCOME:-missing}" != "success" ]]; then
+            echo "BLOCKED: unresolved LOCAL-only migration provenance classification is incomplete or stale."
+            failed=1
+          fi
+          if [[ "${failed}" -ne 0 ]]; then
+            exit 1
+          fi
+          echo "VERIFIED: Hosted source provenance, known-ledger reconciliation, and unresolved LOCAL-only classification are clean."
