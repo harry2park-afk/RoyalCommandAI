@@ -6,6 +6,31 @@ export type ServicePurchaseInput = {
   currency?: string | null;
 };
 
+export const PAYMENT_OPERATION_EVIDENCE_KEYS = [
+  "providerRegistryVerified",
+  "orderIdempotencyVerified",
+  "signedWebhookVerified",
+  "webhookReplayProtectionVerified",
+  "refundCancelVerified",
+  "sandboxCheckoutVerified",
+  "settlementVerified",
+  "rollbackVerified",
+] as const;
+
+export type PaymentOperationalEvidence = Record<
+  (typeof PAYMENT_OPERATION_EVIDENCE_KEYS)[number],
+  boolean
+>;
+
+export function isPaymentOperationalEvidenceVerified(
+  evidence?: Partial<PaymentOperationalEvidence> | null,
+): evidence is PaymentOperationalEvidence {
+  return Boolean(
+    evidence &&
+      PAYMENT_OPERATION_EVIDENCE_KEYS.every((key) => evidence[key] === true),
+  );
+}
+
 export type ServicePurchaseDecision = {
   paymentRequired: boolean;
   canCreateOrder: boolean;
@@ -22,7 +47,7 @@ export type ServicePurchaseDecision = {
 export function evaluateServicePurchase(
   service: ServicePurchaseInput,
   checkoutConfigured: boolean,
-  paymentOperationsVerified = false,
+  paymentOperationsEvidence?: Partial<PaymentOperationalEvidence> | null,
 ): ServicePurchaseDecision {
   if (service.default_included || service.pricing_type === "free") {
     return {
@@ -63,7 +88,7 @@ export function evaluateServicePurchase(
     };
   }
 
-  if (!paymentOperationsVerified) {
+  if (!isPaymentOperationalEvidenceVerified(paymentOperationsEvidence)) {
     return {
       paymentRequired: true,
       canCreateOrder: false,
