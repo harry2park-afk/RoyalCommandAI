@@ -12,11 +12,25 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "NEEDS_REVIEW",
   authCallback: "NEEDS_REVIEW",
   sessionCookies: "NEEDS_REVIEW",
+  authRecoveryEvidence: "NEEDS_REVIEW",
+  databaseMigrationSafety: "NEEDS_REVIEW",
+  tenantDataIsolation: "NEEDS_REVIEW",
+  matterOwnershipAssignmentAuthority: "NEEDS_REVIEW",
+  authorizationRoleAuthority: "NEEDS_REVIEW",
   communicationsRules: "NEEDS_REVIEW",
+  recordingConsentEvidence: "NEEDS_REVIEW",
+  legalComplianceEvidence: "NEEDS_REVIEW",
+  privacyLifecycleEvidence: "NEEDS_REVIEW",
   dataResidency: "NEEDS_REVIEW",
   localization: "NEEDS_REVIEW",
   requiredIntegrations: "NEEDS_REVIEW",
+  commercialReadiness: "NEEDS_REVIEW",
+  roomFactoryTemplate: "NEEDS_REVIEW",
+  paymentOperations: "NEEDS_REVIEW",
+  observabilityIncidentResponse: "NEEDS_REVIEW",
+  qaSecurityRegression: "NEEDS_REVIEW",
   previewSmokeTest: "NEEDS_REVIEW",
+  deploymentProtection: "NEEDS_REVIEW",
   rollbackPath: "NEEDS_REVIEW",
 };
 
@@ -24,11 +38,25 @@ const verifiedEvidence: CountryOperationalEvidence = {
   domainBinding: "VERIFIED",
   authCallback: "VERIFIED",
   sessionCookies: "VERIFIED",
+  authRecoveryEvidence: "VERIFIED",
+  databaseMigrationSafety: "VERIFIED",
+  tenantDataIsolation: "VERIFIED",
+  matterOwnershipAssignmentAuthority: "VERIFIED",
+  authorizationRoleAuthority: "VERIFIED",
   communicationsRules: "VERIFIED",
+  recordingConsentEvidence: "VERIFIED",
+  legalComplianceEvidence: "VERIFIED",
+  privacyLifecycleEvidence: "VERIFIED",
   dataResidency: "VERIFIED",
   localization: "VERIFIED",
   requiredIntegrations: "VERIFIED",
+  commercialReadiness: "VERIFIED",
+  roomFactoryTemplate: "VERIFIED",
+  paymentOperations: "VERIFIED",
+  observabilityIncidentResponse: "VERIFIED",
+  qaSecurityRegression: "VERIFIED",
   previewSmokeTest: "VERIFIED",
+  deploymentProtection: "VERIFIED",
   rollbackPath: "VERIFIED",
 };
 
@@ -66,7 +94,25 @@ describe("country operational launch readiness gate", () => {
       expect(gate.launchable, countryCode).toBe(false);
       expect(gate.operationalBlockers, countryCode).toContain("DOMAIN_BINDING_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("AUTH_RECOVERY_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("DATABASE_MIGRATION_SAFETY_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("TENANT_DATA_ISOLATION_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain(
+        "MATTER_OWNERSHIP_ASSIGNMENT_AUTHORITY_NOT_VERIFIED",
+      );
+      expect(gate.operationalBlockers, countryCode).toContain("AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("COMMERCIAL_READINESS_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_TEMPLATE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain(
+        "OBSERVABILITY_INCIDENT_RESPONSE_NOT_VERIFIED",
+      );
+      expect(gate.operationalBlockers, countryCode).toContain("QA_SECURITY_REGRESSION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("DEPLOYMENT_PROTECTION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROLLBACK_PATH_NOT_VERIFIED");
     }
   });
@@ -96,7 +142,220 @@ describe("country operational launch readiness gate", () => {
     expect(gate.operationalBlockers).toEqual(["DATA_RESIDENCY_NOT_VERIFIED"]);
   });
 
-  it("only becomes launchable when both country and operational evidence are verified", () => {
+  it("fails closed when critical evidence added after older callers is omitted", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+    const {
+      authRecoveryEvidence: _authRecoveryEvidence,
+      databaseMigrationSafety: _databaseMigrationSafety,
+      tenantDataIsolation: _tenantDataIsolation,
+      matterOwnershipAssignmentAuthority: _matterOwnershipAssignmentAuthority,
+      authorizationRoleAuthority: _authorizationRoleAuthority,
+      recordingConsentEvidence: _recordingConsentEvidence,
+      legalComplianceEvidence: _legalComplianceEvidence,
+      privacyLifecycleEvidence: _privacyLifecycleEvidence,
+      commercialReadiness: _commercialReadiness,
+      paymentOperations: _paymentOperations,
+      observabilityIncidentResponse: _observabilityIncidentResponse,
+      qaSecurityRegression: _qaSecurityRegression,
+      deploymentProtection: _deploymentProtection,
+      ...legacyEvidence
+    } = verifiedEvidence;
+
+    const gate = evaluateCountryOperationalLaunch(ready, legacyEvidence);
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual([
+      "AUTH_RECOVERY_EVIDENCE_NOT_VERIFIED",
+      "DATABASE_MIGRATION_SAFETY_NOT_VERIFIED",
+      "TENANT_DATA_ISOLATION_NOT_VERIFIED",
+      "MATTER_OWNERSHIP_ASSIGNMENT_AUTHORITY_NOT_VERIFIED",
+      "AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED",
+      "RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED",
+      "LEGAL_COMPLIANCE_EVIDENCE_NOT_VERIFIED",
+      "PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED",
+      "COMMERCIAL_READINESS_NOT_VERIFIED",
+      "PAYMENT_OPERATIONS_NOT_VERIFIED",
+      "OBSERVABILITY_INCIDENT_RESPONSE_NOT_VERIFIED",
+      "QA_SECURITY_REGRESSION_NOT_VERIFIED",
+      "DEPLOYMENT_PROTECTION_NOT_VERIFIED",
+    ]);
+  });
+
+  it("fails closed when room factory/template evidence is omitted by an older caller", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+    const { roomFactoryTemplate: _roomFactoryTemplate, ...legacyEvidence } = verifiedEvidence;
+
+    const gate = evaluateCountryOperationalLaunch(ready, legacyEvidence);
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"]);
+  });
+
+  it("requires auth recovery evidence independently of callback and session-cookie verification", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      authCallback: "VERIFIED",
+      sessionCookies: "VERIFIED",
+      authRecoveryEvidence: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["AUTH_RECOVERY_EVIDENCE_NOT_VERIFIED"]);
+  });
+
+  it("requires database migration safety independently of application QA and deployment protection", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      databaseMigrationSafety: "NEEDS_REVIEW",
+      qaSecurityRegression: "VERIFIED",
+      deploymentProtection: "VERIFIED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["DATABASE_MIGRATION_SAFETY_NOT_VERIFIED"]);
+  });
+
+  it("requires Matter ownership and assignment authority independently of tenant row isolation", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      tenantDataIsolation: "VERIFIED",
+      matterOwnershipAssignmentAuthority: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual([
+      "MATTER_OWNERSHIP_ASSIGNMENT_AUTHORITY_NOT_VERIFIED",
+    ]);
+  });
+
+  it("requires authorization-role authority independently of tenant isolation", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      tenantDataIsolation: "VERIFIED",
+      authorizationRoleAuthority: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED"]);
+  });
+
+  it("requires reviewed recording/consent evidence independently of generic communications readiness", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      communicationsRules: "VERIFIED",
+      legalComplianceEvidence: "VERIFIED",
+      recordingConsentEvidence: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["RECORDING_CONSENT_EVIDENCE_NOT_VERIFIED"]);
+  });
+
+  it("requires privacy lifecycle evidence independently of legal review and data residency", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      legalComplianceEvidence: "VERIFIED",
+      dataResidency: "VERIFIED",
+      privacyLifecycleEvidence: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED"]);
+  });
+
+  it("requires commercial readiness independently of integrations and payment operations", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      requiredIntegrations: "VERIFIED",
+      paymentOperations: "VERIFIED",
+      commercialReadiness: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["COMMERCIAL_READINESS_NOT_VERIFIED"]);
+  });
+
+  it("requires observability and incident response independently of QA and rollback readiness", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      observabilityIncidentResponse: "NEEDS_REVIEW",
+      qaSecurityRegression: "VERIFIED",
+      rollbackPath: "VERIFIED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual([
+      "OBSERVABILITY_INCIDENT_RESPONSE_NOT_VERIFIED",
+    ]);
+  });
+
+  it("requires exact-head QA/security evidence independently of preview smoke evidence", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      qaSecurityRegression: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["QA_SECURITY_REGRESSION_NOT_VERIFIED"]);
+  });
+
+  it("requires protected deployment evidence independently of preview and rollback evidence", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      deploymentProtection: "NEEDS_REVIEW",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["DEPLOYMENT_PROTECTION_NOT_VERIFIED"]);
+  });
+
+  it("only becomes launchable when country and all operational evidence are verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const ready = makeCountryGateReady(base!);

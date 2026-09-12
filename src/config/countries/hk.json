@@ -1,0 +1,56 @@
+{
+  "countryCode": "HK",
+  "locale": "zh-HK",
+  "secondaryLocale": null,
+  "currency": "HKD",
+  "phoneCountryCode": "+852",
+  "dateFormat": "DD/MM/YYYY",
+  "timeFormat": "24h",
+  "addressFormat": [
+    "region",
+    "district",
+    "street",
+    "building_detail"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Asia/Hong_Kong"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "business_registration_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "NOT_SELECTED",
+    "status": "NOT_CONNECTED",
+    "future": [
+      "Provider selection after review",
+      "Local payment methods after review"
+    ]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": []
+  },
+  "taxStructure": {
+    "system": "TBD",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "hkPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "hkLegalProvider": { "status": "NOT_CONNECTED" },
+    "hkPrivacyProvider": { "status": "NOT_CONNECTED" }
+  }
+}

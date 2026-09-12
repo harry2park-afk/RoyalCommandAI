@@ -1,0 +1,57 @@
+{
+  "countryCode": "IN",
+  "locale": "en-IN",
+  "secondaryLocale": null,
+  "currency": "INR",
+  "phoneCountryCode": "+91",
+  "dateFormat": "DD/MM/YYYY",
+  "timeFormat": "12h",
+  "addressFormat": [
+    "street",
+    "locality",
+    "city",
+    "state",
+    "postal_code"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Asia/Kolkata"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "business_registration_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "NOT_SELECTED",
+    "status": "NOT_CONNECTED",
+    "future": [
+      "Provider selection after review",
+      "Local payment methods after review"
+    ]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": []
+  },
+  "taxStructure": {
+    "system": "TBD",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "inPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "inLegalProvider": { "status": "NOT_CONNECTED" },
+    "inPrivacyProvider": { "status": "NOT_CONNECTED" }
+  }
+}
