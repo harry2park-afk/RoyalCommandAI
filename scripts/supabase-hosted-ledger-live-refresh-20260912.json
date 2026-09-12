@@ -1,0 +1,19 @@
+{
+  "contract_version": 1,
+  "captured_at_utc": "2026-09-12T09:48:36.519855Z",
+  "project_ref": "aygawkavujjmybekswrg",
+  "source": "Supabase connector list_migrations + read-only SQL fingerprint",
+  "purpose": "Fresh Hosted migration-ledger no-drift evidence for PR #696; this is not linked CLI dry-run evidence and does not authorize apply, repair, merge, deploy, or Hosted mutation.",
+  "baseline_snapshot": "scripts/supabase-hosted-ledger-snapshot-20260908.json",
+  "baseline_snapshot_blob_sha": "7178fdcf65c45146c17c1cd9388817d4bfdb4344",
+  "migration_count": 72,
+  "first_version": "20260809215715",
+  "last_version": "20260905055756",
+  "ordered_ledger_md5": "61da7181eb49c180fc1100b09f32f20e",
+  "ordered_ledger_encoding": "version:name joined by LF, ordered by version then name",
+  "matches_baseline_snapshot": true,
+  "hosted_mutation_performed": false,
+  "linked_cli_inventory_proven": false,
+  "linked_db_push_dry_run_proven": false,
+  "ready_for_apply": false
+}
