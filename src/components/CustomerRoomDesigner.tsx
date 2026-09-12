@@ -366,6 +366,13 @@ export default function CustomerRoomDesigner() {
         event.preventDefault();
         event.stopPropagation();
         event.stopImmediatePropagation();
+        const suppressActivation = (clickEvent: MouseEvent) => {
+          clickEvent.preventDefault();
+          clickEvent.stopPropagation();
+          clickEvent.stopImmediatePropagation();
+        };
+        element.addEventListener("click", suppressActivation, { capture: true, once: true });
+        window.setTimeout(() => element.removeEventListener("click", suppressActivation, true), 500);
         if (selectedId && selectedId !== item.id) {
           setMessage("Save or Cancel this button before selecting another one.");
           return;
