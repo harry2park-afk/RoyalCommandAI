@@ -126,13 +126,42 @@ async function main() {
     victimId = victim.data.user?.id ?? null;
     assert.ok(victimId, "Victim creation returned no user id");
 
-    const victimProfile = await admin.from("profiles").select("role").eq("id", victimId).single();
+    const victimProfile = await admin.from("profiles").select("role, full_name").eq("id", victimId).single();
     if (victimProfile.error) throw new Error(`Victim profile read failed: ${victimProfile.error.message}`);
     assert.equal(victimProfile.data.role, "client", "Auth metadata assigned victim a privileged role");
+    assert.equal(victimProfile.data.full_name, "Victim fixture", "Victim profile fixture did not preserve expected name");
 
     const crossRead = await caller.from("profiles").select("id, role").eq("id", victimId);
     if (crossRead.error) throw new Error(`Cross-user read request failed unexpectedly: ${crossRead.error.message}`);
     assert.equal(crossRead.data?.length ?? 0, 0, "Authenticated user could read another user's profile");
+
+    const crossUpdate = await caller
+      .from("profiles")
+      .update({ full_name: "Cross-tenant overwrite attempt" })
+      .eq("id", victimId)
+      .select("id, full_name");
+    if (!crossUpdate.error) {
+      assert.equal(
+        crossUpdate.data?.length ?? 0,
+        0,
+        "Authenticated user unexpectedly updated another user's profile",
+      );
+    }
+
+    const victimAfterCrossUpdate = await admin
+      .from("profiles")
+      .select("role, full_name")
+      .eq("id", victimId)
+      .single();
+    if (victimAfterCrossUpdate.error) {
+      throw new Error(`Post-cross-user-update read failed: ${victimAfterCrossUpdate.error.message}`);
+    }
+    assert.equal(victimAfterCrossUpdate.data.role, "client", "Cross-user update changed victim authorization role");
+    assert.equal(
+      victimAfterCrossUpdate.data.full_name,
+      "Victim fixture",
+      "Cross-user update changed victim profile data",
+    );
 
     console.log(JSON.stringify({
       ok: true,
@@ -145,6 +174,7 @@ async function main() {
       trustedAdminProvisioningPreserved: true,
       secondUserMetadataAdminBlocked: true,
       crossUserProfileReadBlocked: true,
+      crossUserProfileUpdateBlocked: true,
     }, null, 2));
   } finally {
     await caller.auth.signOut().catch(() => undefined);
