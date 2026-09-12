@@ -24,6 +24,7 @@ type RegistryItem = {
   fontEditable: boolean;
   visibilityEditable?: boolean;
   protectedAction?: boolean;
+  element?: HTMLElement;
 };
 
 type OriginalState = {
@@ -124,6 +125,7 @@ function discoverRegistry() {
       if (protectedAction) continue;
       items.push({
         ...item,
+        element,
         textEditable: !protectedAction,
         visibilityEditable: protectedAction ? false : item.visibilityEditable !== false,
         protectedAction,
@@ -167,6 +169,7 @@ function discoverRegistry() {
       fontEditable: true,
       visibilityEditable: !protectedAction,
       protectedAction,
+      element,
     });
   }
   return items;
@@ -174,7 +177,7 @@ function discoverRegistry() {
 
 function sameRegistry(left: RegistryItem[], right: RegistryItem[]) {
   return left.length === right.length
-    && left.every((item, index) => item.id === right[index]?.id);
+    && left.every((item, index) => item.id === right[index]?.id && item.element === right[index]?.element);
 }
 
 function snap(value: number) {
@@ -187,6 +190,7 @@ function cloneConfig(config: CustomerRoomDesignConfig): CustomerRoomDesignConfig
 
 function resolveItem(item: RegistryItem | null) {
   if (!item || typeof document === "undefined") return null;
+  if (item.element?.isConnected) return item.element;
   const node = document.querySelector(item.selector);
   return node instanceof HTMLElement ? node : null;
 }
