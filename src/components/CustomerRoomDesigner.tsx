@@ -370,10 +370,12 @@ export default function CustomerRoomDesigner() {
           setMessage("Save or Cancel this button before selecting another one.");
           return;
         }
-        setSelectedId(item.id);
-        setHistory([]);
-        setMessage(`${item.label} selected.`);
-        window.requestAnimationFrame(refreshUi);
+        window.setTimeout(() => {
+          setSelectedId(item.id);
+          setHistory([]);
+          setMessage(`${item.label} selected.`);
+          window.requestAnimationFrame(refreshUi);
+        }, 0);
         return;
       }
     };
