@@ -8,11 +8,39 @@ export type LaunchBlockerCode =
   | "INVESTMENT_REVIEW"
   | "PRIVACY_REVIEW"
   | "PAYMENTS_NOT_CONNECTED"
-  | "TAX_NOT_CONNECTED";
+  | "TAX_NOT_CONNECTED"
+  | "COUNTRY_TERMS_NOT_REVIEWED"
+  | "LOCAL_PRICE_NOT_READY"
+  | "PROVIDER_OFFER_NOT_REVIEWED"
+  | "RECORDING_POLICY_NOT_REVIEWED"
+  | "PAYMENT_PROVIDER_REGISTRY_NOT_READY"
+  | "PAYMENT_EVENT_LEDGER_NOT_READY"
+  | "SERVICE_ORDER_IDEMPOTENCY_NOT_READY"
+  | "AUTH_DATA_ISOLATION_NOT_VERIFIED"
+  | "ROOM_FACTORY_ISOLATION_NOT_VERIFIED";
 
 export type CountryLaunchGate = {
   launchable: boolean;
   blockers: LaunchBlockerCode[];
+};
+
+/**
+ * Operational evidence is deliberately separate from CountryConfig.
+ *
+ * CountryConfig describes reviewed configuration intent. These booleans must
+ * come from verified Hosted/runtime evidence so a config-only READY flag can
+ * never be mistaken for launch authorization.
+ */
+export type CountryOperationalEvidence = {
+  countryTermsReviewed: boolean;
+  positiveLocalPrice: boolean;
+  providerOfferReviewed: boolean;
+  recordingPolicyReviewed: boolean;
+  paymentProviderRegistryReady: boolean;
+  paymentEventLedgerReady: boolean;
+  serviceOrderIdempotencyReady: boolean;
+  authDataIsolationVerified: boolean;
+  roomFactoryIsolationVerified: boolean;
 };
 
 /**
@@ -36,6 +64,37 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
   if (config.compliance.privacy !== "READY") blockers.push("PRIVACY_REVIEW");
   if (config.payments.status !== "CONNECTED") blockers.push("PAYMENTS_NOT_CONNECTED");
   if (config.tax.status !== "CONNECTED") blockers.push("TAX_NOT_CONNECTED");
+
+  return {
+    launchable: blockers.length === 0,
+    blockers,
+  };
+}
+
+/**
+ * Final fail-closed launch decision for a configured country.
+ *
+ * A country can pass configuration review and still remain blocked when
+ * commercial/compliance records, payment safeguards, tenant isolation, or
+ * Room Factory isolation have not been verified against the intended Hosted
+ * environment. This function has no side effects and grants no deployment or
+ * domain-binding authority by itself.
+ */
+export function evaluateCountryOperationalLaunch(
+  config: CountryConfig,
+  evidence: CountryOperationalEvidence,
+): CountryLaunchGate {
+  const blockers: LaunchBlockerCode[] = [...evaluateCountryLaunch(config).blockers];
+
+  if (!evidence.countryTermsReviewed) blockers.push("COUNTRY_TERMS_NOT_REVIEWED");
+  if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
+  if (!evidence.providerOfferReviewed) blockers.push("PROVIDER_OFFER_NOT_REVIEWED");
+  if (!evidence.recordingPolicyReviewed) blockers.push("RECORDING_POLICY_NOT_REVIEWED");
+  if (!evidence.paymentProviderRegistryReady) blockers.push("PAYMENT_PROVIDER_REGISTRY_NOT_READY");
+  if (!evidence.paymentEventLedgerReady) blockers.push("PAYMENT_EVENT_LEDGER_NOT_READY");
+  if (!evidence.serviceOrderIdempotencyReady) blockers.push("SERVICE_ORDER_IDEMPOTENCY_NOT_READY");
+  if (!evidence.authDataIsolationVerified) blockers.push("AUTH_DATA_ISOLATION_NOT_VERIFIED");
+  if (!evidence.roomFactoryIsolationVerified) blockers.push("ROOM_FACTORY_ISOLATION_NOT_VERIFIED");
 
   return {
     launchable: blockers.length === 0,
