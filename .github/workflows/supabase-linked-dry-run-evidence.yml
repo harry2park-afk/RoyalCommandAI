@@ -8,6 +8,12 @@ on:
       - "scripts/supabase-linked-project-identity.test.ts"
       - "scripts/supabase-linked-allowlist-provenance.mjs"
       - "scripts/supabase-linked-allowlist-provenance.test.ts"
+      - "scripts/supabase-hosted-source-fingerprints-20260908.json"
+      - "scripts/supabase-hosted-source-provenance.mjs"
+      - "scripts/supabase-hosted-source-provenance-gate.mjs"
+      - "scripts/supabase-residual-simple-source-equivalence-20260911.json"
+      - "scripts/supabase-legal-story-split-history-equivalence-20260911.json"
+      - "scripts/supabase-room-factory-plpgsql-token-equivalence-20260911.json"
       - "scripts/supabase-unresolved-local-migration-classification-20260908.json"
       - "scripts/supabase-dry-run-apply-set.mjs"
       - "scripts/supabase-dry-run-apply-set.test.ts"
@@ -63,6 +69,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Verify Hosted source provenance closure before Hosted credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/supabase-hosted-source-provenance-gate.mjs \
+            scripts/supabase-hosted-source-fingerprints-20260908.json \
+            supabase/migrations
 
       - name: Verify dry-run allow-list provenance before Hosted credentials
         shell: bash
