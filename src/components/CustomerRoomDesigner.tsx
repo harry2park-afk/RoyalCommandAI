@@ -385,37 +385,41 @@ export default function CustomerRoomDesigner() {
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest("[data-rc-customer-room-designer-ui='true']")) return;
-      for (const item of registry) {
-        const element = resolveItem(item);
-        if (!element || !element.contains(target)) continue;
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-        const suppressActivation = (clickEvent: MouseEvent) => {
-          clickEvent.preventDefault();
-          clickEvent.stopPropagation();
-          clickEvent.stopImmediatePropagation();
-        };
-        element.addEventListener("click", suppressActivation, { capture: true, once: true });
-        window.setTimeout(() => element.removeEventListener("click", suppressActivation, true), 500);
-        if (selectedId && selectedId !== item.id) {
-          setMessage("Save or Cancel this button before selecting another one.");
-          return;
-        }
-        window.setTimeout(() => {
-          const box = element.getBoundingClientRect();
-          setSelectedId(item.id);
-          setSelectedFallback(item);
-          setRect({ left: box.left, top: box.top, width: box.width, height: box.height });
-          setMessage(`${item.label} selected.`);
-        }, 0);
+      const directButton = target.closest(BUTTON_SELECTOR);
+      if (!(directButton instanceof HTMLElement)) return;
+      const label = readableLabel(directButton);
+      if (PROTECTED_ACTION.test(`${semanticIdentity(directButton)} ${label}`)) return;
+      const item = registry.find((candidate) => resolveItem(candidate) === directButton)
+        || discoverRegistry().find((candidate) => resolveItem(candidate) === directButton);
+      if (!item) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+      const suppressActivation = (clickEvent: MouseEvent) => {
+        clickEvent.preventDefault();
+        clickEvent.stopPropagation();
+        clickEvent.stopImmediatePropagation();
+      };
+      directButton.addEventListener("click", suppressActivation, { capture: true, once: true });
+      window.setTimeout(() => directButton.removeEventListener("click", suppressActivation, true), 500);
+      if (selectedId && selectedId !== item.id) {
+        setMessage("Save or Cancel this button before selecting another one.");
         return;
       }
+      window.setTimeout(() => {
+        const box = directButton.getBoundingClientRect();
+        setSelectedId(item.id);
+        setSelectedFallback({ ...item, element: directButton });
+        setRect({ left: box.left, top: box.top, width: box.width, height: box.height });
+        setMessage(`${item.label} selected.`);
+      }, 0);
     };
     const blockButtonAction = (event: MouseEvent) => {
       const target = event.target;
       if (!(target instanceof Element) || target.closest("[data-rc-customer-room-designer-ui='true']")) return;
-      if (!registry.some((item) => resolveItem(item)?.contains(target))) return;
+      const directButton = target.closest(BUTTON_SELECTOR);
+      if (!(directButton instanceof HTMLElement)) return;
+      if (PROTECTED_ACTION.test(`${semanticIdentity(directButton)} ${readableLabel(directButton)}`)) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
