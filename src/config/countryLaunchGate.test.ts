@@ -4,8 +4,8 @@ import { getConfiguredCountryCodes, getCountryConfigByCountryCode } from "./coun
 import type { CountryConfig } from "../types/countryConfig";
 
 describe("country launch readiness gate", () => {
-  it("keeps all first-wave countries blocked until launch-critical reviews and connections are verified", () => {
-    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "GB", "JP", "KR", "US"]);
+  it("keeps the first wave and next-priority Singapore blocked until launch-critical reviews and connections are verified", () => {
+    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "GB", "JP", "KR", "SG", "US"]);
 
     for (const countryCode of getConfiguredCountryCodes()) {
       const config = getCountryConfigByCountryCode(countryCode);
@@ -14,6 +14,24 @@ describe("country launch readiness gate", () => {
       expect(gate.launchable, countryCode).toBe(false);
       expect(gate.blockers.length, countryCode).toBeGreaterThan(0);
     }
+  });
+
+  it("keeps Singapore explicitly blocked before human review and provider connection", () => {
+    const config = getCountryConfigByCountryCode("SG");
+    expect(config).not.toBeNull();
+
+    const gate = evaluateCountryLaunch(config!);
+    expect(gate.launchable).toBe(false);
+    expect(gate.blockers).toEqual([
+      "LEGAL_REVIEW",
+      "TAX_REVIEW",
+      "TAX_STRUCTURE_REVIEW",
+      "MEDICAL_REVIEW",
+      "INVESTMENT_REVIEW",
+      "PRIVACY_REVIEW",
+      "PAYMENTS_NOT_CONNECTED",
+      "TAX_NOT_CONNECTED",
+    ]);
   });
 
   it("blocks launch while a country-specific tax structure still needs review", () => {
