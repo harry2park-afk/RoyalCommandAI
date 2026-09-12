@@ -1,0 +1,57 @@
+{
+  "countryCode": "HK",
+  "locale": "en-HK",
+  "secondaryLocale": "zh-HK",
+  "currency": "HKD",
+  "phoneCountryCode": "+852",
+  "dateFormat": "DD/MM/YYYY",
+  "timeFormat": "24h",
+  "addressFormat": [
+    "unit_number",
+    "floor",
+    "building_name",
+    "street_name",
+    "district",
+    "region"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Asia/Hong_Kong"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "company_registry_number": "optional",
+    "business_registration_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "stripe",
+    "status": "NOT_CONNECTED",
+    "future": ["Credit/Debit", "Apple Pay", "Google Pay", "FPS and local methods after review"]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": ["Stripe Tax", "Avalara", "Local tax provider after review"]
+  },
+  "taxStructure": {
+    "system": "Hong Kong tax regime",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "hkPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "hkLegalProvider": { "status": "NOT_CONNECTED" },
+    "hkPrivacyProvider": { "status": "NOT_CONNECTED" },
+    "hkInvestmentComplianceProvider": { "status": "NOT_CONNECTED" }
+  }
+}
