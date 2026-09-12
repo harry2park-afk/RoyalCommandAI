@@ -377,8 +377,20 @@ export default function CustomerRoomDesigner() {
         return;
       }
     };
+    const blockButtonAction = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Element) || target.closest("[data-rc-customer-room-designer-ui='true']")) return;
+      if (!registry.some((item) => resolveItem(item)?.contains(target))) return;
+      event.preventDefault();
+      event.stopPropagation();
+      event.stopImmediatePropagation();
+    };
     document.addEventListener("pointerdown", onPointerDown, true);
-    return () => document.removeEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("click", blockButtonAction, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("click", blockButtonAction, true);
+    };
   }, [roomId, designMode, canEdit, selectedId, refreshUi, registry]);
 
   useEffect(() => {
