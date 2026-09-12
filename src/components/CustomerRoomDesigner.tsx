@@ -318,18 +318,19 @@ export default function CustomerRoomDesigner() {
   const [draft, setDraft] = useState<CustomerRoomDesignConfig>(emptyCustomerRoomDesignConfig);
   const [registry, setRegistry] = useState<RegistryItem[]>([]);
   const [selectedId, setSelectedId] = useState<CustomerRoomDesignElementId | null>(null);
+  const [selectedFallback, setSelectedFallback] = useState<RegistryItem | null>(null);
   const [rect, setRect] = useState<RectState | null>(null);
   const [pointerSession, setPointerSession] = useState<PointerSession | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  const selected = selectedId ? registry.find((item) => item.id === selectedId) || null : null;
+  const selected = selectedId ? registry.find((item) => item.id === selectedId) || selectedFallback : null;
   const selectedPatch = selectedId ? draft.elements[selectedId] || {} : {};
 
   const refreshUi = useCallback(() => {
     const nextRegistry = discoverRegistry();
     setRegistry((current) => sameRegistry(current, nextRegistry) ? current : nextRegistry);
-    const nextSelected = selectedId ? nextRegistry.find((item) => item.id === selectedId) || null : null;
+    const nextSelected = selectedId ? nextRegistry.find((item) => item.id === selectedId) || selectedFallback : null;
     const element = resolveItem(nextSelected);
     if (element) {
       const box = element.getBoundingClientRect();
@@ -337,7 +338,7 @@ export default function CustomerRoomDesigner() {
     } else {
       setRect(null);
     }
-  }, [selectedId]);
+  }, [selectedId, selectedFallback]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -404,6 +405,7 @@ export default function CustomerRoomDesigner() {
         window.setTimeout(() => {
           const box = element.getBoundingClientRect();
           setSelectedId(item.id);
+          setSelectedFallback(item);
           setRect({ left: box.left, top: box.top, width: box.width, height: box.height });
           setMessage(`${item.label} selected.`);
         }, 0);
@@ -543,6 +545,7 @@ export default function CustomerRoomDesigner() {
       setSaved(savedNext);
       setDraft(cloneConfig(savedNext));
       setSelectedId(null);
+      setSelectedFallback(null);
       setRect(null);
       setMessage("Saved. Select another button or Finish.");
     } catch (error) {
@@ -556,6 +559,7 @@ export default function CustomerRoomDesigner() {
     setDraft(cloneConfig(saved));
     applyConfig(saved, registry);
     setSelectedId(null);
+    setSelectedFallback(null);
     setRect(null);
     setMessage("Changes cancelled.");
   }
@@ -585,6 +589,7 @@ export default function CustomerRoomDesigner() {
     setDraft(cloneConfig(saved));
     applyConfig(saved, registry);
     setSelectedId(null);
+    setSelectedFallback(null);
     setRect(null);
     setDesignMode(false);
     const url = new URL(window.location.href);
