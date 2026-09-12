@@ -4,14 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import {
   CustomerRoomDesignConfig,
+  CustomerRoomDesignElementId,
   CustomerRoomDesignPatch,
   emptyCustomerRoomDesignConfig,
   sanitiseCustomerRoomDesignConfig,
 } from "@/lib/customer-room-designer";
-import { RoomHeaderLayoutElementId } from "@/lib/layout-editor";
 
 type RegistryItem = {
-  id: RoomHeaderLayoutElementId;
+  id: CustomerRoomDesignElementId;
   label: string;
   selector: string;
   minWidth: number;
@@ -22,6 +22,8 @@ type RegistryItem = {
   resizable: boolean;
   textEditable: boolean;
   fontEditable: boolean;
+  visibilityEditable?: boolean;
+  protectedAction?: boolean;
 };
 
 type OriginalState = {
@@ -33,6 +35,8 @@ type OriginalState = {
   borderWidth: string;
   fontSize: string;
   textColor: string;
+  display: string;
+  textNode: Text | null;
   text: string | null;
 };
 
@@ -47,12 +51,13 @@ type PointerSession = {
 };
 
 const HEADER_TOP = 0;
-const HEADER_BOTTOM = 92;
 const SNAP = 2;
 const UUID_ROOM = /^\/rooms\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/?$/i;
+const BUTTON_SELECTOR = "button,[role='button'],input[type='button'],input[type='submit']";
+const PROTECTED_ACTION = /(?:delete|remove|erase|payment|pay|purchase|checkout|approve|approval|security|permission|authori[sz]e|submit|send|connect|sign[ -]?(?:in|out)|profile|account|close|삭제|제거|결제|송금|승인|보안|권한|보내기|전송|연결|로그인|로그아웃|프로필|계정|닫기)/i;
 
 const REGISTRY: RegistryItem[] = [
-  { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", minWidth: 80, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
+  { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", minWidth: 80, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true, visibilityEditable: true, protectedAction: false },
   { id: "integrated-answer", label: "Integrated Answer", selector: "[data-rc-native-synthesis-button='true']", minWidth: 90, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
   { id: "ai-warehouse", label: "AI Warehouse", selector: "button[title^='AI Warehouse']", minWidth: 90, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
   { id: "ai-chatgpt", label: "ChatGPT", selector: "button[title^='ChatGPT']", minWidth: 54, maxWidth: 190, minHeight: 22, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
@@ -68,8 +73,94 @@ const REGISTRY: RegistryItem[] = [
   { id: "profile-button", label: "Profile", selector: "button[aria-label*='profile'],button[aria-label*='프로필'],button[title='My Profile'],button[title='내 프로필']", minWidth: 28, maxWidth: 64, minHeight: 28, maxHeight: 64, movable: true, resizable: true, textEditable: false, fontEditable: false },
 ];
 
-const BY_ID = new Map(REGISTRY.map((item) => [item.id, item]));
 const ORIGINALS = new WeakMap<HTMLElement, OriginalState>();
+
+function stableHash(value: string) {
+  let hash = 2166136261;
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36).padStart(8, "0").slice(0, 8);
+}
+
+function readableLabel(element: HTMLElement) {
+  if (element instanceof HTMLInputElement) return element.value || element.name || "Button";
+  return element.getAttribute("aria-label")
+    || element.getAttribute("title")
+    || (element.textContent || "").trim().replace(/\s+/g, " ")
+    || "Button";
+}
+
+function semanticIdentity(element: HTMLElement) {
+  const explicit = element.id
+    || element.getAttribute("data-testid")
+    || element.getAttribute("name")
+    || element.getAttribute("aria-label")
+    || element.getAttribute("title")
+    || readableLabel(element);
+  const parent = element.closest("header,nav,main,aside,section,[role='dialog']");
+  const surface = parent?.getAttribute("aria-label") || parent?.id || parent?.tagName || "room";
+  return `${surface}|${element.tagName}|${explicit}`.toLowerCase();
+}
+
+function discoverRegistry() {
+  const items: RegistryItem[] = [];
+  const claimed = new Set<HTMLElement>();
+  for (const item of REGISTRY) {
+    const element = resolveItem(item);
+    if (element) {
+      const protectedAction = item.protectedAction || PROTECTED_ACTION.test(`${item.label} ${item.selector} ${readableLabel(element)}`);
+      items.push({
+        ...item,
+        textEditable: protectedAction ? false : item.textEditable,
+        visibilityEditable: protectedAction ? false : item.visibilityEditable !== false,
+        protectedAction,
+      });
+      claimed.add(element);
+    }
+  }
+
+  const occurrences = new Map<string, number>();
+  const candidates = Array.from(document.querySelectorAll(BUTTON_SELECTOR))
+    .filter((node): node is HTMLElement => node instanceof HTMLElement)
+    .filter((node) => !node.closest("[data-rc-customer-room-designer-ui='true']"));
+
+  for (const element of candidates) {
+    if (claimed.has(element)) continue;
+    const identity = semanticIdentity(element);
+    const occurrence = occurrences.get(identity) || 0;
+    occurrences.set(identity, occurrence + 1);
+    const existingId = element.dataset.rcDesignerId;
+    const id = existingId && /^auto-[a-z0-9]{8}$/.test(existingId)
+      ? existingId
+      : `auto-${stableHash(`${identity}|${occurrence}`)}`;
+    element.dataset.rcDesignerId = id;
+    const label = readableLabel(element).slice(0, 80);
+    const protectedAction = PROTECTED_ACTION.test(`${identity} ${label}`);
+    items.push({
+      id,
+      label,
+      selector: `[data-rc-designer-id='${id}']`,
+      minWidth: 24,
+      maxWidth: 520,
+      minHeight: 20,
+      maxHeight: 160,
+      movable: true,
+      resizable: true,
+      textEditable: !protectedAction,
+      fontEditable: true,
+      visibilityEditable: !protectedAction,
+      protectedAction,
+    });
+  }
+  return items;
+}
+
+function sameRegistry(left: RegistryItem[], right: RegistryItem[]) {
+  return left.length === right.length
+    && left.every((item, index) => item.id === right[index]?.id && item.label === right[index]?.label);
+}
 
 function snap(value: number) {
   return Math.round(value / SNAP) * SNAP;
@@ -93,9 +184,20 @@ function directLabelTarget(element: HTMLElement, item: RegistryItem) {
   return candidates[candidates.length - 1] || element;
 }
 
+function editableTextNode(element: HTMLElement) {
+  const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+  let node = walker.nextNode();
+  while (node) {
+    if (node instanceof Text && node.nodeValue?.trim() && !node.parentElement?.closest("svg")) return node;
+    node = walker.nextNode();
+  }
+  return null;
+}
+
 function captureOriginal(item: RegistryItem, element: HTMLElement) {
   if (ORIGINALS.has(element)) return;
   const target = directLabelTarget(element, item);
+  const textNode = item.textEditable ? editableTextNode(element) : null;
   ORIGINALS.set(element, {
     translate: element.style.translate,
     width: element.style.width,
@@ -105,7 +207,9 @@ function captureOriginal(item: RegistryItem, element: HTMLElement) {
     borderWidth: element.style.borderWidth,
     fontSize: target.style.fontSize,
     textColor: target.style.color,
-    text: item.textEditable ? target.textContent : null,
+    display: element.style.display,
+    textNode,
+    text: textNode?.nodeValue || null,
   });
 }
 
@@ -124,9 +228,10 @@ function restoreOriginal(item: RegistryItem, element: HTMLElement) {
   restoreProperty(element, "border-color", original.borderColor);
   restoreProperty(element, "background-color", original.backgroundColor);
   restoreProperty(element, "border-width", original.borderWidth);
+  restoreProperty(element, "display", original.display);
   if (item.fontEditable) restoreProperty(target, "font-size", original.fontSize);
   if (item.fontEditable) restoreProperty(target, "color", original.textColor);
-  if (item.textEditable && original.text !== null && target.textContent !== original.text) target.textContent = original.text;
+  if (item.textEditable && original.textNode && original.text !== null && original.textNode.nodeValue !== original.text) original.textNode.nodeValue = original.text;
 }
 
 function strengthColour(hex: string, strength: number) {
@@ -162,6 +267,8 @@ function applyPatch(item: RegistryItem, patch: CustomerRoomDesignPatch | undefin
   else restoreProperty(element, "background-color", original.backgroundColor);
   if (patch.borderWidth !== undefined) element.style.setProperty("border-width", `${patch.borderWidth}px`, "important");
   else restoreProperty(element, "border-width", original.borderWidth);
+  if (item.visibilityEditable !== false && patch.visible === false) element.style.setProperty("display", "none", "important");
+  else restoreProperty(element, "display", original.display);
 
   if (item.fontEditable && patch.fontSize !== undefined) target.style.setProperty("font-size", `${patch.fontSize}px`, "important");
   else if (item.fontEditable) restoreProperty(target, "font-size", original.fontSize);
@@ -169,17 +276,12 @@ function applyPatch(item: RegistryItem, patch: CustomerRoomDesignPatch | undefin
   else if (item.fontEditable) restoreProperty(target, "color", original.textColor);
   if (item.textEditable) {
     const wanted = patch.label || original.text;
-    if (wanted !== null && wanted !== undefined && target.textContent !== wanted) target.textContent = wanted;
+    if (original.textNode && wanted !== null && wanted !== undefined && original.textNode.nodeValue !== wanted) original.textNode.nodeValue = wanted;
   }
 }
 
-function applyConfig(config: CustomerRoomDesignConfig) {
-  for (const item of REGISTRY) applyPatch(item, config.elements[item.id]);
-}
-
-function overlap(a: DOMRect, b: DOMRect) {
-  return Math.max(0, Math.min(a.right, b.right) - Math.max(a.left, b.left)) > 1
-    && Math.max(0, Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top)) > 1;
+function applyConfig(config: CustomerRoomDesignConfig, registry: RegistryItem[]) {
+  for (const item of registry) applyPatch(item, config.elements[item.id]);
 }
 
 export default function CustomerRoomDesigner() {
@@ -189,29 +291,29 @@ export default function CustomerRoomDesigner() {
   const [designMode, setDesignMode] = useState(false);
   const [saved, setSaved] = useState<CustomerRoomDesignConfig>(emptyCustomerRoomDesignConfig);
   const [draft, setDraft] = useState<CustomerRoomDesignConfig>(emptyCustomerRoomDesignConfig);
-  const [selectedId, setSelectedId] = useState<RoomHeaderLayoutElementId | null>(null);
-  const [visibleIds, setVisibleIds] = useState<RoomHeaderLayoutElementId[]>([]);
+  const [registry, setRegistry] = useState<RegistryItem[]>([]);
+  const [selectedId, setSelectedId] = useState<CustomerRoomDesignElementId | null>(null);
   const [rect, setRect] = useState<RectState | null>(null);
   const [history, setHistory] = useState<CustomerRoomDesignPatch[]>([]);
   const [pointerSession, setPointerSession] = useState<PointerSession | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
-  const selected = selectedId ? BY_ID.get(selectedId) || null : null;
+  const selected = selectedId ? registry.find((item) => item.id === selectedId) || null : null;
   const selectedPatch = selectedId ? draft.elements[selectedId] || {} : {};
 
   const refreshUi = useCallback(() => {
-    const element = resolveItem(selected);
+    const nextRegistry = discoverRegistry();
+    setRegistry((current) => sameRegistry(current, nextRegistry) ? current : nextRegistry);
+    const nextSelected = selectedId ? nextRegistry.find((item) => item.id === selectedId) || null : null;
+    const element = resolveItem(nextSelected);
     if (element) {
       const box = element.getBoundingClientRect();
       setRect({ left: box.left, top: box.top, width: box.width, height: box.height });
     } else {
       setRect(null);
     }
-    setVisibleIds(REGISTRY
-      .filter((item) => Boolean(resolveItem(item)?.getClientRects().length))
-      .map((item) => item.id));
-  }, [selected]);
+  }, [selectedId]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -226,7 +328,7 @@ export default function CustomerRoomDesigner() {
         setCanEdit(data.canEdit === true);
         const requested = new URLSearchParams(window.location.search).get("roomDesign") === "1";
         setDesignMode(data.canEdit === true && requested);
-        applyConfig(next);
+        applyConfig(next, discoverRegistry());
         window.requestAnimationFrame(refreshUi);
       })
       .catch(() => undefined);
@@ -236,7 +338,9 @@ export default function CustomerRoomDesigner() {
   useEffect(() => {
     if (!roomId) return;
     const render = () => {
-      applyConfig(designMode ? draft : saved);
+      const nextRegistry = discoverRegistry();
+      setRegistry((current) => sameRegistry(current, nextRegistry) ? current : nextRegistry);
+      applyConfig(designMode ? draft : saved, nextRegistry);
       window.requestAnimationFrame(refreshUi);
     };
     const observer = new MutationObserver(render);
@@ -255,7 +359,7 @@ export default function CustomerRoomDesigner() {
       const target = event.target;
       if (!(target instanceof Element)) return;
       if (target.closest("[data-rc-customer-room-designer-ui='true']")) return;
-      for (const item of REGISTRY) {
+      for (const item of registry) {
         const element = resolveItem(item);
         if (!element || !element.contains(target)) continue;
         event.preventDefault();
@@ -274,7 +378,7 @@ export default function CustomerRoomDesigner() {
     };
     document.addEventListener("pointerdown", onPointerDown, true);
     return () => document.removeEventListener("pointerdown", onPointerDown, true);
-  }, [roomId, designMode, canEdit, selectedId, refreshUi]);
+  }, [roomId, designMode, canEdit, selectedId, refreshUi, registry]);
 
   useEffect(() => {
     if (!pointerSession || !selectedId || !selected) return;
@@ -285,10 +389,11 @@ export default function CustomerRoomDesigner() {
       const base = pointerSession.startPatch;
       const next: CustomerRoomDesignPatch = { ...base };
       const viewportWidth = window.innerWidth;
+      const viewportHeight = window.innerHeight;
 
       if (pointerSession.mode === "move") {
         const proposedLeft = Math.max(0, Math.min(viewportWidth - pointerSession.startRect.width, pointerSession.startRect.left + dx));
-        const proposedTop = Math.max(HEADER_TOP, Math.min(HEADER_BOTTOM - pointerSession.startRect.height, pointerSession.startRect.top + dy));
+        const proposedTop = Math.max(HEADER_TOP, Math.min(viewportHeight - pointerSession.startRect.height, pointerSession.startRect.top + dy));
         next.offsetX = snap((base.offsetX || 0) + proposedLeft - pointerSession.startRect.left);
         next.offsetY = snap((base.offsetY || 0) + proposedTop - pointerSession.startRect.top);
       } else {
@@ -304,7 +409,7 @@ export default function CustomerRoomDesigner() {
         width = snap(Math.max(selected.minWidth, Math.min(selected.maxWidth, width)));
         height = snap(Math.max(selected.minHeight, Math.min(selected.maxHeight, height)));
         const nextLeft = Math.max(0, Math.min(viewportWidth - width, pointerSession.startRect.left + (offsetX - (base.offsetX || 0))));
-        const nextTop = Math.max(HEADER_TOP, Math.min(HEADER_BOTTOM - height, pointerSession.startRect.top + (offsetY - (base.offsetY || 0))));
+        const nextTop = Math.max(HEADER_TOP, Math.min(viewportHeight - height, pointerSession.startRect.top + (offsetY - (base.offsetY || 0))));
         next.width = width;
         next.height = height;
         next.offsetX = snap((base.offsetX || 0) + nextLeft - pointerSession.startRect.left);
@@ -361,15 +466,10 @@ export default function CustomerRoomDesigner() {
     if (!selectedId || !selected) return "Select one button first.";
     const element = resolveItem(selected);
     if (!element) return `${selected.label} is not visible.`;
+    if (selectedPatch.visible === false && selected.visibilityEditable !== false) return "";
     const current = element.getBoundingClientRect();
-    if (current.left < -0.5 || current.right > window.innerWidth + 0.5 || current.top < HEADER_TOP - 0.5 || current.bottom > HEADER_BOTTOM + 0.5) {
-      return "This button is outside the Room Header area.";
-    }
-    for (const item of REGISTRY) {
-      if (item.id === selectedId) continue;
-      const other = resolveItem(item);
-      if (!other || other.getClientRects().length === 0) continue;
-      if (overlap(current, other.getBoundingClientRect())) return `Overlap detected with ${item.label}.`;
+    if (current.left < -0.5 || current.right > window.innerWidth + 0.5 || current.top < -0.5 || current.bottom > window.innerHeight + 0.5) {
+      return "This button is outside the visible Room area.";
     }
     return "";
   }
@@ -405,7 +505,7 @@ export default function CustomerRoomDesigner() {
 
   function cancelSelected() {
     setDraft(cloneConfig(saved));
-    applyConfig(saved);
+    applyConfig(saved, registry);
     setSelectedId(null);
     setRect(null);
     setHistory([]);
@@ -431,7 +531,7 @@ export default function CustomerRoomDesigner() {
     setMessage("Reset to RC template. Press Save This Button to keep it.");
   }
 
-  function selectFromPanel(id: RoomHeaderLayoutElementId, label: string) {
+  function selectFromPanel(id: CustomerRoomDesignElementId, label: string) {
     if (selectedId && selectedId !== id) {
       setMessage("Save or Cancel this button before selecting another one.");
       return;
@@ -530,13 +630,12 @@ export default function CustomerRoomDesigner() {
         </div>
 
         <div className="mt-3 grid grid-cols-3 gap-1">
-          {REGISTRY.map((item) => (
+          {registry.map((item) => (
             <button
               key={item.id}
               type="button"
-              disabled={!visibleIds.includes(item.id)}
               onClick={() => selectFromPanel(item.id, item.label)}
-              className={`rounded-md border px-2 py-1.5 text-[10px] ${selectedId === item.id ? "border-amber-300 bg-amber-300/15 text-amber-100" : "border-white/10 bg-white/[0.03] text-white/70"} disabled:cursor-not-allowed disabled:opacity-25`}
+              className={`rounded-md border px-2 py-1.5 text-[10px] ${selectedId === item.id ? "border-amber-300 bg-amber-300/15 text-amber-100" : "border-white/10 bg-white/[0.03] text-white/70"}`}
             >
               {item.label}
             </button>
@@ -544,7 +643,7 @@ export default function CustomerRoomDesigner() {
         </div>
 
         <div className="mt-2 rounded-md border border-sky-400/20 bg-sky-500/5 px-2 py-1.5 text-[10px] leading-4 text-sky-100/70">
-          Changes are saved only to this Room. Language and protected system controls are not editable here.
+          Every current and newly added Room button is discovered automatically. Changes are saved only to this Room.
         </div>
 
         {selected ? (
@@ -576,6 +675,18 @@ export default function CustomerRoomDesigner() {
                 <input type="text" maxLength={80} value={selectedPatch.label ?? ""} placeholder="Leave blank to use RC label" onFocus={rememberCurrent} onChange={(event) => updateSelected({ label: event.target.value })} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
               </label>
             ) : null}
+
+            <label className="mt-3 flex items-center justify-between rounded-md border border-white/10 px-3 py-2 text-[11px] text-white/70">
+              Show this button
+              <input
+                type="checkbox"
+                checked={selectedPatch.visible !== false}
+                disabled={selected.visibilityEditable === false}
+                onChange={(event) => { rememberCurrent(); updateSelected({ visible: event.target.checked }); }}
+                className="h-4 w-4 accent-amber-300 disabled:opacity-35"
+              />
+            </label>
+            {selected.protectedAction ? <div className="mt-2 text-[10px] leading-4 text-amber-200/75">Protected action: function, text and visibility are locked. Position, size and colours remain editable.</div> : null}
 
             <div className="mt-3 border-t border-white/10 pt-3">
               <div className="mb-2 font-semibold text-amber-100">Style</div>
