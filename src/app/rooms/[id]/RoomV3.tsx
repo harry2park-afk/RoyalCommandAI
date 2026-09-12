@@ -538,11 +538,11 @@ export default function RoomV3() {
             <button
               type="button"
               onClick={() => window.dispatchEvent(new CustomEvent("royalcommand:open-ai-secretary"))}
-              className="grid h-[52px] w-[52px] shrink-0 place-items-center bg-transparent p-0 lg:h-16 lg:w-16"
+              className="grid h-[52px] w-[52px] shrink-0 place-items-start bg-transparent p-0 lg:h-16 lg:w-16"
               title="Katie AI 비서 사무실 열기"
               aria-label="Katie AI 비서 사무실 열기"
             >
-              <img src="/images/katie-avatar.png" alt="Katie AI 비서" className="h-full w-full object-contain" />
+              <img src="/images/katie-avatar.png" alt="Katie AI 비서" className="h-auto w-full translate-y-1 object-contain" />
             </button>
           </div>
         </div>
