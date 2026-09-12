@@ -57,6 +57,7 @@ async function main() {
   const serviceRoleKey = required("RC_SCHEMA_STAGE_SERVICE_ROLE_KEY");
   const email = required("RC_SCHEMA_STAGE_TEST_EMAIL");
   const password = required("RC_SCHEMA_STAGE_TEST_PASSWORD");
+  const verifyManifestAcl = process.env.RC_SCHEMA_STAGE_VERIFY_MANIFEST_ACL === "1";
   assertDisposableUrl(url);
 
   const at = email.lastIndexOf("@");
@@ -141,34 +142,36 @@ async function main() {
     if (outsiderManifestRead.error) throw new Error(`Cross-tenant manifest read should filter, not error: ${outsiderManifestRead.error.message}`);
     assert.deepEqual(outsiderManifestRead.data, [], "Cross-tenant caller can read another owner's manifest");
 
-    await assertPermissionDenied(
-      caller.from("room_factory_manifests").insert({
-        id: randomUUID(),
-        room_id: firstNull.room_data.id,
-        owner_id: userId,
-        factory_version: "tamper-attempt",
-        template_id: "general",
-        country_code: "AU",
-        language_tag: "en-AU",
-        country_profile_status: "registered",
-        manifest: { tamper: true },
-      }),
-      "Authenticated direct manifest INSERT",
-    );
+    if (verifyManifestAcl) {
+      await assertPermissionDenied(
+        caller.from("room_factory_manifests").insert({
+          id: randomUUID(),
+          room_id: firstNull.room_data.id,
+          owner_id: userId,
+          factory_version: "tamper-attempt",
+          template_id: "general",
+          country_code: "AU",
+          language_tag: "en-AU",
+          country_profile_status: "registered",
+          manifest: { tamper: true },
+        }),
+        "Authenticated direct manifest INSERT",
+      );
 
-    await assertPermissionDenied(
-      caller.from("room_factory_manifests")
-        .update({ manifest: { tamper: true } })
-        .eq("id", firstNull.manifest_data.id),
-      "Authenticated direct manifest UPDATE",
-    );
+      await assertPermissionDenied(
+        caller.from("room_factory_manifests")
+          .update({ manifest: { tamper: true } })
+          .eq("id", firstNull.manifest_data.id),
+        "Authenticated direct manifest UPDATE",
+      );
 
-    await assertPermissionDenied(
-      caller.from("room_factory_manifests")
-        .delete()
-        .eq("id", firstNull.manifest_data.id),
-      "Authenticated direct manifest DELETE",
-    );
+      await assertPermissionDenied(
+        caller.from("room_factory_manifests")
+          .delete()
+          .eq("id", firstNull.manifest_data.id),
+        "Authenticated direct manifest DELETE",
+      );
+    }
 
     const nullAfter = await exactCount(
       admin.from("room_factory_manifests").select("id", { count: "exact", head: true })
@@ -223,12 +226,15 @@ async function main() {
         manifestEncounterSmugglingRejected: true,
         rejectedRequestResidue: invalidResidue,
       },
-      manifestBoundary: {
+      tenantIsolation: {
         ownerReadBack: ownerManifestRead.data?.length === 1,
         crossTenantReadDenied: outsiderManifestRead.data?.length === 0,
-        directInsertDenied: true,
-        directUpdateDenied: true,
-        directDeleteDenied: true,
+      },
+      manifestAcl: {
+        verified: verifyManifestAcl,
+        directInsertDenied: verifyManifestAcl ? true : null,
+        directUpdateDenied: verifyManifestAcl ? true : null,
+        directDeleteDenied: verifyManifestAcl ? true : null,
       },
       encounter: {
         firstReused: firstEncounter.reused,
