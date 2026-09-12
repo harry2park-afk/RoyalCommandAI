@@ -74,6 +74,20 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
     return () => { active = false; window.clearInterval(timer); };
   }, [loaded, roomId]);
 
+  useEffect(() => {
+    if (!roomId || roomId.toLowerCase() === "rca") return;
+    const openSecretary = () => {
+      setData((current) => current.connected ? current : {
+        ...current,
+        connected: true,
+        logs: [`${stamp(now())} · AI 비서 신청 및 Preview 연결 완료`, ...current.logs],
+      });
+      setOpen(true);
+    };
+    window.addEventListener("royalcommand:open-ai-secretary", openSecretary);
+    return () => window.removeEventListener("royalcommand:open-ai-secretary", openSecretary);
+  }, [roomId]);
+
   const report = useMemo(() => ({
     calls: calls.length + data.logs.filter((x) => x.includes("전화")).length,
     voicemail: calls.filter((x) => x.message || x.transcript).length + data.logs.filter((x) => x.includes("음성메시지")).length,
@@ -84,14 +98,6 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
   }), [calls, data]);
 
   if (!roomId || roomId.toLowerCase() === "rca") return null;
-
-  function connectPreviewSecretary() {
-    setData((current) => ({
-      ...current,
-      connected: true,
-      logs: [`${stamp(now())} · AI 비서 신청 및 Preview 연결 완료`, ...current.logs],
-    }));
-  }
 
   async function sendInstruction(event: FormEvent) {
     event.preventDefault();
@@ -141,16 +147,10 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
     setData((current) => ({ ...current, files: [...added, ...current.files], logs: [`${stamp(at)} · 파일 ${added.length}개 Room 기록에 추가`, ...current.logs] }));
   }
 
-  if (!data.connected) {
-    return <button type="button" onClick={connectPreviewSecretary} className="fixed bottom-7 right-8 z-[372] h-10 rounded-xl border border-[#d7b64d] bg-[#173663] px-4 text-[13px] font-bold text-[#ffe18a] shadow-lg hover:bg-[#214b85]">AI 비서 신청</button>;
-  }
+  if (!data.connected) return null;
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="fixed bottom-7 right-8 z-[372] flex h-14 items-center gap-2 bg-transparent text-left">
-        <img src="/ai-secretary-woman.svg" alt={`${data.name} AI 비서`} className="h-14 w-12 rounded-lg object-cover shadow-lg" />
-        <span className="text-xs font-bold text-[#f0d36a]">{data.name}<br/><span className="text-[10px] text-white/70">AI 비서</span></span>
-      </button>
       {open ? <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/65 p-3">
         <section className="flex h-[min(760px,94dvh)] w-[min(1180px,96vw)] flex-col overflow-hidden rounded-2xl border border-[#d7b64d]/50 bg-[#07111f] shadow-2xl">
           <header className="flex h-20 shrink-0 items-center gap-3 border-b border-white/10 px-5">
