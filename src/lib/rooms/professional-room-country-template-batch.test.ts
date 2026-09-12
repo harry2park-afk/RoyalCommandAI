@@ -33,6 +33,45 @@ describe("Professional Room country template batch", () => {
     }
   });
 
+  it("keeps governed room identity invariant across first-wave country overlays", () => {
+    const expectedCatalogIds = PROFESSIONAL_ROOM_DIRECTORY.map((room) => room.id);
+    const baselineBatch = buildProfessionalRoomCountryTemplateBatch("AU");
+
+    expect(baselineBatch).not.toBeNull();
+    if (!baselineBatch) throw new Error("AU Professional Room baseline batch did not resolve");
+
+    expect(baselineBatch.plans.map((plan) => plan.catalogId)).toEqual(expectedCatalogIds);
+
+    const baselineIdentity = baselineBatch.plans.map((plan) => ({
+      catalogId: plan.catalogId,
+      productId: plan.productId,
+      domain: plan.domain,
+      vault: plan.vault,
+      sharedDataMode: plan.sharedDataMode,
+      crossVaultStorageAllowed: plan.crossVaultStorageAllowed,
+    }));
+
+    for (const countryCode of FIRST_WAVE) {
+      const batch = buildProfessionalRoomCountryTemplateBatch(countryCode);
+
+      expect(batch, countryCode).not.toBeNull();
+      if (!batch) throw new Error(`${countryCode} Professional Room batch did not resolve`);
+
+      expect(batch.plans.map((plan) => plan.catalogId), countryCode).toEqual(expectedCatalogIds);
+      expect(
+        batch.plans.map((plan) => ({
+          catalogId: plan.catalogId,
+          productId: plan.productId,
+          domain: plan.domain,
+          vault: plan.vault,
+          sharedDataMode: plan.sharedDataMode,
+          crossVaultStorageAllowed: plan.crossVaultStorageAllowed,
+        })),
+        countryCode,
+      ).toEqual(baselineIdentity);
+    }
+  });
+
   it("preserves the single bridge product as two governed catalog views without cross-vault storage", () => {
     const batch = buildProfessionalRoomCountryTemplateBatch("AU");
     const bridgePlans = batch?.plans.filter((plan) => plan.productId === "bridge_la") ?? [];
