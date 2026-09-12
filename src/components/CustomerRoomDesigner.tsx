@@ -33,6 +33,7 @@ type OriginalState = {
   borderColor: string;
   backgroundColor: string;
   borderWidth: string;
+  borderRadius: string;
   fontSize: string;
   textColor: string;
   display: string;
@@ -54,7 +55,7 @@ const HEADER_TOP = 0;
 const SNAP = 2;
 const UUID_ROOM = /^\/rooms\/([0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12})\/?$/i;
 const BUTTON_SELECTOR = "button,[role='button'],input[type='button'],input[type='submit']";
-const PROTECTED_ACTION = /(?:delete|remove|erase|payment|pay|purchase|checkout|approve|approval|security|permission|authori[sz]e|submit|send|connect|sign[ -]?(?:in|out)|profile|account|close|삭제|제거|결제|송금|승인|보안|권한|보내기|전송|연결|로그인|로그아웃|프로필|계정|닫기)/i;
+const PROTECTED_ACTION = /(?:delete|remove|erase|payment|pay|purchase|checkout|approve|approval|security|permission|authori[sz]e|submit|send|connect|sign[ -]?(?:in|out)|profile|account|close|new chat|save|finish|minimi[sz]e|room management|voice|microphone|attach|language|삭제|제거|결제|송금|승인|보안|권한|보내기|전송|연결|로그인|로그아웃|프로필|계정|닫기|새 채팅|저장|완료|줄이기|룸 관리|음성|마이크|첨부|언어|메뉴에서 빼기)/i;
 
 const REGISTRY: RegistryItem[] = [
   { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", minWidth: 80, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true, visibilityEditable: true, protectedAction: false },
@@ -111,9 +112,10 @@ function discoverRegistry() {
     const element = resolveItem(item);
     if (element) {
       const protectedAction = item.protectedAction || PROTECTED_ACTION.test(`${item.label} ${item.selector} ${readableLabel(element)}`);
+      if (protectedAction) continue;
       items.push({
         ...item,
-        textEditable: protectedAction ? false : item.textEditable,
+        textEditable: !protectedAction,
         visibilityEditable: protectedAction ? false : item.visibilityEditable !== false,
         protectedAction,
       });
@@ -125,7 +127,7 @@ function discoverRegistry() {
   const candidates = Array.from(document.querySelectorAll(BUTTON_SELECTOR))
     .filter((node): node is HTMLElement => node instanceof HTMLElement)
     .filter((node) => !node.closest("[data-rc-customer-room-designer-ui='true']"))
-    .filter((node) => node.getClientRects().length > 0 || Boolean(node.dataset.rcDesignerId));
+    .filter((node) => node.getClientRects().length > 0);
 
   for (const element of candidates) {
     if (claimed.has(element)) continue;
@@ -139,6 +141,7 @@ function discoverRegistry() {
     element.dataset.rcDesignerId = id;
     const label = readableLabel(element).slice(0, 80);
     const protectedAction = PROTECTED_ACTION.test(`${identity} ${label}`);
+    if (protectedAction) continue;
     items.push({
       id,
       label,
@@ -160,7 +163,7 @@ function discoverRegistry() {
 
 function sameRegistry(left: RegistryItem[], right: RegistryItem[]) {
   return left.length === right.length
-    && left.every((item, index) => item.id === right[index]?.id && item.label === right[index]?.label);
+    && left.every((item, index) => item.id === right[index]?.id);
 }
 
 function snap(value: number) {
@@ -206,6 +209,7 @@ function captureOriginal(item: RegistryItem, element: HTMLElement) {
     borderColor: element.style.borderColor,
     backgroundColor: element.style.backgroundColor,
     borderWidth: element.style.borderWidth,
+    borderRadius: element.style.borderRadius,
     fontSize: target.style.fontSize,
     textColor: target.style.color,
     display: element.style.display,
@@ -229,6 +233,7 @@ function restoreOriginal(item: RegistryItem, element: HTMLElement) {
   restoreProperty(element, "border-color", original.borderColor);
   restoreProperty(element, "background-color", original.backgroundColor);
   restoreProperty(element, "border-width", original.borderWidth);
+  restoreProperty(element, "border-radius", original.borderRadius);
   restoreProperty(element, "display", original.display);
   if (item.fontEditable) restoreProperty(target, "font-size", original.fontSize);
   if (item.fontEditable) restoreProperty(target, "color", original.textColor);
@@ -268,6 +273,8 @@ function applyPatch(item: RegistryItem, patch: CustomerRoomDesignPatch | undefin
   else restoreProperty(element, "background-color", original.backgroundColor);
   if (patch.borderWidth !== undefined) element.style.setProperty("border-width", `${patch.borderWidth}px`, "important");
   else restoreProperty(element, "border-width", original.borderWidth);
+  if (patch.borderRadius !== undefined) element.style.setProperty("border-radius", `${patch.borderRadius}px`, "important");
+  else restoreProperty(element, "border-radius", original.borderRadius);
   if (item.visibilityEditable !== false && patch.visible === false) element.style.setProperty("display", "none", "important");
   else restoreProperty(element, "display", original.display);
 
@@ -295,7 +302,6 @@ export default function CustomerRoomDesigner() {
   const [registry, setRegistry] = useState<RegistryItem[]>([]);
   const [selectedId, setSelectedId] = useState<CustomerRoomDesignElementId | null>(null);
   const [rect, setRect] = useState<RectState | null>(null);
-  const [history, setHistory] = useState<CustomerRoomDesignPatch[]>([]);
   const [pointerSession, setPointerSession] = useState<PointerSession | null>(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -329,12 +335,13 @@ export default function CustomerRoomDesigner() {
         setCanEdit(data.canEdit === true);
         const requested = new URLSearchParams(window.location.search).get("roomDesign") === "1";
         setDesignMode(data.canEdit === true && requested);
-        applyConfig(next, discoverRegistry());
-        window.requestAnimationFrame(refreshUi);
+        const initialRegistry = discoverRegistry();
+        applyConfig(next, initialRegistry);
+        window.requestAnimationFrame(() => setRegistry(initialRegistry));
       })
       .catch(() => undefined);
     return () => { cancelled = true; };
-  }, [roomId, refreshUi]);
+  }, [roomId]);
 
   useEffect(() => {
     if (!roomId) return;
@@ -379,7 +386,6 @@ export default function CustomerRoomDesigner() {
         }
         window.setTimeout(() => {
           setSelectedId(item.id);
-          setHistory([]);
           setMessage(`${item.label} selected.`);
           window.requestAnimationFrame(refreshUi);
         }, 0);
@@ -452,7 +458,6 @@ export default function CustomerRoomDesigner() {
 
   function rememberCurrent() {
     if (!selectedId) return;
-    setHistory((current) => [...current, { ...(draft.elements[selectedId] || {}) }]);
   }
 
   function updateSelected(patch: Partial<CustomerRoomDesignPatch>) {
@@ -473,7 +478,6 @@ export default function CustomerRoomDesigner() {
     event.preventDefault();
     event.stopPropagation();
     const patch = { ...(draft.elements[selectedId] || {}) };
-    setHistory((current) => [...current, patch]);
     setPointerSession({
       mode,
       direction,
@@ -516,7 +520,6 @@ export default function CustomerRoomDesigner() {
       setDraft(cloneConfig(savedNext));
       setSelectedId(null);
       setRect(null);
-      setHistory([]);
       setMessage("Saved. Select another button or Finish.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Room design save failed.");
@@ -530,16 +533,7 @@ export default function CustomerRoomDesigner() {
     applyConfig(saved, registry);
     setSelectedId(null);
     setRect(null);
-    setHistory([]);
     setMessage("Changes cancelled.");
-  }
-
-  function undoSelected() {
-    if (!selectedId || history.length === 0) return;
-    const previous = history[history.length - 1];
-    setHistory((current) => current.slice(0, -1));
-    setDraft((current) => ({ ...current, elements: { ...current.elements, [selectedId]: previous } }));
-    setMessage("Undid the last change.");
   }
 
   function resetSelected() {
@@ -553,17 +547,6 @@ export default function CustomerRoomDesigner() {
     setMessage("Reset to RC template. Press Save This Button to keep it.");
   }
 
-  function selectFromPanel(id: CustomerRoomDesignElementId, label: string) {
-    if (selectedId && selectedId !== id) {
-      setMessage("Save or Cancel this button before selecting another one.");
-      return;
-    }
-    setSelectedId(id);
-    setHistory([]);
-    setMessage(`${label} selected.`);
-    window.requestAnimationFrame(refreshUi);
-  }
-
   function startDesigner() {
     if (!canEdit) return;
     setDesignMode(true);
@@ -574,17 +557,28 @@ export default function CustomerRoomDesigner() {
     window.requestAnimationFrame(refreshUi);
   }
 
-  function finishDesigner() {
-    if (selectedId) {
-      setMessage("Save or Cancel the selected button before finishing.");
-      return;
-    }
+  const finishDesigner = useCallback(() => {
+    setDraft(cloneConfig(saved));
+    applyConfig(saved, registry);
+    setSelectedId(null);
+    setRect(null);
     setDesignMode(false);
     const url = new URL(window.location.href);
     url.searchParams.delete("roomDesign");
     window.history.replaceState({}, "", `${url.pathname}${url.search}${url.hash}`);
     setMessage("");
-  }
+  }, [registry, saved]);
+
+  useEffect(() => {
+    if (!designMode) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      event.preventDefault();
+      finishDesigner();
+    };
+    window.addEventListener("keydown", closeOnEscape, true);
+    return () => window.removeEventListener("keydown", closeOnEscape, true);
+  }, [designMode, finishDesigner]);
 
   if (!roomId) return null;
 
@@ -642,30 +636,17 @@ export default function CustomerRoomDesigner() {
         </div>
       ) : null}
 
-      <aside data-rc-customer-room-designer-ui="true" className="fixed bottom-4 right-4 z-[1001] w-[350px] max-h-[calc(100vh-130px)] overflow-y-auto rounded-2xl border border-amber-300/50 bg-[#07101d]/98 p-4 text-sm text-white shadow-2xl">
+      <aside data-rc-customer-room-designer-ui="true" className="fixed bottom-4 right-4 z-[1001] w-[330px] max-h-[calc(100vh-130px)] overflow-y-auto rounded-2xl border border-amber-300/50 bg-[#07101d]/98 p-4 text-sm text-white shadow-2xl">
         <div className="flex items-center justify-between gap-3">
           <div>
             <div className="font-semibold text-amber-200">My Room Designer</div>
             <div className="text-[11px] text-white/55">Single-click one button to edit it.</div>
           </div>
-          <span className="rounded-md border border-white/15 px-2 py-1 text-[10px] text-white/60">THIS ROOM ONLY</span>
-        </div>
-
-        <div className="mt-3 grid grid-cols-3 gap-1">
-          {registry.map((item) => (
-            <button
-              key={item.id}
-              type="button"
-              onClick={() => selectFromPanel(item.id, item.label)}
-              className={`rounded-md border px-2 py-1.5 text-[10px] ${selectedId === item.id ? "border-amber-300 bg-amber-300/15 text-amber-100" : "border-white/10 bg-white/[0.03] text-white/70"}`}
-            >
-              {item.label}
-            </button>
-          ))}
+          <button type="button" aria-label="Exit Designer" onClick={finishDesigner} className="grid h-11 w-11 shrink-0 place-items-center rounded-lg border-2 border-amber-300 bg-amber-300/10 text-2xl font-bold text-amber-100" title="Exit without saving">×</button>
         </div>
 
         <div className="mt-2 rounded-md border border-sky-400/20 bg-sky-500/5 px-2 py-1.5 text-[10px] leading-4 text-sky-100/70">
-          Every current and newly added Room button is discovered automatically. Changes are saved only to this Room.
+          Click a button on the Room screen to edit it. Unsaved changes are discarded when you exit.
         </div>
 
         {selected ? (
@@ -725,6 +706,9 @@ export default function CustomerRoomDesigner() {
                 <label className="text-[11px] text-white/60">Border width 1–5
                   <input type="number" min={1} max={5} value={selectedPatch.borderWidth ?? 1} onFocus={rememberCurrent} onChange={(event) => updateSelected({ borderWidth: Math.max(1, Math.min(5, Number(event.target.value) || 1)) })} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
                 </label>
+                <label className="text-[11px] text-white/60">Border radius 0–40
+                  <input type="number" min={0} max={40} value={selectedPatch.borderRadius ?? 8} onFocus={rememberCurrent} onChange={(event) => updateSelected({ borderRadius: Math.max(0, Math.min(40, Number(event.target.value) || 0)) })} className="mt-1 w-full rounded-md border border-white/15 bg-black/30 px-2 py-1.5 text-white" />
+                </label>
               </div>
               {selected.fontEditable ? (
                 <label className="mt-2 block text-[11px] text-white/60">Text colour
@@ -736,8 +720,8 @@ export default function CustomerRoomDesigner() {
             <div className="mt-3 grid grid-cols-2 gap-2">
               <button type="button" onClick={() => void saveSelected()} disabled={saving} className="rounded-lg border border-emerald-400/60 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-200 disabled:opacity-50">Save This Button</button>
               <button type="button" onClick={cancelSelected} className="rounded-lg border border-white/20 bg-white/[0.04] px-3 py-2 text-xs">Cancel This Button</button>
-              <button type="button" onClick={undoSelected} disabled={history.length === 0} className="rounded-lg border border-sky-400/30 bg-sky-500/10 px-3 py-2 text-xs text-sky-200 disabled:opacity-35">Undo</button>
               <button type="button" onClick={resetSelected} className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-100">Reset to RC Template</button>
+              <button type="button" onClick={() => { rememberCurrent(); updateSelected({ visible: false }); setMessage("Button marked for deletion. Press Save to keep it hidden."); }} className="rounded-lg border border-red-400/40 bg-red-500/10 px-3 py-2 text-xs text-red-200">Delete Button</button>
             </div>
           </div>
         ) : null}

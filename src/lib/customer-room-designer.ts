@@ -14,6 +14,7 @@ export type CustomerRoomDesignPatch = {
   colourStrength?: number;
   textColor?: string;
   borderWidth?: number;
+  borderRadius?: number;
   visible?: boolean;
 };
 
@@ -61,15 +62,16 @@ export function sanitiseCustomerRoomDesignConfig(value: unknown): CustomerRoomDe
     const patch: CustomerRoomDesignPatch = {};
 
     const offsetX = finiteNumber(raw.offsetX, -1200, 1200);
-    const offsetY = finiteNumber(raw.offsetY, -92, 92);
+    const offsetY = finiteNumber(raw.offsetY, -1200, 1200);
     const width = finiteNumber(raw.width, 24, 520);
-    const height = finiteNumber(raw.height, 20, 92);
+    const height = finiteNumber(raw.height, 20, 160);
     const fontSize = finiteNumber(raw.fontSize, 8, 32);
     const borderColor = safeColour(raw.borderColor);
     const backgroundColor = safeColour(raw.backgroundColor);
     const colourStrength = finiteNumber(raw.colourStrength, 1, 10);
     const textColor = safeColour(raw.textColor);
     const borderWidth = finiteNumber(raw.borderWidth, 1, 5);
+    const borderRadius = finiteNumber(raw.borderRadius, 0, 40);
 
     if (offsetX !== undefined) patch.offsetX = offsetX;
     if (offsetY !== undefined) patch.offsetY = offsetY;
@@ -81,6 +83,7 @@ export function sanitiseCustomerRoomDesignConfig(value: unknown): CustomerRoomDe
     if (colourStrength !== undefined) patch.colourStrength = Math.round(colourStrength);
     if (textColor !== undefined) patch.textColor = textColor;
     if (borderWidth !== undefined) patch.borderWidth = Math.round(borderWidth);
+    if (borderRadius !== undefined) patch.borderRadius = Math.round(borderRadius);
     if (typeof raw.visible === "boolean") patch.visible = raw.visible;
     if (typeof raw.label === "string") {
       const label = raw.label.trim().replace(/\s+/g, " ").slice(0, 80);

@@ -19,6 +19,7 @@ describe("customer room designer config", () => {
           colourStrength: 99,
           textColor: "#fFaa00",
           borderWidth: 99,
+          borderRadius: 99,
           visible: false,
         },
       },
@@ -26,7 +27,7 @@ describe("customer room designer config", () => {
 
     expect(result?.elements["build-your-room"]).toEqual({
       offsetX: 1200,
-      offsetY: -92,
+      offsetY: -999,
       width: 520,
       height: 20,
       fontSize: 32,
@@ -36,6 +37,7 @@ describe("customer room designer config", () => {
       colourStrength: 10,
       textColor: "#FFAA00",
       borderWidth: 5,
+      borderRadius: 40,
       visible: false,
     });
   });
