@@ -24,6 +24,7 @@ type RegistryItem = {
   fontEditable: boolean;
   visibilityEditable?: boolean;
   protectedAction?: boolean;
+  forceEditable?: boolean;
   element?: HTMLElement;
 };
 
@@ -59,6 +60,7 @@ const BUTTON_SELECTOR = "button,[role='button'],input[type='button'],input[type=
 const PROTECTED_ACTION = /(?:delete|remove|erase|payment|pay|purchase|checkout|approve|approval|security|permission|authori[sz]e|submit|send|connect|sign[ -]?(?:in|out)|profile|account|close|new chat|save|finish|minimi[sz]e|room management|voice|microphone|attach|language|삭제|제거|결제|송금|승인|보안|권한|보내기|전송|연결|로그인|로그아웃|프로필|계정|닫기|새 채팅|저장|완료|줄이기|룸 관리|음성|마이크|첨부|언어|메뉴에서 빼기)/i;
 
 const REGISTRY: RegistryItem[] = [
+  { id: "connect-to-room", label: "Connect to Room", selector: "#rc-connect-to-room-button", minWidth: 100, maxWidth: 320, minHeight: 22, maxHeight: 80, movable: true, resizable: true, textEditable: true, fontEditable: true, visibilityEditable: true, protectedAction: false, forceEditable: true },
   { id: "build-your-room", label: "Build Your Room", selector: "#rc-room-finder-top", minWidth: 80, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true, visibilityEditable: true, protectedAction: false },
   { id: "integrated-answer", label: "Integrated Answer", selector: "[data-rc-native-synthesis-button='true']", minWidth: 90, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: false, fontEditable: true },
   { id: "ai-warehouse", label: "AI Warehouse", selector: "button[title^='AI Warehouse']", minWidth: 90, maxWidth: 260, minHeight: 24, maxHeight: 44, movable: true, resizable: true, textEditable: true, fontEditable: true },
@@ -122,7 +124,7 @@ function discoverRegistry() {
   for (const item of REGISTRY) {
     const element = resolveItem(item);
     if (element) {
-      const protectedAction = item.protectedAction || PROTECTED_ACTION.test(`${item.label} ${item.selector} ${readableLabel(element)}`);
+      const protectedAction = item.forceEditable ? false : item.protectedAction || PROTECTED_ACTION.test(`${item.label} ${item.selector} ${readableLabel(element)}`);
       if (protectedAction) continue;
       items.push({
         ...item,
@@ -387,14 +389,15 @@ export default function CustomerRoomDesigner() {
       if (target.closest("[data-rc-customer-room-designer-ui='true']")) return;
       const directButton = target.closest(BUTTON_SELECTOR);
       if (!(directButton instanceof HTMLElement)) return;
-      const label = readableLabel(directButton);
-      if (PROTECTED_ACTION.test(`${semanticIdentity(directButton)} ${label}`)) return;
-      const item = registry.find((candidate) => resolveItem(candidate) === directButton)
-        || discoverRegistry().find((candidate) => resolveItem(candidate) === directButton);
-      if (!item) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
+      const item = registry.find((candidate) => resolveItem(candidate) === directButton)
+        || discoverRegistry().find((candidate) => resolveItem(candidate) === directButton);
+      if (!item) {
+        setMessage("This system button is locked while editing.");
+        return;
+      }
       const suppressActivation = (clickEvent: MouseEvent) => {
         clickEvent.preventDefault();
         clickEvent.stopPropagation();
@@ -419,7 +422,6 @@ export default function CustomerRoomDesigner() {
       if (!(target instanceof Element) || target.closest("[data-rc-customer-room-designer-ui='true']")) return;
       const directButton = target.closest(BUTTON_SELECTOR);
       if (!(directButton instanceof HTMLElement)) return;
-      if (PROTECTED_ACTION.test(`${semanticIdentity(directButton)} ${readableLabel(directButton)}`)) return;
       event.preventDefault();
       event.stopPropagation();
       event.stopImmediatePropagation();
@@ -618,9 +620,15 @@ export default function CustomerRoomDesigner() {
   if (!designMode) {
     return canEdit ? (
       <button
+        id="rc-room-designer-edit-button"
         type="button"
         data-rc-customer-room-designer-ui="true"
-        onClick={startDesigner}
+        onPointerDown={(event) => event.stopPropagation()}
+        onClick={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          startDesigner();
+        }}
         className="fixed right-4 top-[96px] z-[997] rounded-lg border border-amber-300/60 bg-[#07101d]/95 px-3 py-2 text-xs font-semibold text-amber-100 shadow-xl"
       >
         버튼 수정 / Edit
