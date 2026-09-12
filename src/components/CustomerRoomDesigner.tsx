@@ -394,11 +394,11 @@ export default function CustomerRoomDesigner() {
       event.stopPropagation();
       event.stopImmediatePropagation();
     };
-    document.addEventListener("pointerdown", onPointerDown, true);
-    document.addEventListener("click", blockButtonAction, true);
+    window.addEventListener("pointerdown", onPointerDown, true);
+    window.addEventListener("click", blockButtonAction, true);
     return () => {
-      document.removeEventListener("pointerdown", onPointerDown, true);
-      document.removeEventListener("click", blockButtonAction, true);
+      window.removeEventListener("pointerdown", onPointerDown, true);
+      window.removeEventListener("click", blockButtonAction, true);
     };
   }, [roomId, designMode, canEdit, selectedId, refreshUi, registry]);
 
