@@ -409,6 +409,12 @@ export default function CustomerRoomDesigner() {
   }, [roomId, designMode, canEdit, selectedId, refreshUi, registry]);
 
   useEffect(() => {
+    if (!designMode || !selectedId) return;
+    const frame = window.requestAnimationFrame(refreshUi);
+    return () => window.cancelAnimationFrame(frame);
+  }, [designMode, selectedId, draft, refreshUi]);
+
+  useEffect(() => {
     if (!pointerSession || !selectedId || !selected) return;
     const onMove = (event: PointerEvent) => {
       event.preventDefault();
