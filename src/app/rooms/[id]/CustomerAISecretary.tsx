@@ -154,7 +154,7 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
       {open ? <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/65 p-3">
         <section className="flex h-[min(760px,94dvh)] w-[min(1180px,96vw)] flex-col overflow-hidden rounded-2xl border border-[#d7b64d]/50 bg-[#07111f] shadow-2xl">
           <header className="flex h-20 shrink-0 items-center gap-3 border-b border-white/10 px-5">
-            <img src="/ai-secretary-woman.svg" alt="" className="h-16 w-14 rounded-lg object-cover"/>
+            <img src="/images/katie-avatar.png" alt="" className="h-16 w-14 rounded-lg object-contain"/>
             <div><h2 className="font-serif text-xl font-bold text-[#f0d36a]">{data.name} · AI 비서 사무실</h2><p className="text-sm text-white/65">무엇을 도와드릴까요?</p></div>
             <button type="button" onClick={() => setOpen(false)} className="ml-auto grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="닫기"><X/></button>
           </header>
