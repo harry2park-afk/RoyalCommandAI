@@ -1,5 +1,28 @@
 import { describe, expect, it } from "vitest";
-import { evaluateServicePurchase } from "./servicePurchaseGuard";
+import {
+  PAYMENT_OPERATION_EVIDENCE_KEYS,
+  evaluateServicePurchase,
+  isPaymentOperationalEvidenceVerified,
+  type PaymentOperationalEvidence,
+} from "./servicePurchaseGuard";
+
+const verifiedPaymentOperations: PaymentOperationalEvidence = {
+  providerRegistryVerified: true,
+  orderIdempotencyVerified: true,
+  signedWebhookVerified: true,
+  webhookReplayProtectionVerified: true,
+  refundCancelVerified: true,
+  sandboxCheckoutVerified: true,
+  settlementVerified: true,
+  rollbackVerified: true,
+};
+
+const fixedPaidService = {
+  pricing_type: "monthly",
+  price_status: "fixed",
+  price_minor: 4900,
+  currency: "AUD",
+};
 
 describe("service purchase guard", () => {
   it("does not require payment for free or default-included services", () => {
@@ -45,7 +68,7 @@ describe("service purchase guard", () => {
   });
 
   it("blocks a valid fixed-price service while checkout is disconnected", () => {
-    expect(evaluateServicePurchase({ pricing_type: "monthly", price_status: "fixed", price_minor: 4900, currency: "AUD" }, false)).toEqual({
+    expect(evaluateServicePurchase(fixedPaidService, false, verifiedPaymentOperations)).toEqual({
       paymentRequired: true,
       canCreateOrder: false,
       code: "CHECKOUT_NOT_READY",
@@ -54,8 +77,8 @@ describe("service purchase guard", () => {
     });
   });
 
-  it("fails closed when checkout is configured but payment operations are not verified", () => {
-    expect(evaluateServicePurchase({ pricing_type: "monthly", price_status: "fixed", price_minor: 4900, currency: "AUD" }, true)).toEqual({
+  it("fails closed when checkout is configured but operational evidence is absent", () => {
+    expect(evaluateServicePurchase(fixedPaidService, true)).toEqual({
       paymentRequired: true,
       canCreateOrder: false,
       code: "PAYMENT_OPERATIONS_NOT_READY",
@@ -63,14 +86,27 @@ describe("service purchase guard", () => {
       currency: "AUD",
     });
 
-    expect(evaluateServicePurchase({ pricing_type: "monthly", price_status: "fixed", price_minor: 4900, currency: "AUD" }, true, false)).toMatchObject({
+    expect(evaluateServicePurchase(fixedPaidService, true, {})).toMatchObject({
       canCreateOrder: false,
       code: "PAYMENT_OPERATIONS_NOT_READY",
     });
   });
 
-  it("allows an order only when pricing, checkout, and payment operations are all ready", () => {
-    expect(evaluateServicePurchase({ pricing_type: "monthly", price_status: "fixed", price_minor: 4900, currency: "AUD" }, true, true)).toEqual({
+  it("requires every operational evidence class before checkout can create an order", () => {
+    expect(isPaymentOperationalEvidenceVerified(verifiedPaymentOperations)).toBe(true);
+
+    for (const key of PAYMENT_OPERATION_EVIDENCE_KEYS) {
+      const incompleteEvidence = { ...verifiedPaymentOperations, [key]: false };
+      expect(isPaymentOperationalEvidenceVerified(incompleteEvidence)).toBe(false);
+      expect(evaluateServicePurchase(fixedPaidService, true, incompleteEvidence)).toMatchObject({
+        canCreateOrder: false,
+        code: "PAYMENT_OPERATIONS_NOT_READY",
+      });
+    }
+  });
+
+  it("allows an order only when pricing, checkout, and every payment operation are verified", () => {
+    expect(evaluateServicePurchase(fixedPaidService, true, verifiedPaymentOperations)).toEqual({
       paymentRequired: true,
       canCreateOrder: true,
       code: "READY_FOR_CHECKOUT",
