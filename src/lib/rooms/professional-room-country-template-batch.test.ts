@@ -39,9 +39,7 @@ describe("Professional Room country template batch", () => {
 
     expect(bridgePlans).toHaveLength(2);
     expect(new Set(bridgePlans.map((plan) => plan.domain))).toEqual(new Set(["legal", "accounting"]));
-    expect(new Set(bridgePlans.map((plan) => plan.vault))).toEqual(
-      new Set(["LEGAL_VAULT", "ACCOUNTING_VAULT"]),
-    );
+    expect(new Set(bridgePlans.map((plan) => plan.vault))).toEqual(new Set(["virtual_bridge"]));
     expect(bridgePlans.every((plan) => plan.crossVaultStorageAllowed === false)).toBe(true);
     expect(
       bridgePlans.every((plan) => plan.sharedDataMode === "SHAREGRANT_VIRTUAL_VIEW"),
