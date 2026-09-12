@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ROOM_TEMPLATES } from "@/lib/rooms/templates";
 import { resolveDomainProfile } from "@/lib/rooms/factory-v2";
+import { getProfessionalRoomByCatalogId } from "@/lib/rooms/professional-room-directory";
 
 const SELECTED_LANGUAGE_KEY = "royalcommand:selected-language";
 
@@ -70,6 +71,7 @@ function isKorean(tag: string) {
 export default function RoomBuilderPage() {
   const router = useRouter();
   const [templateId, setTemplateId] = useState("custom");
+  const [professionalCatalogId, setProfessionalCatalogId] = useState("");
   const [languageTag, setLanguageTag] = useState("en");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -78,8 +80,11 @@ export default function RoomBuilderPage() {
     const sync = () => {
       const params = new URLSearchParams(window.location.search);
       const requestedTemplate = params.get("template") || params.get("roomType") || params.get("step") || "custom";
-      const validTemplate = ROOM_TEMPLATES.some((item) => item.id === requestedTemplate) ? requestedTemplate : "custom";
+      const requestedProfessionalCatalog = params.get("professionalCatalog") || "";
+      const professionalRoom = getProfessionalRoomByCatalogId(requestedProfessionalCatalog);
+      const validTemplate = professionalRoom?.templateId || (ROOM_TEMPLATES.some((item) => item.id === requestedTemplate) ? requestedTemplate : "custom");
       setTemplateId(validTemplate);
+      setProfessionalCatalogId(professionalRoom?.id || "");
       try {
         setLanguageTag(window.localStorage.getItem(SELECTED_LANGUAGE_KEY) || navigator.language || "en");
       } catch {
@@ -93,6 +98,7 @@ export default function RoomBuilderPage() {
   }, []);
 
   const resolved = useMemo(() => resolveDomainProfile(templateId), [templateId]);
+  const professionalRoom = getProfessionalRoomByCatalogId(professionalCatalogId);
   const copy = isKorean(languageTag) ? KO : EN;
 
   async function createRoom(event: FormEvent) {
@@ -108,6 +114,8 @@ export default function RoomBuilderPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           templateId: resolved.template.id,
+          professionalCatalogId: professionalRoom?.id,
+          roomName: professionalRoom?.label,
           languageTag,
           timeZone,
         }),
@@ -131,7 +139,7 @@ export default function RoomBuilderPage() {
       <div className="mx-auto max-w-[900px] rounded-3xl border border-[var(--gold)]/35 bg-black/20 p-5 shadow-[0_20px_60px_rgba(0,0,0,.3)] md:p-8">
         <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--gold-soft)]">{copy.eyebrow}</p>
         <h1 className="mt-3 text-3xl font-semibold md:text-4xl" style={{ fontFamily: "var(--font-display), serif" }}>
-          {copy.titlePrefix} {resolved.profile.roomLabel}
+          {copy.titlePrefix} {professionalRoom?.label || resolved.profile.roomLabel}
         </h1>
         <p className="mt-3 max-w-[760px] text-[15px] leading-7 text-[var(--muted)]">{copy.intro}</p>
 

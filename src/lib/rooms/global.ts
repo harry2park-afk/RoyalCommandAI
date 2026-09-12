@@ -18,10 +18,10 @@ export type GlobalRoomSettings = {
 };
 
 export const DEFAULT_GLOBAL_ROOM_SETTINGS: GlobalRoomSettings = {
-  countryCode: "AU",
-  languageTag: "en-AU",
-  timeZone: "Australia/Sydney",
-  currencyCode: "AUD",
+  countryCode: "GLOBAL",
+  languageTag: "en",
+  timeZone: "UTC",
+  currencyCode: "USD",
   dateFormat: "locale",
   textDirection: "ltr",
   encoding: "UTF-8",

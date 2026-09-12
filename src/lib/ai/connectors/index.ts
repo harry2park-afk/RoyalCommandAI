@@ -64,6 +64,13 @@ export function listConnectors(): AIConnector[] {
   return listRegisteredProviderIds().map(getConnector);
 }
 
+export function isProviderConfigured(id: AIProviderId): boolean {
+  if (id === "perplexity") {
+    return Boolean(nativeConnectors.perplexity?.isConfigured() || perplexityOpenRouterConnector.isConfigured());
+  }
+  return Boolean((nativeConnectors[id] || catalogConnectors[id])?.isConfigured());
+}
+
 export function getAvailableProviderIds(): AIProviderId[] {
   return listConnectors()
     .filter((c) => c.isConfigured() || isDemoMode())

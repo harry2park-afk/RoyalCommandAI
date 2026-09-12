@@ -535,6 +535,15 @@ export default function RoomV3() {
             <button type="button" onClick={toggleSpeaker} className="grid h-7 w-7 place-items-center rounded-md border border-white/10 bg-[#0b1524]" title={speakerEnabled ? "음성 읽기 끄기" : "음성 읽기 켜기"} aria-label={speakerEnabled ? "음성 읽기 끄기" : "음성 읽기 켜기"} aria-pressed={speakerEnabled} data-speaker-control="true">
               {speakerEnabled ? <Volume2 size={14} /> : <VolumeX size={14} />}
             </button>
+            <button
+              type="button"
+              onClick={() => window.dispatchEvent(new CustomEvent("royalcommand:open-ai-secretary"))}
+              className="grid h-[52px] w-[52px] shrink-0 place-items-start bg-transparent p-0 lg:h-16 lg:w-16"
+              title="Katie AI 비서 사무실 열기"
+              aria-label="Katie AI 비서 사무실 열기"
+            >
+              <img src="/images/katie-avatar.png" alt="Katie AI 비서" className="h-auto w-full translate-y-3 object-contain" />
+            </button>
           </div>
         </div>
 

@@ -17,10 +17,13 @@ type ImportantConversation = {
 
 type UiPreferences = {
   selectedAi?: string[];
+  connectedAiProviders?: string[];
   aiSlots?: string[];
   compactAiDock?: string[];
   rightPanelApps?: string[];
   hiddenRoomIds?: string[];
+  hiddenCountries?: string[];
+  languageCountryOrder?: string[];
   language?: string;
   uiLocale?: string;
   countryCode?: string;
@@ -79,6 +82,8 @@ function sanitise(value: unknown): UiPreferences {
 
   const selectedAi = sanitiseStringArray(input.selectedAi, 50);
   if (selectedAi) result.selectedAi = selectedAi;
+  const connectedAiProviders = sanitiseStringArray(input.connectedAiProviders, 26);
+  if (connectedAiProviders) result.connectedAiProviders = connectedAiProviders;
   const aiSlots = sanitiseStringArray(input.aiSlots, 25);
   if (aiSlots) result.aiSlots = aiSlots;
   const compactAiDock = sanitiseStringArray(input.compactAiDock, 25);
@@ -87,6 +92,15 @@ function sanitise(value: unknown): UiPreferences {
   if (rightPanelApps) result.rightPanelApps = rightPanelApps;
   const hiddenRoomIds = sanitiseStringArray(input.hiddenRoomIds, 100);
   if (hiddenRoomIds) result.hiddenRoomIds = hiddenRoomIds;
+  const hiddenCountries = sanitiseStringArray(input.hiddenCountries, 250)
+    ?.map((code) => code.trim().toUpperCase())
+    .filter((code, index, values) => /^[A-Z]{2}$/.test(code) && values.indexOf(code) === index);
+  if (hiddenCountries) result.hiddenCountries = hiddenCountries;
+  const languageCountryOrder = sanitiseStringArray(input.languageCountryOrder, 250)
+    ?.filter((locale, index, values) => {
+      try { return Intl.getCanonicalLocales(locale)[0] === locale && values.indexOf(locale) === index; } catch { return false; }
+    });
+  if (languageCountryOrder) result.languageCountryOrder = languageCountryOrder;
 
   if (typeof input.language === "string" && input.language.length <= 32) result.language = input.language;
   if (typeof input.uiLocale === "string" && input.uiLocale.length <= 32) {
