@@ -474,7 +474,7 @@ export default function CustomerRoomDesigner() {
         onClick={startDesigner}
         className="fixed right-4 top-[96px] z-[997] rounded-lg border border-amber-300/60 bg-[#07101d]/95 px-3 py-2 text-xs font-semibold text-amber-100 shadow-xl"
       >
-        Design My Room
+        버튼 수정 / Edit
       </button>
     ) : null;
   }
