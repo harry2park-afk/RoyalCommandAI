@@ -31,13 +31,19 @@ import {
   evaluateHostedSnapshotProvenance,
   type HostedSnapshotProvenanceDecision,
 } from "./hostedSnapshotProvenanceGate";
+import {
+  evaluateRepositoryReleaseVerification,
+  type RepositoryReleaseVerificationDecision,
+  type RepositoryReleaseVerificationEvidence,
+} from "./repositoryReleaseVerificationGate";
 
 export type FirstWaveProductionReviewBlocker =
   | "PREVIEW_PROMOTION_NOT_READY"
   | "COUNTRY_OPERATIONAL_EVIDENCE_NOT_FRESH"
   | "PAYMENT_RUNTIME_NOT_READY"
   | "HOSTED_CRITICAL_SNAPSHOT_NOT_READY"
-  | "HOSTED_DATABASE_SECURITY_POSTURE_NOT_READY";
+  | "HOSTED_DATABASE_SECURITY_POSTURE_NOT_READY"
+  | "REPOSITORY_VERIFICATION_NOT_READY";
 
 export type FirstWaveProductionReviewDecision = {
   candidateSha: string;
@@ -52,6 +58,7 @@ export type FirstWaveProductionReviewDecision = {
   hostedSnapshotFreshness: HostedSnapshotFreshnessDecision;
   hostedSnapshotProvenance: HostedSnapshotProvenanceDecision;
   hostedSecurityPosture: HostedSecurityPostureDecision;
+  repositoryVerification: RepositoryReleaseVerificationDecision;
 };
 
 const COUNTRY_FRESHNESS_BLOCKERS = new Set([
@@ -92,6 +99,12 @@ const COUNTRY_FRESHNESS_BLOCKERS = new Set([
  * service-role read authority, and no client policy, while profile-role, Matter
  * assignment, and Room Factory manifest client-write boundaries are closed.
  *
+ * Exact-head repository/release evidence is also independent. Quality Gate,
+ * Conflict Guard, Change Control, clean Supabase replay, linked Supabase dry-run,
+ * Room Factory concurrency, and the exact Vercel Preview deployment must each
+ * succeed. SKIPPED/PENDING evidence is not accepted as PASS, and the repository
+ * evidence must be fresh and bound to the same candidate SHA and Preview ID.
+ *
  * This wrapper requires all gates to pass for the same exact candidate SHA and
  * Preview deployment. It never calls a payment provider, deploys code, mutates
  * Hosted Supabase, activates a country, or grants Production deployment
@@ -106,6 +119,7 @@ export function evaluateFirstWaveProductionReview(
   hostedSnapshotEvidence?: HostedLaunchCriticalSnapshotEvidence | null,
   evaluatedAtUtc = new Date().toISOString(),
   hostedSecurityPostureEvidence?: HostedSecurityPostureEvidence | null,
+  repositoryReleaseEvidence?: RepositoryReleaseVerificationEvidence | null,
 ): FirstWaveProductionReviewDecision {
   const candidateSha = expectedExactHeadSha.trim();
   const previewDeploymentId = previewEvidence.previewDeploymentId.trim();
@@ -150,6 +164,12 @@ export function evaluateFirstWaveProductionReview(
     hostedSecurityPostureEvidence,
     evaluatedAtUtc,
   );
+  const repositoryVerification = evaluateRepositoryReleaseVerification(
+    candidateSha,
+    previewDeploymentId,
+    repositoryReleaseEvidence,
+    evaluatedAtUtc,
+  );
 
   const blockers: FirstWaveProductionReviewBlocker[] = [];
   if (!previewPromotion.safeForProductionReview) {
@@ -171,6 +191,9 @@ export function evaluateFirstWaveProductionReview(
   if (!hostedSecurityPosture.ready) {
     blockers.push("HOSTED_DATABASE_SECURITY_POSTURE_NOT_READY");
   }
+  if (!repositoryVerification.ready) {
+    blockers.push("REPOSITORY_VERIFICATION_NOT_READY");
+  }
 
   const safeForProductionReview = blockers.length === 0;
 
@@ -187,5 +210,6 @@ export function evaluateFirstWaveProductionReview(
     hostedSnapshotFreshness,
     hostedSnapshotProvenance,
     hostedSecurityPosture,
+    repositoryVerification,
   };
 }
