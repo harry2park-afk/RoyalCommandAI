@@ -170,6 +170,7 @@ jobs:
           export RC_SCHEMA_STAGE_TEST_EMAIL="rc-manifest-acl-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}@example.test"
           export RC_SCHEMA_STAGE_TEST_PASSWORD="RC-Manifest-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-Aa1!"
           export RC_SCHEMA_STAGE_ALLOW_LOCALHOST=1
+          export RC_SCHEMA_STAGE_VERIFY_MANIFEST_ACL=1
           node scripts/room-factory-schema-stage-evidence.mjs
 
       - name: Stop disposable Supabase
