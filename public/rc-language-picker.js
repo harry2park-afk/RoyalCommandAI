@@ -19,7 +19,7 @@
     vi: "← Phòng RC AI", th: "← ห้อง RC AI", id: "← Ruang RC AI"
   };
   const byValue = new Map(LANGS.map((x) => [x[0], x]));
-  const flagUrl = (cc) => `/api/flags/${cc}`;
+  const flagUrl = (cc) => `https://flagcdn.com/w40/${cc}.png`;
   const DEFAULT_ORDER = LANGS.slice().sort((a,b)=>a[1].localeCompare(b[1],"en") || a[3].localeCompare(b[3],"en")).map(x=>x[0]);
 
   function loadOrder(){
@@ -76,7 +76,8 @@
     hidden.delete(current[1]); saveHidden(hidden);
     localStorage.setItem(SELECTED_KEY,current[0]); setReactSelect(select,current[0]);
 
-    function renderButton(){button.innerHTML=`<span style="display:flex;align-items:center;gap:7px"><img src="${flagUrl(current[2])}" width="22" height="15" style="width:22px;height:15px;object-fit:cover;border-radius:2px"><strong>${current[1]}</strong></span><span style="opacity:.8">⌄</span>`;updateRoomBackLabel(current[0]);}
+    function attachFlagFallback(root){const image=root.querySelector("[data-country-flag]");image?.addEventListener("error",()=>{image.style.display="none";},{once:true});}
+    function renderButton(){button.innerHTML=`<span style="display:flex;align-items:center;gap:7px"><img data-country-flag src="${flagUrl(current[2])}" alt="" width="22" height="15" style="width:22px;height:15px;object-fit:cover;border-radius:2px"><strong>${current[1]}</strong></span><span style="opacity:.8">⌄</span>`;attachFlagFallback(button);updateRoomBackLabel(current[0]);}
     function positionMenu(){const rect=button.getBoundingClientRect();const top=Math.max(4,rect.bottom+4);const right=Math.max(8,window.innerWidth-rect.right);const available=Math.max(220,window.innerHeight-top-8);menu.style.top=`${top}px`;menu.style.right=`${right}px`;menu.style.height=`${available}px`;menu.style.maxHeight=`${available}px`;}
     function moveTo(dragValue,targetValue,after=false){if(!dragValue||!targetValue||dragValue===targetValue)return;const next=order.filter(v=>v!==dragValue);let i=next.indexOf(targetValue);if(i<0)i=next.length;if(after)i+=1;next.splice(i,0,dragValue);order=next;saveOrder(order);}
 
@@ -89,7 +90,8 @@
         const row=document.createElement("div");row.draggable=!q&&!showHidden;row.dataset.value=x[0];row.style.cssText=`width:100%;min-height:36px;display:flex;align-items:center;gap:8px;padding:6px 7px;border-radius:7px;background:${x[0]===current[0]?"rgba(212,175,55,.12)":"transparent"};color:#fff;font-size:14px;line-height:20px;cursor:${row.draggable?"grab":"default"};user-select:none`;
         const actionLabel=showHidden?"Show":"Hide";
         const actionDisabled=!showHidden&&x[0]===current[0];
-        row.innerHTML=`<span style="width:14px;color:#7f8c9d">${showHidden?"":"↕"}</span><img src="${flagUrl(x[2])}" width="24" height="16" style="width:24px;height:16px;object-fit:cover;border-radius:2px"><strong style="width:30px;color:var(--gold-soft)">${x[1]}</strong><span class="rc-lang-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${x[3]}</span><button type="button" data-hide ${actionDisabled?"disabled":""} style="border:1px solid rgba(255,255,255,.12);background:${actionDisabled?"#1a1f2a":"#111827"};color:${actionDisabled?"#657080":"#fff"};border-radius:6px;min-width:52px;height:26px;padding:0 8px;cursor:${actionDisabled?"not-allowed":"pointer"};font-size:12px">${actionLabel}</button>${x[0]===current[0]?'<span style="font-size:11px;color:var(--gold-soft);width:52px">SELECTED</span>':'<span style="width:52px"></span>'}`;
+        row.innerHTML=`<span style="width:14px;color:#7f8c9d">${showHidden?"":"↕"}</span><img data-country-flag src="${flagUrl(x[2])}" alt="" width="24" height="16" style="width:24px;height:16px;object-fit:cover;border-radius:2px"><strong style="width:30px;color:var(--gold-soft)">${x[1]}</strong><span class="rc-lang-name" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1">${x[3]}</span><button type="button" data-hide ${actionDisabled?"disabled":""} style="border:1px solid rgba(255,255,255,.12);background:${actionDisabled?"#1a1f2a":"#111827"};color:${actionDisabled?"#657080":"#fff"};border-radius:6px;min-width:52px;height:26px;padding:0 8px;cursor:${actionDisabled?"not-allowed":"pointer"};font-size:12px">${actionLabel}</button>${x[0]===current[0]?'<span style="font-size:11px;color:var(--gold-soft);width:52px">SELECTED</span>':'<span style="width:52px"></span>'}`;
+        attachFlagFallback(row);
         row.querySelector("[data-hide]").onclick=e=>{e.stopPropagation();if(actionDisabled)return;if(showHidden)hidden.delete(x[1]);else hidden.add(x[1]);saveHidden(hidden);renderList(search.value);};
         row.querySelector(".rc-lang-name").onclick=()=>{current=x;hidden.delete(x[1]);saveHidden(hidden);saveSelected(x);setReactSelect(select,x[0]);renderButton();menu.style.display="none";};
         row.ondragstart=e=>{if(!row.draggable)return;e.dataTransfer.effectAllowed="move";e.dataTransfer.setData("text/plain",x[0]);row.style.opacity=".45";};
