@@ -57,6 +57,27 @@ describe("repository release verification gate", () => {
     expect(result.ready).toBe(false);
   });
 
+  it("fails closed independently without master protection or stable restore evidence", () => {
+    for (const requiredCheck of ["MASTER_REQUIRED_STATUS_CHECKS", "STABLE_RESTORE_REF"] as const) {
+      const evidence = verifiedEvidence();
+      const result = evaluateRepositoryReleaseVerification(
+        EXACT_HEAD,
+        PREVIEW_DEPLOYMENT_ID,
+        {
+          ...evidence,
+          checks: evidence.checks.filter(({ check }) => check !== requiredCheck),
+        },
+        EVALUATED_AT,
+      );
+
+      expect(result.blockers).toContain("REPOSITORY_VERIFICATION_CHECK_COVERAGE_INCOMPLETE");
+      expect(result.checks.find(({ check }) => check === requiredCheck)).toEqual(
+        expect.objectContaining({ evaluated: false, state: "MISSING", ready: false }),
+      );
+      expect(result.ready).toBe(false);
+    }
+  });
+
   it("does not count skipped Change Control as a passing check", () => {
     const evidence = verifiedEvidence();
     const result = evaluateRepositoryReleaseVerification(
