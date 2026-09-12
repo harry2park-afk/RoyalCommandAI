@@ -45,6 +45,12 @@ async function exactCount(query, label) {
   return count ?? 0;
 }
 
+async function assertPermissionDenied(query, label) {
+  const { error } = await query;
+  assert.ok(error, `${label} unexpectedly succeeded`);
+  assert.equal(error.code, "42501", `${label} failed for the wrong reason: ${error.code ?? "unknown"} ${error.message ?? ""}`);
+}
+
 async function main() {
   const url = required("RC_SCHEMA_STAGE_SUPABASE_URL");
   const anonKey = required("RC_SCHEMA_STAGE_ANON_KEY");
@@ -53,18 +59,33 @@ async function main() {
   const password = required("RC_SCHEMA_STAGE_TEST_PASSWORD");
   assertDisposableUrl(url);
 
+  const at = email.lastIndexOf("@");
+  assert.ok(at > 0 && at < email.length - 1, "RC_SCHEMA_STAGE_TEST_EMAIL must be a valid email address");
+  const outsiderEmail = `${email.slice(0, at)}+outsider${email.slice(at)}`;
+
   const admin = client(url, serviceRoleKey);
   const caller = client(url, anonKey);
+  const outsider = client(url, anonKey);
   let userId = null;
+  let outsiderUserId = null;
 
   const created = await admin.auth.admin.createUser({ email, password, email_confirm: true });
   if (created.error) throw new Error(`Test-user creation failed: ${created.error.message}`);
   userId = created.data.user?.id ?? null;
   assert.ok(userId, "Test-user creation returned no user id");
 
+  const outsiderCreated = await admin.auth.admin.createUser({ email: outsiderEmail, password, email_confirm: true });
+  if (outsiderCreated.error) throw new Error(`Outsider-user creation failed: ${outsiderCreated.error.message}`);
+  outsiderUserId = outsiderCreated.data.user?.id ?? null;
+  assert.ok(outsiderUserId, "Outsider-user creation returned no user id");
+
   const signedIn = await caller.auth.signInWithPassword({ email, password });
   if (signedIn.error) throw new Error(`Test-user sign-in failed: ${signedIn.error.message}`);
   assert.equal(signedIn.data.user?.id, userId, "Signed-in user mismatch");
+
+  const outsiderSignedIn = await outsider.auth.signInWithPassword({ email: outsiderEmail, password });
+  if (outsiderSignedIn.error) throw new Error(`Outsider-user sign-in failed: ${outsiderSignedIn.error.message}`);
+  assert.equal(outsiderSignedIn.data.user?.id, outsiderUserId, "Signed-in outsider mismatch");
 
   const createdRoomIds = new Set();
 
@@ -106,6 +127,48 @@ async function main() {
     const secondNull = await nullCall("B");
     assert.notEqual(firstNull.room_data.id, secondNull.room_data.id, "Independent null-encounter calls must create distinct Rooms");
     assert.notEqual(firstNull.manifest_data.id, secondNull.manifest_data.id, "Independent null-encounter calls must create distinct manifests");
+
+    const ownerManifestRead = await caller.from("room_factory_manifests")
+      .select("id,room_id,owner_id")
+      .eq("id", firstNull.manifest_data.id);
+    if (ownerManifestRead.error) throw new Error(`Owner manifest read-back failed: ${ownerManifestRead.error.message}`);
+    assert.equal(ownerManifestRead.data?.length, 1, "Owner cannot read back own manifest through RLS");
+    assert.equal(ownerManifestRead.data?.[0]?.room_id, firstNull.room_data.id, "Owner read-back returned wrong Room manifest");
+
+    const outsiderManifestRead = await outsider.from("room_factory_manifests")
+      .select("id,room_id,owner_id")
+      .eq("id", firstNull.manifest_data.id);
+    if (outsiderManifestRead.error) throw new Error(`Cross-tenant manifest read should filter, not error: ${outsiderManifestRead.error.message}`);
+    assert.deepEqual(outsiderManifestRead.data, [], "Cross-tenant caller can read another owner's manifest");
+
+    await assertPermissionDenied(
+      caller.from("room_factory_manifests").insert({
+        id: randomUUID(),
+        room_id: firstNull.room_data.id,
+        owner_id: userId,
+        factory_version: "tamper-attempt",
+        template_id: "general",
+        country_code: "AU",
+        language_tag: "en-AU",
+        country_profile_status: "registered",
+        manifest: { tamper: true },
+      }),
+      "Authenticated direct manifest INSERT",
+    );
+
+    await assertPermissionDenied(
+      caller.from("room_factory_manifests")
+        .update({ manifest: { tamper: true } })
+        .eq("id", firstNull.manifest_data.id),
+      "Authenticated direct manifest UPDATE",
+    );
+
+    await assertPermissionDenied(
+      caller.from("room_factory_manifests")
+        .delete()
+        .eq("id", firstNull.manifest_data.id),
+      "Authenticated direct manifest DELETE",
+    );
 
     const nullAfter = await exactCount(
       admin.from("room_factory_manifests").select("id", { count: "exact", head: true })
@@ -160,6 +223,13 @@ async function main() {
         manifestEncounterSmugglingRejected: true,
         rejectedRequestResidue: invalidResidue,
       },
+      manifestBoundary: {
+        ownerReadBack: ownerManifestRead.data?.length === 1,
+        crossTenantReadDenied: outsiderManifestRead.data?.length === 0,
+        directInsertDenied: true,
+        directUpdateDenied: true,
+        directDeleteDenied: true,
+      },
       encounter: {
         firstReused: firstEncounter.reused,
         secondReused: secondEncounter.reused,
@@ -172,6 +242,9 @@ async function main() {
       await admin.from("room_factory_manifests").delete().eq("room_id", roomId).eq("owner_id", userId);
       await admin.from("room_members").delete().eq("room_id", roomId).eq("user_id", userId);
       await admin.from("rooms").delete().eq("id", roomId).eq("room_owner_id", userId);
+    }
+    if (outsiderUserId) {
+      await admin.auth.admin.deleteUser(outsiderUserId);
     }
     if (userId) {
       const memberships = await admin.from("household_members").select("household_id").eq("user_id", userId);
