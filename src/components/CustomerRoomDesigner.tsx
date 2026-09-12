@@ -400,9 +400,10 @@ export default function CustomerRoomDesigner() {
           return;
         }
         window.setTimeout(() => {
+          const box = element.getBoundingClientRect();
           setSelectedId(item.id);
+          setRect({ left: box.left, top: box.top, width: box.width, height: box.height });
           setMessage(`${item.label} selected.`);
-          window.requestAnimationFrame(refreshUi);
         }, 0);
         return;
       }
