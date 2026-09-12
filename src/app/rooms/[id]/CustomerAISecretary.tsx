@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronRight, Clock3, FileText, Mail, MessageCircle, Phone, Send, X } from "lucide-react";
 
@@ -9,6 +10,8 @@ type Chat = { id: string; role: "user" | "assistant"; text: string; at: string }
 type FileRecord = { id: string; name: string; size: number; at: string };
 type RetellCall = { id: string; call_id?: string; from_number?: string; duration_ms?: number; message?: string; recording_url?: string; transcript?: string; summary?: string; created_at?: string };
 type SecretaryData = { connected: boolean; name: string; chats: Chat[]; tasks: Task[]; files: FileRecord[]; logs: string[] };
+
+const KatieGmailAssistant = dynamic(() => import("./KatieGmailAssistant"), { ssr: false });
 
 const TABS = ["대화", "오늘의 보고", "업무", "메일·전화", "일정", "파일", "기록"] as const;
 type Tab = typeof TABS[number];
@@ -20,7 +23,7 @@ function now() { return new Date().toISOString(); }
 function initialData(): SecretaryData {
   return {
     connected: false,
-    name: "Sophie",
+    name: "Katie",
     chats: [{ id: "welcome", role: "assistant", text: "무엇을 도와드릴까요?", at: now() }],
     tasks: [],
     files: [],
@@ -46,7 +49,10 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
     if (!roomId || roomId.toLowerCase() === "rca") return;
     try {
       const saved = window.localStorage.getItem(storageKey(roomId));
-      if (saved) setData({ ...initialData(), ...JSON.parse(saved) });
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setData({ ...initialData(), ...parsed, name: parsed?.name === "Sophie" ? "Katie" : parsed?.name || "Katie" });
+      }
     } catch {}
     setLoaded(true);
   }, [roomId]);
@@ -156,6 +162,7 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
             {TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={`h-9 shrink-0 rounded-lg px-3 text-xs font-semibold ${tab === item ? "bg-[#7A0C2E] text-[#ffe18a]" : "text-white/70 hover:bg-white/5"}`}>{item}</button>)}
           </nav>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
+            {tab === "메일·전화" ? <KatieGmailAssistant roomId={roomId}/> : null}
             {tab === "대화" ? <div className="mx-auto flex h-full max-w-3xl flex-col">
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{data.chats.map((chat) => <div key={chat.id} className={`max-w-[82%] rounded-xl px-3 py-2 text-sm leading-6 ${chat.role === "user" ? "ml-auto bg-[#173663]" : "bg-white/7"}`}>{chat.text}<div className="mt-1 text-[9px] text-white/35">{stamp(chat.at)}</div></div>)}</div>
               <form onSubmit={sendInstruction} className="mt-3 flex gap-2"><textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="비서에게 새로운 업무를 지시하세요" className="min-h-12 flex-1 resize-none rounded-xl border border-white/15 bg-black/20 p-3 text-sm outline-none focus:border-[#d7b64d]"/><button disabled={!input.trim() || busy} className="grid w-12 place-items-center rounded-xl border border-[#d7b64d] bg-[#7A0C2E] text-[#ffe18a] disabled:opacity-30"><Send size={18}/></button></form>
