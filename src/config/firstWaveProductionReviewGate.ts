@@ -19,6 +19,11 @@ import {
   type HostedLaunchCriticalSnapshotEvidence,
 } from "./hostedLaunchCriticalSnapshotGate";
 import {
+  evaluateHostedSecurityPosture,
+  type HostedSecurityPostureDecision,
+  type HostedSecurityPostureEvidence,
+} from "./hostedSecurityPostureGate";
+import {
   evaluateHostedSnapshotFreshness,
   type HostedSnapshotFreshnessDecision,
 } from "./hostedSnapshotFreshnessGate";
@@ -31,7 +36,8 @@ export type FirstWaveProductionReviewBlocker =
   | "PREVIEW_PROMOTION_NOT_READY"
   | "COUNTRY_OPERATIONAL_EVIDENCE_NOT_FRESH"
   | "PAYMENT_RUNTIME_NOT_READY"
-  | "HOSTED_CRITICAL_SNAPSHOT_NOT_READY";
+  | "HOSTED_CRITICAL_SNAPSHOT_NOT_READY"
+  | "HOSTED_DATABASE_SECURITY_POSTURE_NOT_READY";
 
 export type FirstWaveProductionReviewDecision = {
   candidateSha: string;
@@ -45,6 +51,7 @@ export type FirstWaveProductionReviewDecision = {
   hostedSnapshot: HostedLaunchCriticalSnapshotDecision;
   hostedSnapshotFreshness: HostedSnapshotFreshnessDecision;
   hostedSnapshotProvenance: HostedSnapshotProvenanceDecision;
+  hostedSecurityPosture: HostedSecurityPostureDecision;
 };
 
 const COUNTRY_FRESHNESS_BLOCKERS = new Set([
@@ -78,6 +85,13 @@ const COUNTRY_FRESHNESS_BLOCKERS = new Set([
  * drifted. Its machine contract version and reviewer-proven terms/provider
  * provenance must survive evidence normalization rather than being discarded.
  *
+ * Hosted database security posture is independently required as exact-head,
+ * project-bound fresh evidence. RLS-enabled/no-policy advisor labels are not
+ * accepted as either safety or failure by themselves: the launch-critical
+ * service-role-only catalog must prove zero anon/authenticated CRUD authority,
+ * service-role read authority, and no client policy, while profile-role, Matter
+ * assignment, and Room Factory manifest client-write boundaries are closed.
+ *
  * This wrapper requires all gates to pass for the same exact candidate SHA and
  * Preview deployment. It never calls a payment provider, deploys code, mutates
  * Hosted Supabase, activates a country, or grants Production deployment
@@ -91,6 +105,7 @@ export function evaluateFirstWaveProductionReview(
   paymentEvidence: readonly FirstWavePaymentRuntimeEvidence[],
   hostedSnapshotEvidence?: HostedLaunchCriticalSnapshotEvidence | null,
   evaluatedAtUtc = new Date().toISOString(),
+  hostedSecurityPostureEvidence?: HostedSecurityPostureEvidence | null,
 ): FirstWaveProductionReviewDecision {
   const candidateSha = expectedExactHeadSha.trim();
   const previewDeploymentId = previewEvidence.previewDeploymentId.trim();
@@ -130,6 +145,11 @@ export function evaluateFirstWaveProductionReview(
   const hostedSnapshotProvenance = evaluateHostedSnapshotProvenance(
     hostedSnapshotEvidence,
   );
+  const hostedSecurityPosture = evaluateHostedSecurityPosture(
+    candidateSha,
+    hostedSecurityPostureEvidence,
+    evaluatedAtUtc,
+  );
 
   const blockers: FirstWaveProductionReviewBlocker[] = [];
   if (!previewPromotion.safeForProductionReview) {
@@ -148,6 +168,9 @@ export function evaluateFirstWaveProductionReview(
   ) {
     blockers.push("HOSTED_CRITICAL_SNAPSHOT_NOT_READY");
   }
+  if (!hostedSecurityPosture.ready) {
+    blockers.push("HOSTED_DATABASE_SECURITY_POSTURE_NOT_READY");
+  }
 
   const safeForProductionReview = blockers.length === 0;
 
@@ -163,5 +186,6 @@ export function evaluateFirstWaveProductionReview(
     hostedSnapshot,
     hostedSnapshotFreshness,
     hostedSnapshotProvenance,
+    hostedSecurityPosture,
   };
 }
