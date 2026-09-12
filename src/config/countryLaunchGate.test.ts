@@ -4,8 +4,8 @@ import { getConfiguredCountryCodes, getCountryConfigByCountryCode } from "./coun
 import type { CountryConfig } from "../types/countryConfig";
 
 describe("country launch readiness gate", () => {
-  it("keeps the first wave plus next-priority Singapore, China, Hong Kong and Taiwan blocked until launch-critical reviews and connections are verified", () => {
-    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "CN", "GB", "HK", "JP", "KR", "SG", "TW", "US"]);
+  it("keeps the first wave plus next-priority Singapore, China, Hong Kong, Taiwan and India blocked until launch-critical reviews and connections are verified", () => {
+    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "CN", "GB", "HK", "IN", "JP", "KR", "SG", "TW", "US"]);
 
     for (const countryCode of getConfiguredCountryCodes()) {
       const config = getCountryConfigByCountryCode(countryCode);
@@ -16,8 +16,8 @@ describe("country launch readiness gate", () => {
     }
   });
 
-  it("keeps Singapore, China, Hong Kong and Taiwan explicitly blocked before human review and provider connection", () => {
-    for (const countryCode of ["SG", "CN", "HK", "TW"] as const) {
+  it("keeps Singapore, China, Hong Kong, Taiwan and India explicitly blocked before human review and provider connection", () => {
+    for (const countryCode of ["SG", "CN", "HK", "TW", "IN"] as const) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
 
