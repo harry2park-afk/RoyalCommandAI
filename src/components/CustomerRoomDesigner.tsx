@@ -144,6 +144,9 @@ function discoverRegistry() {
   for (const element of candidates) {
     if (claimed.has(element)) continue;
     const identity = semanticIdentity(element);
+    const label = readableLabel(element).slice(0, 80);
+    const protectedAction = PROTECTED_ACTION.test(`${identity} ${label}`);
+    if (protectedAction) continue;
     const occurrence = occurrences.get(identity) || 0;
     occurrences.set(identity, occurrence + 1);
     const existingId = element.dataset.rcDesignerId;
@@ -154,9 +157,6 @@ function discoverRegistry() {
     ELEMENT_IDS.set(element, id);
     RUNTIME_IDS.set(structure, id);
     element.dataset.rcDesignerId = id;
-    const label = readableLabel(element).slice(0, 80);
-    const protectedAction = PROTECTED_ACTION.test(`${identity} ${label}`);
-    if (protectedAction) continue;
     items.push({
       id,
       label,
