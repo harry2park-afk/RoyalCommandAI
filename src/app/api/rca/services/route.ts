@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { evaluateServicePurchase } from "@/lib/services/servicePurchaseGuard";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 
-function requiresPayment(service: { pricing_type?: string | null; default_included?: boolean | null }) {
-  return !service.default_included && service.pricing_type !== "free";
-}
+const CHECKOUT_CONFIGURED = false;
 
 function isRcaScope(scope?: string | null) {
   return scope === "rca_chat" || scope === "both";
@@ -40,15 +39,16 @@ export async function GET() {
   return NextResponse.json({
     services: (services || []).map((service) => {
       const selection = selectionByKey.get(service.service_key);
+      const purchase = evaluateServicePurchase(service, CHECKOUT_CONFIGURED);
       return {
         ...service,
-        payment_required: requiresPayment(service),
+        payment_required: purchase.paymentRequired,
         selection_status: selection?.selection_status || (service.default_included ? "active" : "cancelled"),
         payment_status: selection?.payment_status || "not_required",
         agreed_at: selection?.agreed_at || null,
       };
     }),
-    checkoutConfigured: false,
+    checkoutConfigured: CHECKOUT_CONFIGURED,
   });
 }
 
@@ -65,7 +65,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: service } = await supabase
     .from("rc_service_catalog")
-    .select("service_key,default_included,active,customer_selectable,connection_scope,pricing_type,price_minor,currency,terms_version,agreement_required")
+    .select("service_key,default_included,active,customer_selectable,connection_scope,pricing_type,price_status,price_minor,currency,terms_version,agreement_required")
     .eq("service_key", serviceKey)
     .maybeSingle();
   if (!service?.active || !service?.customer_selectable || !isRcaScope(service.connection_scope)) {
@@ -86,7 +86,19 @@ export async function POST(request: Request) {
 
   if (service.agreement_required && body?.agree !== true) return NextResponse.json({ error: "Agreement is required" }, { status: 400 });
 
-  const paymentRequired = requiresPayment(service);
+  const purchase = evaluateServicePurchase(service, CHECKOUT_CONFIGURED);
+  if (purchase.paymentRequired && !purchase.canCreateOrder) {
+    const pricingNotReady = purchase.code === "PRICING_NOT_READY";
+    return NextResponse.json({
+      error: pricingNotReady ? "Service pricing is not ready for checkout" : "Checkout is not connected",
+      code: purchase.code,
+      serviceKey,
+      paymentRequired: true,
+      checkoutConfigured: CHECKOUT_CONFIGURED,
+    }, { status: 409 });
+  }
+
+  const paymentRequired = purchase.paymentRequired;
   const selectionStatus = paymentRequired ? "pending_payment" : "active";
   const paymentStatus = paymentRequired ? "required" : "not_required";
 
@@ -99,8 +111,8 @@ export async function POST(request: Request) {
       agreed_at: now,
       terms_version: service.terms_version,
       payment_status: paymentStatus,
-      price_snapshot_minor: service.price_minor,
-      currency_snapshot: service.currency,
+      price_snapshot_minor: purchase.amountMinor,
+      currency_snapshot: purchase.currency,
       selected_at: now,
       activated_at: paymentRequired ? null : now,
       cancelled_at: null,
@@ -109,7 +121,7 @@ export async function POST(request: Request) {
   if (selectionError) return NextResponse.json({ error: selectionError.message }, { status: 500 });
 
   let orderId: string | null = null;
-  if (paymentRequired) {
+  if (purchase.canCreateOrder) {
     const { data: order, error: orderError } = await supabase
       .from("rc_service_connection_orders")
       .insert({
@@ -119,8 +131,8 @@ export async function POST(request: Request) {
         connection_scope: "rca_chat",
         terms_version: service.terms_version,
         agreed_at: now,
-        amount_minor: service.price_minor,
-        currency: service.currency,
+        amount_minor: purchase.amountMinor,
+        currency: purchase.currency,
         payment_required: true,
         payment_status: "pending",
       })
@@ -130,5 +142,5 @@ export async function POST(request: Request) {
     orderId = order.id;
   }
 
-  return NextResponse.json({ ok: true, serviceKey, selectionStatus, paymentStatus, paymentRequired, orderId, checkoutConfigured: false });
+  return NextResponse.json({ ok: true, serviceKey, selectionStatus, paymentStatus, paymentRequired, orderId, checkoutConfigured: CHECKOUT_CONFIGURED });
 }
