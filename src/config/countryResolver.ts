@@ -6,6 +6,7 @@ import hkConfig from "./countries/hk.json";
 import jpConfig from "./countries/jp.json";
 import krConfig from "./countries/kr.json";
 import sgConfig from "./countries/sg.json";
+import twConfig from "./countries/tw.json";
 import usConfig from "./countries/us.json";
 import type { CountryConfig } from "../types/countryConfig";
 
@@ -25,6 +26,7 @@ const COUNTRY_CONFIGS: Record<string, CountryConfig> = {
   JP: jpConfig as CountryConfig,
   KR: krConfig as CountryConfig,
   SG: sgConfig as CountryConfig,
+  TW: twConfig as CountryConfig,
   US: usConfig as CountryConfig,
 };
 
