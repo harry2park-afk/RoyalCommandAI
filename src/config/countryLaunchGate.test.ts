@@ -1,9 +1,32 @@
 import { describe, expect, it } from "vitest";
-import { evaluateCountryLaunch, evaluateCountryOperationalLaunch } from "./countryLaunchGate";
+import {
+  evaluateCountryLaunch,
+  evaluateCountryOperationalLaunch,
+  type CountryOperationalEvidence,
+  type LaunchBlockerCode,
+} from "./countryLaunchGate";
 import { getConfiguredCountryCodes, getCountryConfigByCountryCode } from "./countryResolver";
 import type { CountryConfig } from "../types/countryConfig";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
+
+const READY_OPERATIONAL_EVIDENCE: CountryOperationalEvidence = {
+  countryTermsReviewed: true,
+  positiveLocalPrice: true,
+  providerOfferReviewed: true,
+  recordingPolicyReviewed: true,
+  paymentProviderRegistryReady: true,
+  paymentEventLedgerReady: true,
+  serviceOrderIdempotencyReady: true,
+  authDataIsolationVerified: true,
+  roomFactoryIsolationVerified: true,
+  linkedMigrationApplySetVerified: true,
+  authRecoveryE2EVerified: true,
+  authenticatedLocalizationBrowserVerified: true,
+  securityRegressionVerified: true,
+  observabilityReady: true,
+  rollbackVerified: true,
+};
 
 function asConfigReady(base: CountryConfig): CountryConfig {
   return {
@@ -106,6 +129,12 @@ describe("country launch readiness gate", () => {
         serviceOrderIdempotencyReady: false,
         authDataIsolationVerified: false,
         roomFactoryIsolationVerified: false,
+        linkedMigrationApplySetVerified: false,
+        authRecoveryE2EVerified: false,
+        authenticatedLocalizationBrowserVerified: false,
+        securityRegressionVerified: false,
+        observabilityReady: false,
+        rollbackVerified: false,
       });
 
       expect(gate, countryCode).toEqual({
@@ -120,7 +149,35 @@ describe("country launch readiness gate", () => {
           "SERVICE_ORDER_IDEMPOTENCY_NOT_READY",
           "AUTH_DATA_ISOLATION_NOT_VERIFIED",
           "ROOM_FACTORY_ISOLATION_NOT_VERIFIED",
+          "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED",
+          "AUTH_RECOVERY_E2E_NOT_VERIFIED",
+          "LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED",
+          "SECURITY_REGRESSION_NOT_VERIFIED",
+          "OBSERVABILITY_NOT_READY",
+          "ROLLBACK_NOT_VERIFIED",
         ],
+      });
+    }
+  });
+
+  it("fails closed when any deployment/runtime safety evidence class is individually missing", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+
+    const cases: Array<[keyof CountryOperationalEvidence, LaunchBlockerCode]> = [
+      ["linkedMigrationApplySetVerified", "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"],
+      ["authRecoveryE2EVerified", "AUTH_RECOVERY_E2E_NOT_VERIFIED"],
+      ["authenticatedLocalizationBrowserVerified", "LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED"],
+      ["securityRegressionVerified", "SECURITY_REGRESSION_NOT_VERIFIED"],
+      ["observabilityReady", "OBSERVABILITY_NOT_READY"],
+      ["rollbackVerified", "ROLLBACK_NOT_VERIFIED"],
+    ];
+
+    for (const [key, expectedBlocker] of cases) {
+      const evidence = { ...READY_OPERATIONAL_EVIDENCE, [key]: false };
+      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence)).toEqual({
+        launchable: false,
+        blockers: [expectedBlocker],
       });
     }
   });
@@ -129,18 +186,9 @@ describe("country launch readiness gate", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
 
-    expect(
-      evaluateCountryOperationalLaunch(asConfigReady(base!), {
-        countryTermsReviewed: true,
-        positiveLocalPrice: true,
-        providerOfferReviewed: true,
-        recordingPolicyReviewed: true,
-        paymentProviderRegistryReady: true,
-        paymentEventLedgerReady: true,
-        serviceOrderIdempotencyReady: true,
-        authDataIsolationVerified: true,
-        roomFactoryIsolationVerified: true,
-      }),
-    ).toEqual({ launchable: true, blockers: [] });
+    expect(evaluateCountryOperationalLaunch(asConfigReady(base!), READY_OPERATIONAL_EVIDENCE)).toEqual({
+      launchable: true,
+      blockers: [],
+    });
   });
 });
