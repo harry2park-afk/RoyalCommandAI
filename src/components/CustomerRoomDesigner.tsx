@@ -76,6 +76,7 @@ const REGISTRY: RegistryItem[] = [
 ];
 
 const ORIGINALS = new WeakMap<HTMLElement, OriginalState>();
+const ELEMENT_IDS = new WeakMap<HTMLElement, CustomerRoomDesignElementId>();
 const RUNTIME_IDS = new Map<string, CustomerRoomDesignElementId>();
 
 function stableHash(value: string) {
@@ -149,7 +150,8 @@ function discoverRegistry() {
     const structure = structuralIdentity(element);
     const id = existingId && /^auto-[a-z0-9]{8}$/.test(existingId)
       ? existingId
-      : RUNTIME_IDS.get(structure) || `auto-${stableHash(`${identity}|${occurrence}`)}`;
+      : ELEMENT_IDS.get(element) || RUNTIME_IDS.get(structure) || `auto-${stableHash(`${identity}|${occurrence}`)}`;
+    ELEMENT_IDS.set(element, id);
     RUNTIME_IDS.set(structure, id);
     element.dataset.rcDesignerId = id;
     const label = readableLabel(element).slice(0, 80);
