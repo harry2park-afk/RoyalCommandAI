@@ -124,7 +124,8 @@ function discoverRegistry() {
   const occurrences = new Map<string, number>();
   const candidates = Array.from(document.querySelectorAll(BUTTON_SELECTOR))
     .filter((node): node is HTMLElement => node instanceof HTMLElement)
-    .filter((node) => !node.closest("[data-rc-customer-room-designer-ui='true']"));
+    .filter((node) => !node.closest("[data-rc-customer-room-designer-ui='true']"))
+    .filter((node) => node.getClientRects().length > 0 || Boolean(node.dataset.rcDesignerId));
 
   for (const element of candidates) {
     if (claimed.has(element)) continue;
