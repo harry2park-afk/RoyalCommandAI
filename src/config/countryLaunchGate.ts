@@ -17,7 +17,13 @@ export type LaunchBlockerCode =
   | "PAYMENT_EVENT_LEDGER_NOT_READY"
   | "SERVICE_ORDER_IDEMPOTENCY_NOT_READY"
   | "AUTH_DATA_ISOLATION_NOT_VERIFIED"
-  | "ROOM_FACTORY_ISOLATION_NOT_VERIFIED";
+  | "ROOM_FACTORY_ISOLATION_NOT_VERIFIED"
+  | "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"
+  | "AUTH_RECOVERY_E2E_NOT_VERIFIED"
+  | "LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED"
+  | "SECURITY_REGRESSION_NOT_VERIFIED"
+  | "OBSERVABILITY_NOT_READY"
+  | "ROLLBACK_NOT_VERIFIED";
 
 export type CountryLaunchGate = {
   launchable: boolean;
@@ -41,6 +47,12 @@ export type CountryOperationalEvidence = {
   serviceOrderIdempotencyReady: boolean;
   authDataIsolationVerified: boolean;
   roomFactoryIsolationVerified: boolean;
+  linkedMigrationApplySetVerified: boolean;
+  authRecoveryE2EVerified: boolean;
+  authenticatedLocalizationBrowserVerified: boolean;
+  securityRegressionVerified: boolean;
+  observabilityReady: boolean;
+  rollbackVerified: boolean;
 };
 
 /**
@@ -75,10 +87,12 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * Final fail-closed launch decision for a configured country.
  *
  * A country can pass configuration review and still remain blocked when
- * commercial/compliance records, payment safeguards, tenant isolation, or
- * Room Factory isolation have not been verified against the intended Hosted
- * environment. This function has no side effects and grants no deployment or
- * domain-binding authority by itself.
+ * commercial/compliance records, payment safeguards, tenant isolation,
+ * Room Factory isolation, exact migration evidence, authenticated browser
+ * regressions, security checks, observability, or rollback proof have not
+ * been verified against the intended Hosted environment. This function has
+ * no side effects and grants no deployment or domain-binding authority by
+ * itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -95,6 +109,12 @@ export function evaluateCountryOperationalLaunch(
   if (!evidence.serviceOrderIdempotencyReady) blockers.push("SERVICE_ORDER_IDEMPOTENCY_NOT_READY");
   if (!evidence.authDataIsolationVerified) blockers.push("AUTH_DATA_ISOLATION_NOT_VERIFIED");
   if (!evidence.roomFactoryIsolationVerified) blockers.push("ROOM_FACTORY_ISOLATION_NOT_VERIFIED");
+  if (!evidence.linkedMigrationApplySetVerified) blockers.push("LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED");
+  if (!evidence.authRecoveryE2EVerified) blockers.push("AUTH_RECOVERY_E2E_NOT_VERIFIED");
+  if (!evidence.authenticatedLocalizationBrowserVerified) blockers.push("LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED");
+  if (!evidence.securityRegressionVerified) blockers.push("SECURITY_REGRESSION_NOT_VERIFIED");
+  if (!evidence.observabilityReady) blockers.push("OBSERVABILITY_NOT_READY");
+  if (!evidence.rollbackVerified) blockers.push("ROLLBACK_NOT_VERIFIED");
 
   return {
     launchable: blockers.length === 0,
