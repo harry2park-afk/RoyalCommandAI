@@ -6,6 +6,9 @@ on:
     paths:
       - "scripts/supabase-linked-migration-dry-run.sh"
       - "scripts/supabase-linked-project-identity.test.ts"
+      - "scripts/supabase-linked-allowlist-provenance.mjs"
+      - "scripts/supabase-linked-allowlist-provenance.test.ts"
+      - "scripts/supabase-unresolved-local-migration-classification-20260908.json"
       - "scripts/supabase-dry-run-apply-set.mjs"
       - "scripts/supabase-dry-run-apply-set.test.ts"
       - "scripts/supabase-migration-reconciliation.mjs"
@@ -31,9 +34,10 @@ jobs:
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       # This PR is a diagnostic harness on top of protected master. Only migrations
-      # actually present in this exact checkout may be allow-listed here. The Room
-      # Factory and profile-role migrations live on separate Draft PRs (#661/#691)
-      # and require their own exact-head linked dry-run before Hosted staging.
+      # independently classified as NEW_CANDIDATE_EXPECTED_APPLY may be allow-listed.
+      # Historical equivalent/diverged migrations remain quarantined even if a later
+      # workflow edit attempts to add them. Room Factory/profile-role migrations live
+      # on separate Draft PRs (#661/#691) and require their own exact-head evidence.
       EXPECTED_APPLY_MIGRATIONS: >-
         20260831225500_scope_matter_staff_access.sql
     steps:
@@ -59,6 +63,14 @@ jobs:
         with:
           node-version: 22
           cache: npm
+
+      - name: Verify dry-run allow-list provenance before Hosted credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/supabase-linked-allowlist-provenance.mjs \
+            scripts/supabase-unresolved-local-migration-classification-20260908.json \
+            "${EXPECTED_APPLY_MIGRATIONS}"
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
