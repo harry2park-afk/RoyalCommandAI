@@ -11,6 +11,8 @@ export type LaunchBlockerCode =
   | "TAX_NOT_CONNECTED"
   | "OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH"
   | "OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_RELEASE_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH"
   | "COUNTRY_TERMS_NOT_REVIEWED"
   | "LOCAL_PRICE_NOT_READY"
   | "PROVIDER_OFFER_NOT_REVIEWED"
@@ -34,16 +36,23 @@ export type CountryLaunchGate = {
 
 export type CountryOperationalEvidenceEnvironment = "HOSTED_PRODUCTION" | "PREVIEW" | "DISPOSABLE";
 
+export type CountryOperationalReleaseScope = {
+  releaseCandidateSha: string;
+  migrationApplySetFingerprint: string;
+};
+
 /**
  * Operational evidence is deliberately separate from CountryConfig.
  *
  * CountryConfig describes reviewed configuration intent. Evidence must be
- * explicitly scoped to the same country and to Hosted Production before it
- * can authorize an operational launch decision. Preview/disposable evidence
- * remains useful for engineering verification but can never be reused as
- * Production launch authority; scope is part of the evidence contract.
+ * explicitly scoped to the same country, Hosted Production, the exact release
+ * candidate and the exact linked migration apply-set fingerprint before it can
+ * authorize an operational launch decision. Preview/disposable or stale
+ * release/database evidence remains useful for engineering verification but
+ * can never be reused as Production launch authority; scope is part of the
+ * evidence contract.
  */
-export type CountryOperationalEvidence = {
+export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   countryCode: string;
   environment: CountryOperationalEvidenceEnvironment;
   countryTermsReviewed: boolean;
@@ -99,18 +108,33 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * Room Factory isolation, exact migration evidence, authenticated browser
  * regressions, security checks, observability, or rollback proof have not
  * been verified against the intended Hosted Production environment. Evidence
- * from another country or from Preview/disposable environments fails closed.
- * This function has no side effects and grants no deployment or domain-binding
- * authority by itself.
+ * from another country, another release candidate, another migration apply set,
+ * or from Preview/disposable environments fails closed. This function has no
+ * side effects and grants no deployment or domain-binding authority by itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
   evidence: CountryOperationalEvidence,
+  expectedScope: CountryOperationalReleaseScope,
 ): CountryLaunchGate {
   const blockers: LaunchBlockerCode[] = [...evaluateCountryLaunch(config).blockers];
 
   if (evidence.countryCode !== config.countryCode) blockers.push("OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH");
   if (evidence.environment !== "HOSTED_PRODUCTION") blockers.push("OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH");
+  if (
+    evidence.releaseCandidateSha.trim().length === 0 ||
+    expectedScope.releaseCandidateSha.trim().length === 0 ||
+    evidence.releaseCandidateSha !== expectedScope.releaseCandidateSha
+  ) {
+    blockers.push("OPERATIONAL_EVIDENCE_RELEASE_MISMATCH");
+  }
+  if (
+    evidence.migrationApplySetFingerprint.trim().length === 0 ||
+    expectedScope.migrationApplySetFingerprint.trim().length === 0 ||
+    evidence.migrationApplySetFingerprint !== expectedScope.migrationApplySetFingerprint
+  ) {
+    blockers.push("OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH");
+  }
   if (!evidence.countryTermsReviewed) blockers.push("COUNTRY_TERMS_NOT_REVIEWED");
   if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
   if (!evidence.providerOfferReviewed) blockers.push("PROVIDER_OFFER_NOT_REVIEWED");
