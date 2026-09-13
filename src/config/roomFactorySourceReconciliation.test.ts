@@ -9,16 +9,15 @@ describe("Room Factory source reconciliation", () => {
   });
 
   it("fails closed when the Hosted snapshot contains a template absent from the candidate source", () => {
-    // Fresh Hosted READ-ONLY evidence on 2026-09-13 contains legal, custom and website manifests.
-    // The current country-rollout candidate does not yet contain the dedicated website template/profile.
-    const result = evaluateRoomFactorySourceReconciliation(["legal", "custom", "website"]);
+    const result = evaluateRoomFactorySourceReconciliation(["legal", "custom", "website", "unknown-hosted-template"]);
 
     expect(result.consistent).toBe(false);
-    expect(result.hostedTemplatesMissingFromSource).toEqual(["website"]);
+    expect(result.hostedTemplatesMissingFromSource).toEqual(["unknown-hosted-template"]);
   });
 
-  it("accepts Hosted template IDs only when every ID is represented by the candidate source", () => {
-    const result = evaluateRoomFactorySourceReconciliation(["legal", "custom"]);
+  it("reconciles the fresh Hosted legal/custom/website template inventory", () => {
+    // Fresh Hosted READ-ONLY evidence on 2026-09-14 contains legal, custom and website manifests.
+    const result = evaluateRoomFactorySourceReconciliation(["legal", "custom", "website"]);
 
     expect(result.consistent).toBe(true);
     expect(result.hostedTemplatesMissingFromSource).toEqual([]);
