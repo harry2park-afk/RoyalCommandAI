@@ -13,10 +13,16 @@ const RELEASE_SCOPE: CountryOperationalReleaseScope = {
   releaseCandidateSha: "1111111111111111111111111111111111111111",
   migrationApplySetFingerprint: "migration-set-v1",
   roomFactoryTemplateFingerprint: "room-factory-template-set-v1",
+  hostedOperationalDataFingerprint: "hosted-operational-data-v1",
 };
 type OperationalEvidenceFlag = Exclude<
   keyof CountryOperationalEvidence,
-  "countryCode" | "environment" | "releaseCandidateSha" | "migrationApplySetFingerprint" | "roomFactoryTemplateFingerprint"
+  | "countryCode"
+  | "environment"
+  | "releaseCandidateSha"
+  | "migrationApplySetFingerprint"
+  | "roomFactoryTemplateFingerprint"
+  | "hostedOperationalDataFingerprint"
 >;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
@@ -97,7 +103,7 @@ describe("first-wave country operational launch matrix", () => {
     }
   });
 
-  it("rejects first-wave evidence from a different release candidate, migration apply set or Room Factory/template contract", () => {
+  it("rejects first-wave evidence from a different release candidate, migration apply set, Room Factory/template contract or Hosted operational-data snapshot", () => {
     for (const countryCode of FIRST_WAVE) {
       const base = getCountryConfigByCountryCode(countryCode);
       expect(base, countryCode).not.toBeNull();
@@ -125,6 +131,14 @@ describe("first-wave country operational launch matrix", () => {
         ),
         `${countryCode}:room-factory-template`,
       ).toEqual({ launchable: false, blockers: ["OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH"] });
+      expect(
+        evaluateCountryOperationalLaunch(
+          asConfigReady(base!),
+          { ...readyOperationalEvidence(countryCode), hostedOperationalDataFingerprint: "hosted-operational-data-v0" },
+          RELEASE_SCOPE,
+        ),
+        `${countryCode}:hosted-operational-data`,
+      ).toEqual({ launchable: false, blockers: ["OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH"] });
     }
   });
 });
