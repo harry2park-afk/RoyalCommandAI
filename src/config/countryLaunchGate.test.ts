@@ -32,8 +32,10 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
     environment: "HOSTED_PRODUCTION",
     ...RELEASE_SCOPE,
     countryTermsReviewed: true,
+    countryTermsReviewerProven: true,
     positiveLocalPrice: true,
     providerOfferReviewed: true,
+    providerOfferReviewerProven: true,
     recordingPolicyReviewed: true,
     recordingPolicyReviewerProven: true,
     paymentProviderRegistryReady: true,
@@ -141,8 +143,10 @@ describe("country launch readiness gate", () => {
           environment: "HOSTED_PRODUCTION",
           ...RELEASE_SCOPE,
           countryTermsReviewed: false,
+          countryTermsReviewerProven: false,
           positiveLocalPrice: false,
           providerOfferReviewed: false,
+          providerOfferReviewerProven: false,
           recordingPolicyReviewed: false,
           recordingPolicyReviewerProven: false,
           paymentProviderRegistryReady: false,
@@ -164,8 +168,10 @@ describe("country launch readiness gate", () => {
         launchable: false,
         blockers: [
           "COUNTRY_TERMS_NOT_REVIEWED",
+          "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED",
           "LOCAL_PRICE_NOT_READY",
           "PROVIDER_OFFER_NOT_REVIEWED",
+          "PROVIDER_OFFER_REVIEWER_PROVENANCE_NOT_VERIFIED",
           "RECORDING_POLICY_NOT_REVIEWED",
           "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED",
           "PAYMENT_PROVIDER_REGISTRY_NOT_READY",
@@ -189,6 +195,8 @@ describe("country launch readiness gate", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const cases: Array<[OperationalEvidenceFlag, LaunchBlockerCode]> = [
+      ["countryTermsReviewerProven", "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED"],
+      ["providerOfferReviewerProven", "PROVIDER_OFFER_REVIEWER_PROVENANCE_NOT_VERIFIED"],
       ["recordingPolicyReviewerProven", "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED"],
       ["roomFactorySourceReconciled", "ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED"],
       ["linkedMigrationApplySetVerified", "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"],
