@@ -94,17 +94,18 @@ describe("next-priority country localization contract", () => {
     for (const [countryCode, expected] of Object.entries(NEXT_PRIORITY_CONTRACT)) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
+      if (!config) throw new Error(`Missing CountryConfig for ${countryCode}`);
 
       expect(
         {
-          locale: config?.locale,
-          secondaryLocale: config?.secondaryLocale ?? null,
-          currency: config?.currency,
-          phoneCountryCode: config?.phoneCountryCode,
-          dateFormat: config?.dateFormat,
-          timeFormat: config?.timeFormat,
-          addressFormat: config?.addressFormat,
-          timezone: config?.timezone,
+          locale: config.locale,
+          secondaryLocale: config.secondaryLocale ?? null,
+          currency: config.currency,
+          phoneCountryCode: config.phoneCountryCode,
+          dateFormat: config.dateFormat,
+          timeFormat: config.timeFormat,
+          addressFormat: config.addressFormat,
+          timezone: config.timezone,
         },
         countryCode,
       ).toEqual(expected);
@@ -115,16 +116,16 @@ describe("next-priority country localization contract", () => {
     for (const countryCode of Object.keys(NEXT_PRIORITY_CONTRACT)) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
-      expect(config?.payments.status, countryCode).toBe("NOT_CONNECTED");
-      expect(config?.tax.status, countryCode).toBe("NOT_CONNECTED");
-      expect(config?.taxStructure.status, countryCode).toBe("NEEDS_REVIEW");
-      expect(Object.values(config?.compliance ?? {}), countryCode).toEqual([
-        "NEEDS_REVIEW",
-        "NEEDS_REVIEW",
-        "NEEDS_REVIEW",
-        "NEEDS_REVIEW",
-        "NEEDS_REVIEW",
-      ]);
+      if (!config) throw new Error(`Missing CountryConfig for ${countryCode}`);
+
+      expect(config.payments.status, countryCode).toBe("NOT_CONNECTED");
+      expect(config.tax.status, countryCode).toBe("NOT_CONNECTED");
+      expect(config.taxStructure?.status, countryCode).toBe("NEEDS_REVIEW");
+      expect(config.compliance.legal, countryCode).toBe("NEEDS_REVIEW");
+      expect(config.compliance.tax, countryCode).toBe("NEEDS_REVIEW");
+      expect(config.compliance.medical, countryCode).toBe("NEEDS_REVIEW");
+      expect(config.compliance.investment, countryCode).toBe("NEEDS_REVIEW");
+      expect(config.compliance.privacy, countryCode).toBe("NEEDS_REVIEW");
     }
   });
 });
