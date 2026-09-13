@@ -10,23 +10,27 @@ import type { CountryConfig } from "../types/countryConfig";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
 
-const READY_OPERATIONAL_EVIDENCE: CountryOperationalEvidence = {
-  countryTermsReviewed: true,
-  positiveLocalPrice: true,
-  providerOfferReviewed: true,
-  recordingPolicyReviewed: true,
-  paymentProviderRegistryReady: true,
-  paymentEventLedgerReady: true,
-  serviceOrderIdempotencyReady: true,
-  authDataIsolationVerified: true,
-  roomFactoryIsolationVerified: true,
-  linkedMigrationApplySetVerified: true,
-  authRecoveryE2EVerified: true,
-  authenticatedLocalizationBrowserVerified: true,
-  securityRegressionVerified: true,
-  observabilityReady: true,
-  rollbackVerified: true,
-};
+function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
+  return {
+    countryCode,
+    environment: "HOSTED_PRODUCTION",
+    countryTermsReviewed: true,
+    positiveLocalPrice: true,
+    providerOfferReviewed: true,
+    recordingPolicyReviewed: true,
+    paymentProviderRegistryReady: true,
+    paymentEventLedgerReady: true,
+    serviceOrderIdempotencyReady: true,
+    authDataIsolationVerified: true,
+    roomFactoryIsolationVerified: true,
+    linkedMigrationApplySetVerified: true,
+    authRecoveryE2EVerified: true,
+    authenticatedLocalizationBrowserVerified: true,
+    securityRegressionVerified: true,
+    observabilityReady: true,
+    rollbackVerified: true,
+  };
+}
 
 function asConfigReady(base: CountryConfig): CountryConfig {
   return {
@@ -61,7 +65,6 @@ describe("country launch readiness gate", () => {
     for (const countryCode of ["SG", "CN", "HK", "TW", "IN"] as const) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
-
       const gate = evaluateCountryLaunch(config!);
       expect(gate.launchable, countryCode).toBe(false);
       expect(gate.blockers, countryCode).toEqual([
@@ -86,7 +89,6 @@ describe("country launch readiness gate", () => {
   it("fails closed when country-specific tax structure evidence is missing", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
-
     const otherwiseReady: CountryConfig = {
       ...base!,
       compliance: {
@@ -100,17 +102,12 @@ describe("country launch readiness gate", () => {
       payments: { ...base!.payments, status: "CONNECTED" },
       tax: { ...base!.tax, status: "CONNECTED" },
     };
-
-    expect(evaluateCountryLaunch(otherwiseReady)).toEqual({
-      launchable: false,
-      blockers: ["TAX_STRUCTURE_REVIEW"],
-    });
+    expect(evaluateCountryLaunch(otherwiseReady)).toEqual({ launchable: false, blockers: ["TAX_STRUCTURE_REVIEW"] });
   });
 
   it("only becomes config-launchable when compliance, tax structure, payments and tax are all explicitly verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
-
     expect(evaluateCountryLaunch(asConfigReady(base!))).toEqual({ launchable: true, blockers: [] });
   });
 
@@ -118,8 +115,9 @@ describe("country launch readiness gate", () => {
     for (const countryCode of FIRST_WAVE) {
       const base = getCountryConfigByCountryCode(countryCode);
       expect(base, countryCode).not.toBeNull();
-
       const gate = evaluateCountryOperationalLaunch(asConfigReady(base!), {
+        countryCode,
+        environment: "HOSTED_PRODUCTION",
         countryTermsReviewed: false,
         positiveLocalPrice: false,
         providerOfferReviewed: false,
@@ -136,7 +134,6 @@ describe("country launch readiness gate", () => {
         observabilityReady: false,
         rollbackVerified: false,
       });
-
       expect(gate, countryCode).toEqual({
         launchable: false,
         blockers: [
@@ -163,7 +160,6 @@ describe("country launch readiness gate", () => {
   it("fails closed when any deployment/runtime safety evidence class is individually missing", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
-
     const cases: Array<[keyof CountryOperationalEvidence, LaunchBlockerCode]> = [
       ["linkedMigrationApplySetVerified", "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"],
       ["authRecoveryE2EVerified", "AUTH_RECOVERY_E2E_NOT_VERIFIED"],
@@ -172,9 +168,8 @@ describe("country launch readiness gate", () => {
       ["observabilityReady", "OBSERVABILITY_NOT_READY"],
       ["rollbackVerified", "ROLLBACK_NOT_VERIFIED"],
     ];
-
     for (const [key, expectedBlocker] of cases) {
-      const evidence = { ...READY_OPERATIONAL_EVIDENCE, [key]: false };
+      const evidence = { ...readyOperationalEvidence("AU"), [key]: false };
       expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence)).toEqual({
         launchable: false,
         blockers: [expectedBlocker],
@@ -182,11 +177,30 @@ describe("country launch readiness gate", () => {
     }
   });
 
-  it("only becomes operationally launchable when config and every launch-critical evidence class are verified", () => {
+  it("fails closed when operational evidence belongs to another country", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
+    expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("US"))).toEqual({
+      launchable: false,
+      blockers: ["OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH"],
+    });
+  });
 
-    expect(evaluateCountryOperationalLaunch(asConfigReady(base!), READY_OPERATIONAL_EVIDENCE)).toEqual({
+  it("fails closed when otherwise-complete evidence comes from Preview or disposable environments", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    for (const environment of ["PREVIEW", "DISPOSABLE"] as const) {
+      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), { ...readyOperationalEvidence("AU"), environment }), environment).toEqual({
+        launchable: false,
+        blockers: ["OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH"],
+      });
+    }
+  });
+
+  it("only becomes operationally launchable when same-country Hosted Production evidence and every launch-critical class are verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("AU"))).toEqual({
       launchable: true,
       blockers: [],
     });

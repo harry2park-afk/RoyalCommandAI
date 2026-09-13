@@ -9,23 +9,27 @@ import type { CountryConfig } from "../types/countryConfig";
 
 const NEXT_PRIORITY = ["SG", "CN", "HK", "TW", "IN"] as const;
 
-const READY_OPERATIONAL_EVIDENCE: CountryOperationalEvidence = {
-  countryTermsReviewed: true,
-  positiveLocalPrice: true,
-  providerOfferReviewed: true,
-  recordingPolicyReviewed: true,
-  paymentProviderRegistryReady: true,
-  paymentEventLedgerReady: true,
-  serviceOrderIdempotencyReady: true,
-  authDataIsolationVerified: true,
-  roomFactoryIsolationVerified: true,
-  linkedMigrationApplySetVerified: true,
-  authRecoveryE2EVerified: true,
-  authenticatedLocalizationBrowserVerified: true,
-  securityRegressionVerified: true,
-  observabilityReady: true,
-  rollbackVerified: true,
-};
+function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
+  return {
+    countryCode,
+    environment: "HOSTED_PRODUCTION",
+    countryTermsReviewed: true,
+    positiveLocalPrice: true,
+    providerOfferReviewed: true,
+    recordingPolicyReviewed: true,
+    paymentProviderRegistryReady: true,
+    paymentEventLedgerReady: true,
+    serviceOrderIdempotencyReady: true,
+    authDataIsolationVerified: true,
+    roomFactoryIsolationVerified: true,
+    linkedMigrationApplySetVerified: true,
+    authRecoveryE2EVerified: true,
+    authenticatedLocalizationBrowserVerified: true,
+    securityRegressionVerified: true,
+    observabilityReady: true,
+    rollbackVerified: true,
+  };
+}
 
 const OPERATIONAL_BLOCKERS: Array<[keyof CountryOperationalEvidence, LaunchBlockerCode]> = [
   ["countryTermsReviewed", "COUNTRY_TERMS_NOT_REVIEWED"],
@@ -48,13 +52,7 @@ const OPERATIONAL_BLOCKERS: Array<[keyof CountryOperationalEvidence, LaunchBlock
 function asConfigReady(base: CountryConfig): CountryConfig {
   return {
     ...base,
-    compliance: {
-      legal: "READY",
-      tax: "READY",
-      medical: "READY",
-      investment: "READY",
-      privacy: "READY",
-    },
+    compliance: { legal: "READY", tax: "READY", medical: "READY", investment: "READY", privacy: "READY" },
     taxStructure: base.taxStructure ? { ...base.taxStructure, status: "READY" } : undefined,
     payments: { ...base.payments, status: "CONNECTED" },
     tax: { ...base.tax, status: "CONNECTED" },
@@ -66,17 +64,24 @@ describe("next-priority country operational launch gate", () => {
     for (const countryCode of NEXT_PRIORITY) {
       const base = getCountryConfigByCountryCode(countryCode);
       expect(base, countryCode).not.toBeNull();
-
       for (const [key, expectedBlocker] of OPERATIONAL_BLOCKERS) {
-        const evidence = { ...READY_OPERATIONAL_EVIDENCE, [key]: false };
-        expect(
-          evaluateCountryOperationalLaunch(asConfigReady(base!), evidence),
-          `${countryCode}:${key}`,
-        ).toEqual({
+        const evidence = { ...readyOperationalEvidence(countryCode), [key]: false };
+        expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence), `${countryCode}:${key}`).toEqual({
           launchable: false,
           blockers: [expectedBlocker],
         });
       }
+    }
+  });
+
+  it("rejects first-wave evidence reused for a next-priority country", () => {
+    for (const countryCode of NEXT_PRIORITY) {
+      const base = getCountryConfigByCountryCode(countryCode);
+      expect(base, countryCode).not.toBeNull();
+      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("AU")), countryCode).toEqual({
+        launchable: false,
+        blockers: ["OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH"],
+      });
     }
   });
 
