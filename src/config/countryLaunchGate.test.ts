@@ -14,10 +14,16 @@ const RELEASE_SCOPE: CountryOperationalReleaseScope = {
   releaseCandidateSha: "1111111111111111111111111111111111111111",
   migrationApplySetFingerprint: "migration-set-v1",
   roomFactoryTemplateFingerprint: "room-factory-template-set-v1",
+  hostedOperationalDataFingerprint: "hosted-operational-data-v1",
 };
 type OperationalEvidenceFlag = Exclude<
   keyof CountryOperationalEvidence,
-  "countryCode" | "environment" | "releaseCandidateSha" | "migrationApplySetFingerprint" | "roomFactoryTemplateFingerprint"
+  | "countryCode"
+  | "environment"
+  | "releaseCandidateSha"
+  | "migrationApplySetFingerprint"
+  | "roomFactoryTemplateFingerprint"
+  | "hostedOperationalDataFingerprint"
 >;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
@@ -265,6 +271,21 @@ describe("country launch readiness gate", () => {
     });
   });
 
+  it("fails closed when otherwise-complete evidence is stale for another Hosted operational-data snapshot", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    expect(
+      evaluateCountryOperationalLaunch(
+        asConfigReady(base!),
+        { ...readyOperationalEvidence("AU"), hostedOperationalDataFingerprint: "hosted-operational-data-v0" },
+        RELEASE_SCOPE,
+      ),
+    ).toEqual({
+      launchable: false,
+      blockers: ["OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH"],
+    });
+  });
+
   it("fails closed when the expected release scope itself is incomplete", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
@@ -273,6 +294,7 @@ describe("country launch readiness gate", () => {
         releaseCandidateSha: "",
         migrationApplySetFingerprint: "",
         roomFactoryTemplateFingerprint: "",
+        hostedOperationalDataFingerprint: "",
       }),
     ).toEqual({
       launchable: false,
@@ -280,6 +302,7 @@ describe("country launch readiness gate", () => {
         "OPERATIONAL_EVIDENCE_RELEASE_MISMATCH",
         "OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH",
         "OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH",
+        "OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH",
       ],
     });
   });
