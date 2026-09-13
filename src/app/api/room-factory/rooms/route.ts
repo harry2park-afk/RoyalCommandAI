@@ -105,7 +105,7 @@ export async function POST(request: Request) {
       timeZone: rawInput.timeZone || defaults.timeZone || DEFAULT_GLOBAL_ROOM_SETTINGS.timeZone,
       currencyCode: rawInput.currencyCode || defaults.currencyCode || DEFAULT_GLOBAL_ROOM_SETTINGS.currencyCode,
       approvalMode: rawInput.approvalMode,
-      websiteKit: rawInput.websiteKit,
+      websiteKit: resolved.template.id === "website" || rawInput.websiteKit,
       selectedMaterials: rawInput.selectedMaterials,
     };
 
