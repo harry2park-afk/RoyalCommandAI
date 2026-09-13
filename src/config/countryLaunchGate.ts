@@ -25,6 +25,12 @@ export type LaunchBlockerCode =
   | "PAYMENT_PROVIDER_REGISTRY_NOT_READY"
   | "PAYMENT_EVENT_LEDGER_NOT_READY"
   | "SERVICE_ORDER_IDEMPOTENCY_NOT_READY"
+  | "PAYMENT_SIGNED_WEBHOOK_NOT_VERIFIED"
+  | "PAYMENT_WEBHOOK_REPLAY_PROTECTION_NOT_VERIFIED"
+  | "PAYMENT_REFUND_CANCEL_NOT_VERIFIED"
+  | "PAYMENT_SANDBOX_CHECKOUT_NOT_VERIFIED"
+  | "PAYMENT_SETTLEMENT_NOT_VERIFIED"
+  | "PAYMENT_ROLLBACK_NOT_VERIFIED"
   | "AUTH_DATA_ISOLATION_NOT_VERIFIED"
   | "ROOM_FACTORY_ISOLATION_NOT_VERIFIED"
   | "ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED"
@@ -74,6 +80,12 @@ export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   paymentProviderRegistryReady: boolean;
   paymentEventLedgerReady: boolean;
   serviceOrderIdempotencyReady: boolean;
+  paymentSignedWebhookVerified: boolean;
+  paymentWebhookReplayProtectionVerified: boolean;
+  paymentRefundCancelVerified: boolean;
+  paymentSandboxCheckoutVerified: boolean;
+  paymentSettlementVerified: boolean;
+  paymentRollbackVerified: boolean;
   authDataIsolationVerified: boolean;
   roomFactoryIsolationVerified: boolean;
   roomFactorySourceReconciled: boolean;
@@ -118,15 +130,15 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  *
  * A country can pass configuration review and still remain blocked when
  * commercial/compliance records lack reviewer provenance, recording-policy
- * approval is not reviewer-proven, payment safeguards, tenant isolation, Room
- * Factory isolation and Hosted/source reconciliation, exact migration evidence,
- * authenticated browser regressions, security checks, observability, or rollback
- * proof have not been verified against the intended Hosted Production
- * environment. Evidence from another country, another release candidate,
- * another migration apply set, another Room Factory/template contract, another
- * Hosted operational-data snapshot, or from Preview/disposable environments
- * fails closed. This function has no side effects and grants no deployment or
- * domain-binding authority by itself.
+ * approval is not reviewer-proven, the complete payment-operational safety set
+ * is not verified, tenant isolation, Room Factory isolation and Hosted/source
+ * reconciliation, exact migration evidence, authenticated browser regressions,
+ * security checks, observability, or rollback proof have not been verified
+ * against the intended Hosted Production environment. Evidence from another
+ * country, another release candidate, another migration apply set, another Room
+ * Factory/template contract, another Hosted operational-data snapshot, or from
+ * Preview/disposable environments fails closed. This function has no side
+ * effects and grants no deployment or domain-binding authority by itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -175,6 +187,12 @@ export function evaluateCountryOperationalLaunch(
   if (!evidence.paymentProviderRegistryReady) blockers.push("PAYMENT_PROVIDER_REGISTRY_NOT_READY");
   if (!evidence.paymentEventLedgerReady) blockers.push("PAYMENT_EVENT_LEDGER_NOT_READY");
   if (!evidence.serviceOrderIdempotencyReady) blockers.push("SERVICE_ORDER_IDEMPOTENCY_NOT_READY");
+  if (!evidence.paymentSignedWebhookVerified) blockers.push("PAYMENT_SIGNED_WEBHOOK_NOT_VERIFIED");
+  if (!evidence.paymentWebhookReplayProtectionVerified) blockers.push("PAYMENT_WEBHOOK_REPLAY_PROTECTION_NOT_VERIFIED");
+  if (!evidence.paymentRefundCancelVerified) blockers.push("PAYMENT_REFUND_CANCEL_NOT_VERIFIED");
+  if (!evidence.paymentSandboxCheckoutVerified) blockers.push("PAYMENT_SANDBOX_CHECKOUT_NOT_VERIFIED");
+  if (!evidence.paymentSettlementVerified) blockers.push("PAYMENT_SETTLEMENT_NOT_VERIFIED");
+  if (!evidence.paymentRollbackVerified) blockers.push("PAYMENT_ROLLBACK_NOT_VERIFIED");
   if (!evidence.authDataIsolationVerified) blockers.push("AUTH_DATA_ISOLATION_NOT_VERIFIED");
   if (!evidence.roomFactoryIsolationVerified) blockers.push("ROOM_FACTORY_ISOLATION_NOT_VERIFIED");
   if (!evidence.roomFactorySourceReconciled) blockers.push("ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED");
