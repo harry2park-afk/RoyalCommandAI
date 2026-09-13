@@ -40,6 +40,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
     serviceOrderIdempotencyReady: true,
     authDataIsolationVerified: true,
     roomFactoryIsolationVerified: true,
+    roomFactorySourceReconciled: true,
     linkedMigrationApplySetVerified: true,
     authRecoveryE2EVerified: true,
     authenticatedLocalizationBrowserVerified: true,
@@ -147,6 +148,7 @@ describe("country launch readiness gate", () => {
           serviceOrderIdempotencyReady: false,
           authDataIsolationVerified: false,
           roomFactoryIsolationVerified: false,
+          roomFactorySourceReconciled: false,
           linkedMigrationApplySetVerified: false,
           authRecoveryE2EVerified: false,
           authenticatedLocalizationBrowserVerified: false,
@@ -168,6 +170,7 @@ describe("country launch readiness gate", () => {
           "SERVICE_ORDER_IDEMPOTENCY_NOT_READY",
           "AUTH_DATA_ISOLATION_NOT_VERIFIED",
           "ROOM_FACTORY_ISOLATION_NOT_VERIFIED",
+          "ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED",
           "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED",
           "AUTH_RECOVERY_E2E_NOT_VERIFIED",
           "LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED",
@@ -183,6 +186,7 @@ describe("country launch readiness gate", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const cases: Array<[OperationalEvidenceFlag, LaunchBlockerCode]> = [
+      ["roomFactorySourceReconciled", "ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED"],
       ["linkedMigrationApplySetVerified", "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"],
       ["authRecoveryE2EVerified", "AUTH_RECOVERY_E2E_NOT_VERIFIED"],
       ["authenticatedLocalizationBrowserVerified", "LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED"],
