@@ -1,8 +1,8 @@
 {
   "contract_version": 1,
-  "captured_at_utc": "2026-09-12T09:48:36.519855Z",
+  "captured_at_utc": "2026-09-13T04:54:20.906533Z",
   "project_ref": "aygawkavujjmybekswrg",
-  "source": "Supabase connector list_migrations + read-only SQL fingerprint",
+  "source": "Fresh Hosted read-only SQL ordered migration-ledger capture via Supabase connector",
   "purpose": "Fresh Hosted migration-ledger no-drift evidence for PR #696; this is not linked CLI dry-run evidence and does not authorize apply, repair, merge, deploy, or Hosted mutation.",
   "baseline_snapshot": "scripts/supabase-hosted-ledger-snapshot-20260908.json",
   "baseline_snapshot_blob_sha": "7178fdcf65c45146c17c1cd9388817d4bfdb4344",
