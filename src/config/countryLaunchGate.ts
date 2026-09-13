@@ -19,6 +19,7 @@ export type LaunchBlockerCode =
   | "LOCAL_PRICE_NOT_READY"
   | "PROVIDER_OFFER_NOT_REVIEWED"
   | "RECORDING_POLICY_NOT_REVIEWED"
+  | "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED"
   | "PAYMENT_PROVIDER_REGISTRY_NOT_READY"
   | "PAYMENT_EVENT_LEDGER_NOT_READY"
   | "SERVICE_ORDER_IDEMPOTENCY_NOT_READY"
@@ -65,6 +66,7 @@ export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   positiveLocalPrice: boolean;
   providerOfferReviewed: boolean;
   recordingPolicyReviewed: boolean;
+  recordingPolicyReviewerProven: boolean;
   paymentProviderRegistryReady: boolean;
   paymentEventLedgerReady: boolean;
   serviceOrderIdempotencyReady: boolean;
@@ -111,15 +113,16 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * Final fail-closed launch decision for a configured country.
  *
  * A country can pass configuration review and still remain blocked when
- * commercial/compliance records, payment safeguards, tenant isolation,
- * Room Factory isolation and Hosted/source reconciliation, exact migration
- * evidence, authenticated browser regressions, security checks, observability,
- * or rollback proof have not been verified against the intended Hosted
- * Production environment. Evidence from another country, another release
- * candidate, another migration apply set, another Room Factory/template
- * contract, another Hosted operational-data snapshot, or from
- * Preview/disposable environments fails closed. This function has no side
- * effects and grants no deployment or domain-binding authority by itself.
+ * commercial/compliance records, reviewer-proven recording-policy approval,
+ * payment safeguards, tenant isolation, Room Factory isolation and
+ * Hosted/source reconciliation, exact migration evidence, authenticated browser
+ * regressions, security checks, observability, or rollback proof have not been
+ * verified against the intended Hosted Production environment. Evidence from
+ * another country, another release candidate, another migration apply set,
+ * another Room Factory/template contract, another Hosted operational-data
+ * snapshot, or from Preview/disposable environments fails closed. This function
+ * has no side effects and grants no deployment or domain-binding authority by
+ * itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -162,6 +165,7 @@ export function evaluateCountryOperationalLaunch(
   if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
   if (!evidence.providerOfferReviewed) blockers.push("PROVIDER_OFFER_NOT_REVIEWED");
   if (!evidence.recordingPolicyReviewed) blockers.push("RECORDING_POLICY_NOT_REVIEWED");
+  if (!evidence.recordingPolicyReviewerProven) blockers.push("RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED");
   if (!evidence.paymentProviderRegistryReady) blockers.push("PAYMENT_PROVIDER_REGISTRY_NOT_READY");
   if (!evidence.paymentEventLedgerReady) blockers.push("PAYMENT_EVENT_LEDGER_NOT_READY");
   if (!evidence.serviceOrderIdempotencyReady) blockers.push("SERVICE_ORDER_IDEMPOTENCY_NOT_READY");
