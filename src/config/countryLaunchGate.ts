@@ -9,6 +9,8 @@ export type LaunchBlockerCode =
   | "PRIVACY_REVIEW"
   | "PAYMENTS_NOT_CONNECTED"
   | "TAX_NOT_CONNECTED"
+  | "OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH"
   | "COUNTRY_TERMS_NOT_REVIEWED"
   | "LOCAL_PRICE_NOT_READY"
   | "PROVIDER_OFFER_NOT_REVIEWED"
@@ -30,14 +32,20 @@ export type CountryLaunchGate = {
   blockers: LaunchBlockerCode[];
 };
 
+export type CountryOperationalEvidenceEnvironment = "HOSTED_PRODUCTION" | "PREVIEW" | "DISPOSABLE";
+
 /**
  * Operational evidence is deliberately separate from CountryConfig.
  *
- * CountryConfig describes reviewed configuration intent. These booleans must
- * come from verified Hosted/runtime evidence so a config-only READY flag can
- * never be mistaken for launch authorization.
+ * CountryConfig describes reviewed configuration intent. Evidence must be
+ * explicitly scoped to the same country and to Hosted Production before it
+ * can authorize an operational launch decision. Preview/disposable evidence
+ * remains useful for engineering verification but can never be reused as
+ * Production launch authority.
  */
 export type CountryOperationalEvidence = {
+  countryCode: string;
+  environment: CountryOperationalEvidenceEnvironment;
   countryTermsReviewed: boolean;
   positiveLocalPrice: boolean;
   providerOfferReviewed: boolean;
@@ -90,9 +98,10 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * commercial/compliance records, payment safeguards, tenant isolation,
  * Room Factory isolation, exact migration evidence, authenticated browser
  * regressions, security checks, observability, or rollback proof have not
- * been verified against the intended Hosted environment. This function has
- * no side effects and grants no deployment or domain-binding authority by
- * itself.
+ * been verified against the intended Hosted Production environment. Evidence
+ * from another country or from Preview/disposable environments fails closed.
+ * This function has no side effects and grants no deployment or domain-binding
+ * authority by itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -100,6 +109,8 @@ export function evaluateCountryOperationalLaunch(
 ): CountryLaunchGate {
   const blockers: LaunchBlockerCode[] = [...evaluateCountryLaunch(config).blockers];
 
+  if (evidence.countryCode !== config.countryCode) blockers.push("OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH");
+  if (evidence.environment !== "HOSTED_PRODUCTION") blockers.push("OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH");
   if (!evidence.countryTermsReviewed) blockers.push("COUNTRY_TERMS_NOT_REVIEWED");
   if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
   if (!evidence.providerOfferReviewed) blockers.push("PROVIDER_OFFER_NOT_REVIEWED");
