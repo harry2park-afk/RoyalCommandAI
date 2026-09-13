@@ -13,10 +13,11 @@ const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
 const RELEASE_SCOPE: CountryOperationalReleaseScope = {
   releaseCandidateSha: "1111111111111111111111111111111111111111",
   migrationApplySetFingerprint: "migration-set-v1",
+  roomFactoryTemplateFingerprint: "room-factory-template-set-v1",
 };
 type OperationalEvidenceFlag = Exclude<
   keyof CountryOperationalEvidence,
-  "countryCode" | "environment" | "releaseCandidateSha" | "migrationApplySetFingerprint"
+  "countryCode" | "environment" | "releaseCandidateSha" | "migrationApplySetFingerprint" | "roomFactoryTemplateFingerprint"
 >;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
@@ -249,6 +250,21 @@ describe("country launch readiness gate", () => {
     });
   });
 
+  it("fails closed when otherwise-complete evidence is stale for another Room Factory/template contract", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    expect(
+      evaluateCountryOperationalLaunch(
+        asConfigReady(base!),
+        { ...readyOperationalEvidence("AU"), roomFactoryTemplateFingerprint: "room-factory-template-set-v0" },
+        RELEASE_SCOPE,
+      ),
+    ).toEqual({
+      launchable: false,
+      blockers: ["OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH"],
+    });
+  });
+
   it("fails closed when the expected release scope itself is incomplete", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
@@ -256,12 +272,14 @@ describe("country launch readiness gate", () => {
       evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("AU"), {
         releaseCandidateSha: "",
         migrationApplySetFingerprint: "",
+        roomFactoryTemplateFingerprint: "",
       }),
     ).toEqual({
       launchable: false,
       blockers: [
         "OPERATIONAL_EVIDENCE_RELEASE_MISMATCH",
         "OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH",
+        "OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH",
       ],
     });
   });
