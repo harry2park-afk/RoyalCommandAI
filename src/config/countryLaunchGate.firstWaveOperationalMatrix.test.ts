@@ -8,6 +8,7 @@ import { getCountryConfigByCountryCode } from "./countryResolver";
 import type { CountryConfig } from "../types/countryConfig";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
+type OperationalEvidenceFlag = Exclude<keyof CountryOperationalEvidence, "countryCode" | "environment">;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
   return {
@@ -31,7 +32,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
   };
 }
 
-const OPERATIONAL_BLOCKERS: ReadonlyArray<readonly [keyof CountryOperationalEvidence, LaunchBlockerCode]> = [
+const OPERATIONAL_BLOCKERS: ReadonlyArray<readonly [OperationalEvidenceFlag, LaunchBlockerCode]> = [
   ["countryTermsReviewed", "COUNTRY_TERMS_NOT_REVIEWED"],
   ["positiveLocalPrice", "LOCAL_PRICE_NOT_READY"],
   ["providerOfferReviewed", "PROVIDER_OFFER_NOT_REVIEWED"],

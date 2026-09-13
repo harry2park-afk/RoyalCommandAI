@@ -8,6 +8,7 @@ import { getCountryConfigByCountryCode } from "./countryResolver";
 import type { CountryConfig } from "../types/countryConfig";
 
 const NEXT_PRIORITY = ["SG", "CN", "HK", "TW", "IN"] as const;
+type OperationalEvidenceFlag = Exclude<keyof CountryOperationalEvidence, "countryCode" | "environment">;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
   return {
@@ -31,7 +32,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
   };
 }
 
-const OPERATIONAL_BLOCKERS: Array<[keyof CountryOperationalEvidence, LaunchBlockerCode]> = [
+const OPERATIONAL_BLOCKERS: Array<[OperationalEvidenceFlag, LaunchBlockerCode]> = [
   ["countryTermsReviewed", "COUNTRY_TERMS_NOT_REVIEWED"],
   ["positiveLocalPrice", "LOCAL_PRICE_NOT_READY"],
   ["providerOfferReviewed", "PROVIDER_OFFER_NOT_REVIEWED"],
@@ -65,7 +66,7 @@ describe("next-priority country operational launch gate", () => {
       const base = getCountryConfigByCountryCode(countryCode);
       expect(base, countryCode).not.toBeNull();
       for (const [key, expectedBlocker] of OPERATIONAL_BLOCKERS) {
-        const evidence = { ...readyOperationalEvidence(countryCode), [key]: false };
+        const evidence: CountryOperationalEvidence = { ...readyOperationalEvidence(countryCode), [key]: false };
         expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence), `${countryCode}:${key}`).toEqual({
           launchable: false,
           blockers: [expectedBlocker],

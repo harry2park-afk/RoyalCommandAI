@@ -9,6 +9,7 @@ import { getConfiguredCountryCodes, getCountryConfigByCountryCode } from "./coun
 import type { CountryConfig } from "../types/countryConfig";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
+type OperationalEvidenceFlag = Exclude<keyof CountryOperationalEvidence, "countryCode" | "environment">;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
   return {
@@ -160,7 +161,7 @@ describe("country launch readiness gate", () => {
   it("fails closed when any deployment/runtime safety evidence class is individually missing", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
-    const cases: Array<[keyof CountryOperationalEvidence, LaunchBlockerCode]> = [
+    const cases: Array<[OperationalEvidenceFlag, LaunchBlockerCode]> = [
       ["linkedMigrationApplySetVerified", "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"],
       ["authRecoveryE2EVerified", "AUTH_RECOVERY_E2E_NOT_VERIFIED"],
       ["authenticatedLocalizationBrowserVerified", "LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED"],
@@ -169,7 +170,7 @@ describe("country launch readiness gate", () => {
       ["rollbackVerified", "ROLLBACK_NOT_VERIFIED"],
     ];
     for (const [key, expectedBlocker] of cases) {
-      const evidence = { ...readyOperationalEvidence("AU"), [key]: false };
+      const evidence: CountryOperationalEvidence = { ...readyOperationalEvidence("AU"), [key]: false };
       expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence)).toEqual({
         launchable: false,
         blockers: [expectedBlocker],
