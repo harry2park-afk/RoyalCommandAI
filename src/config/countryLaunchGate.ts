@@ -14,6 +14,7 @@ export type LaunchBlockerCode =
   | "OPERATIONAL_EVIDENCE_RELEASE_MISMATCH"
   | "OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH"
   | "OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH"
   | "COUNTRY_TERMS_NOT_REVIEWED"
   | "LOCAL_PRICE_NOT_READY"
   | "PROVIDER_OFFER_NOT_REVIEWED"
@@ -41,6 +42,7 @@ export type CountryOperationalReleaseScope = {
   releaseCandidateSha: string;
   migrationApplySetFingerprint: string;
   roomFactoryTemplateFingerprint: string;
+  hostedOperationalDataFingerprint: string;
 };
 
 /**
@@ -48,12 +50,12 @@ export type CountryOperationalReleaseScope = {
  *
  * CountryConfig describes reviewed configuration intent. Evidence must be
  * explicitly scoped to the same country, Hosted Production, the exact release
- * candidate, the exact linked migration apply-set fingerprint and the exact
- * Room Factory/template contract fingerprint before it can authorize an
- * operational launch decision. Preview/disposable or stale release/database/
- * Room Factory evidence remains useful for engineering verification but can
- * never be reused as Production launch authority; scope is part of the
- * evidence contract.
+ * candidate, the exact linked migration apply-set fingerprint, the exact Room
+ * Factory/template contract fingerprint and the exact Hosted operational-data
+ * snapshot fingerprint before it can authorize an operational launch decision.
+ * Preview/disposable or stale release/database/Room Factory/Hosted-data evidence
+ * remains useful for engineering verification but can never be reused as
+ * Production launch authority; scope is part of the evidence contract.
  */
 export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   countryCode: string;
@@ -112,9 +114,10 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * regressions, security checks, observability, or rollback proof have not
  * been verified against the intended Hosted Production environment. Evidence
  * from another country, another release candidate, another migration apply set,
- * another Room Factory/template contract, or from Preview/disposable
- * environments fails closed. This function has no side effects and grants no
- * deployment or domain-binding authority by itself.
+ * another Room Factory/template contract, another Hosted operational-data
+ * snapshot, or from Preview/disposable environments fails closed. This function
+ * has no side effects and grants no deployment or domain-binding authority by
+ * itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -145,6 +148,13 @@ export function evaluateCountryOperationalLaunch(
     evidence.roomFactoryTemplateFingerprint !== expectedScope.roomFactoryTemplateFingerprint
   ) {
     blockers.push("OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH");
+  }
+  if (
+    evidence.hostedOperationalDataFingerprint.trim().length === 0 ||
+    expectedScope.hostedOperationalDataFingerprint.trim().length === 0 ||
+    evidence.hostedOperationalDataFingerprint !== expectedScope.hostedOperationalDataFingerprint
+  ) {
+    blockers.push("OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH");
   }
   if (!evidence.countryTermsReviewed) blockers.push("COUNTRY_TERMS_NOT_REVIEWED");
   if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
