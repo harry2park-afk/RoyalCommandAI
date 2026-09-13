@@ -41,7 +41,7 @@ export type CountryOperationalEvidenceEnvironment = "HOSTED_PRODUCTION" | "PREVI
  * explicitly scoped to the same country and to Hosted Production before it
  * can authorize an operational launch decision. Preview/disposable evidence
  * remains useful for engineering verification but can never be reused as
- * Production launch authority.
+ * Production launch authority; scope is part of the evidence contract.
  */
 export type CountryOperationalEvidence = {
   countryCode: string;
