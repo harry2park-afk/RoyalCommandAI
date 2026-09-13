@@ -12,10 +12,11 @@ const NEXT_PRIORITY = ["SG", "CN", "HK", "TW", "IN"] as const;
 const RELEASE_SCOPE: CountryOperationalReleaseScope = {
   releaseCandidateSha: "1111111111111111111111111111111111111111",
   migrationApplySetFingerprint: "migration-set-v1",
+  roomFactoryTemplateFingerprint: "room-factory-template-set-v1",
 };
 type OperationalEvidenceFlag = Exclude<
   keyof CountryOperationalEvidence,
-  "countryCode" | "environment" | "releaseCandidateSha" | "migrationApplySetFingerprint"
+  "countryCode" | "environment" | "releaseCandidateSha" | "migrationApplySetFingerprint" | "roomFactoryTemplateFingerprint"
 >;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
@@ -95,7 +96,7 @@ describe("next-priority country operational launch gate", () => {
     }
   });
 
-  it("rejects next-priority evidence from a different release candidate or migration apply set", () => {
+  it("rejects next-priority evidence from a different release candidate, migration apply set or Room Factory/template contract", () => {
     for (const countryCode of NEXT_PRIORITY) {
       const base = getCountryConfigByCountryCode(countryCode);
       expect(base, countryCode).not.toBeNull();
@@ -115,6 +116,14 @@ describe("next-priority country operational launch gate", () => {
         ),
         `${countryCode}:migration`,
       ).toEqual({ launchable: false, blockers: ["OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH"] });
+      expect(
+        evaluateCountryOperationalLaunch(
+          asConfigReady(base!),
+          { ...readyOperationalEvidence(countryCode), roomFactoryTemplateFingerprint: "room-factory-template-set-v0" },
+          RELEASE_SCOPE,
+        ),
+        `${countryCode}:room-factory-template`,
+      ).toEqual({ launchable: false, blockers: ["OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH"] });
     }
   });
 
