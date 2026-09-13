@@ -16,8 +16,10 @@ export type LaunchBlockerCode =
   | "OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH"
   | "OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH"
   | "COUNTRY_TERMS_NOT_REVIEWED"
+  | "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED"
   | "LOCAL_PRICE_NOT_READY"
   | "PROVIDER_OFFER_NOT_REVIEWED"
+  | "PROVIDER_OFFER_REVIEWER_PROVENANCE_NOT_VERIFIED"
   | "RECORDING_POLICY_NOT_REVIEWED"
   | "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED"
   | "PAYMENT_PROVIDER_REGISTRY_NOT_READY"
@@ -63,8 +65,10 @@ export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   countryCode: string;
   environment: CountryOperationalEvidenceEnvironment;
   countryTermsReviewed: boolean;
+  countryTermsReviewerProven: boolean;
   positiveLocalPrice: boolean;
   providerOfferReviewed: boolean;
+  providerOfferReviewerProven: boolean;
   recordingPolicyReviewed: boolean;
   recordingPolicyReviewerProven: boolean;
   paymentProviderRegistryReady: boolean;
@@ -113,16 +117,16 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * Final fail-closed launch decision for a configured country.
  *
  * A country can pass configuration review and still remain blocked when
- * commercial/compliance records, reviewer-proven recording-policy approval,
- * payment safeguards, tenant isolation, Room Factory isolation and
- * Hosted/source reconciliation, exact migration evidence, authenticated browser
- * regressions, security checks, observability, or rollback proof have not been
- * verified against the intended Hosted Production environment. Evidence from
- * another country, another release candidate, another migration apply set,
- * another Room Factory/template contract, another Hosted operational-data
- * snapshot, or from Preview/disposable environments fails closed. This function
- * has no side effects and grants no deployment or domain-binding authority by
- * itself.
+ * commercial/compliance records lack reviewer provenance, recording-policy
+ * approval is not reviewer-proven, payment safeguards, tenant isolation, Room
+ * Factory isolation and Hosted/source reconciliation, exact migration evidence,
+ * authenticated browser regressions, security checks, observability, or rollback
+ * proof have not been verified against the intended Hosted Production
+ * environment. Evidence from another country, another release candidate,
+ * another migration apply set, another Room Factory/template contract, another
+ * Hosted operational-data snapshot, or from Preview/disposable environments
+ * fails closed. This function has no side effects and grants no deployment or
+ * domain-binding authority by itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -162,8 +166,10 @@ export function evaluateCountryOperationalLaunch(
     blockers.push("OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH");
   }
   if (!evidence.countryTermsReviewed) blockers.push("COUNTRY_TERMS_NOT_REVIEWED");
+  if (!evidence.countryTermsReviewerProven) blockers.push("COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED");
   if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
   if (!evidence.providerOfferReviewed) blockers.push("PROVIDER_OFFER_NOT_REVIEWED");
+  if (!evidence.providerOfferReviewerProven) blockers.push("PROVIDER_OFFER_REVIEWER_PROVENANCE_NOT_VERIFIED");
   if (!evidence.recordingPolicyReviewed) blockers.push("RECORDING_POLICY_NOT_REVIEWED");
   if (!evidence.recordingPolicyReviewerProven) blockers.push("RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED");
   if (!evidence.paymentProviderRegistryReady) blockers.push("PAYMENT_PROVIDER_REGISTRY_NOT_READY");
