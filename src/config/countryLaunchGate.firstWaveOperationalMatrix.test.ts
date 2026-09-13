@@ -31,8 +31,10 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
     environment: "HOSTED_PRODUCTION",
     ...RELEASE_SCOPE,
     countryTermsReviewed: true,
+    countryTermsReviewerProven: true,
     positiveLocalPrice: true,
     providerOfferReviewed: true,
+    providerOfferReviewerProven: true,
     recordingPolicyReviewed: true,
     recordingPolicyReviewerProven: true,
     paymentProviderRegistryReady: true,
@@ -52,8 +54,10 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
 
 const OPERATIONAL_BLOCKERS: ReadonlyArray<readonly [OperationalEvidenceFlag, LaunchBlockerCode]> = [
   ["countryTermsReviewed", "COUNTRY_TERMS_NOT_REVIEWED"],
+  ["countryTermsReviewerProven", "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED"],
   ["positiveLocalPrice", "LOCAL_PRICE_NOT_READY"],
   ["providerOfferReviewed", "PROVIDER_OFFER_NOT_REVIEWED"],
+  ["providerOfferReviewerProven", "PROVIDER_OFFER_REVIEWER_PROVENANCE_NOT_VERIFIED"],
   ["recordingPolicyReviewed", "RECORDING_POLICY_NOT_REVIEWED"],
   ["recordingPolicyReviewerProven", "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED"],
   ["paymentProviderRegistryReady", "PAYMENT_PROVIDER_REGISTRY_NOT_READY"],
