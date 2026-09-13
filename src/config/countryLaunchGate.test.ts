@@ -3,18 +3,27 @@ import {
   evaluateCountryLaunch,
   evaluateCountryOperationalLaunch,
   type CountryOperationalEvidence,
+  type CountryOperationalReleaseScope,
   type LaunchBlockerCode,
 } from "./countryLaunchGate";
 import { getConfiguredCountryCodes, getCountryConfigByCountryCode } from "./countryResolver";
 import type { CountryConfig } from "../types/countryConfig";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
-type OperationalEvidenceFlag = Exclude<keyof CountryOperationalEvidence, "countryCode" | "environment">;
+const RELEASE_SCOPE: CountryOperationalReleaseScope = {
+  releaseCandidateSha: "1111111111111111111111111111111111111111",
+  migrationApplySetFingerprint: "migration-set-v1",
+};
+type OperationalEvidenceFlag = Exclude<
+  keyof CountryOperationalEvidence,
+  "countryCode" | "environment" | "releaseCandidateSha" | "migrationApplySetFingerprint"
+>;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
   return {
     countryCode,
     environment: "HOSTED_PRODUCTION",
+    ...RELEASE_SCOPE,
     countryTermsReviewed: true,
     positiveLocalPrice: true,
     providerOfferReviewed: true,
@@ -116,25 +125,30 @@ describe("country launch readiness gate", () => {
     for (const countryCode of FIRST_WAVE) {
       const base = getCountryConfigByCountryCode(countryCode);
       expect(base, countryCode).not.toBeNull();
-      const gate = evaluateCountryOperationalLaunch(asConfigReady(base!), {
-        countryCode,
-        environment: "HOSTED_PRODUCTION",
-        countryTermsReviewed: false,
-        positiveLocalPrice: false,
-        providerOfferReviewed: false,
-        recordingPolicyReviewed: false,
-        paymentProviderRegistryReady: false,
-        paymentEventLedgerReady: false,
-        serviceOrderIdempotencyReady: false,
-        authDataIsolationVerified: false,
-        roomFactoryIsolationVerified: false,
-        linkedMigrationApplySetVerified: false,
-        authRecoveryE2EVerified: false,
-        authenticatedLocalizationBrowserVerified: false,
-        securityRegressionVerified: false,
-        observabilityReady: false,
-        rollbackVerified: false,
-      });
+      const gate = evaluateCountryOperationalLaunch(
+        asConfigReady(base!),
+        {
+          countryCode,
+          environment: "HOSTED_PRODUCTION",
+          ...RELEASE_SCOPE,
+          countryTermsReviewed: false,
+          positiveLocalPrice: false,
+          providerOfferReviewed: false,
+          recordingPolicyReviewed: false,
+          paymentProviderRegistryReady: false,
+          paymentEventLedgerReady: false,
+          serviceOrderIdempotencyReady: false,
+          authDataIsolationVerified: false,
+          roomFactoryIsolationVerified: false,
+          linkedMigrationApplySetVerified: false,
+          authRecoveryE2EVerified: false,
+          authenticatedLocalizationBrowserVerified: false,
+          securityRegressionVerified: false,
+          observabilityReady: false,
+          rollbackVerified: false,
+        },
+        RELEASE_SCOPE,
+      );
       expect(gate, countryCode).toEqual({
         launchable: false,
         blockers: [
@@ -171,7 +185,7 @@ describe("country launch readiness gate", () => {
     ];
     for (const [key, expectedBlocker] of cases) {
       const evidence: CountryOperationalEvidence = { ...readyOperationalEvidence("AU"), [key]: false };
-      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence)).toEqual({
+      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence, RELEASE_SCOPE)).toEqual({
         launchable: false,
         blockers: [expectedBlocker],
       });
@@ -181,7 +195,7 @@ describe("country launch readiness gate", () => {
   it("fails closed when operational evidence belongs to another country", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
-    expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("US"))).toEqual({
+    expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("US"), RELEASE_SCOPE)).toEqual({
       launchable: false,
       blockers: ["OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH"],
     });
@@ -191,17 +205,71 @@ describe("country launch readiness gate", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     for (const environment of ["PREVIEW", "DISPOSABLE"] as const) {
-      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), { ...readyOperationalEvidence("AU"), environment }), environment).toEqual({
+      expect(
+        evaluateCountryOperationalLaunch(
+          asConfigReady(base!),
+          { ...readyOperationalEvidence("AU"), environment },
+          RELEASE_SCOPE,
+        ),
+        environment,
+      ).toEqual({
         launchable: false,
         blockers: ["OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH"],
       });
     }
   });
 
-  it("only becomes operationally launchable when same-country Hosted Production evidence and every launch-critical class are verified", () => {
+  it("fails closed when otherwise-complete evidence is stale for another release candidate", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
-    expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("AU"))).toEqual({
+    expect(
+      evaluateCountryOperationalLaunch(
+        asConfigReady(base!),
+        { ...readyOperationalEvidence("AU"), releaseCandidateSha: "2222222222222222222222222222222222222222" },
+        RELEASE_SCOPE,
+      ),
+    ).toEqual({
+      launchable: false,
+      blockers: ["OPERATIONAL_EVIDENCE_RELEASE_MISMATCH"],
+    });
+  });
+
+  it("fails closed when otherwise-complete evidence is stale for another migration apply set", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    expect(
+      evaluateCountryOperationalLaunch(
+        asConfigReady(base!),
+        { ...readyOperationalEvidence("AU"), migrationApplySetFingerprint: "migration-set-v0" },
+        RELEASE_SCOPE,
+      ),
+    ).toEqual({
+      launchable: false,
+      blockers: ["OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH"],
+    });
+  });
+
+  it("fails closed when the expected release scope itself is incomplete", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    expect(
+      evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("AU"), {
+        releaseCandidateSha: "",
+        migrationApplySetFingerprint: "",
+      }),
+    ).toEqual({
+      launchable: false,
+      blockers: [
+        "OPERATIONAL_EVIDENCE_RELEASE_MISMATCH",
+        "OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH",
+      ],
+    });
+  });
+
+  it("only becomes operationally launchable when same-country Hosted Production evidence is bound to the exact release scope and every launch-critical class is verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("AU"), RELEASE_SCOPE)).toEqual({
       launchable: true,
       blockers: [],
     });
