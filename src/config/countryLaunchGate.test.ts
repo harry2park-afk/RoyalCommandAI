@@ -35,6 +35,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
     positiveLocalPrice: true,
     providerOfferReviewed: true,
     recordingPolicyReviewed: true,
+    recordingPolicyReviewerProven: true,
     paymentProviderRegistryReady: true,
     paymentEventLedgerReady: true,
     serviceOrderIdempotencyReady: true,
@@ -143,6 +144,7 @@ describe("country launch readiness gate", () => {
           positiveLocalPrice: false,
           providerOfferReviewed: false,
           recordingPolicyReviewed: false,
+          recordingPolicyReviewerProven: false,
           paymentProviderRegistryReady: false,
           paymentEventLedgerReady: false,
           serviceOrderIdempotencyReady: false,
@@ -165,6 +167,7 @@ describe("country launch readiness gate", () => {
           "LOCAL_PRICE_NOT_READY",
           "PROVIDER_OFFER_NOT_REVIEWED",
           "RECORDING_POLICY_NOT_REVIEWED",
+          "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED",
           "PAYMENT_PROVIDER_REGISTRY_NOT_READY",
           "PAYMENT_EVENT_LEDGER_NOT_READY",
           "SERVICE_ORDER_IDEMPOTENCY_NOT_READY",
@@ -186,6 +189,7 @@ describe("country launch readiness gate", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const cases: Array<[OperationalEvidenceFlag, LaunchBlockerCode]> = [
+      ["recordingPolicyReviewerProven", "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED"],
       ["roomFactorySourceReconciled", "ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED"],
       ["linkedMigrationApplySetVerified", "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"],
       ["authRecoveryE2EVerified", "AUTH_RECOVERY_E2E_NOT_VERIFIED"],
