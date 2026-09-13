@@ -2,18 +2,27 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateCountryOperationalLaunch,
   type CountryOperationalEvidence,
+  type CountryOperationalReleaseScope,
   type LaunchBlockerCode,
 } from "./countryLaunchGate";
 import { getCountryConfigByCountryCode } from "./countryResolver";
 import type { CountryConfig } from "../types/countryConfig";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
-type OperationalEvidenceFlag = Exclude<keyof CountryOperationalEvidence, "countryCode" | "environment">;
+const RELEASE_SCOPE: CountryOperationalReleaseScope = {
+  releaseCandidateSha: "1111111111111111111111111111111111111111",
+  migrationApplySetFingerprint: "migration-set-v1",
+};
+type OperationalEvidenceFlag = Exclude<
+  keyof CountryOperationalEvidence,
+  "countryCode" | "environment" | "releaseCandidateSha" | "migrationApplySetFingerprint"
+>;
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
   return {
     countryCode,
     environment: "HOSTED_PRODUCTION",
+    ...RELEASE_SCOPE,
     countryTermsReviewed: true,
     positiveLocalPrice: true,
     providerOfferReviewed: true,
@@ -67,7 +76,7 @@ describe("first-wave country operational launch matrix", () => {
       expect(base, countryCode).not.toBeNull();
       for (const [key, expectedBlocker] of OPERATIONAL_BLOCKERS) {
         const evidence: CountryOperationalEvidence = { ...readyOperationalEvidence(countryCode), [key]: false };
-        expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence), `${countryCode}:${key}`).toEqual({
+        expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence, RELEASE_SCOPE), `${countryCode}:${key}`).toEqual({
           launchable: false,
           blockers: [expectedBlocker],
         });
@@ -80,10 +89,33 @@ describe("first-wave country operational launch matrix", () => {
       const base = getCountryConfigByCountryCode(countryCode);
       expect(base, countryCode).not.toBeNull();
       const wrongCountry = countryCode === "AU" ? "US" : "AU";
-      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence(wrongCountry)), countryCode).toEqual({
+      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence(wrongCountry), RELEASE_SCOPE), countryCode).toEqual({
         launchable: false,
         blockers: ["OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH"],
       });
+    }
+  });
+
+  it("rejects first-wave evidence from a different release candidate or migration apply set", () => {
+    for (const countryCode of FIRST_WAVE) {
+      const base = getCountryConfigByCountryCode(countryCode);
+      expect(base, countryCode).not.toBeNull();
+      expect(
+        evaluateCountryOperationalLaunch(
+          asConfigReady(base!),
+          { ...readyOperationalEvidence(countryCode), releaseCandidateSha: "2222222222222222222222222222222222222222" },
+          RELEASE_SCOPE,
+        ),
+        `${countryCode}:release`,
+      ).toEqual({ launchable: false, blockers: ["OPERATIONAL_EVIDENCE_RELEASE_MISMATCH"] });
+      expect(
+        evaluateCountryOperationalLaunch(
+          asConfigReady(base!),
+          { ...readyOperationalEvidence(countryCode), migrationApplySetFingerprint: "migration-set-v0" },
+          RELEASE_SCOPE,
+        ),
+        `${countryCode}:migration`,
+      ).toEqual({ launchable: false, blockers: ["OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH"] });
     }
   });
 });
