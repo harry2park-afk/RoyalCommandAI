@@ -42,7 +42,7 @@ function orderedLedgerMd5(migrations: Migration[]): string {
 }
 
 describe("fresh Hosted migration ledger receipt", () => {
-  it("proves the 2026-09-12 read-only ledger fingerprint still matches the captured baseline exactly", () => {
+  it("proves the latest read-only ledger fingerprint still matches the captured baseline exactly", () => {
     const baseline = readJson<BaselineSnapshot>(baselinePath);
     const refresh = readJson<LiveRefreshReceipt>(refreshPath);
     const ordered = [...baseline.migrations].sort(
