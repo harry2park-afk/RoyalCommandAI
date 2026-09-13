@@ -24,6 +24,7 @@ export type LaunchBlockerCode =
   | "SERVICE_ORDER_IDEMPOTENCY_NOT_READY"
   | "AUTH_DATA_ISOLATION_NOT_VERIFIED"
   | "ROOM_FACTORY_ISOLATION_NOT_VERIFIED"
+  | "ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED"
   | "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"
   | "AUTH_RECOVERY_E2E_NOT_VERIFIED"
   | "LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED"
@@ -69,6 +70,7 @@ export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   serviceOrderIdempotencyReady: boolean;
   authDataIsolationVerified: boolean;
   roomFactoryIsolationVerified: boolean;
+  roomFactorySourceReconciled: boolean;
   linkedMigrationApplySetVerified: boolean;
   authRecoveryE2EVerified: boolean;
   authenticatedLocalizationBrowserVerified: boolean;
@@ -110,14 +112,14 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  *
  * A country can pass configuration review and still remain blocked when
  * commercial/compliance records, payment safeguards, tenant isolation,
- * Room Factory isolation, exact migration evidence, authenticated browser
- * regressions, security checks, observability, or rollback proof have not
- * been verified against the intended Hosted Production environment. Evidence
- * from another country, another release candidate, another migration apply set,
- * another Room Factory/template contract, another Hosted operational-data
- * snapshot, or from Preview/disposable environments fails closed. This function
- * has no side effects and grants no deployment or domain-binding authority by
- * itself.
+ * Room Factory isolation and Hosted/source reconciliation, exact migration
+ * evidence, authenticated browser regressions, security checks, observability,
+ * or rollback proof have not been verified against the intended Hosted
+ * Production environment. Evidence from another country, another release
+ * candidate, another migration apply set, another Room Factory/template
+ * contract, another Hosted operational-data snapshot, or from
+ * Preview/disposable environments fails closed. This function has no side
+ * effects and grants no deployment or domain-binding authority by itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -165,6 +167,7 @@ export function evaluateCountryOperationalLaunch(
   if (!evidence.serviceOrderIdempotencyReady) blockers.push("SERVICE_ORDER_IDEMPOTENCY_NOT_READY");
   if (!evidence.authDataIsolationVerified) blockers.push("AUTH_DATA_ISOLATION_NOT_VERIFIED");
   if (!evidence.roomFactoryIsolationVerified) blockers.push("ROOM_FACTORY_ISOLATION_NOT_VERIFIED");
+  if (!evidence.roomFactorySourceReconciled) blockers.push("ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED");
   if (!evidence.linkedMigrationApplySetVerified) blockers.push("LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED");
   if (!evidence.authRecoveryE2EVerified) blockers.push("AUTH_RECOVERY_E2E_NOT_VERIFIED");
   if (!evidence.authenticatedLocalizationBrowserVerified) blockers.push("LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED");
