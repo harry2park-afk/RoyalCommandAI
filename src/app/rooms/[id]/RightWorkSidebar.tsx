@@ -54,14 +54,10 @@ function iconSources(app: AppItem) {
   ].filter((source): source is string => Boolean(source))));
 }
 
-function AppIcon({ app }: { app: AppItem }) {
+function AppIconState({ app }: { app: AppItem }) {
   const sources = iconSources(app);
   const [sourceIndex, setSourceIndex] = useState(0);
   const src = sources[sourceIndex];
-
-  useEffect(() => {
-    setSourceIndex(0);
-  }, [app.id]);
 
   if (!src) {
     return (
@@ -80,6 +76,10 @@ function AppIcon({ app }: { app: AppItem }) {
       onError={() => setSourceIndex((index) => index + 1)}
     />
   );
+}
+
+function AppIcon({ app }: { app: AppItem }) {
+  return <AppIconState key={app.id} app={app} />;
 }
 
 export default function RightWorkSidebar() {

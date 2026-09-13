@@ -193,6 +193,8 @@ export default function RoomV3() {
   }
 
   useEffect(() => {
+    // Room and provider data are intentionally refreshed when the Room ID changes.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void Promise.all([loadRoom(), loadProviders()]).catch(() => setError("Room could not be loaded."));
   }, [roomId]);
 

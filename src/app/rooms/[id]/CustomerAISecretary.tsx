@@ -51,6 +51,8 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
       const saved = window.localStorage.getItem(storageKey(roomId));
       if (saved) {
         const parsed = JSON.parse(saved);
+        // Room-scoped secretary preferences are restored once when the room changes.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setData({ ...initialData(), ...parsed, name: parsed?.name === "Sophie" ? "Katie" : parsed?.name || "Katie" });
       }
     } catch {}

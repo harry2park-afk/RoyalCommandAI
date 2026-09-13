@@ -65,6 +65,8 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    // Initial authenticated data hydration runs once and is guarded by this empty dependency list.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, []);
 

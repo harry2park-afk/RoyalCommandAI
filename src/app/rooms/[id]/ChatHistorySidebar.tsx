@@ -236,6 +236,8 @@ export default function ChatHistorySidebar() {
   }
 
   useEffect(() => {
+    // Active conversation is restored from room-scoped browser storage on each room change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     try { setActiveId(window.sessionStorage.getItem(activeKey(roomId)) || ""); } catch {}
     void refreshHistory();
     void (async () => {
@@ -274,6 +276,8 @@ export default function ChatHistorySidebar() {
       const savedWidth = Number(window.localStorage.getItem("royalcommand:chat-sidebar-width"));
       const savedCollapsed = window.localStorage.getItem("royalcommand:chat-sidebar-collapsed") === "1";
       if (Number.isFinite(savedWidth) && savedWidth >= MIN_WIDTH && savedWidth <= MAX_WIDTH) {
+        // Browser-only panel preference hydration runs once and cannot retrigger this effect.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setWidth(savedWidth);
         if (savedWidth > 80) previousExpandedWidth.current = savedWidth;
       }

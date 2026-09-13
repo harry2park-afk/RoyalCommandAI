@@ -52,6 +52,8 @@ export default function RCAConnectionManager() {
     }
   }
 
+  // Opening the panel is the single trigger for this server refresh; load does not update `open`.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (open) void load(); }, [open]);
 
   async function update(service: Service, action: "agree_connect" | "disconnect") {

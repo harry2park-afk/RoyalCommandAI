@@ -222,6 +222,8 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
         next[provider.id] = { ...EMPTY, history: Array.isArray(saved) ? saved.slice(-120) : [] };
       } catch {}
     }
+    // Room-scoped histories are restored once per room change; `rooms` is not an effect dependency.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRooms(next);
     try {
       const storedSelected = localStorage.getItem(selectedKey(roomId));
