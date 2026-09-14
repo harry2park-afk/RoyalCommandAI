@@ -24,7 +24,17 @@ type OperationalEvidenceFlag = Exclude<
   | "migrationApplySetFingerprint"
   | "roomFactoryTemplateFingerprint"
   | "hostedOperationalDataFingerprint"
+  | "operationalEvidenceObservedAt"
+  | "operationalEvidenceExpiresAt"
 >;
+
+function freshOperationalEvidenceWindow() {
+  const now = Date.now();
+  return {
+    operationalEvidenceObservedAt: new Date(now - 60_000).toISOString(),
+    operationalEvidenceExpiresAt: new Date(now + 60 * 60 * 1000).toISOString(),
+  };
+}
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
   return {
@@ -32,6 +42,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
     environment: "HOSTED_PRODUCTION",
     ...RELEASE_SCOPE,
     operationalEvidenceFreshnessVerified: true,
+    ...freshOperationalEvidenceWindow(),
     countryTermsReviewed: true,
     countryTermsReviewerProven: true,
     positiveLocalPrice: true,
@@ -150,6 +161,7 @@ describe("country launch readiness gate", () => {
           environment: "HOSTED_PRODUCTION",
           ...RELEASE_SCOPE,
           operationalEvidenceFreshnessVerified: false,
+          ...freshOperationalEvidenceWindow(),
           countryTermsReviewed: false,
           countryTermsReviewerProven: false,
           positiveLocalPrice: false,
@@ -240,6 +252,40 @@ describe("country launch readiness gate", () => {
         launchable: false,
         blockers: [expectedBlocker],
       });
+    }
+  });
+
+  it("fails closed when operational evidence timestamps are expired, future, malformed or valid for longer than 24 hours", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const now = Date.now();
+    const invalidWindows = [
+      {
+        operationalEvidenceObservedAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+        operationalEvidenceExpiresAt: new Date(now - 60 * 60 * 1000).toISOString(),
+      },
+      {
+        operationalEvidenceObservedAt: new Date(now + 60 * 60 * 1000).toISOString(),
+        operationalEvidenceExpiresAt: new Date(now + 2 * 60 * 60 * 1000).toISOString(),
+      },
+      {
+        operationalEvidenceObservedAt: "not-a-date",
+        operationalEvidenceExpiresAt: new Date(now + 60 * 60 * 1000).toISOString(),
+      },
+      {
+        operationalEvidenceObservedAt: new Date(now - 60 * 60 * 1000).toISOString(),
+        operationalEvidenceExpiresAt: new Date(now + 24 * 60 * 60 * 1000).toISOString(),
+      },
+    ];
+
+    for (const invalidWindow of invalidWindows) {
+      expect(
+        evaluateCountryOperationalLaunch(
+          asConfigReady(base!),
+          { ...readyOperationalEvidence("AU"), ...invalidWindow },
+          RELEASE_SCOPE,
+        ),
+      ).toEqual({ launchable: false, blockers: ["OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED"] });
     }
   });
 
@@ -351,7 +397,7 @@ describe("country launch readiness gate", () => {
     });
   });
 
-  it("only becomes operationally launchable when same-country Hosted Production evidence is fresh, bound to the exact release scope and every launch-critical class is verified", () => {
+  it("only becomes operationally launchable when same-country Hosted Production evidence is fresh, time-bounded, bound to the exact release scope and every launch-critical class is verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("AU"), RELEASE_SCOPE)).toEqual({
