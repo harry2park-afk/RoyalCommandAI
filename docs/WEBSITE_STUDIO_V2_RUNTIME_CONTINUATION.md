@@ -36,3 +36,9 @@ The readiness/probe scripts are exact-Preview-branch gated. The normal runtime n
 ## Rollback
 
 No database migration or feature enablement has occurred. Leave runtime disabled and existing UI unchanged. If later enabled, stop intake and supervisor, preserve uncertain publication locks/evidence, then disable the Preview-only feature. Revert only the dedicated work branch after recording any test publication receipt; do not reset master or delete customer data. Never automatically revert an unknown remote publication.
+
+## Cloud verification correction
+
+First real cloud run wrun_01M2FS1S3YHPQ3HF80X41X555R targeted deployment dpl_3hKXqiDj2TXRxCMvXH6oYF8oyEXZ (f84932d). Flow delivery returned 200, but step returned 500: `Cannot find module '/var/task/node_modules/playwright-core/browsers.json'`. This is a packaging failure, not a protection-authentication failure. The follow-up includes Chromium/Playwright files in the generated Workflow step and v2 intake trace. Local rebuilt step NFT confirms browsers.json and 15 Chromium files. The diagnostic uses bounded status polling and cancels its own unfinished run; it does not leave an unbounded return-value poll after timeout.
+
+Actual f84932d Preview build readiness: OPENAI_API_KEY, GITHUB_TOKEN, VERCEL_OIDC_TOKEN, VERCEL_PROJECT_ID, VERCEL_ORG_ID and VERCEL_AUTOMATION_BYPASS_SECRET present. VERCEL_TOKEN, STUDIO_TEST_DATABASE_URL, STUDIO_ARTIFACT_ENCRYPTION_KEY, STUDIO_TEST_AUTOMATION_BYPASS_SECRET and STUDIO_V2_ENABLED absent. Values were neither printed nor copied. The first four absent settings block the isolated full-flow acceptance; the feature flag must stay absent until isolation and bootstrap are verified.
