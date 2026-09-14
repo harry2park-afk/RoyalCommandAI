@@ -93,7 +93,14 @@ export default forwardRef<StudioWorkHandle, Props>(function StudioWorkPanels({ r
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, roomId]);
   const state = work?.state;
+  const historical = state && ["failed", "passed", "unsupported"].includes(state.status);
   return <section data-studio-sha={process.env.STUDIO_PREVIEW_SHA} aria-label={ko ? "Website Studio 작업자" : "Website Studio specialists"} className="my-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+    <div className="space-y-1 rounded-xl border border-slate-600 bg-slate-950/60 p-3 text-xs text-slate-300 md:col-span-2">
+      <p>{ko ? "현재 화면 배포 SHA" : "Current screen deployment SHA"}: <code className="break-all">{process.env.STUDIO_PREVIEW_SHA || (ko ? "확인 불가" : "Unknown")}</code></p>
+      <p>{ko ? "화면 연결 실행기: v1 · 새 실행기 v2: 미연결 / 이 화면에서 시작되지 않음" : "Screen executor: v1 · New executor v2: not connected / not started from this screen"}</p>
+      <p>{ko ? "Connected는 연결 표시이며, 제작·테스트 통과를 뜻하지 않습니다." : "Connected indicates a connection, not a passed build or functional test."}</p>
+    </div>
+    <p className="text-sm font-semibold text-slate-300 md:col-span-2">{historical ? (ko ? "이전 v1 작업 기록 — 아래 결과는 새 실행기의 상태가 아닙니다." : "Previous v1 work record — results below are not the new executor status.") : (ko ? "v1 작업 상태" : "v1 work status")}</p>
     {workers.map((worker) => {
       const passed = worker.stages.every((stage) => state?.passed.includes(stage as WorkState["stage"]));
       const active = worker.stages.includes(state?.stage || "");
@@ -108,6 +115,6 @@ export default forwardRef<StudioWorkHandle, Props>(function StudioWorkPanels({ r
       </details>;
     })}
     {(error || state?.errorCode) && <p role="alert" className="text-sm text-red-300">{error || state?.errorCode}</p>}
-    {state && <p className="break-all text-xs text-slate-400">{state.workId} · v{state.designVersion}</p>}
+    {state && <p className="break-all text-xs text-slate-400">{state.workId} · v{state.designVersion} · {ko ? "작업 기준 SHA" : "Work base SHA"}: {state.baseSha}</p>}
   </section>;
 });
