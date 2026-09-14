@@ -104,7 +104,7 @@ jobs:
             trigger_count integer;
           begin
             -- Profile role remains protected behaviorally by the trusted trigger
-            -- while normal own-profile UPDATE capability is preserved.
+            -- while normal own-profile preference/profile updates stay available.
             select count(*) into trigger_count
             from pg_trigger t
             join pg_class c on c.oid = t.tgrelid
@@ -151,8 +151,36 @@ jobs:
               raise exception 'handle_new_user must not be directly executable by public/anon/authenticated';
             end if;
 
-            if not has_table_privilege('authenticated', 'public.profiles', 'UPDATE') then
-              raise exception 'authenticated own-profile UPDATE path must remain available';
+            -- Profiles are auth-owned identity rows. Direct create/delete/admin-style
+            -- table operations stay closed; authenticated clients may update only
+            -- ordinary profile/preference columns.
+            if has_table_privilege('anon', 'public.profiles', 'INSERT')
+               or has_table_privilege('anon', 'public.profiles', 'UPDATE')
+               or has_table_privilege('anon', 'public.profiles', 'DELETE')
+               or has_table_privilege('anon', 'public.profiles', 'TRUNCATE') then
+              raise exception 'anon must not retain direct profile write privileges';
+            end if;
+
+            if has_table_privilege('authenticated', 'public.profiles', 'INSERT')
+               or has_table_privilege('authenticated', 'public.profiles', 'UPDATE')
+               or has_table_privilege('authenticated', 'public.profiles', 'DELETE')
+               or has_table_privilege('authenticated', 'public.profiles', 'TRUNCATE') then
+              raise exception 'authenticated must not retain whole-table profile write privileges';
+            end if;
+
+            if has_column_privilege('authenticated', 'public.profiles', 'id', 'UPDATE')
+               or has_column_privilege('authenticated', 'public.profiles', 'email', 'UPDATE')
+               or has_column_privilege('authenticated', 'public.profiles', 'created_at', 'UPDATE')
+               or has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE') then
+              raise exception 'authenticated must not UPDATE profile identity/authorization columns';
+            end if;
+
+            if not has_column_privilege('authenticated', 'public.profiles', 'full_name', 'UPDATE')
+               or not has_column_privilege('authenticated', 'public.profiles', 'default_language', 'UPDATE')
+               or not has_column_privilege('authenticated', 'public.profiles', 'avatar_url', 'UPDATE')
+               or not has_column_privilege('authenticated', 'public.profiles', 'ui_preferences', 'UPDATE')
+               or not has_column_privilege('authenticated', 'public.profiles', 'updated_at', 'UPDATE') then
+              raise exception 'authenticated must retain narrow normal profile UPDATE columns';
             end if;
 
             -- Matter tenant ownership and staff assignment must be removed from
