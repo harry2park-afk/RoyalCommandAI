@@ -20,4 +20,16 @@ describe("Room Factory create runtime contract", () => {
     expect(source).not.toMatch(/\.from\("room_members"\)\s*\.insert\(/);
     expect(source).not.toContain('.contains("manifest", { encounterSessionId:');
   });
+
+  it("fails closed with a stable 503 contract when Hosted still rejects null encounters", async () => {
+    const source = await readFile(
+      resolve(process.cwd(), "src/app/api/room-factory/rooms/route.ts"),
+      "utf8",
+    );
+
+    expect(source).toContain("encounterSessionId is required for atomic Room creation.");
+    expect(source).toContain("isNonEncounterSchemaNotReady(rawInput.encounterSessionId, createError.message)");
+    expect(source).toContain('code: "ROOM_FACTORY_SCHEMA_NOT_READY"');
+    expect(source).toContain("{ status: 503 }");
+  });
 });
