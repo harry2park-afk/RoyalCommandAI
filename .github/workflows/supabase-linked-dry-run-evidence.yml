@@ -15,6 +15,7 @@ on:
       - "scripts/supabase-legal-story-split-history-equivalence-20260911.json"
       - "scripts/supabase-room-factory-plpgsql-token-equivalence-20260911.json"
       - "scripts/supabase-unresolved-local-migration-classification-20260908.json"
+      - "scripts/supabase-unresolved-local-migration-classification-20260914.json"
       - "scripts/supabase-dry-run-apply-set.mjs"
       - "scripts/supabase-dry-run-apply-set.test.ts"
       - "scripts/supabase-migration-reconciliation.mjs"
@@ -39,13 +40,13 @@ jobs:
       CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
-      # This PR is a diagnostic harness on top of protected master. Only migrations
-      # independently classified as NEW_CANDIDATE_EXPECTED_APPLY may be allow-listed.
-      # Historical equivalent/diverged migrations remain quarantined even if a later
-      # workflow edit attempts to add them. Room Factory/profile-role migrations live
-      # on separate Draft PRs (#661/#691) and require their own exact-head evidence.
+      # Diagnostic evidence only. Every entry must be independently classified
+      # NEW_CANDIDATE_EXPECTED_APPLY with no Hosted row at the fresh inventory.
+      # Order is intentional: Matter staff-scope hardening first, then the
+      # non-encounter Room Factory implementation required before runtime cutover.
+      # This allow-list grants no apply/repair/deploy authority.
       EXPECTED_APPLY_MIGRATIONS: >-
-        20260831225500_scope_matter_staff_access.sql
+        20260831225500_scope_matter_staff_access.sql,20260901025800_room_factory_atomic_non_encounter.sql
     steps:
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
@@ -83,7 +84,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/supabase-linked-allowlist-provenance.mjs \
-            scripts/supabase-unresolved-local-migration-classification-20260908.json \
+            scripts/supabase-unresolved-local-migration-classification-20260914.json \
             "${EXPECTED_APPLY_MIGRATIONS}"
 
       - name: Setup Supabase CLI
