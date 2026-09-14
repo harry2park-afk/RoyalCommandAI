@@ -63,4 +63,15 @@ describe("Professional Room country launch boundary", () => {
       }
     }
   });
+
+  it("rejects a partially integrated next-priority canonical-config cohort", () => {
+    const resolvedCountries = NEXT_PRIORITY.filter(
+      (countryCode) => getCountryConfigByCountryCode(countryCode) !== null,
+    );
+
+    // This branch may legitimately have none of the separately reviewed next-wave
+    // configs yet. Once that country-config lane is integrated, the five-country
+    // cohort must arrive together; a partial merge must fail before Room rollout.
+    expect([0, NEXT_PRIORITY.length]).toContain(resolvedCountries.length);
+  });
 });
