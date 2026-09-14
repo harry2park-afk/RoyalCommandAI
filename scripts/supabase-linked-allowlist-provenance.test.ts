@@ -20,6 +20,7 @@ const workflowPath = path.join(
 const expectedCandidates = [
   "20260831225500_scope_matter_staff_access.sql",
   "20260901025800_room_factory_atomic_non_encounter.sql",
+  "20260903205500_payment_operational_safeguards.sql",
   "20260904105500_harden_profile_role_authority.sql",
   "20260911045100_room_factory_manifest_acl_hardening.sql",
 ];
@@ -62,7 +63,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
   it("fails closed if the workflow allow-list is narrower than the provenance manifest", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
-      requestedAllowlist: expectedCandidates.slice(0, 3).join(","),
+      requestedAllowlist: expectedCandidates.slice(0, 4).join(","),
     });
 
     expect(report.dry_run_allowlist_verified).toBe(false);
