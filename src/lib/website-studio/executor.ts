@@ -22,12 +22,17 @@ export async function begin(actor: string, room: string, requestKey: string, ord
     if (previous.state.orderHash !== digest(order)) throw new Error("ORDER_MISMATCH");
     return previous;
   }
-  if (previous && previous.state.status !== "passed") {
-    // Only a fully stopped, pre-publication failure can relinquish ownership.
-    // Ambiguous publication and live executors remain locked for reconciliation.
-    if (!canStartNewWork(previous.state)) throw new Error("REPOSITORY_BRANCH_LOCKED");
-  }
   const baseSha = await assertBranch();
+  if (previous && !canStartNewWork(previous.state)) {
+    let publicationConfirmed = false;
+    if (previous.state.status === "failed" && previous.state.commitSha) {
+      const comparison = await github<{ status: string }>(`/compare/${previous.state.commitSha}...${baseSha}`);
+      publicationConfirmed = comparison.status === "identical" || comparison.status === "ahead";
+    }
+    // A new work may follow a stopped failure only after intended publication
+    // is reconciled against the scoped branch. Never resume the failed work.
+    if (!canStartNewWork(previous.state, publicationConfirmed)) throw new Error("REPOSITORY_BRANCH_LOCKED");
+  }
   const state: WorkState = { version: 1, workId: `RC-STUDIO-${randomUUID()}`, requestHash, actorHash: digest(actor), roomHash: digest(room), orderHash: digest(order), baseSha, designVersion: 1, stage: "design", status: "waiting", passed: [] };
   return saveState(previous, state);
 }

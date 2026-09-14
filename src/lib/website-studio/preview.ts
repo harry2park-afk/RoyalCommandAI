@@ -17,7 +17,11 @@ export async function previewForSha(sha: string) {
 }
 
 export async function verifyPreview(sha: string, roomId: string, sessionCookies: { name: string; value: string }[]) {
-  const origin = await previewForSha(sha);
+  if (!/^[a-f0-9]{40}$/.test(sha)) throw new Error("PREVIEW_SHA_INVALID");
+  await previewForSha(sha);
+  // Existing middleware canonicalizes Preview hosts. Preserve that policy and
+  // verify both the built client and live server SHA on the fixed Preview alias.
+  const origin = "https://royal-command-ai-git-feat-indep-0be966-harry2park-afks-projects.vercel.app";
   const [{ default: chromium }, { chromium: playwright }] = await Promise.all([import("@sparticuz/chromium"), import("playwright-core")]);
   const browser = await playwright.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true, timeout: 20000 });
   try {
@@ -33,9 +37,15 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
     await context.routeWebSocket("**/*", (socket) => socket.close());
     const page = await context.newPage();
     page.setDefaultTimeout(15000);
+    const assertServedSha = async () => {
+      if (await page.locator("[data-studio-sha]").getAttribute("data-studio-sha") !== sha) throw new Error("PREVIEW_CLIENT_SHA_MISMATCH");
+      const response = await context.request.get(`${origin}/api/website-studio/work?roomId=${roomId}`, { maxRedirects: 0, timeout: 15000, headers: { "Cache-Control": "no-cache" } });
+      if (!response.ok() || (await response.json()).deploymentSha !== sha) throw new Error("PREVIEW_SERVER_SHA_MISMATCH");
+    };
     await page.goto(`${origin}/rooms/${roomId}`, { waitUntil: "domcontentloaded", timeout: 25000 });
     if (new URL(page.url()).origin !== origin) throw new Error("PREVIEW_REDIRECTED");
     await page.locator('[data-studio-worker="codex"]').waitFor({ state: "visible" });
+    await assertServedSha();
     for (const role of ["astra", "codex", "github", "vercel"]) {
       if (await page.locator(`[data-studio-worker="${role}"]`).count() !== 1) throw new Error("PANEL_MISSING");
       const panel = page.locator(`[data-studio-worker="${role}"]`);
@@ -62,12 +72,14 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
     // All changes above are in this disposable browser's local preference store.
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator('[data-studio-worker="codex"]').waitFor({ state: "visible" });
+    await assertServedSha();
     await page.getByRole("button", { name: "AI Warehouse", exact: true }).click();
     for (const id of ["codex", "astra", "github", "vercel", "openai", "anthropic", "google", "xai"]) {
       if (await page.locator(`[data-warehouse-item="${id}"]`).getAttribute("aria-pressed") !== "false") throw new Error("WAREHOUSE_PERSISTENCE_FAILED");
     }
     // This verifier deliberately does not send orders or mutate customer data.
     // Host stage/lock tests verify mutation authority separately.
+    await assertServedSha();
     return origin;
   } finally { await browser.close(); }
 }

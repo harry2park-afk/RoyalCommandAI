@@ -93,7 +93,7 @@ export default forwardRef<StudioWorkHandle, Props>(function StudioWorkPanels({ r
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key, roomId]);
   const state = work?.state;
-  return <section aria-label={ko ? "Website Studio 작업자" : "Website Studio specialists"} className="my-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+  return <section data-studio-sha={process.env.STUDIO_PREVIEW_SHA} aria-label={ko ? "Website Studio 작업자" : "Website Studio specialists"} className="my-4 grid grid-cols-1 gap-3 md:grid-cols-2">
     {workers.map((worker) => {
       const passed = worker.stages.every((stage) => state?.passed.includes(stage as WorkState["stage"]));
       const active = worker.stages.includes(state?.stage || "");

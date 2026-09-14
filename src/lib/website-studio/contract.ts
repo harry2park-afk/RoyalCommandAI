@@ -15,8 +15,8 @@ export type WorkState = {
   passed: Stage[]; errorCode?: string; previewUrl?: string;
 };
 export function digest(value: string) { return createHash("sha256").update(value).digest("hex"); }
-export function canStartNewWork(state: WorkState) {
-  return state.status === "passed" || (state.status === "failed" && !state.commitSha);
+export function canStartNewWork(state: WorkState, publicationConfirmed = false) {
+  return state.status === "passed" || (state.status === "failed" && (!state.commitSha || publicationConfirmed));
 }
 // A per-work random client nonce is saved before the first request. Its hash
 // alone is public. No provider/infrastructure key doubles as an encryption key.

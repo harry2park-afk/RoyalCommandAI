@@ -31,8 +31,8 @@ export async function GET(request: Request) {
     const roomId = z.string().uuid().parse(new URL(request.url).searchParams.get("roomId"));
     const user = await authorize(roomId);
     const current = await readState();
-    if (!current || current.state.actorHash !== digest(user.id) || current.state.roomHash !== digest(roomId)) return Response.json({ state: null });
-    return Response.json({ state: current.state });
+    const state = current?.state.actorHash === digest(user.id) && current.state.roomHash === digest(roomId) ? current.state : null;
+    return Response.json({ state, deploymentSha: process.env.VERCEL_GIT_COMMIT_SHA }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return failed(error); }
 }
 export async function POST(request: Request) {

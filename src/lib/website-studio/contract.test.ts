@@ -9,6 +9,8 @@ describe("Website Studio host authority", () => {
     expect(canStartNewWork(initial())).toBe(false);
     expect(canStartNewWork({ ...initial(), status: "running" })).toBe(false);
     expect(canStartNewWork({ ...initial(), status: "failed", commitSha: "b".repeat(40) })).toBe(false);
+    expect(canStartNewWork({ ...initial(), status: "failed", commitSha: "b".repeat(40) }, true)).toBe(true);
+    expect(canStartNewWork({ ...initial(), status: "running", commitSha: "b".repeat(40) }, true)).toBe(false);
   });
   it("recovers an approved design after a lost response without publishing its plaintext or using infrastructure keys", () => {
     const plaintext = JSON.stringify({ summary: "private design", paths: [...WRITABLE_PATHS] });
