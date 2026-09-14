@@ -56,6 +56,8 @@ export type CountryOperationalReleaseScope = {
   hostedOperationalDataFingerprint: string;
 };
 
+export const MAX_OPERATIONAL_EVIDENCE_VALIDITY_MS = 24 * 60 * 60 * 1000;
+
 /**
  * Operational evidence is deliberately separate from CountryConfig.
  *
@@ -72,6 +74,8 @@ export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   countryCode: string;
   environment: CountryOperationalEvidenceEnvironment;
   operationalEvidenceFreshnessVerified: boolean;
+  operationalEvidenceObservedAt: string;
+  operationalEvidenceExpiresAt: string;
   countryTermsReviewed: boolean;
   countryTermsReviewerProven: boolean;
   positiveLocalPrice: boolean;
@@ -98,6 +102,17 @@ export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   observabilityReady: boolean;
   rollbackVerified: boolean;
 };
+
+function hasFreshOperationalEvidenceWindow(evidence: CountryOperationalEvidence, evaluatedAtMs: number): boolean {
+  const observedAtMs = Date.parse(evidence.operationalEvidenceObservedAt);
+  const expiresAtMs = Date.parse(evidence.operationalEvidenceExpiresAt);
+
+  if (!Number.isFinite(observedAtMs) || !Number.isFinite(expiresAtMs)) return false;
+  if (observedAtMs > evaluatedAtMs || expiresAtMs <= evaluatedAtMs || expiresAtMs <= observedAtMs) return false;
+  if (expiresAtMs - observedAtMs > MAX_OPERATIONAL_EVIDENCE_VALIDITY_MS) return false;
+
+  return true;
+}
 
 /**
  * Conservative country-launch gate.
@@ -133,13 +148,14 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * A country can pass configuration review and still remain blocked when
  * commercial/compliance records lack reviewer provenance, recording-policy
  * approval is not reviewer-proven, operational evidence freshness is not
- * independently verified, the complete payment-operational safety set is not
- * verified, tenant isolation, Room Factory isolation and Hosted/source
- * reconciliation, exact migration evidence, authenticated browser regressions,
- * security checks, observability, or rollback proof have not been verified
- * against the intended Hosted Production environment. Evidence from another
- * country, another release candidate, another migration apply set, another Room
- * Factory/template contract, another Hosted operational-data snapshot, expired
+ * independently verified and bounded by a valid observed-at/expiry window,
+ * the complete payment-operational safety set is not verified, tenant
+ * isolation, Room Factory isolation and Hosted/source reconciliation, exact
+ * migration evidence, authenticated browser regressions, security checks,
+ * observability, or rollback proof have not been verified against the intended
+ * Hosted Production environment. Evidence from another country, another
+ * release candidate, another migration apply set, another Room Factory/template
+ * contract, another Hosted operational-data snapshot, expired/overlong/future
  * operational proof, or Preview/disposable environments fails closed. This
  * function has no side effects and grants no deployment or domain-binding
  * authority by itself.
@@ -181,7 +197,12 @@ export function evaluateCountryOperationalLaunch(
   ) {
     blockers.push("OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH");
   }
-  if (!evidence.operationalEvidenceFreshnessVerified) blockers.push("OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED");
+  if (
+    !evidence.operationalEvidenceFreshnessVerified ||
+    !hasFreshOperationalEvidenceWindow(evidence, Date.now())
+  ) {
+    blockers.push("OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED");
+  }
   if (!evidence.countryTermsReviewed) blockers.push("COUNTRY_TERMS_NOT_REVIEWED");
   if (!evidence.countryTermsReviewerProven) blockers.push("COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED");
   if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
