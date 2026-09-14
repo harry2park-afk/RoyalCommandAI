@@ -23,7 +23,17 @@ type OperationalEvidenceFlag = Exclude<
   | "migrationApplySetFingerprint"
   | "roomFactoryTemplateFingerprint"
   | "hostedOperationalDataFingerprint"
+  | "operationalEvidenceObservedAt"
+  | "operationalEvidenceExpiresAt"
 >;
+
+function freshOperationalEvidenceWindow() {
+  const now = Date.now();
+  return {
+    operationalEvidenceObservedAt: new Date(now - 60_000).toISOString(),
+    operationalEvidenceExpiresAt: new Date(now + 60 * 60 * 1000).toISOString(),
+  };
+}
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
   return {
@@ -31,6 +41,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
     environment: "HOSTED_PRODUCTION",
     ...RELEASE_SCOPE,
     operationalEvidenceFreshnessVerified: true,
+    ...freshOperationalEvidenceWindow(),
     countryTermsReviewed: true,
     countryTermsReviewerProven: true,
     positiveLocalPrice: true,
@@ -110,6 +121,23 @@ describe("first-wave country operational launch matrix", () => {
           blockers: [expectedBlocker],
         });
       }
+    }
+  });
+
+  it("rejects expired operational evidence in every first-wave country", () => {
+    const now = Date.now();
+    for (const countryCode of FIRST_WAVE) {
+      const base = getCountryConfigByCountryCode(countryCode);
+      expect(base, countryCode).not.toBeNull();
+      const evidence: CountryOperationalEvidence = {
+        ...readyOperationalEvidence(countryCode),
+        operationalEvidenceObservedAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+        operationalEvidenceExpiresAt: new Date(now - 60 * 60 * 1000).toISOString(),
+      };
+      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence, RELEASE_SCOPE), `${countryCode}:expired`).toEqual({
+        launchable: false,
+        blockers: ["OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED"],
+      });
     }
   });
 
