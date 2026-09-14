@@ -1,0 +1,6 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Studio test calculator</title>
+<style>body{font:18px system-ui;max-width:700px;margin:4rem auto;padding:1rem;background:#f7f8fb;color:#182332}input,button,select{font:inherit;padding:.6rem;margin:.4rem}li{margin:1rem 0}#error{color:#b42318}output{font-weight:700}</style></head>
+<body><main><label>Language <select id="locale"><option value="en">English</option><option value="ko">한국어</option></select></label><h1 id="title"></h1>
+<form id="form"><label><span id="quantity-label"></span><input id="quantity" inputmode="decimal" required></label><label><span id="price-label"></span><input id="price" inputmode="decimal" required></label><button id="add"></button></form>
+<p id="error" role="alert"></p><ul id="items"></ul><p><span id="total-label"></span>: <output id="total">0</output></p><button id="reset"></button></main><script type="module" src="./app.mjs"></script></body></html>
