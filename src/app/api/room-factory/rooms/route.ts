@@ -40,6 +40,16 @@ type AtomicRoomFactoryRpc = {
   };
 };
 
+const LEGACY_NULL_ENCOUNTER_SCHEMA_ERROR =
+  "encounterSessionId is required for atomic Room creation.";
+
+function isNonEncounterSchemaNotReady(
+  encounterSessionId: string | undefined,
+  errorMessage: string,
+) {
+  return !encounterSessionId && errorMessage.includes(LEGACY_NULL_ENCOUNTER_SCHEMA_ERROR);
+}
+
 function localeDefaults(countryCode: string) {
   const preset = GLOBAL_ROOM_PRESETS.find((item) => item.id === countryCode);
   return preset || DEFAULT_GLOBAL_ROOM_SETTINGS;
@@ -150,7 +160,18 @@ export async function POST(request: Request) {
       })
       .single();
 
-    if (createError) return NextResponse.json({ error: createError.message }, { status: 500 });
+    if (createError) {
+      if (isNonEncounterSchemaNotReady(rawInput.encounterSessionId, createError.message)) {
+        return NextResponse.json(
+          {
+            error: "Room Factory database contract is not ready for non-encounter creation.",
+            code: "ROOM_FACTORY_SCHEMA_NOT_READY",
+          },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({ error: createError.message }, { status: 500 });
+    }
     if (!result?.room_data || !result?.manifest_data) {
       return NextResponse.json({ error: "Atomic Room Factory creation returned incomplete data." }, { status: 500 });
     }
