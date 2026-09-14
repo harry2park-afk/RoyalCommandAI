@@ -30,6 +30,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
     countryCode,
     environment: "HOSTED_PRODUCTION",
     ...RELEASE_SCOPE,
+    operationalEvidenceFreshnessVerified: true,
     countryTermsReviewed: true,
     countryTermsReviewerProven: true,
     positiveLocalPrice: true,
@@ -59,6 +60,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
 }
 
 const OPERATIONAL_BLOCKERS: Array<[OperationalEvidenceFlag, LaunchBlockerCode]> = [
+  ["operationalEvidenceFreshnessVerified", "OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED"],
   ["countryTermsReviewed", "COUNTRY_TERMS_NOT_REVIEWED"],
   ["countryTermsReviewerProven", "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED"],
   ["positiveLocalPrice", "LOCAL_PRICE_NOT_READY"],
