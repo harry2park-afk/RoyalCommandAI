@@ -32,6 +32,7 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
   const origin = PREVIEW_ORIGIN;
   const [{ default: chromium }, { chromium: playwright }] = await Promise.all([import("@sparticuz/chromium"), import("playwright-core")]);
   const browser = await playwright.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true, timeout: 20000 });
+  let check = "ACCESS";
   try {
     const context = await browser.newContext({ serviceWorkers: "block", acceptDownloads: false });
     await context.addCookies(sessionCookies.map((cookie) => ({ ...cookie, url: origin, secure: true, httpOnly: true, sameSite: "Lax" as const })));
@@ -58,11 +59,16 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
       const response = await context.request.get(`${origin}/api/website-studio/work?roomId=${roomId}`, { maxRedirects: 0, timeout: 15000, headers: { "Cache-Control": "no-cache" } });
       if (!response.ok() || (await response.json()).deploymentSha !== sha) throw new Error("PREVIEW_SERVER_SHA_MISMATCH");
     };
-    await page.goto(target, { waitUntil: "domcontentloaded", timeout: 25000 });
+    check = "NAVIGATION";
+    const navigation = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 25000 });
     const landed = new URL(page.url());
+    console.info("STUDIO_PREVIEW_NAVIGATION", { sha, status: navigation?.status(), to: `${landed.origin}${landed.pathname}` });
     if (landed.origin !== origin || landed.pathname !== `/rooms/${roomId}`) throw new Error("PREVIEW_REDIRECTED");
+    check = "AUTHENTICATED_PANELS";
     await page.locator('[data-studio-worker="codex"]').waitFor({ state: "visible" });
+    check = "SERVED_SHA";
     await assertServedSha();
+    check = "PANELS";
     for (const role of ["astra", "codex", "github", "vercel"]) {
       if (await page.locator(`[data-studio-worker="${role}"]`).count() !== 1) throw new Error("PANEL_MISSING");
       const panel = page.locator(`[data-studio-worker="${role}"]`);
@@ -71,11 +77,13 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
       if ((await panel.getAttribute("open") !== null) === (wasOpen !== null)) throw new Error("PANEL_TOGGLE_FAILED");
       await panel.locator("summary").click();
     }
+    check = "ORDER_CONTROL";
     if (!(await page.getByRole("heading", { name: "Give one order. Each specialist works independently, in a safe sequence.", exact: true }).isVisible())) throw new Error("STUDIO_HEADING_MISSING");
     const input = page.locator("textarea").first();
     await input.fill("Preview verification — do not submit");
     if (!await page.getByRole("button", { name: "Send", exact: true }).isEnabled()) throw new Error("ORDER_CONTROL_DISABLED");
     await input.fill("");
+    check = "WAREHOUSE";
     await page.getByRole("button", { name: "AI Warehouse", exact: true }).click();
     for (const id of ["codex", "astra", "github", "vercel", "openai", "anthropic", "google", "xai"]) {
       const card = page.locator(`[data-warehouse-item="${id}"]`);
@@ -87,6 +95,7 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
       if (wasSelected) await card.click();
     }
     // All changes above are in this disposable browser's local preference store.
+    check = "RELOAD";
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator('[data-studio-worker="codex"]').waitFor({ state: "visible" });
     await assertServedSha();
@@ -98,5 +107,8 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
     // Host stage/lock tests verify mutation authority separately.
     await assertServedSha();
     return origin;
+  } catch (error) {
+    if (error instanceof Error && /^[A-Z0-9_]+$/.test(error.message)) throw error;
+    throw new Error(`PREVIEW_${check}_${error instanceof Error && error.name === "TimeoutError" ? "TIMEOUT" : "FAILED"}`);
   } finally { await browser.close(); }
 }
