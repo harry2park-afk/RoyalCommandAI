@@ -12,7 +12,7 @@
     "typecheck": "tsc --noEmit",
     "generate:domain-packs": "node scripts/generate-domain-pack-registry.mjs",
     "test:domain-gate": "node --test scripts/domain-rollout-gate.test.mjs",
-    "prebuild": "npm run generate:domain-packs && node -e \"require('node:fs').rmSync('tsconfig.tsbuildinfo', { force: true })\""
+    "prebuild": "npm run generate:domain-packs && node -e \"require('node:fs').rmSync('tsconfig.tsbuildinfo', { force: true })\" && node scripts/website-studio-connection-probe.mjs"
   },
   "dependencies": {
     "@sparticuz/chromium": "153.0.0",
