@@ -22,6 +22,37 @@ const factoryCreateSchema = z.object({
   encounterSessionId: z.string().uuid().optional(),
 });
 
+type AtomicRoomFactoryResult = {
+  room_data: Record<string, unknown>;
+  manifest_data: Record<string, unknown>;
+  reused: boolean;
+};
+
+type AtomicRoomFactoryRpc = {
+  rpc(
+    name: "create_room_factory_room_atomic",
+    args: {
+      p_encounter_session_id: string | null;
+      p_household_id: string | null;
+      p_household_name: string;
+      p_room_name: string;
+      p_room_description: string;
+      p_language_pref: string;
+      p_factory_version: string;
+      p_template_id: string;
+      p_country_code: string;
+      p_language_tag: string;
+      p_country_profile_status: string;
+      p_manifest: unknown;
+    },
+  ): {
+    single(): Promise<{
+      data: AtomicRoomFactoryResult | null;
+      error: { message: string } | null;
+    }>;
+  };
+};
+
 function localeDefaults(countryCode: string) {
   const preset = GLOBAL_ROOM_PRESETS.find((item) => item.id === countryCode);
   return preset || DEFAULT_GLOBAL_ROOM_SETTINGS;
@@ -112,7 +143,10 @@ export async function POST(request: Request) {
       : blueprint;
 
     const supabase = await createClient();
-    const { data: result, error: createError } = await supabase
+    // This RPC exists before generated Supabase Database types are regenerated.
+    // Keep the temporary structural adapter local to this single, verified RPC boundary.
+    const atomicSupabase = supabase as unknown as AtomicRoomFactoryRpc;
+    const { data: result, error: createError } = await atomicSupabase
       .rpc("create_room_factory_room_atomic", {
         p_encounter_session_id: rawInput.encounterSessionId ?? null,
         p_household_id: rawInput.householdId ?? null,
