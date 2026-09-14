@@ -1,5 +1,13 @@
 import { github } from "./github";
 
+export const PREVIEW_ORIGIN = "https://royal-command-ai-git-feat-indep-0be966-harry2park-afks-projects.vercel.app";
+export function previewSessionCookies(cookies: { name: string; value: string }[], projectRef: string) {
+  const appCookie = `sb-${projectRef}-auth-token`;
+  return cookies.filter(({ name }) => name === "_vercel_jwt" || name === appCookie ||
+    (name.startsWith(`${appCookie}.`) && /^\d+$/.test(name.slice(appCookie.length + 1))))
+    .map(({ name, value }) => ({ name, value }));
+}
+
 type Deployment = { id: number; sha: string; environment: string; production_environment: boolean; creator: { login: string } };
 export async function previewForSha(sha: string) {
   const deployments = await github<Deployment[]>(`/deployments?sha=${sha}&per_page=20`);
@@ -21,12 +29,20 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
   await previewForSha(sha);
   // Existing middleware canonicalizes Preview hosts. Preserve that policy and
   // verify both the built client and live server SHA on the fixed Preview alias.
-  const origin = "https://royal-command-ai-git-feat-indep-0be966-harry2park-afks-projects.vercel.app";
+  const origin = PREVIEW_ORIGIN;
   const [{ default: chromium }, { chromium: playwright }] = await Promise.all([import("@sparticuz/chromium"), import("playwright-core")]);
   const browser = await playwright.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true, timeout: 20000 });
   try {
     const context = await browser.newContext({ serviceWorkers: "block", acceptDownloads: false });
     await context.addCookies(sessionCookies.map((cookie) => ({ ...cookie, url: origin, secure: true, httpOnly: true, sameSite: "Lax" as const })));
+    const target = `${origin}/rooms/${roomId}`;
+    // Observe the HTTP boundary without following or bypassing an auth redirect.
+    const entry = await context.request.get(target, { maxRedirects: 0, timeout: 20000 });
+    const location = entry.headers().location;
+    const destination = location ? new URL(location, origin) : null;
+    console.info("STUDIO_PREVIEW_ACCESS", { sha, from: target, status: entry.status(), to: destination ? `${destination.origin}${destination.pathname}` : target, vercelSessionPresent: sessionCookies.some(({ name }) => name === "_vercel_jwt"), appSessionPresent: sessionCookies.some(({ name }) => name.startsWith("sb-")) });
+    if (entry.status() >= 300 && entry.status() < 400) throw new Error("PREVIEW_AUTH_REDIRECTED");
+    if (!entry.ok()) throw new Error(`PREVIEW_HTTP_${entry.status()}`);
     const allowedApi = new Set([`/api/rooms/${roomId}`, "/api/ai/providers", "/api/auth/me", "/api/room-factory/rooms", "/api/tools/gateway", "/api/website-studio/work"]);
     await context.route("**/*", (route) => {
       const request = route.request(); const url = new URL(request.url());
@@ -42,8 +58,9 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
       const response = await context.request.get(`${origin}/api/website-studio/work?roomId=${roomId}`, { maxRedirects: 0, timeout: 15000, headers: { "Cache-Control": "no-cache" } });
       if (!response.ok() || (await response.json()).deploymentSha !== sha) throw new Error("PREVIEW_SERVER_SHA_MISMATCH");
     };
-    await page.goto(`${origin}/rooms/${roomId}`, { waitUntil: "domcontentloaded", timeout: 25000 });
-    if (new URL(page.url()).origin !== origin) throw new Error("PREVIEW_REDIRECTED");
+    await page.goto(target, { waitUntil: "domcontentloaded", timeout: 25000 });
+    const landed = new URL(page.url());
+    if (landed.origin !== origin || landed.pathname !== `/rooms/${roomId}`) throw new Error("PREVIEW_REDIRECTED");
     await page.locator('[data-studio-worker="codex"]').waitFor({ state: "visible" });
     await assertServedSha();
     for (const role of ["astra", "codex", "github", "vercel"]) {

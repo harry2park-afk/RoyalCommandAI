@@ -3,9 +3,9 @@ import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { assertPreview, digest } from "@/lib/website-studio/contract";
-import { advance, begin, planSchema } from "@/lib/website-studio/executor";
+import { advance, assertBranch, begin, planSchema } from "@/lib/website-studio/executor";
 import { readState } from "@/lib/website-studio/github";
-import { verifyPreview } from "@/lib/website-studio/preview";
+import { PREVIEW_ORIGIN, previewSessionCookies, verifyPreview } from "@/lib/website-studio/preview";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -26,10 +26,25 @@ function failed(error: unknown) {
   const code = error instanceof Error && /^[A-Z0-9_]+$/.test(error.message) ? error.message : "WORK_FAILED";
   return Response.json({ error: code }, { status: code === "UNAUTHORIZED" ? 401 : code === "FORBIDDEN" ? 403 : 409 });
 }
+async function verificationCookies() {
+  const cookieStore = await cookies();
+  const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split(".")[0];
+  return previewSessionCookies(cookieStore.getAll(), projectRef);
+}
 export async function GET(request: Request) {
   try {
     const roomId = z.string().uuid().parse(new URL(request.url).searchParams.get("roomId"));
     const user = await authorize(roomId);
+    const verifySha = new URL(request.url).searchParams.get("verifySha");
+    if (verifySha !== null) {
+      const fetchSite = request.headers.get("sec-fetch-site");
+      if (new URL(request.url).origin !== PREVIEW_ORIGIN || (fetchSite && !["same-origin", "none"].includes(fetchSite))) throw new Error("ORIGIN_MISMATCH");
+      if (!/^[a-f0-9]{40}$/.test(verifySha) || process.env.VERCEL_GIT_COMMIT_SHA !== verifySha || await assertBranch() !== verifySha) throw new Error("PREVIEW_SHA_MISMATCH");
+      const previewUrl = await verifyPreview(verifySha, roomId, await verificationCookies());
+      if (await assertBranch() !== verifySha) throw new Error("PREVIEW_SHA_MISMATCH");
+      // Read-only reinspection never changes a failed work or grants a stage pass.
+      return Response.json({ verification: "passed", sha: verifySha, previewUrl, checks: ["independent_panels", "panel_toggle", "client_server_sha", "warehouse_toggle", "empty_selection_reload"], workStateChanged: false }, { headers: { "Cache-Control": "no-store" } });
+    }
     const current = await readState();
     const state = current?.state.actorHash === digest(user.id) && current.state.roomHash === digest(roomId) ? current.state : null;
     return Response.json({ state, deploymentSha: process.env.VERCEL_GIT_COMMIT_SHA }, { headers: { "Cache-Control": "no-store" } });
@@ -42,9 +57,7 @@ export async function POST(request: Request) {
     const user = await authorize(input.roomId);
     if (!input.workId) return Response.json({ state: (await begin(user.id, input.roomId, input.requestKey, input.order)).state });
     if (!input.designVersion || !input.baseSha) throw new Error("WORK_IDENTITY_REQUIRED");
-    const cookieStore = await cookies();
-    const projectRef = new URL(process.env.NEXT_PUBLIC_SUPABASE_URL!).hostname.split(".")[0];
-    const sessionCookies = cookieStore.getAll().filter((cookie) => cookie.name === `sb-${projectRef}-auth-token` || cookie.name.startsWith(`sb-${projectRef}-auth-token.`)).map(({ name, value }) => ({ name, value }));
+    const sessionCookies = await verificationCookies();
     const result = await advance({ ...input, actor: user.id, room: input.roomId, workId: input.workId, designVersion: input.designVersion, baseSha: input.baseSha }, (sha) => verifyPreview(sha, input.roomId, sessionCookies));
     return Response.json({ state: result.snapshot.state, design: result.design });
   } catch (error) { return failed(error); }
