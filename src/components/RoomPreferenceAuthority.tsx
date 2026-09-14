@@ -49,6 +49,7 @@ function slotsKey(id: string) {
 
 function aiButtons() {
   return Array.from(document.querySelectorAll<HTMLButtonElement>("button")).filter((button) => {
+    if (button.closest('[data-warehouse-scope]:not([data-warehouse-scope="legacy"])')) return false;
     const title = button.getAttribute("title") || "";
     return Object.values(AI_TITLES).some((name) => title === name || title.startsWith(`${name} —`));
   });
@@ -98,9 +99,9 @@ export default function RoomPreferenceAuthority() {
       const aiSlots = buttons.map(buttonAiId).filter((value): value is string => Boolean(value)).slice(0, 10);
       const languageSelect = document.querySelector<HTMLSelectElement>('select[aria-label="Language"]');
       const width = Number(localStorage.getItem(WIDTH_KEY));
+      const scopedWarehouse = document.querySelector('[data-warehouse-scope]:not([data-warehouse-scope="legacy"])');
       return {
-        selectedAi,
-        aiSlots: aiSlots.length ? aiSlots : safeArray(localStorage.getItem(slotsKey(id))),
+        ...(scopedWarehouse ? {} : { selectedAi, aiSlots: aiSlots.length ? aiSlots : safeArray(localStorage.getItem(slotsKey(id))) }),
         rightPanelApps: safeArray(localStorage.getItem(RIGHT_KEY)),
         language: languageSelect?.value || localStorage.getItem(LANG_KEY) || undefined,
         uiLocale: localStorage.getItem(UI_LOCALE_KEY) || undefined,
@@ -124,8 +125,8 @@ export default function RoomPreferenceAuthority() {
         });
         if (res.ok) {
           lastSent.current = serial;
-          localStorage.setItem(selectedKey(id), JSON.stringify(data.selectedAi));
-          localStorage.setItem(slotsKey(id), JSON.stringify(data.aiSlots));
+          if (data.selectedAi) localStorage.setItem(selectedKey(id), JSON.stringify(data.selectedAi));
+          if (data.aiSlots) localStorage.setItem(slotsKey(id), JSON.stringify(data.aiSlots));
         }
       } catch {}
     }

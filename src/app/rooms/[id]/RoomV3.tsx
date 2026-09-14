@@ -39,6 +39,8 @@ type CatalogAI = {
   id: string;
   name: string;
   shortName: string;
+  studioOnly?: boolean;
+  role?: string;
 };
 
 type QueuedOrder = {
@@ -75,7 +77,10 @@ const AI_CATALOG: CatalogAI[] = [
   { id: "arcee", name: "Arcee AI", shortName: "Arcee" },
   { id: "zeroone", name: "01.AI / Yi", shortName: "Yi" },
   { id: "tencent", name: "Tencent Hunyuan", shortName: "Hunyuan" },
-  { id: "codex", name: "OpenAI Codex", shortName: "Codex" },
+  { id: "codex", name: "OpenAI Codex", shortName: "Codex", role: "Sole Writer" },
+  { id: "astra", name: "Astra Light", shortName: "Astra Light", studioOnly: true, role: "Read-only Reviewer" },
+  { id: "github", name: "GitHub", shortName: "GitHub", studioOnly: true, role: "Host Tool" },
+  { id: "vercel", name: "Vercel", shortName: "Vercel", studioOnly: true, role: "Preview Tool" },
 ];
 
 const TOP_SLOT_COUNT = 10;
@@ -111,6 +116,9 @@ export default function RoomV3() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [providers, setProviders] = useState<ProviderInfo[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
+  const [warehouseScope, setWarehouseScope] = useState<"pending" | "studio" | "legacy">("pending");
+  const studioStorageKey = useRef<string | null>(null);
+  const [toolConnections, setToolConnections] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<string[]>(DEFAULT_SLOTS);
   const [warehouseOpen, setWarehouseOpen] = useState(false);
   const [warehouseSearch, setWarehouseSearch] = useState("");
@@ -146,8 +154,8 @@ export default function RoomV3() {
 
   const filteredWarehouse = useMemo(() => {
     const q = warehouseSearch.trim().toLowerCase();
-    return AI_CATALOG.filter((ai) => !q || `${ai.name} ${ai.shortName}`.toLowerCase().includes(q));
-  }, [warehouseSearch]);
+    return AI_CATALOG.filter((ai) => (!ai.studioOnly || warehouseScope === "studio") && (!q || `${ai.name} ${ai.shortName} ${ai.role || ""}`.toLowerCase().includes(q)));
+  }, [warehouseSearch, warehouseScope]);
 
   async function loadRoom() {
     const res = await fetch(`/api/rooms/${roomId}`, { cache: "no-store" });
@@ -169,10 +177,45 @@ export default function RoomV3() {
     const next: ProviderInfo[] = data.connectors || [];
     setProviders(next);
 
+    // Resolve the authenticated account and factory template before restoring selection.
+    const factoryResponse = await fetch("/api/room-factory/rooms", { cache: "no-store" }).catch(() => null);
+    const factory = factoryResponse?.ok ? await factoryResponse.json().catch(() => null) : null;
+    if (!factory) setError("Website Studio selection context could not be loaded. Existing Warehouse remains available.");
+    const studio = factory?.rooms?.some((room: { roomId: string; templateId: string }) => room.roomId === roomId && room.templateId === "website");
+    if (studio) {
+      const userResponse = await fetch("/api/auth/me", { cache: "no-store" });
+      const account = userResponse.ok ? await userResponse.json() : null;
+      if (!account?.user?.id) throw new Error("Warehouse account unavailable");
+      const key = `royalcommand:user:${account.user.id}:room:${roomId}:warehouse-v1`;
+      let restoredSlots = DEFAULT_SLOTS;
+      let restoredSelected = next.some((p) => p.id === "openai" && p.available) ? ["openai"] : [];
+      try {
+        const saved = JSON.parse(localStorage.getItem(key) || "null");
+        const clean = (value: unknown) => Array.isArray(value)
+          ? [...new Set(value.filter((id): id is string => typeof id === "string" && Boolean(CATALOG_BY_ID[id])))] : null;
+        restoredSlots = clean(saved?.slots) ?? restoredSlots;
+        restoredSelected = (clean(saved?.selected) ?? restoredSelected).filter((id) => restoredSlots.includes(id) && id !== "github" && id !== "vercel");
+      } catch {}
+      studioStorageKey.current = key;
+      setSlots(restoredSlots);
+      setSelected(restoredSelected);
+      slotsReady.current = true;
+      selectionReady.current = true;
+      setWarehouseScope("studio");
+      void fetch("/api/tools/gateway", { cache: "no-store" })
+        .then(async (response) => response.ok ? response.json() : null)
+        .then((data) => {
+          const capabilities = Array.isArray(data?.capabilities) ? data.capabilities : [];
+          const status = (id: string) => capabilities.find((item: { id: string }) => item.id === id)?.connection || "not_connected";
+          setToolConnections({ github: status("github.repo.read"), vercel: status("vercel.runtime.read") });
+        }).catch(() => setToolConnections({}));
+      return;
+    }
+    setWarehouseScope("legacy");
     if (!slotsReady.current) {
       try {
         const saved = JSON.parse(localStorage.getItem(`royalcommand:room:${roomId}:ai-slots-v3`) || "[]") as string[];
-        const valid = saved.filter((id) => CATALOG_BY_ID[id]);
+        const valid = saved.filter((id) => CATALOG_BY_ID[id] && !CATALOG_BY_ID[id].studioOnly);
         if (valid.length === TOP_SLOT_COUNT && new Set(valid).size === TOP_SLOT_COUNT) setSlots(valid);
       } catch {}
       slotsReady.current = true;
@@ -199,14 +242,14 @@ export default function RoomV3() {
   }, [roomId]);
 
   useEffect(() => {
-    if (!selectionReady.current) return;
+    if (!selectionReady.current || warehouseScope !== "legacy") return;
     localStorage.setItem(`royalcommand:room:${roomId}:selected-ai`, JSON.stringify(selected));
-  }, [roomId, selected]);
+  }, [roomId, selected, warehouseScope]);
 
   useEffect(() => {
-    if (!slotsReady.current) return;
+    if (!slotsReady.current || warehouseScope !== "legacy") return;
     localStorage.setItem(`royalcommand:room:${roomId}:ai-slots-v3`, JSON.stringify(slots));
-  }, [roomId, slots]);
+  }, [roomId, slots, warehouseScope]);
 
   useEffect(() => {
     const viewport = messagesViewportRef.current;
@@ -218,7 +261,29 @@ export default function RoomV3() {
     return providers.some((p) => p.id === id && p.available);
   }
 
+  function saveStudioSelection(nextSlots: string[], nextSelected: string[]) {
+    if (!studioStorageKey.current) return false;
+    try {
+      localStorage.setItem(studioStorageKey.current, JSON.stringify({ slots: nextSlots, selected: nextSelected }));
+      return true;
+    } catch {
+      setError("Selection could not be saved. Please try again.");
+      return false;
+    }
+  }
+
   function toggleProvider(id: string) {
+    if (warehouseScope === "pending") return;
+    if (warehouseScope === "studio") {
+      if (id === "github" || id === "vercel") {
+        replaceWarehouseAI(id);
+        return;
+      }
+      const next = selected.includes(id) ? selected.filter((item) => item !== id) : [...selected, id];
+      if (!selected.includes(id) && !isAvailable(id)) { setError(`${CATALOG_BY_ID[id]?.shortName} is not connected.`); return; }
+      if (saveStudioSelection(slots, next)) { setSelected(next); setError(""); }
+      return;
+    }
     const ai = CATALOG_BY_ID[id];
     if (!isAvailable(id)) {
       setError(`${ai?.shortName || id} is not connected.`);
@@ -229,6 +294,18 @@ export default function RoomV3() {
   }
 
   function replaceWarehouseAI(id: string) {
+    if (warehouseScope === "pending") return;
+    if (warehouseScope === "studio") {
+      const removing = slots.includes(id);
+      const nextSlots = removing ? slots.filter((item) => item !== id) : [...slots, id];
+      const nextSelected = removing ? selected.filter((item) => item !== id) : selected;
+      if (saveStudioSelection(nextSlots, nextSelected)) {
+        setSlots(nextSlots);
+        setSelected(nextSelected);
+        setError("");
+      }
+      return;
+    }
     setSlots((prev) => {
       const existing = prev.indexOf(id);
       if (existing >= 0) {
@@ -508,7 +585,7 @@ export default function RoomV3() {
   }
 
   return (
-    <main className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] pt-[92px] text-[#f4f0e7]">
+    <main data-warehouse-scope={warehouseScope} className="flex h-[100dvh] min-h-0 w-full overflow-hidden bg-[#07101d] pt-[92px] text-[#f4f0e7]">
       <style>{`
         @media (min-width: 1024px) {
           .royal-room-layout > aside {
@@ -552,14 +629,15 @@ export default function RoomV3() {
         <div className="flex h-[50px] w-full items-center gap-1 overflow-hidden px-2 py-1.5">
           {slots.map((id, index) => {
             const ai = CATALOG_BY_ID[id];
-            const available = isAvailable(id);
+            const studioTool = warehouseScope === "studio" && (id === "github" || id === "vercel");
+            const available = studioTool ? toolConnections[id] === "connected" : isAvailable(id);
             const active = selected.includes(id) && available;
             return (
               <button
                 key={`${id}-${index}`}
                 type="button"
                 onClick={() => toggleProvider(id)}
-                disabled={!available}
+                disabled={warehouseScope === "pending" || (warehouseScope === "studio" ? !studioTool && !available && !selected.includes(id) : !available)}
                 title={`${ai.name}${available ? "" : " — not connected"}`}
                 className={`flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border-[3px] border-[#FFD700] px-1 font-[Times_New_Roman] text-[12px] font-normal leading-none text-[#FFD700] ${active ? "bg-[#7A0C2E] text-[#FFF3D6]" : "bg-[#1E3A8A]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}
               >
@@ -698,7 +776,7 @@ export default function RoomV3() {
               <Warehouse size={20} className="text-[#d7b64d]" />
               <div>
                 <div className="font-semibold">AI Warehouse</div>
-                <div className="text-[11px] text-[#9aa4b3]">교체할 상단 슬롯을 고른 뒤 AI를 선택하세요.</div>
+                <div className="text-[11px] text-[#9aa4b3]">{warehouseScope === "studio" ? "Click an item to add it to the top slots; click again to remove it." : "교체할 상단 슬롯을 고른 뒤 AI를 선택하세요."}</div>
               </div>
               <button type="button" onClick={() => setWarehouseOpen(false)} className="ml-auto grid h-8 w-8 place-items-center rounded-lg border border-white/10"><X size={16} /></button>
             </div>
@@ -709,7 +787,7 @@ export default function RoomV3() {
                   <button
                     key={`replace-${id}-${index}`}
                     type="button"
-                    onClick={() => setReplaceSlot(index)}
+                    onClick={() => warehouseScope === "studio" ? replaceWarehouseAI(id) : setReplaceSlot(index)}
                     className={`shrink-0 rounded-md border px-2 py-1 text-[10px] ${replaceSlot === index ? "border-[#d7b64d] bg-[#d7b64d] text-[#111827]" : "border-white/10 bg-[#0b1524] text-[#c9d0da]"}`}
                   >
                     {index + 1}. {CATALOG_BY_ID[id]?.shortName}
@@ -736,6 +814,8 @@ export default function RoomV3() {
                     key={ai.id}
                     type="button"
                     onClick={() => replaceWarehouseAI(ai.id)}
+                    disabled={warehouseScope === "pending"}
+                    aria-pressed={inSlots}
                     className={`flex min-h-16 items-center gap-3 rounded-xl border p-3 text-left ${inSlots ? "border-[#d7b64d]/50 bg-[#d7b64d]/10" : "border-white/10 bg-[#0b1524]"}`}
                   >
                     <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-black/25">
@@ -744,7 +824,7 @@ export default function RoomV3() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{ai.shortName}</span>
-                      <span className="block truncate text-[10px] text-[#8f99a8]">{available ? "Connected" : "Not connected"}{inSlots ? " · 상단 사용중" : ""}</span>
+                      <span className="block truncate text-[10px] text-[#8f99a8]">{(ai.id === "github" || ai.id === "vercel") ? (toolConnections[ai.id] === "connected" ? "Connected" : "Not connected") : available ? "Connected" : "Not connected"}{warehouseScope === "studio" && ai.role ? ` · ${ai.role}` : ""}{inSlots ? " · 상단 사용중" : ""}</span>
                     </span>
                   </button>
                 );
