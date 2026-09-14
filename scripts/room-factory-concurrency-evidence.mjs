@@ -106,7 +106,9 @@ async function main() {
   const roomName = `RC concurrency ${encounterSessionId.slice(0, 8)}`;
   let createdRoomId = null;
   let createdHouseholdId = null;
+  const createdNonEncounterRoomIds = [];
   let rollbackEvidence = null;
+  let nonEncounterEvidence = null;
 
   const { data: preMembershipRows, error: preMembershipError } = await admin
     .from("household_members")
@@ -247,6 +249,53 @@ async function main() {
     if (memberError) throw new Error(`Room-member verification failed: ${memberError.message}`);
     assert.equal(members?.length, 1, "Expected exactly one owner membership for the persisted Room");
 
+    // Null-encounter calls intentionally have no idempotency key. Two independent
+    // authenticated callers must therefore create two fresh Rooms/manifests even
+    // when the requests overlap. This is the database behavior required by the
+    // POST route when no encounterSessionId is supplied.
+    const nonEncounterArgs = {
+      ...args,
+      p_encounter_session_id: null,
+      p_room_name: `RC non-encounter ${randomUUID().slice(0, 8)}`,
+      p_manifest: {
+        evidence: "non-encounter-fresh-room",
+        disposable: true,
+      },
+    };
+    const [nonEncounterA, nonEncounterB] = await Promise.all([
+      callerA.rpc("create_room_factory_room_atomic", nonEncounterArgs),
+      callerB.rpc("create_room_factory_room_atomic", nonEncounterArgs),
+    ]);
+
+    if (nonEncounterA.error) throw new Error(`Non-encounter caller A failed: ${nonEncounterA.error.message}`);
+    if (nonEncounterB.error) throw new Error(`Non-encounter caller B failed: ${nonEncounterB.error.message}`);
+
+    const nonEncounterRowA = firstRpcRow(nonEncounterA.data);
+    const nonEncounterRowB = firstRpcRow(nonEncounterB.data);
+    assert.equal(nonEncounterRowA.reused, false, "Non-encounter caller A must create a fresh Room");
+    assert.equal(nonEncounterRowB.reused, false, "Non-encounter caller B must create a fresh Room");
+    assert.notEqual(nonEncounterRowA.room_data.id, nonEncounterRowB.room_data.id, "Non-encounter calls reused the same Room");
+    assert.notEqual(nonEncounterRowA.manifest_data.id, nonEncounterRowB.manifest_data.id, "Non-encounter calls reused the same manifest");
+
+    createdNonEncounterRoomIds.push(nonEncounterRowA.room_data.id, nonEncounterRowB.room_data.id);
+
+    const { data: nonEncounterManifests, error: nonEncounterManifestError } = await admin
+      .from("room_factory_manifests")
+      .select("id,room_id,owner_id,encounter_session_id")
+      .eq("owner_id", ownerId)
+      .in("id", [nonEncounterRowA.manifest_data.id, nonEncounterRowB.manifest_data.id]);
+    if (nonEncounterManifestError) throw new Error(`Non-encounter manifest verification failed: ${nonEncounterManifestError.message}`);
+    assert.equal(nonEncounterManifests?.length, 2, "Expected two persisted non-encounter manifests");
+    assert.ok(nonEncounterManifests.every((manifest) => manifest.encounter_session_id === null), "Non-encounter manifest unexpectedly persisted an encounter key");
+
+    nonEncounterEvidence = {
+      createdFreshRooms: createdNonEncounterRoomIds.length,
+      distinctRooms: nonEncounterRowA.room_data.id !== nonEncounterRowB.room_data.id,
+      distinctManifests: nonEncounterRowA.manifest_data.id !== nonEncounterRowB.manifest_data.id,
+      reusedFlags: [nonEncounterRowA.reused, nonEncounterRowB.reused],
+      nullEncounterManifests: nonEncounterManifests.filter((manifest) => manifest.encounter_session_id === null).length,
+    };
+
     console.log(JSON.stringify({
       ok: true,
       projectRef,
@@ -256,6 +305,7 @@ async function main() {
       roomId: createdRoomId,
       manifestId: manifests[0].id,
       rollback: rollbackEvidence,
+      nonEncounter: nonEncounterEvidence,
       callerResults: [
         { reused: rowA.reused, roomId: rowA.room_data.id, manifestId: rowA.manifest_data.id },
         { reused: rowB.reused, roomId: rowB.room_data.id, manifestId: rowB.manifest_data.id },
@@ -266,6 +316,12 @@ async function main() {
     // Cleanup is deliberately explicit and service-role-only because this script
     // is for a disposable isolated project. Do not weaken application RLS merely
     // to make the evidence harness self-cleaning.
+    for (const nonEncounterRoomId of createdNonEncounterRoomIds) {
+      await admin.from("room_factory_manifests").delete().eq("room_id", nonEncounterRoomId).eq("owner_id", ownerId);
+      await admin.from("room_members").delete().eq("room_id", nonEncounterRoomId).eq("user_id", ownerId);
+      await admin.from("rooms").delete().eq("id", nonEncounterRoomId).eq("room_owner_id", ownerId);
+    }
+
     if (createdRoomId) {
       await admin.from("room_factory_manifests").delete().eq("room_id", createdRoomId).eq("owner_id", ownerId);
       await admin.from("room_members").delete().eq("room_id", createdRoomId).eq("user_id", ownerId);
