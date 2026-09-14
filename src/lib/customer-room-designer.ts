@@ -1,6 +1,6 @@
-import { ROOM_HEADER_LAYOUT_ELEMENT_IDS, RoomHeaderLayoutElementId } from "@/lib/layout-editor";
-
 export const CUSTOMER_ROOM_DESIGN_VERSION = 1 as const;
+
+export type CustomerRoomDesignElementId = string;
 
 export type CustomerRoomDesignPatch = {
   offsetX?: number;
@@ -14,17 +14,19 @@ export type CustomerRoomDesignPatch = {
   colourStrength?: number;
   textColor?: string;
   borderWidth?: number;
+  borderRadius?: number;
+  visible?: boolean;
 };
 
 export type CustomerRoomDesignConfig = {
   schemaVersion: typeof CUSTOMER_ROOM_DESIGN_VERSION;
   screenId: "ROOM_HEADER";
   updatedAt: string;
-  elements: Partial<Record<RoomHeaderLayoutElementId, CustomerRoomDesignPatch>>;
+  elements: Partial<Record<CustomerRoomDesignElementId, CustomerRoomDesignPatch>>;
 };
 
-const ELEMENT_IDS = new Set<string>(ROOM_HEADER_LAYOUT_ELEMENT_IDS);
 const HEX_COLOUR = /^#[0-9a-f]{6}$/i;
+const SAFE_ELEMENT_ID = /^(?:[a-z][a-z0-9-]{0,79}|auto-[a-z0-9]{8})$/;
 
 function finiteNumber(value: unknown, min: number, max: number) {
   if (typeof value !== "number" || !Number.isFinite(value)) return undefined;
@@ -54,21 +56,22 @@ export function sanitiseCustomerRoomDesignConfig(value: unknown): CustomerRoomDe
   if (!rawElements || typeof rawElements !== "object" || Array.isArray(rawElements)) return undefined;
 
   const elements: CustomerRoomDesignConfig["elements"] = {};
-  for (const [id, rawPatch] of Object.entries(rawElements as Record<string, unknown>)) {
-    if (!ELEMENT_IDS.has(id) || !rawPatch || typeof rawPatch !== "object" || Array.isArray(rawPatch)) continue;
+  for (const [id, rawPatch] of Object.entries(rawElements as Record<string, unknown>).slice(0, 256)) {
+    if (!SAFE_ELEMENT_ID.test(id) || !rawPatch || typeof rawPatch !== "object" || Array.isArray(rawPatch)) continue;
     const raw = rawPatch as Record<string, unknown>;
     const patch: CustomerRoomDesignPatch = {};
 
     const offsetX = finiteNumber(raw.offsetX, -1200, 1200);
-    const offsetY = finiteNumber(raw.offsetY, -92, 92);
+    const offsetY = finiteNumber(raw.offsetY, -1200, 1200);
     const width = finiteNumber(raw.width, 24, 520);
-    const height = finiteNumber(raw.height, 20, 92);
+    const height = finiteNumber(raw.height, 20, 160);
     const fontSize = finiteNumber(raw.fontSize, 8, 32);
     const borderColor = safeColour(raw.borderColor);
     const backgroundColor = safeColour(raw.backgroundColor);
     const colourStrength = finiteNumber(raw.colourStrength, 1, 10);
     const textColor = safeColour(raw.textColor);
     const borderWidth = finiteNumber(raw.borderWidth, 1, 5);
+    const borderRadius = finiteNumber(raw.borderRadius, 0, 40);
 
     if (offsetX !== undefined) patch.offsetX = offsetX;
     if (offsetY !== undefined) patch.offsetY = offsetY;
@@ -80,12 +83,14 @@ export function sanitiseCustomerRoomDesignConfig(value: unknown): CustomerRoomDe
     if (colourStrength !== undefined) patch.colourStrength = Math.round(colourStrength);
     if (textColor !== undefined) patch.textColor = textColor;
     if (borderWidth !== undefined) patch.borderWidth = Math.round(borderWidth);
+    if (borderRadius !== undefined) patch.borderRadius = Math.round(borderRadius);
+    if (typeof raw.visible === "boolean") patch.visible = raw.visible;
     if (typeof raw.label === "string") {
       const label = raw.label.trim().replace(/\s+/g, " ").slice(0, 80);
       if (label) patch.label = label;
     }
 
-    elements[id as RoomHeaderLayoutElementId] = patch;
+    elements[id] = patch;
   }
 
   return {

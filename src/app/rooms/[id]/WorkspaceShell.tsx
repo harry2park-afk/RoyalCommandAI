@@ -28,6 +28,8 @@ export default function WorkspaceShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     try {
       const savedWidth = Number(window.localStorage.getItem("royalcommand:left-panel-width") || 250);
+      // Browser-only workspace preferences are restored once after mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (Number.isFinite(savedWidth)) setLeftWidth(Math.min(420, Math.max(190, savedWidth)));
 
       const savedTasks = window.localStorage.getItem("royalcommand:work-board");

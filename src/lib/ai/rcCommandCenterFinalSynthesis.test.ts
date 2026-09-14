@@ -26,8 +26,8 @@ describe("RC Command Center final synthesis boundary", () => {
       originalPrompt: "test",
       language: "ko",
       responses: [
-        { provider: "anthropic", content: "Claude answer", latencyMs: 1 },
-        { provider: "google", content: "Gemini answer", latencyMs: 1 },
+        { provider: "anthropic", model: "test-anthropic", content: "Claude answer", latencyMs: 1 },
+        { provider: "google", model: "test-google", content: "Gemini answer", latencyMs: 1 },
       ],
     });
     expect(result.attempted).toBe(true);
