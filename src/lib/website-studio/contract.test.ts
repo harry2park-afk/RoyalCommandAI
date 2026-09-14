@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { BRANCH, WRITABLE_PATHS, assertIdentity, assertPaths, assertPreview, claimStage, digest, openDesign, passStage, sealDesign, type WorkState } from "./contract";
+import { BRANCH, WRITABLE_PATHS, assertIdentity, assertPaths, assertPreview, canStartNewWork, claimStage, digest, openDesign, passStage, sealDesign, type WorkState } from "./contract";
 
 const initial = (): WorkState => ({ version: 1, workId: "RC-STUDIO-test", requestHash: digest("request"), actorHash: digest("actor"), roomHash: digest("room"), orderHash: digest("order"), baseSha: "a".repeat(40), designVersion: 1, stage: "design", status: "waiting", passed: [] });
 describe("Website Studio host authority", () => {
+  it("allows a fresh work after a stopped pre-publication failure but never steals active or ambiguous publication locks", () => {
+    expect(canStartNewWork({ ...initial(), status: "failed" })).toBe(true);
+    expect(canStartNewWork({ ...initial(), status: "passed" })).toBe(true);
+    expect(canStartNewWork(initial())).toBe(false);
+    expect(canStartNewWork({ ...initial(), status: "running" })).toBe(false);
+    expect(canStartNewWork({ ...initial(), status: "failed", commitSha: "b".repeat(40) })).toBe(false);
+  });
   it("recovers an approved design after a lost response without publishing its plaintext or using infrastructure keys", () => {
     const plaintext = JSON.stringify({ summary: "private design", paths: [...WRITABLE_PATHS] });
     const sealed = sealDesign(plaintext, "random-per-work-nonce", "work-1");
