@@ -1,15 +1,16 @@
 {
   "contract_version": 1,
-  "captured_at": "2026-09-15T06:47:17+10:00",
+  "captured_at": "2026-09-15T07:47:00+10:00",
   "project_ref": "aygawkavujjmybekswrg",
   "project_name": "RoyalCommand",
-  "source": "Fresh Hosted supabase_migrations.schema_migrations READ-ONLY inventory (72 rows through 20260905055756) plus exact #696 checkout sources, byte-identical #771 Room Factory candidate migration, and byte-identical #691 profile-role authority candidate migration",
-  "purpose": "Extend the fail-closed linked dry-run evidence set to the independently verified non-encounter Room Factory and profile-role authority migrations without authorizing migration repair, push, deploy, or Country READY. Historical equivalent/diverged migrations remain quarantined.",
+  "source": "Fresh Hosted supabase_migrations.schema_migrations READ-ONLY inventory (72 rows through 20260905055756) plus exact #696 checkout sources, byte-identical #771 Room Factory candidate migration, byte-identical #691 profile-role authority candidate migration, and byte-identical #661 Room Factory manifest ACL hardening candidate migration",
+  "purpose": "Extend the fail-closed linked dry-run evidence set to the independently verified non-encounter Room Factory, profile-role authority, and Room Factory manifest ACL hardening migrations without authorizing migration repair, push, deploy, or Country READY. Historical equivalent/diverged migrations remain quarantined.",
   "normalization": "CRLF to LF, trim whole source, drop blank lines and full-line -- comments, preserve remaining line bytes, SHA-256",
   "expected_apply_migrations": [
     "20260831225500_scope_matter_staff_access.sql",
     "20260901025800_room_factory_atomic_non_encounter.sql",
-    "20260904105500_harden_profile_role_authority.sql"
+    "20260904105500_harden_profile_role_authority.sql",
+    "20260911045100_room_factory_manifest_acl_hardening.sql"
   ],
   "entries": [
     {
@@ -119,6 +120,16 @@
       "source_candidate": "PR #691 exact head 4ac81c5914bb2e0133706e9cc9c8bc4c92353ba0",
       "source_blob_sha": "b97a1834111d5ec6c4b089314e7552f5f2073fa7",
       "reason": "Fresh Hosted migration inventory has no 20260904105500 row and Hosted anon/authenticated profile table grants remain broader than the verified #691 least-privilege contract. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260911045100_room_factory_manifest_acl_hardening.sql",
+      "local_name": "room_factory_manifest_acl_hardening",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #661 exact head b1859541f33940124c6dee36dde26e6bfb68f52c",
+      "source_blob_sha": "637f759884f099e37257c021c9dbb09badc9e799",
+      "reason": "Fresh Hosted migration inventory has no 20260911045100 row; anon still has direct INSERT on public.room_factory_manifests and authenticated still has direct INSERT/UPDATE/DELETE. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
     }
   ],
   "ready_for_apply": false
