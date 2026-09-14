@@ -3,7 +3,7 @@ import { mkdir, open, readFile, rename, rm } from "node:fs/promises";
 import { join } from "node:path";
 import { digest, owns, StudioError, submissionSchema, targetKey, validateTarget, type Job, type Scope, type Target } from "./schema";
 
-export type Database = { jobs: Record<string, Job>; outbox: string[]; locks: Record<string, { jobId: string; fence: number }> };
+export type Database = { jobs: Record<string, Job>; outbox: string[]; locks: Record<string, { jobId: string; fence: number }>; dispatcherHeartbeatAt?: number };
 export interface Store { transaction<T>(action: (db: Database) => T): Promise<T> }
 
 /** Durable single-host development adapter. Never use on Vercel ephemeral disks.
@@ -51,7 +51,7 @@ export async function submit(store: Store, value: Submission) {
       return existing;
     }
     const job: Job = { schemaVersion: 2, workflowVersion: 1, id: randomUUID(), scope: input.scope, target: input.target,
-      keyHash, requestHash: input.requestHash, orderArtifactId: input.orderArtifactId, stage: "design", status: "queued", revision: 0, fence: 0, passed: [] };
+      keyHash, requestHash: input.requestHash, orderArtifactId: input.orderArtifactId, stage: "design", status: "queued", revision: 0, fence: 0, passed: [], createdAt: Date.now(), deadlineAt: Date.now() + 20 * 60_000 };
     db.jobs[job.id] = job;
     db.outbox.push(job.id); // Job + outbox are one transaction.
     return job;

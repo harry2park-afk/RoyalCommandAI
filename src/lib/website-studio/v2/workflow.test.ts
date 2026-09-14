@@ -118,4 +118,18 @@ describe("server execution with real local persistence / mocked external stages"
     expect((await drain(f.store, f.job.id, f.host))?.outcome).toBe("website_created");
     expect(f.host.publish).toHaveBeenCalledTimes(1);
   });
+  it("records verified no-change from Codex without publishing", async () => {
+    const f = await fixture();
+    f.host.codex = vi.fn(async () => ({ outcome: "no_change" as const, verifiedSha: f.job.target.baseSha, evidenceId: randomUUID() }));
+    const result = await drain(f.store, f.job.id, f.host);
+    expect(result?.outcome).toBe("no_change"); expect(result?.noChange?.evidenceId).toBeTruthy();
+    expect(f.host.publish).not.toHaveBeenCalled();
+  });
+  it("expires queued work once; a later dispatch cannot restart it", async () => {
+    const f = await fixture();
+    await f.store.transaction(db => { db.jobs[f.job.id].deadlineAt = Date.now() - 1; });
+    await drain(f.store, f.job.id, f.host); await drain(f.store, f.job.id, f.host);
+    expect((await readJob(f.store, f.job.id, f.job.scope)).errorCode).toBe("JOB_DEADLINE_EXCEEDED");
+    expect(f.host.astra).not.toHaveBeenCalled();
+  });
 });

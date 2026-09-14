@@ -23,7 +23,11 @@ export async function reconcilePublication(store: Store, id: string, inspect: (j
     releasePublication(db, job);
     job.publication = publication; job.stage = "preview"; job.status = "queued";
     job.passed.push("publish"); job.revision++; job.fence++; delete job.errorCode;
-    if (!db.outbox.includes(id)) db.outbox.push(id);
+    delete job.workflowRunId;
+    if (job.deadlineAt && job.deadlineAt <= Date.now()) {
+      job.status = "failed"; job.errorCode = "PUBLICATION_CONFIRMED_AFTER_DEADLINE";
+      db.outbox = db.outbox.filter(value => value !== id);
+    } else if (!db.outbox.includes(id)) db.outbox.push(id);
     return job;
   });
 }

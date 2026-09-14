@@ -1,3 +1,4 @@
+import { withWorkflow } from "workflow/next";
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
@@ -9,4 +10,4 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+export default withWorkflow(nextConfig);

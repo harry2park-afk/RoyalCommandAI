@@ -16,6 +16,8 @@ export type Scope = { tenantId: string; projectId: string; actorId: string; room
 export type Target = { repositoryId: string; repository: string; branch: string; baseSha: string; vercelProjectId: string };
 export type Design = z.infer<typeof designSchema>;
 export type Candidate = { artifactId: string; treeSha: string; sourceDigest: string; buildEvidenceId: string; testEvidenceId: string; acceptanceId: string; paths: string[] };
+export const noChangeSchema = z.object({ outcome: z.literal("no_change"), verifiedSha: sha, evidenceId: ref });
+export type NoChange = z.infer<typeof noChangeSchema>;
 export type Publication = { commitSha: string; treeSha: string };
 export type Preview = { deploymentId: string; projectId: string; commitSha: string; url: string; acceptanceId: string; evidenceId: string };
 export const candidateSchema = z.object({ artifactId: ref, treeSha: sha, sourceDigest: hash, buildEvidenceId: ref, testEvidenceId: ref, acceptanceId: ref, paths: z.array(z.string()).min(1) });
@@ -33,6 +35,9 @@ export type Job = {
   revision: number; fence: number; passed: Stage[]; outcome?: Design["outcome"] | "website_created";
   design?: Design; candidate?: Candidate; publication?: Publication; preview?: Preview;
   errorCode?: string;
+  noChange?: NoChange;
+  workflowRunId?: string;
+  createdAt?: number; deadlineAt?: number; claimedAt?: number;
 };
 export class StudioError extends Error {
   constructor(public readonly code: string) { super(code); }

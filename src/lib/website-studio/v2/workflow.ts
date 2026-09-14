@@ -1,4 +1,4 @@
-import { candidateSchema, designSchema, previewSchema, publicationSchema, stages, StudioError, targetKey, validatePaths, type Candidate, type Design, type Job, type Preview, type Publication } from "./schema";
+import { candidateSchema, designSchema, noChangeSchema, previewSchema, publicationSchema, stages, StudioError, targetKey, validatePaths, type Candidate, type Design, type Job, type NoChange, type Preview, type Publication } from "./schema";
 import { checkpoint, releasePublication, type Store } from "./store";
 
 /** Trusted host adapters, never model-supplied callbacks. No raw secrets in Job.
@@ -6,7 +6,7 @@ import { checkpoint, releasePublication, type Store } from "./store";
  */
 export interface Host {
   astra(job: Job): Promise<Design>;
-  codex(job: Job): Promise<Candidate>;
+  codex(job: Job): Promise<Candidate | NoChange>;
   diff(job: Job): Promise<{ treeSha: string; sourceDigest: string; paths: string[] }>;
   publish(job: Job): Promise<Publication>;
   preview(job: Job): Promise<Preview>;
@@ -15,6 +15,10 @@ export async function runNext(store: Store, jobId: string, host: Host): Promise<
   const claimed = await checkpoint(store, db => {
     const job = db.jobs[jobId];
     if (!job || job.status !== "queued") return undefined;
+    if (job.deadlineAt && job.deadlineAt <= Date.now()) {
+      job.status = "failed"; job.errorCode = "JOB_DEADLINE_EXCEEDED"; job.revision++;
+      db.outbox = db.outbox.filter(id => id !== jobId); return undefined;
+    }
     const index = stages.indexOf(job.stage);
     if (stages.slice(0, index).some(stage => !job.passed.includes(stage))) throw new StudioError("PREDECESSOR_MISSING");
     if (job.stage === "publish") {
@@ -22,7 +26,7 @@ export async function runNext(store: Store, jobId: string, host: Host): Promise<
       if (db.locks[key]) return undefined;
       db.locks[key] = { jobId, fence: job.fence + 1 };
     }
-    job.fence += 1; job.revision += 1; job.status = "running";
+    job.fence += 1; job.revision += 1; job.status = "running"; job.claimedAt = Date.now();
     db.outbox = db.outbox.filter(id => id !== jobId);
     return job;
   });
@@ -41,7 +45,14 @@ export async function runNext(store: Store, jobId: string, host: Host): Promise<
       }
       case "write": {
         if (claimed.design?.outcome !== "accepted") throw new StudioError("DESIGN_NOT_ACCEPTED");
-        const candidate = candidateSchema.parse(await host.codex(structuredClone(claimed)));
+        const result = await host.codex(structuredClone(claimed));
+        if ("outcome" in result) {
+          const noChange = noChangeSchema.parse(result);
+          if (noChange.verifiedSha !== claimed.target.baseSha) throw new StudioError("NO_CHANGE_SHA_MISMATCH");
+          next.status = "completed"; next.outcome = "no_change"; next.noChange = noChange;
+          break;
+        }
+        const candidate = candidateSchema.parse(result);
         validatePaths(candidate.paths, claimed.design.paths);
         if (candidate.acceptanceId !== claimed.design.acceptanceId) throw new StudioError("TEST_EVIDENCE_MISSING");
         next.candidate = candidate;
@@ -69,12 +80,16 @@ export async function runNext(store: Store, jobId: string, host: Host): Promise<
       }
     }
     next.passed.push(claimed.stage);
+    delete next.errorCode;
     const following = stages[stages.indexOf(claimed.stage) + 1];
     if (next.status !== "completed") { next.stage = following ?? claimed.stage; next.status = following ? "queued" : "completed"; }
-  } catch {
+  } catch (error) {
     // Do not serialize upstream exception strings, URLs, headers, model output.
     next.errorCode = `STUDIO_${claimed.stage.toUpperCase()}_FAILED`;
     next.status = claimed.stage === "publish" ? "reconciling" : "failed";
+    if (claimed.stage === "preview" && error instanceof StudioError && error.code === "SAME_SHA_PREVIEW_NOT_READY") {
+      next.status = "queued"; next.errorCode = "SAME_SHA_PREVIEW_NOT_READY";
+    }
   }
   return checkpoint(store, db => {
     const current = db.jobs[jobId];

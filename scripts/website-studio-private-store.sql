@@ -11,4 +11,11 @@ CREATE TABLE studio_execution_private.ledger (
 REVOKE ALL ON studio_execution_private.ledger FROM PUBLIC;
 INSERT INTO studio_execution_private.ledger VALUES
   (1, '{"jobs":{},"outbox":[],"locks":{}}'::jsonb);
+CREATE TABLE studio_execution_private.projects (
+  id uuid PRIMARY KEY, tenant_id uuid NOT NULL, manifest jsonb NOT NULL
+);
+CREATE TABLE studio_execution_private.artifacts (
+  id uuid PRIMARY KEY, scope_hash text NOT NULL, ciphertext bytea NOT NULL
+);
+REVOKE ALL ON studio_execution_private.projects, studio_execution_private.artifacts FROM PUBLIC;
 COMMIT;
