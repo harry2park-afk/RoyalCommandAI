@@ -31,6 +31,7 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
     countryCode,
     environment: "HOSTED_PRODUCTION",
     ...RELEASE_SCOPE,
+    operationalEvidenceFreshnessVerified: true,
     countryTermsReviewed: true,
     countryTermsReviewerProven: true,
     positiveLocalPrice: true,
@@ -148,6 +149,7 @@ describe("country launch readiness gate", () => {
           countryCode,
           environment: "HOSTED_PRODUCTION",
           ...RELEASE_SCOPE,
+          operationalEvidenceFreshnessVerified: false,
           countryTermsReviewed: false,
           countryTermsReviewerProven: false,
           positiveLocalPrice: false,
@@ -179,6 +181,7 @@ describe("country launch readiness gate", () => {
       expect(gate, countryCode).toEqual({
         launchable: false,
         blockers: [
+          "OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED",
           "COUNTRY_TERMS_NOT_REVIEWED",
           "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED",
           "LOCAL_PRICE_NOT_READY",
@@ -213,6 +216,7 @@ describe("country launch readiness gate", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const cases: Array<[OperationalEvidenceFlag, LaunchBlockerCode]> = [
+      ["operationalEvidenceFreshnessVerified", "OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED"],
       ["countryTermsReviewerProven", "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED"],
       ["providerOfferReviewerProven", "PROVIDER_OFFER_REVIEWER_PROVENANCE_NOT_VERIFIED"],
       ["recordingPolicyReviewerProven", "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED"],
@@ -347,7 +351,7 @@ describe("country launch readiness gate", () => {
     });
   });
 
-  it("only becomes operationally launchable when same-country Hosted Production evidence is bound to the exact release scope and every launch-critical class is verified", () => {
+  it("only becomes operationally launchable when same-country Hosted Production evidence is fresh, bound to the exact release scope and every launch-critical class is verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     expect(evaluateCountryOperationalLaunch(asConfigReady(base!), readyOperationalEvidence("AU"), RELEASE_SCOPE)).toEqual({
