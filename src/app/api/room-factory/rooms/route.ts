@@ -31,20 +31,7 @@ type AtomicRoomFactoryResult = {
 type AtomicRoomFactoryRpc = {
   rpc(
     name: "create_room_factory_room_atomic",
-    args: {
-      p_encounter_session_id: string | null;
-      p_household_id: string | null;
-      p_household_name: string;
-      p_room_name: string;
-      p_room_description: string;
-      p_language_pref: string;
-      p_factory_version: string;
-      p_template_id: string;
-      p_country_code: string;
-      p_language_tag: string;
-      p_country_profile_status: string;
-      p_manifest: unknown;
-    },
+    args: Record<string, unknown>,
   ): {
     single(): Promise<{
       data: AtomicRoomFactoryResult | null;
