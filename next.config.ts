@@ -4,7 +4,7 @@ const nextConfig = {
   reactStrictMode: true,
   serverExternalPackages: ["@sparticuz/chromium", "playwright-core"],
   outputFileTracingIncludes: {
-    "/api/website-studio/work": ["./node_modules/@sparticuz/chromium/bin/**"],
+    "/api/website-studio/work": ["./node_modules/@sparticuz/chromium/**", "./node_modules/playwright-core/**"],
   },
 };
 

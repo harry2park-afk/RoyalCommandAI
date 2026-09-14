@@ -6,7 +6,7 @@ import type { Design } from "@/lib/website-studio/executor";
 
 export type StudioWorkHandle = { start: (order: string) => Promise<void> };
 type Props = { roomId: string; userId: string; slots: string[]; language: string; connection: (id: string) => string };
-type LocalWork = { requestKey: string; order: string; state?: WorkState; design?: Design };
+type LocalWork = { requestKey: string; order: string; state?: WorkState; design?: Design; stopped?: boolean };
 const workers = [
   { id: "astra", name: "Astra Light", role: "Design · Read-only", stages: ["design"] },
   { id: "codex", name: "Codex", role: "Sole Writer", stages: ["write"] },
@@ -33,16 +33,17 @@ export default forwardRef<StudioWorkHandle, Props>(function StudioWorkPanels({ r
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ roomId, requestKey: current.requestKey, order: current.order, workId: current.state?.workId, designVersion: current.state?.designVersion, baseSha: current.state?.baseSha, design: current.design }),
         });
-        const result = await response.json();
+        const result = await response.json().catch(() => ({ error: `HOST_HTTP_${response.status}` }));
         if (!response.ok) throw new Error(result.error || "WORK_FAILED");
         current = { ...current, state: result.state, design: result.design || current.design }; save(current);
         if (current.state?.stage === "preview" && current.state.status === "waiting") await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "WORK_FAILED");
+      save({ ...current, stopped: true });
       const response = await fetch(`/api/website-studio/work?roomId=${roomId}`).catch(() => null);
-      const result = response?.ok ? await response.json() : null;
-      if (result?.state) save({ ...current, state: result.state });
+      const result = response?.ok ? await response.json().catch(() => null) : null;
+      if (result?.state) save({ ...current, stopped: true, state: result.state });
     } finally { executing.current = false; }
   }
   useImperativeHandle(ref, () => ({ async start(order) {
@@ -77,7 +78,7 @@ export default forwardRef<StudioWorkHandle, Props>(function StudioWorkPanels({ r
       const stored = localStorage.getItem(key);
       let local: LocalWork | null = null;
       try { local = stored ? JSON.parse(stored) as LocalWork : null; } catch { return; }
-      if (!local || local.state?.status === "passed" || local.state?.status === "failed") return;
+      if (!local || local.stopped || local.state?.status === "passed" || local.state?.status === "failed") return;
       checking = true;
       try {
         const response = await fetch(`/api/website-studio/work?roomId=${roomId}`);

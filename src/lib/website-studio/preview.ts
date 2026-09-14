@@ -1,5 +1,3 @@
-import chromium from "@sparticuz/chromium";
-import { chromium as playwright } from "playwright-core";
 import { github } from "./github";
 
 type Deployment = { id: number; sha: string; environment: string; production_environment: boolean; creator: { login: string } };
@@ -20,6 +18,7 @@ export async function previewForSha(sha: string) {
 
 export async function verifyPreview(sha: string, roomId: string, sessionCookies: { name: string; value: string }[]) {
   const origin = await previewForSha(sha);
+  const [{ default: chromium }, { chromium: playwright }] = await Promise.all([import("@sparticuz/chromium"), import("playwright-core")]);
   const browser = await playwright.launch({ args: chromium.args, executablePath: await chromium.executablePath(), headless: true, timeout: 20000 });
   try {
     const context = await browser.newContext({ serviceWorkers: "block", acceptDownloads: false });
