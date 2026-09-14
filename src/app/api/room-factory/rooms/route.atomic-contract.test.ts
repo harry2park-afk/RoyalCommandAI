@@ -14,10 +14,10 @@ describe("Room Factory create runtime contract", () => {
     expect(source).toContain("p_household_id: rawInput.householdId ?? null");
     expect(source).toContain("p_manifest: storedManifest");
 
-    expect(source).not.toMatch(/\.from\("room_factory_manifests"\)\s*\.insert\(/s);
-    expect(source).not.toMatch(/\.from\("rooms"\)\s*\.insert\(/s);
-    expect(source).not.toMatch(/\.from\("households"\)\s*\.insert\(/s);
-    expect(source).not.toMatch(/\.from\("room_members"\)\s*\.insert\(/s);
+    expect(source).not.toMatch(/\.from\("room_factory_manifests"\)\s*\.insert\(/);
+    expect(source).not.toMatch(/\.from\("rooms"\)\s*\.insert\(/);
+    expect(source).not.toMatch(/\.from\("households"\)\s*\.insert\(/);
+    expect(source).not.toMatch(/\.from\("room_members"\)\s*\.insert\(/);
     expect(source).not.toContain('.contains("manifest", { encounterSessionId:');
   });
 });
