@@ -54,6 +54,7 @@ jobs:
           cp supabase/migrations-full/20260829211500_room_factory_manifests.sql supabase/migrations/
           cp supabase/migrations-full/20260831084700_atomic_room_factory_encounter_creation.sql supabase/migrations/
           cp supabase/migrations-full/20260901022500_harden_room_factory_atomic_invoker.sql supabase/migrations/
+          cp supabase/migrations-full/20260901025800_room_factory_atomic_non_encounter.sql supabase/migrations/
 
           # Production has private.is_room_member from the canonical recovered
           # lineage. Match that helper only for this focused disposable fixture;
@@ -198,7 +199,7 @@ jobs:
           for each row execute function public.rc_test_force_room_factory_manifest_failure();
           SQL
 
-      - name: Prove rollback and same-owner same-encounter concurrency
+      - name: Prove rollback, encounter idempotency, and non-encounter creation semantics
         shell: bash
         run: |
           set -euo pipefail
