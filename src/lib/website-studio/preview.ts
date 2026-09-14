@@ -53,14 +53,16 @@ export async function verifyPreview(sha: string, roomId: string, sessionCookies:
     });
     await context.routeWebSocket("**/*", (socket) => socket.close());
     const page = await context.newPage();
-    page.setDefaultTimeout(15000);
+    // The full Room shell can hydrate after 15s on a cold Preview. Waiting longer
+    // never relaxes the required DOM, authentication or exact-SHA assertions.
+    page.setDefaultTimeout(60000);
     const assertServedSha = async () => {
       if (await page.locator("[data-studio-sha]").getAttribute("data-studio-sha") !== sha) throw new Error("PREVIEW_CLIENT_SHA_MISMATCH");
       const response = await context.request.get(`${origin}/api/website-studio/work?roomId=${roomId}`, { maxRedirects: 0, timeout: 15000, headers: { "Cache-Control": "no-cache" } });
       if (!response.ok() || (await response.json()).deploymentSha !== sha) throw new Error("PREVIEW_SERVER_SHA_MISMATCH");
     };
     check = "NAVIGATION";
-    const navigation = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 25000 });
+    const navigation = await page.goto(target, { waitUntil: "domcontentloaded", timeout: 60000 });
     const landed = new URL(page.url());
     console.info("STUDIO_PREVIEW_NAVIGATION", { sha, status: navigation?.status(), to: `${landed.origin}${landed.pathname}` });
     if (landed.origin !== origin || landed.pathname !== `/rooms/${roomId}`) throw new Error("PREVIEW_REDIRECTED");
