@@ -21,7 +21,7 @@ const BRAND_ICON_OVERRIDES: Record<string, string> = {
 };
 
 const WEBSITE_STUDIO_APPS: AppItem[] = [
-  { id: "astra", title: "Astra · 연결 필요", description: "ChatGPT에서 Astra 열기", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/openai.svg", category: "ai", availability: "global" },
+  { id: "astra", title: "Astra Light", description: "Website Studio 독립 검토", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/openai.svg", category: "ai", availability: "global" },
   { id: "codex", title: "Codex", description: "Codex 열기", url: "https://chatgpt.com/codex", localLogo: "/rc-ai-logos/openai.svg", category: "developer", availability: "global" },
   findAppById("github")!,
   findAppById("vercel")!,

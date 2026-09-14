@@ -1,4 +1,5 @@
 import { AnthropicConnector } from "./anthropic";
+import { AstraConnector } from "./astra";
 import { CodexConnector } from "./codex";
 import { DemoConnector } from "./demo";
 import { GoogleConnector } from "./google";
@@ -19,6 +20,7 @@ const nativeConnectors: Partial<Record<AIProviderId, AIConnector>> = {
   xai: new XAIConnector(),
   perplexity: new PerplexityConnector(),
   codex: new CodexConnector(),
+  astra: new AstraConnector(),
 };
 
 const catalogConnectors: Partial<Record<AIProviderId, AIConnector>> = {};

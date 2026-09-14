@@ -11,10 +11,11 @@ import styles from "./IndependentAIRooms.module.css";
 import { useDomainRuntime } from "@/components/DomainRuntimeProvider";
 import { getIntegrationEligibility } from "@/lib/ai/integrationEligibility";
 
-type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex";
+type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex" | "astra";
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string; title?: string; titleEdited?: boolean };
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
-type CustomerRoom = { id: string; roomId?: string; name: string; status?: string };
+type CustomerRoom = { id: string; roomId?: string; name: string; status?: string; templateId?: string };
+type StudioToolStatus = "connected" | "limited" | "not_connected";
 type ProviderResult = {
   requestId: string;
   provider: ProviderId;
@@ -48,8 +49,9 @@ const PROVIDERS: Array<{ id: ProviderId; name: string; role: string }> = [
   { id: "google", name: "Gemini", role: "Independent AI Room" },
   { id: "xai", name: "Grok", role: "Independent AI Room" },
   { id: "codex", name: "Codex", role: "Independent AI Room" },
+  { id: "astra", name: "Astra Light", role: "Website Studio independent reviewer" },
 ];
-const DEFAULT_SELECTED_PROVIDERS = PROVIDERS.map((provider) => provider.id);
+const DEFAULT_SELECTED_PROVIDERS = PROVIDERS.filter((provider) => provider.id !== "astra").map((provider) => provider.id);
 const DEFAULT_PROVIDER_ORDER = [...DEFAULT_SELECTED_PROVIDERS];
 const DEFAULT_LANGUAGE_COUNTRY_ORDER = FEATURED_LANGUAGE_ENTRIES.map((entry) => entry.locale);
 
@@ -63,7 +65,7 @@ const SEND_LABELS: Record<string, string> = {
 };
 
 function emptyHistories(): Record<ProviderId, ChatItem[]> {
-  return { openai: [], anthropic: [], google: [], xai: [], codex: [] };
+  return { openai: [], anthropic: [], google: [], xai: [], codex: [], astra: [] };
 }
 
 function uid(prefix: string) {
@@ -116,7 +118,7 @@ function countryNameForLocale(locale: string, label: string) {
 
 function ProviderBrandLogo({ provider }: { provider: ProviderId }) {
   const baseClass = "grid h-7 w-7 shrink-0 place-items-center rounded-lg text-sm font-bold text-white shadow-sm";
-  if (provider === "openai" || provider === "codex") return <span className={baseClass} style={{ background: "#10a37f" }}><img src="/rc-ai-logos/openai.svg" alt="" className="h-[18px] w-[18px]"/></span>;
+  if (provider === "openai" || provider === "codex" || provider === "astra") return <span className={baseClass} style={{ background: "#10a37f" }}><img src="/rc-ai-logos/openai.svg" alt="" className="h-[18px] w-[18px]"/></span>;
   if (provider === "anthropic") return <span className={baseClass} style={{ background: "#d97757", color: "#fff4e8" }}>AI</span>;
   if (provider === "google") return <span className={baseClass} style={{ background: "linear-gradient(135deg, #4285f4 0%, #8e75f6 52%, #d96570 100%)" }}>✦</span>;
   return <span className={baseClass} style={{ background: "#000000" }}>𝕏</span>;
@@ -127,10 +129,13 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const params = useParams<{ id: string }>();
   const roomId = roomIdProp || params.id || "rca";
   const [connected, setConnected] = useState<Set<string>>(new Set());
+  const [isWebsiteStudio, setIsWebsiteStudio] = useState(false);
+  const [studioTools, setStudioTools] = useState<Record<"github" | "vercel", StudioToolStatus>>({ github: "not_connected", vercel: "not_connected" });
   const [selected, setSelected] = useState<ProviderId[]>(DEFAULT_SELECTED_PROVIDERS);
   const [selectedLoaded, setSelectedLoaded] = useState(false);
+  const [studioContextRoomId, setStudioContextRoomId] = useState<string | null>(null);
   const [rooms, setRooms] = useState<Record<ProviderId, RoomState>>({
-    openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY },
+    openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY }, astra: { ...EMPTY },
   });
   const [openRoom, setOpenRoom] = useState<ProviderId | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -158,7 +163,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [roomPrompt, setRoomPrompt] = useState("");
   const [allPrompt, setAllPrompt] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
-  const [cardPrompts, setCardPrompts] = useState<Record<ProviderId, string>>({ openai: "", anthropic: "", google: "", xai: "", codex: "" });
+  const [cardPrompts, setCardPrompts] = useState<Record<ProviderId, string>>({ openai: "", anthropic: "", google: "", xai: "", codex: "", astra: "" });
   const [expandedAnswers, setExpandedAnswers] = useState<Partial<Record<ProviderId, boolean>>>({});
   const [frozenResults, setFrozenResults] = useState<Record<string, ProviderResult>>({});
   const [frozenQuestion, setFrozenQuestion] = useState("");
@@ -213,9 +218,35 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
         if (!unique.has(id)) unique.set(id, { ...room, id });
       }
       setCustomerRooms(Array.from(unique.values()));
-    }).catch(() => setCustomerRooms([]));
+      const factoryRoom = factoryRooms.find((room) => String(room?.roomId || room?.id || "") === roomId);
+      const websiteStudio = factoryRoom?.templateId === "website";
+      setIsWebsiteStudio(websiteStudio);
+      if (websiteStudio) {
+        const migrationKey = `royalcommand:website-studio-team-v1:${roomId}`;
+        if (!localStorage.getItem(migrationKey)) {
+          setSelected(["codex", "astra"]);
+          localStorage.setItem(migrationKey, "1");
+        }
+        void fetch("/api/tools/gateway", { cache: "no-store", credentials: "same-origin" })
+          .then((response) => response.ok ? response.json() : null)
+          .then((data) => {
+            const capabilities = Array.isArray(data?.capabilities) ? data.capabilities as Array<{ id?: string; connection?: StudioToolStatus }> : [];
+            const connectionFor = (prefix: string): StudioToolStatus => {
+              const matches = capabilities.filter((item) => item.id?.startsWith(prefix));
+              if (matches.some((item) => item.connection === "connected")) return "connected";
+              if (matches.some((item) => item.connection === "limited")) return "limited";
+              return "not_connected";
+            };
+            setStudioTools({ github: connectionFor("github."), vercel: connectionFor("vercel.") });
+          })
+          .catch(() => setStudioTools({ github: "not_connected", vercel: "not_connected" }));
+      }
+    }).catch(() => {
+      setCustomerRooms([]);
+      setIsWebsiteStudio(false);
+    }).finally(() => setStudioContextRoomId(roomId));
 
-    const next = { openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } } as Record<ProviderId, RoomState>;
+    const next = { openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY }, astra: { ...EMPTY } } as Record<ProviderId, RoomState>;
     for (const provider of PROVIDERS) {
       try {
         const saved = JSON.parse(localStorage.getItem(historyKey(roomId, provider.id)) || "[]") as ChatItem[];
@@ -353,9 +384,9 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   }, []);
 
   useEffect(() => {
-    if (!selectedLoaded) return;
+    if (!selectedLoaded || studioContextRoomId !== roomId) return;
     localStorage.setItem(selectedKey(roomId), JSON.stringify(selected));
-  }, [roomId, selected, selectedLoaded]);
+  }, [roomId, selected, selectedLoaded, studioContextRoomId]);
 
   useEffect(() => {
     const fastProviderScroll = (event: DragEvent) => {
@@ -802,7 +833,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   function startNewChat() {
     archiveCurrentSession();
     cancelAll();
-    setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } });
+    setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY }, astra: { ...EMPTY } });
     activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError(""); setMenuOpen(false);
   }
 
@@ -854,7 +885,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   function clearCurrentChatWithoutArchive() {
     cancelAll();
     stopMic();
-    setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY } });
+    setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY }, astra: { ...EMPTY } });
     activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError("");
   }
 
@@ -989,10 +1020,15 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     }).map(({ provider }) => provider);
   }, [providerOrder, providerRegistry]);
 
+  const roomProviders = useMemo(
+    () => isWebsiteStudio ? PROVIDERS : PROVIDERS.filter((provider) => provider.id !== "astra"),
+    [isWebsiteStudio],
+  );
+
   const filteredProviders = useMemo(() => {
     const query = providerSearch.trim().toLowerCase();
-    return orderedProviders.filter((provider) => !query || `${provider.name} ${provider.id}`.toLowerCase().includes(query));
-  }, [orderedProviders, providerSearch]);
+    return orderedProviders.filter((provider) => (isWebsiteStudio || provider.id !== "astra") && (!query || `${provider.name} ${provider.id}`.toLowerCase().includes(query)));
+  }, [isWebsiteStudio, orderedProviders, providerSearch]);
 
   const filteredLocales = useMemo(() => {
     const query = languageSearch.trim().toLowerCase();
@@ -1025,6 +1061,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     return latest?.title || (latest ? fallbackTitle(latest.content) : "New chat");
   }, [rooms]);
   const openMeta = PROVIDERS.find((provider) => provider.id === openRoom);
+  const toolStatusLabel = (status: StudioToolStatus) => status === "connected" ? "Connected" : status === "limited" ? "Limited" : "Not Connected";
 
   return (
     <main className={`${styles.root} min-h-[100dvh] bg-[#07101d] text-[#f4f0e7]`}>
@@ -1037,7 +1074,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
 
           {menuOpen && <div className="absolute left-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] p-2 shadow-2xl"><button type="button" onClick={startNewChat} className="mb-2 flex items-center justify-center gap-2 rounded-lg border border-[#4169e1]/80 bg-[#1e3a8a] px-3 py-2.5 font-semibold text-white shadow-md hover:bg-[#274db3]"><Plus size={16}/>New Chat</button><div className="min-h-0 overflow-y-auto"><div className="sticky top-0 bg-[#0b1524] px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Chat History</div>{hasCurrentChatMessages ? <div className="mb-1"><div className="flex items-center rounded-lg border border-[#d7b64d]/45 bg-[#17130a]"><button type="button" onClick={() => setMenuOpen(false)} title={currentChatTitle} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm text-[#f0d36a]">{currentChatTitle}</button>{hasCurrentChatMessages ? <><button type="button" onClick={editCurrentChatTitle} className="grid h-9 w-9 shrink-0 place-items-center text-[#f0d36a]" aria-label="Edit current chat title"><Pencil size={13}/></button><button type="button" onClick={() => setDeleteConfirmId("current")} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-red-300" aria-label="Delete current chat"><Trash2 size={13}/></button></> : null}</div>{hasCurrentChatMessages && deleteConfirmId === "current" ? <div className="mt-1 flex items-center gap-2 rounded-lg border border-red-400/25 bg-red-950/25 px-2 py-2 text-xs"><span className="min-w-0 flex-1">Delete this chat?</span><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded px-2 py-1 text-[#c9d1dc] hover:bg-white/10">Cancel</button><button type="button" onClick={() => deleteChatSession("current")} className="rounded bg-red-500/20 px-2 py-1 text-red-200 hover:bg-red-500/30">Delete</button></div> : null}</div> : null}{chatSessions.filter((session) => session.id !== activeChatSessionId).map((session) => <div key={session.id} className="mb-1"><div className="flex items-center rounded-lg border border-white/10 hover:border-[#d7b64d]/35 hover:bg-white/5"><button type="button" onClick={() => loadChatSession(session)} title={session.title} className="min-w-0 flex-1 truncate px-3 py-2.5 text-left text-sm">{session.title}</button><button type="button" onClick={() => editSavedChatTitle(session)} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-[#f0d36a]" aria-label={`Edit ${session.title}`}><Pencil size={13}/></button><button type="button" onClick={() => setDeleteConfirmId(session.id)} className="grid h-9 w-9 shrink-0 place-items-center text-[#8d98a8] hover:text-red-300" aria-label={`Delete ${session.title}`}><Trash2 size={13}/></button></div>{deleteConfirmId === session.id ? <div className="mt-1 flex items-center gap-2 rounded-lg border border-red-400/25 bg-red-950/25 px-2 py-2 text-xs"><span className="min-w-0 flex-1">Delete this chat?</span><button type="button" onClick={() => setDeleteConfirmId(null)} className="rounded px-2 py-1 text-[#c9d1dc] hover:bg-white/10">Cancel</button><button type="button" onClick={() => deleteChatSession(session.id)} className="rounded bg-red-500/20 px-2 py-1 text-red-200 hover:bg-red-500/30">Delete</button></div> : null}</div>)}</div></div>}
 
-          {chatsOpen && <div className="absolute left-24 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="mb-2 flex justify-end"><a href={`/room-builder?returnRoom=${encodeURIComponent(roomId)}`} className="inline-flex h-[34px] items-center gap-2 rounded-lg border border-[#d9b44a] bg-[#7A0C2E] px-3 text-xs font-bold text-[#fff4c2] shadow-[0_0_14px_rgba(217,180,74,.4)] transition hover:bg-[#94113a]" title={createRoomLabel}><span aria-hidden="true">＋</span><span>{createRoomLabel}</span></a></div><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} autoFocus placeholder="Search AI providers" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2" onDragOver={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); const edge = 110; if (event.clientY < bounds.top + edge) event.currentTarget.scrollTop -= 90; else if (event.clientY > bounds.bottom - edge) event.currentTarget.scrollTop += 90; }}>{customerRooms.length ? <div className="mb-2 border-b border-white/10 pb-2"><div className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[.16em] text-[#f0d36a]">Your Rooms</div>{customerRooms.map((room) => <a key={room.id} href={`/rooms/${encodeURIComponent(room.id)}`} className="mb-1 flex min-h-[38px] w-full items-center rounded-lg border border-[#d7b64d]/35 bg-[#14284f] px-3 text-sm font-semibold text-[#f0d36a] transition hover:border-[#d7b64d] hover:bg-[#1b376c]" title={room.name}>{room.name}</a>)}</div> : null}{filteredProviders.map((provider) => { const cardProvider = PROVIDERS.find((item) => item.id === provider.id); const selectable = Boolean(cardProvider && provider.available); const chosen = Boolean(cardProvider && selected.includes(cardProvider.id)); const status = selectable ? "Connected" : "Not Connected"; return <div key={provider.id} draggable onDragStart={(event) => { draggedProviderRef.current = provider.id; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", provider.id); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); dropProvider(provider.id, event.clientY > bounds.top + bounds.height / 2); }} onDragEnd={() => { draggedProviderRef.current = null; }} className={`mb-1 flex cursor-grab items-center rounded-lg border active:cursor-grabbing ${chosen ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><GripVertical size={15} className="ml-2 shrink-0 text-[#8d98a8]" aria-hidden="true"/><button type="button" disabled={!selectable} onClick={() => chooseProvider(provider.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2.5 text-left disabled:cursor-not-allowed disabled:opacity-60"><span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${chosen ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/20"}`}>{chosen ? <Check size={13}/> : null}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{provider.name}</span><span className={`shrink-0 text-[10px] ${status === "Connected" ? "text-emerald-300" : "text-[#8d98a8]"}`}>{status}</span></button></div>; })}</div></div>}
+          {chatsOpen && <div className="absolute left-24 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-80 flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="mb-2 flex justify-end"><a href={`/room-builder?returnRoom=${encodeURIComponent(roomId)}`} className="inline-flex h-[34px] items-center gap-2 rounded-lg border border-[#d9b44a] bg-[#7A0C2E] px-3 text-xs font-bold text-[#fff4c2] shadow-[0_0_14px_rgba(217,180,74,.4)] transition hover:bg-[#94113a]" title={createRoomLabel}><span aria-hidden="true">＋</span><span>{createRoomLabel}</span></a></div><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={providerSearch} onChange={(event) => setProviderSearch(event.target.value)} autoFocus placeholder="Search AI providers" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2" onDragOver={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); const edge = 110; if (event.clientY < bounds.top + edge) event.currentTarget.scrollTop -= 90; else if (event.clientY > bounds.bottom - edge) event.currentTarget.scrollTop += 90; }}>{customerRooms.length ? <div className="mb-2 border-b border-white/10 pb-2"><div className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[.16em] text-[#f0d36a]">Your Rooms</div>{customerRooms.map((room) => <a key={room.id} href={`/rooms/${encodeURIComponent(room.id)}`} className="mb-1 flex min-h-[38px] w-full items-center rounded-lg border border-[#d7b64d]/35 bg-[#14284f] px-3 text-sm font-semibold text-[#f0d36a] transition hover:border-[#d7b64d] hover:bg-[#1b376c]" title={room.name}>{room.name}</a>)}</div> : null}{isWebsiteStudio ? <div className="mb-2 border-b border-white/10 pb-2"><div className="px-2 pb-1 text-[10px] font-bold uppercase tracking-[.16em] text-[#f0d36a]">Website Studio Tools</div>{(["github", "vercel"] as const).map((tool) => { const status = studioTools[tool]; const label = tool === "github" ? "GitHub" : "Vercel"; return <div key={tool} className="mb-1 flex min-h-[40px] items-center rounded-lg border border-white/10 px-3"><span className="min-w-0 flex-1 text-sm font-medium">{label}</span><span className={`text-[10px] ${status === "connected" ? "text-emerald-300" : status === "limited" ? "text-amber-300" : "text-[#8d98a8]"}`}>{toolStatusLabel(status)}</span></div>; })}<div className="px-2 pt-1 text-[10px] text-[#8d98a8]">Deploy requires Harry approval.</div></div> : null}{filteredProviders.map((provider) => { const cardProvider = roomProviders.find((item) => item.id === provider.id); const selectable = Boolean(cardProvider && provider.available); const chosen = Boolean(cardProvider && selected.includes(cardProvider.id)); const status = selectable ? "Connected" : "Not Connected"; return <div key={provider.id} draggable onDragStart={(event) => { draggedProviderRef.current = provider.id; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", provider.id); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); dropProvider(provider.id, event.clientY > bounds.top + bounds.height / 2); }} onDragEnd={() => { draggedProviderRef.current = null; }} className={`mb-1 flex cursor-grab items-center rounded-lg border active:cursor-grabbing ${chosen ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><GripVertical size={15} className="ml-2 shrink-0 text-[#8d98a8]" aria-hidden="true"/><button type="button" disabled={!selectable} onClick={() => chooseProvider(provider.id)} className="flex min-w-0 flex-1 items-center gap-3 px-2 py-2.5 text-left disabled:cursor-not-allowed disabled:opacity-60"><span className={`grid h-5 w-5 shrink-0 place-items-center rounded border ${chosen ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/20"}`}>{chosen ? <Check size={13}/> : null}</span><span className="min-w-0 flex-1 truncate text-sm font-medium">{provider.name}</span><span className={`shrink-0 text-[10px] ${status === "Connected" ? "text-emerald-300" : "text-[#8d98a8]"}`}>{status}</span></button></div>; })}</div></div>}
 
           {languageOpen && <div className="absolute right-3 top-[52px] z-50 flex max-h-[calc(100dvh-72px)] w-96 max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-[#d7b64d]/25 bg-[#0b1524] shadow-2xl sm:right-auto sm:left-48"><div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1524] p-3"><div className="relative"><Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8d98a8]"/><input value={languageSearch} onChange={(event) => setLanguageSearch(event.target.value)} autoFocus placeholder="Search languages, countries or codes" className="w-full rounded-lg border border-white/15 bg-[#07101d] py-2 pl-9 pr-3 text-sm outline-none focus:border-[#d7b64d]/60"/></div></div><div className="min-h-0 overflow-y-auto p-2" onDragOver={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); const edge = 90; if (event.clientY < bounds.top + edge) event.currentTarget.scrollTop -= 120; else if (event.clientY > bounds.bottom - edge) event.currentTarget.scrollTop += 120; }}>{filteredLocales.length ? filteredLocales.map((entry) => { const countryCode = countryCodeForLocale(entry.locale); return <div key={entry.locale} draggable onDragStart={(event) => { draggedLanguageLocaleRef.current = entry.locale; event.dataTransfer.effectAllowed = "move"; event.dataTransfer.setData("text/plain", entry.locale); }} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "move"; }} onDrop={(event) => { event.preventDefault(); const bounds = event.currentTarget.getBoundingClientRect(); dropLanguageLocale(entry.locale, event.clientY > bounds.top + bounds.height / 2); }} onDragEnd={() => { draggedLanguageLocaleRef.current = null; }} className={`mb-1 flex cursor-grab items-center rounded-lg border active:cursor-grabbing ${selectedLocale === entry.locale ? "border-[#d7b64d]/70 bg-[#2a2109]" : "border-white/10 hover:border-white/25"}`}><GripVertical size={15} className="ml-2 shrink-0 text-[#8d98a8]" aria-hidden="true"/><button type="button" onClick={() => chooseLocale(entry.locale)} className="flex min-w-0 flex-1 items-center gap-2 px-2 py-2.5 text-left"><CountryFlag countryCode={countryCode}/><span className="truncate text-sm">{countryNameForLocale(entry.locale, entry.label)}</span></button><button type="button" onClick={() => hideCountry(countryCode)} className="mr-2 rounded px-2 py-1 text-[10px] text-[#8d98a8] hover:bg-white/10 hover:text-[#f0d36a]">Hide</button></div>; }) : <div className="px-3 py-8 text-center text-sm text-[#8d98a8]">No matching locale</div>}{hiddenCountryEntries.length ? <div className="mt-3 border-t border-white/10 pt-2"><div className="px-2 py-2 text-xs uppercase tracking-wider text-[#8d98a8]">Hidden countries</div>{hiddenCountryEntries.map(([countryCode, entry]) => <div key={countryCode} className="mb-1 flex items-center gap-2 rounded-lg border border-white/10 px-3 py-2"><CountryFlag countryCode={countryCode}/><span className="min-w-0 flex-1 truncate text-sm">{countryNameForLocale(entry.locale, entry.label)}</span><button type="button" onClick={() => restoreCountry(countryCode)} className="rounded border border-[#d7b64d]/30 px-2 py-1 text-xs text-[#f0d36a] hover:bg-[#2a2109]">Restore</button></div>)}</div> : null}</div></div>}
         </div>
@@ -1053,7 +1090,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
                 <textarea value={allPrompt} onChange={(e) => setAllPrompt(e.target.value)} className="min-h-32 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-4 pr-48 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder="Ask the selected AI rooms..."/>
                 <input id="rca-chat-file-input" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.rtf,.odt" onChange={(event) => { if (event.target.files) addAttachments(event.target.files); event.currentTarget.value = ""; }} className="sr-only" aria-label="Attach files"/>
                 {attachments.length ? <div className="absolute bottom-[72px] left-3 right-52 flex min-w-0 gap-1.5 overflow-x-auto"><span className="shrink-0 rounded-md border border-[#d7b64d]/30 bg-[#0b1524] px-2 py-1 text-xs text-[#f0d36a]">Attached {attachments.length}</span>{attachments.map((file, index) => <span key={`${file.name}-${file.size}-${file.lastModified}`} className="flex min-w-0 max-w-48 shrink-0 items-center gap-1 rounded-md border border-white/15 bg-[#0b1524] px-2 py-1 text-xs text-[#c9d1dc]"><span className="truncate" title={file.name}>{file.name}</span><button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="shrink-0 text-[#8d98a8] hover:text-white" aria-label={`Remove ${file.name}`}><X size={12}/></button></span>)}</div> : null}
-                {helperOpen && <div className="absolute bottom-14 right-3 z-20 w-72 rounded-xl border border-[#d7b64d]/35 bg-[#0b1524] p-3 shadow-2xl"><div className="mb-2 flex items-center justify-between"><div className="font-semibold text-[#f0d36a]">AI Helper</div><button type="button" onClick={() => setHelperOpen(false)} className="grid h-7 w-7 place-items-center rounded-md border border-white/10"><X size={14}/></button></div><div className="text-sm leading-6 text-[#c9d1dc]">질문을 입력한 뒤 원하는 AI 카드만 선택하세요. 여러 AI를 선택하면 각 AI가 서로 독립적으로 같은 질문을 받습니다.</div><div className="mt-3 flex gap-2"><button type="button" onClick={() => setSelected(PROVIDERS.filter((p) => connected.has(p.id)).map((p) => p.id))} className="rounded-lg border border-white/15 px-2 py-1.5 text-xs hover:bg-white/10">전체 선택</button><button type="button" onClick={() => setSelected([])} className="rounded-lg border border-white/15 px-2 py-1.5 text-xs hover:bg-white/10">선택 해제</button></div></div>}
+                {helperOpen && <div className="absolute bottom-14 right-3 z-20 w-72 rounded-xl border border-[#d7b64d]/35 bg-[#0b1524] p-3 shadow-2xl"><div className="mb-2 flex items-center justify-between"><div className="font-semibold text-[#f0d36a]">AI Helper</div><button type="button" onClick={() => setHelperOpen(false)} className="grid h-7 w-7 place-items-center rounded-md border border-white/10"><X size={14}/></button></div><div className="text-sm leading-6 text-[#c9d1dc]">질문을 입력한 뒤 원하는 AI 카드만 선택하세요. 여러 AI를 선택하면 각 AI가 서로 독립적으로 같은 질문을 받습니다.</div><div className="mt-3 flex gap-2"><button type="button" onClick={() => setSelected(roomProviders.filter((p) => connected.has(p.id)).map((p) => p.id))} className="rounded-lg border border-white/15 px-2 py-1.5 text-xs hover:bg-white/10">전체 선택</button><button type="button" onClick={() => setSelected([])} className="rounded-lg border border-white/15 px-2 py-1.5 text-xs hover:bg-white/10">선택 해제</button></div></div>}
                 <div data-rc-composer-controls="true" className="absolute bottom-3 right-3 flex items-center gap-1.5">
                   <button type="button" onClick={() => toggleMic("all")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524] text-[#d8dee8]"}`} title="Microphone"><Mic size={17}/></button>
                   <label htmlFor="rca-chat-file-input" className="grid h-10 w-10 cursor-pointer place-items-center rounded-lg border border-white/15 bg-[#0b1524] text-[#d8dee8]" title="Attach files" aria-label="Attach files"><Paperclip size={17}/></label>
@@ -1064,7 +1101,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
             </section>
 
             <section data-rc-multi-ai-grid="true" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {PROVIDERS.map((provider) => {
+              {roomProviders.map((provider) => {
                 const room = rooms[provider.id];
                 const available = connected.has(provider.id);
                 const active = selected.includes(provider.id) && available;
