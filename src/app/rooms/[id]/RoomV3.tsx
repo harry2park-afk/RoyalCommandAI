@@ -187,8 +187,8 @@ export default function RoomV3() {
       const account = userResponse.ok ? await userResponse.json() : null;
       if (!account?.user?.id) throw new Error("Warehouse account unavailable");
       const key = `royalcommand:user:${account.user.id}:room:${roomId}:warehouse-v1`;
-      let restoredSlots = DEFAULT_SLOTS;
-      let restoredSelected = next.some((p) => p.id === "openai" && p.available) ? ["openai"] : [];
+      let restoredSlots = ["codex", "astra", "github"];
+      let restoredSelected: string[] = [];
       try {
         const saved = JSON.parse(localStorage.getItem(key) || "null");
         const clean = (value: unknown) => Array.isArray(value)
@@ -206,8 +206,13 @@ export default function RoomV3() {
         .then(async (response) => response.ok ? response.json() : null)
         .then((data) => {
           const capabilities = Array.isArray(data?.capabilities) ? data.capabilities : [];
-          const status = (id: string) => capabilities.find((item: { id: string }) => item.id === id)?.connection || "not_connected";
-          setToolConnections({ github: status("github.repo.read"), vercel: status("vercel.runtime.read") });
+          const status = (prefix: string) => {
+            const matches = capabilities.filter((item: { id?: string; connection?: string }) => item.id?.startsWith(prefix));
+            if (matches.some((item: { connection?: string }) => item.connection === "connected")) return "connected";
+            if (matches.some((item: { connection?: string }) => item.connection === "limited")) return "limited";
+            return "not_connected";
+          };
+          setToolConnections({ github: status("github."), vercel: status("vercel.") });
         }).catch(() => setToolConnections({}));
       return;
     }
@@ -270,6 +275,10 @@ export default function RoomV3() {
       setError("Selection could not be saved. Please try again.");
       return false;
     }
+  }
+
+  function toolStatus(id: string) {
+    return toolConnections[id] === "connected" ? "Connected" : toolConnections[id] === "limited" ? "Limited" : "Not Connected";
   }
 
   function toggleProvider(id: string) {
@@ -638,7 +647,7 @@ export default function RoomV3() {
                 type="button"
                 onClick={() => toggleProvider(id)}
                 disabled={warehouseScope === "pending" || (warehouseScope === "studio" ? !studioTool && !available && !selected.includes(id) : !available)}
-                title={`${ai.name}${available ? "" : " — not connected"}`}
+                title={studioTool ? `${ai.name} — ${toolStatus(id)}` : `${ai.name}${available ? "" : " — not connected"}`}
                 className={`flex h-8 min-w-0 flex-1 items-center justify-center gap-1 rounded-md border-[3px] border-[#FFD700] px-1 font-[Times_New_Roman] text-[12px] font-normal leading-none text-[#FFD700] ${active ? "bg-[#7A0C2E] text-[#FFF3D6]" : "bg-[#1E3A8A]"} ${!available ? "cursor-not-allowed opacity-35" : ""}`}
               >
                 <span className="relative grid h-5 w-5 shrink-0 place-items-center rounded bg-black/20">
@@ -824,7 +833,7 @@ export default function RoomV3() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="block truncate text-sm font-semibold">{ai.shortName}</span>
-                      <span className="block truncate text-[10px] text-[#8f99a8]">{(ai.id === "github" || ai.id === "vercel") ? (toolConnections[ai.id] === "connected" ? "Connected" : "Not connected") : available ? "Connected" : "Not connected"}{warehouseScope === "studio" && ai.role ? ` · ${ai.role}` : ""}{inSlots ? " · 상단 사용중" : ""}</span>
+                      <span className="block truncate text-[10px] text-[#8f99a8]">{(ai.id === "github" || ai.id === "vercel") ? toolStatus(ai.id) : available ? "Connected" : "Not connected"}{warehouseScope === "studio" && ai.role ? ` · ${ai.role}` : ""}{inSlots ? " · 상단 사용중" : ""}</span>
                     </span>
                   </button>
                 );
