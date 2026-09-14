@@ -644,6 +644,7 @@ export default function RoomV3() {
             return (
               <button
                 key={`${id}-${index}`}
+                data-warehouse-provider={id}
                 type="button"
                 onClick={() => toggleProvider(id)}
                 disabled={warehouseScope === "pending" || (warehouseScope === "studio" ? !studioTool && !available && !selected.includes(id) : !available)}

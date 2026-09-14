@@ -93,7 +93,10 @@
     const dock = topDock();
     if (!(dock instanceof HTMLElement)) return [];
     const warehouse = warehouseButton(dock);
-    return Array.from(dock.querySelectorAll(":scope > button")).filter((button) => button !== warehouse && button.id !== COUNCIL_ID);
+    const studio = dock.closest('[data-warehouse-scope="studio"]');
+    return Array.from(dock.querySelectorAll(":scope > button")).filter((button) =>
+      button !== warehouse && button.id !== COUNCIL_ID && (!studio || button.hasAttribute("data-warehouse-provider")),
+    );
   }
 
   function saveReferenceButton() {
