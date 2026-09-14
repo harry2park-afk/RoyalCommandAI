@@ -20,6 +20,7 @@ const workflowPath = path.join(
 const expectedCandidates = [
   "20260831225500_scope_matter_staff_access.sql",
   "20260901025800_room_factory_atomic_non_encounter.sql",
+  "20260904105500_harden_profile_role_authority.sql",
 ];
 
 function loadManifest() {
@@ -34,7 +35,7 @@ function readWorkflowAllowlist(): string {
 }
 
 describe("Supabase linked dry-run allow-list provenance", () => {
-  it("binds the workflow allow-list exactly to both provenance-authorized new candidates", () => {
+  it("binds the workflow allow-list exactly to all provenance-authorized new candidates", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
       requestedAllowlist: readWorkflowAllowlist(),
@@ -60,7 +61,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
   it("fails closed if the workflow allow-list is narrower than the provenance manifest", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
-      requestedAllowlist: "20260831225500_scope_matter_staff_access.sql",
+      requestedAllowlist: expectedCandidates.slice(0, 2).join(","),
     });
 
     expect(report.dry_run_allowlist_verified).toBe(false);
