@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Bot, Mic, Paperclip, Search, Send, Volume2, VolumeX, Warehouse, X } from "lucide-react";
+import StudioWorkPanels, { type StudioWorkHandle } from "@/components/website-studio/StudioWorkPanels";
 
 type Message = {
   id: string;
@@ -118,6 +119,8 @@ export default function RoomV3() {
   const [selected, setSelected] = useState<string[]>([]);
   const [warehouseScope, setWarehouseScope] = useState<"pending" | "studio" | "legacy">("pending");
   const studioStorageKey = useRef<string | null>(null);
+  const studioWork = useRef<StudioWorkHandle>(null);
+  const [studioUserId, setStudioUserId] = useState("");
   const [toolConnections, setToolConnections] = useState<Record<string, string>>({});
   const [slots, setSlots] = useState<string[]>(DEFAULT_SLOTS);
   const [warehouseOpen, setWarehouseOpen] = useState(false);
@@ -186,6 +189,7 @@ export default function RoomV3() {
       const userResponse = await fetch("/api/auth/me", { cache: "no-store" });
       const account = userResponse.ok ? await userResponse.json() : null;
       if (!account?.user?.id) throw new Error("Warehouse account unavailable");
+      setStudioUserId(account.user.id);
       const key = `royalcommand:user:${account.user.id}:room:${roomId}:warehouse-v1`;
       let restoredSlots = ["codex", "astra", "github"];
       let restoredSelected: string[] = [];
@@ -520,6 +524,16 @@ export default function RoomV3() {
     const current = prompt.trim();
     if (!current) return;
 
+    if (warehouseScope === "studio") {
+      try {
+        if (!studioWork.current) throw new Error("Website Studio is loading.");
+        setLoading(true); setError("");
+        await studioWork.current.start(current);
+      } catch (failure) { setError(failure instanceof Error ? failure.message : "Website Studio failed."); }
+      finally { setLoading(false); }
+      return;
+    }
+
     const active = selected.filter(isAvailable);
     if (!active.length) {
       setError("Open at least one connected AI before sending.");
@@ -678,12 +692,14 @@ export default function RoomV3() {
         <div className="flex h-full min-h-0 w-full max-w-none flex-col p-0">
           <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden border-y border-white/10 bg-[#0B1524]">
             <div ref={messagesViewportRef} className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto overscroll-contain px-2 py-2">
-              {!messages.length && !loading && (
+              {(warehouseScope === "studio" || (!messages.length && !loading)) && (
                 <div className="mx-auto mt-8 max-w-xl text-center">
                   <Bot className="mx-auto text-[#d7b64d]" size={30} />
-                  <h2 className="mt-2 text-xl font-semibold">Give one order. Your OPEN AIs work together.</h2>
+                  <h2 className="mt-2 text-xl font-semibold">{warehouseScope === "studio" ? "Give one order. Each specialist works independently, in a safe sequence." : "Give one order. Your OPEN AIs work together."}</h2>
                 </div>
               )}
+
+              {warehouseScope === "studio" && studioUserId && <StudioWorkPanels ref={studioWork} roomId={roomId} userId={studioUserId} slots={slots} language={language} connection={(id) => id === "github" || id === "vercel" ? toolStatus(id) : isAvailable(id) ? "Connected" : "Not Connected"} />}
 
               {messages.map((m) => {
                 const type = m.authorType || m.author_type || "user";
@@ -826,6 +842,7 @@ export default function RoomV3() {
                     onClick={() => replaceWarehouseAI(ai.id)}
                     disabled={warehouseScope === "pending"}
                     aria-pressed={inSlots}
+                    data-warehouse-item={warehouseScope === "studio" ? ai.id : undefined}
                     className={`flex min-h-16 items-center gap-3 rounded-xl border p-3 text-left ${inSlots ? "border-[#d7b64d]/50 bg-[#d7b64d]/10" : "border-white/10 bg-[#0b1524]"}`}
                   >
                     <span className="relative grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-black/25">
