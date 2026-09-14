@@ -3,7 +3,7 @@ import { buildProfessionalRoomCountryTemplateBatch } from "./professional-room-c
 import { PROFESSIONAL_ROOM_DIRECTORY } from "./professional-room-directory";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
-const NEXT_PRIORITY_WITHOUT_CANONICAL_CONFIG = ["SG", "CN", "HK", "TW", "IN"] as const;
+const NEXT_PRIORITY = ["SG", "CN", "HK", "TW", "IN"] as const;
 
 describe("Professional Room country template batch", () => {
   it("prepares an all-or-nothing 18-room source batch for every first-wave country", () => {
@@ -94,9 +94,34 @@ describe("Professional Room country template batch", () => {
     expect(batch?.activatesCountry).toBe(false);
   });
 
-  it("fails closed instead of producing a partial batch for countries without canonical config", () => {
-    for (const countryCode of NEXT_PRIORITY_WITHOUT_CANONICAL_CONFIG) {
-      expect(buildProfessionalRoomCountryTemplateBatch(countryCode), countryCode).toBeNull();
+  it("keeps next-priority countries compatible with canonical config rollout without granting launch authority", () => {
+    for (const countryCode of NEXT_PRIORITY) {
+      const batch = buildProfessionalRoomCountryTemplateBatch(countryCode);
+
+      // This professional-room lane must not hard-code a temporary assumption that
+      // next-priority countries are permanently unsupported. CountryConfig remains
+      // the authority: a country may still resolve to null on this branch, but once
+      // its separately reviewed canonical config is present, the same 18-room batch
+      // must remain source-only and fail closed behind the Country Gate.
+      if (batch === null) continue;
+
+      expect(batch.countryCode, countryCode).toBe(countryCode);
+      expect(batch.roomCount, countryCode).toBe(18);
+      expect(batch.plans, countryCode).toHaveLength(18);
+      expect(new Set(batch.plans.map((plan) => plan.catalogId)).size, countryCode).toBe(18);
+      expect(batch.launchAuthority, countryCode).toBe("COUNTRY_GATE_REQUIRED");
+      expect(batch.createsRooms, countryCode).toBe(false);
+      expect(batch.activatesCountry, countryCode).toBe(false);
+
+      for (const plan of batch.plans) {
+        expect(plan.countryCode, countryCode).toBe(countryCode);
+        expect(plan.launchAuthority, countryCode).toBe("COUNTRY_GATE_REQUIRED");
+        expect(plan.humanApprovalRequired, countryCode).toBe(true);
+        expect(plan.regulatedExecutionAllowed, countryCode).toBe(false);
+        expect(plan.livePaymentExecutionAllowed, countryCode).toBe(false);
+        expect(plan.createsRoom, countryCode).toBe(false);
+        expect(plan.activatesCountry, countryCode).toBe(false);
+      }
     }
   });
 
