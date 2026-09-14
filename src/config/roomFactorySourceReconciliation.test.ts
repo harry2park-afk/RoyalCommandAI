@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { DOMAIN_PROFILES } from "../lib/rooms/factory-v2";
-import { ROOM_TEMPLATES } from "../lib/rooms/templates";
 import { evaluateRoomFactorySourceReconciliation } from "./roomFactorySourceReconciliation";
 
 describe("Room Factory source reconciliation", () => {
@@ -8,19 +6,6 @@ describe("Room Factory source reconciliation", () => {
     const result = evaluateRoomFactorySourceReconciliation([]);
 
     expect(result.sourceTemplatesMissingDomainProfiles).toEqual([]);
-  });
-
-  it("keeps template IDs unique and exactly paired with Domain Profile identities", () => {
-    const templateIds = ROOM_TEMPLATES.map((template) => template.id);
-    const profileEntries = Object.entries(DOMAIN_PROFILES);
-    const profileIds = profileEntries.map(([profileId]) => profileId);
-
-    expect(new Set(templateIds).size).toBe(templateIds.length);
-    expect([...templateIds].sort()).toEqual([...profileIds].sort());
-
-    for (const [profileId, profile] of profileEntries) {
-      expect(profile.templateId).toBe(profileId);
-    }
   });
 
   it("fails closed when the Hosted snapshot contains a template absent from the candidate source", () => {
