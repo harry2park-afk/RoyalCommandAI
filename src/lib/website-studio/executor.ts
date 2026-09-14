@@ -7,7 +7,9 @@ import { github, head, readState, saveState, type Snapshot } from "./github";
 import { assertPresentationOnly } from "./candidate";
 
 const CHECKS = ["panels_present", "panels_toggle", "warehouse_toggle_persistence", "order_control", "work_resume"] as const;
-export const planSchema = z.object({ summary: z.string().min(1).max(8000), paths: z.array(z.string()).min(1), checks: z.array(z.enum(CHECKS)).min(1) });
+const acceptedPlanSchema = z.object({ outcome: z.literal("accepted"), summary: z.string().min(1).max(8000), paths: z.array(z.string()).min(1), checks: z.array(z.enum(CHECKS)).min(1) });
+const unsupportedPlanSchema = z.object({ outcome: z.literal("unsupported"), summary: z.string().min(1).max(8000), reason: z.string().min(1).max(2000) });
+export const planSchema = z.discriminatedUnion("outcome", [acceptedPlanSchema, unsupportedPlanSchema]);
 const actionsSchema = z.object({ actions: z.array(z.object({ path: z.string(), content: z.string().min(1).max(150000) })).min(1).max(20) });
 export type Design = z.infer<typeof planSchema>;
 export async function assertBranch() {
@@ -55,6 +57,7 @@ export async function advance(input: { actor: string; room: string; requestKey: 
   if (digest(input.order) !== previous.state.orderHash) throw new Error("ORDER_MISMATCH");
   if (digest(`${input.actor}:${input.room}:${input.requestKey}`) !== previous.state.requestHash) throw new Error("REQUEST_MISMATCH");
   let design = previous.state.designArtifact ? planSchema.parse(JSON.parse(openDesign(previous.state.designArtifact, input.requestKey, previous.state.workId))) : input.design;
+  if (previous.state.stage !== "design" && design?.outcome !== "accepted") throw new Error("DESIGN_NOT_ACCEPTED");
   if (previous.state.stage !== "design" && digest(JSON.stringify(design)) !== previous.state.designHash) throw new Error("DESIGN_MISMATCH");
   if (input.design && digest(JSON.stringify(input.design)) !== previous.state.designHash) throw new Error("DESIGN_MISMATCH");
   let active: Snapshot = await saveState(previous, claimStage(previous.state, previous.state.stage, "codex"));
@@ -63,11 +66,17 @@ export async function advance(input: { actor: string; room: string; requestKey: 
     if (!["preview"].includes(state.stage) && await head() !== state.baseSha) throw new Error("BASE_SHA_CHANGED");
     if (state.stage === "design") {
       const files = await Promise.all(WRITABLE_PATHS.map(async (path) => ({ path, content: await source(path, state.baseSha) })));
-      design = planSchema.parse(await model("astra", `READ ONLY DESIGN. Approved writable files: ${JSON.stringify(WRITABLE_PATHS)}. This initial runtime approval permits JSX display text and static className/title/aria-label string edits only. Executable logic, imports, handlers, network/storage access and other files cannot change. If the order needs broader changes or verification beyond ${JSON.stringify(CHECKS)}, return no paths. Return {summary,paths,checks}; checks must be supported check IDs.\nORDER:\n${input.order}\nBASE SOURCE:\n${JSON.stringify(files)}`));
-      assertPaths(design.paths, [...WRITABLE_PATHS]);
-      state.designHash = digest(JSON.stringify(design)); state.paths = design.paths;
+      design = planSchema.parse(await model("astra", `READ ONLY DESIGN. Approved writable files: ${JSON.stringify(WRITABLE_PATHS)}. This initial runtime approval permits JSX display text and static className/title/aria-label string edits only. Executable logic, imports, handlers, network/storage access and other files cannot change. If supported, return {outcome:"accepted",summary,paths,checks}; paths must contain at least one approved file and checks must use ${JSON.stringify(CHECKS)}. If the order needs broader changes or verification, return {outcome:"unsupported",summary,reason}. Never return an empty accepted paths array.\nORDER:\n${input.order}\nBASE SOURCE:\n${JSON.stringify(files)}`));
+      state.designHash = digest(JSON.stringify(design));
       state.designArtifact = sealDesign(JSON.stringify(design), input.requestKey, state.workId);
+      if (design.outcome === "unsupported") {
+        state.status = "unsupported";
+        return { snapshot: await saveState(active, { ...state }), design };
+      }
+      assertPaths(design.paths, [...WRITABLE_PATHS]);
+      state.paths = design.paths;
     } else if (state.stage === "write") {
+      if (!design || design.outcome !== "accepted") throw new Error("DESIGN_NOT_ACCEPTED");
       const files = await Promise.all(state.paths!.map(async (path) => ({ path, content: await source(path, state.baseSha) })));
       const proposed = actionsSchema.parse(await model("codex", `SOLE WRITER: propose complete file contents only. Return {actions:[{path,content}]}. Only JSX display text and static className/title/aria-label strings may change. Preserve executable AST, imports, handlers, all other strings and behavior exactly. No deletion.\nORDER:${input.order}\nAPPROVED DESIGN:${JSON.stringify(design)}\nBASE SOURCE:${JSON.stringify(files)}`));
       assertPaths(proposed.actions.map((action) => action.path), state.paths!);
@@ -76,6 +85,7 @@ export async function advance(input: { actor: string; room: string; requestKey: 
       if (tree.sha === base.tree.sha) throw new Error("NO_CODE_CHANGE");
       state.treeSha = tree.sha;
     } else if (state.stage === "diff") {
+      if (!design || design.outcome !== "accepted") throw new Error("DESIGN_NOT_ACCEPTED");
       if (!state.treeSha) throw new Error("CANDIDATE_MISSING");
       // Inspect the actual immutable tree before creating/publishing the source commit.
       const baseCommit = await github<{ tree: { sha: string } }>(`/git/commits/${state.baseSha}`);

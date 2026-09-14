@@ -11,12 +11,12 @@ export type WorkState = {
   version: 1; workId: string; requestHash: string; actorHash: string; roomHash: string;
   orderHash: string; baseSha: string; designVersion: number; designHash?: string;
   paths?: string[]; designArtifact?: string; treeSha?: string; commitSha?: string; stage: Stage;
-  status: "waiting" | "running" | "passed" | "failed";
+  status: "waiting" | "running" | "passed" | "failed" | "unsupported";
   passed: Stage[]; errorCode?: string; previewUrl?: string;
 };
 export function digest(value: string) { return createHash("sha256").update(value).digest("hex"); }
 export function canStartNewWork(state: WorkState, publicationConfirmed = false) {
-  return state.status === "passed" || (state.status === "failed" && (!state.commitSha || publicationConfirmed));
+  return state.status === "passed" || state.status === "unsupported" || (state.status === "failed" && (!state.commitSha || publicationConfirmed));
 }
 // A per-work random client nonce is saved before the first request. Its hash
 // alone is public. No provider/infrastructure key doubles as an encryption key.

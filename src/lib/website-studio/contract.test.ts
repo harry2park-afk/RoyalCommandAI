@@ -6,6 +6,7 @@ describe("Website Studio host authority", () => {
   it("allows a fresh work after a stopped pre-publication failure but never steals active or ambiguous publication locks", () => {
     expect(canStartNewWork({ ...initial(), status: "failed" })).toBe(true);
     expect(canStartNewWork({ ...initial(), status: "passed" })).toBe(true);
+    expect(canStartNewWork({ ...initial(), status: "unsupported" })).toBe(true);
     expect(canStartNewWork(initial())).toBe(false);
     expect(canStartNewWork({ ...initial(), status: "running" })).toBe(false);
     expect(canStartNewWork({ ...initial(), status: "failed", commitSha: "b".repeat(40) })).toBe(false);

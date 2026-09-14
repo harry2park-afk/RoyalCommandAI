@@ -78,7 +78,7 @@ export default forwardRef<StudioWorkHandle, Props>(function StudioWorkPanels({ r
       const stored = localStorage.getItem(key);
       let local: LocalWork | null = null;
       try { local = stored ? JSON.parse(stored) as LocalWork : null; } catch { return; }
-      if (!local || local.stopped || local.state?.status === "passed" || local.state?.status === "failed") return;
+      if (!local || local.stopped || local.state?.status === "passed" || local.state?.status === "failed" || local.state?.status === "unsupported") return;
       checking = true;
       try {
         const response = await fetch(`/api/website-studio/work?roomId=${roomId}`);
@@ -97,12 +97,12 @@ export default forwardRef<StudioWorkHandle, Props>(function StudioWorkPanels({ r
     {workers.map((worker) => {
       const passed = worker.stages.every((stage) => state?.passed.includes(stage as WorkState["stage"]));
       const active = worker.stages.includes(state?.stage || "");
-      const status = passed ? (ko ? "통과" : "Passed") : active && state?.status === "failed" ? (ko ? "실패" : "Failed") : active && state?.status === "running" ? (ko ? "작업 중" : "Working") : (ko ? "대기" : "Waiting");
+      const status = state?.status === "unsupported" ? (worker.id === "astra" ? (ko ? "지원 범위 밖" : "Unsupported") : (ko ? "시작 안 함" : "Not started")) : passed ? (ko ? "통과" : "Passed") : active && state?.status === "failed" ? (ko ? "실패" : "Failed") : active && state?.status === "running" ? (ko ? "작업 중" : "Working") : (ko ? "대기" : "Waiting");
       return <details key={worker.id} data-studio-worker={worker.id} open={slots.includes(worker.id)} className="rounded-xl border border-yellow-500/30 bg-slate-950/60 p-3">
         <summary className="cursor-pointer font-semibold text-yellow-100">{worker.name} <span className="text-sm font-normal text-slate-300">{status}</span></summary>
         <div className="mt-2 text-sm text-slate-300">{worker.role}</div>
         <div className="text-xs text-slate-400">{ko ? "등록됨" : "Registered"} · {connection(worker.id)} · {ko ? "창 열림" : "Window open"}</div>
-        {worker.id === "astra" && work?.design && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-200">{work.design.summary}</p>}
+        {worker.id === "astra" && work?.design && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-200">{work.design.summary}{work.design.outcome === "unsupported" ? `\n${work.design.reason}` : ""}</p>}
         {worker.id === "github" && state?.commitSha && <code className="mt-2 block break-all text-xs text-slate-300">{state.commitSha}</code>}
         {worker.id === "vercel" && state?.previewUrl && <a className="text-sm text-yellow-200 underline" href={state.previewUrl} target="_blank" rel="noreferrer">Preview</a>}
       </details>;
