@@ -4,10 +4,12 @@ import { ROOM_TEMPLATES } from "../lib/rooms/templates";
 import { evaluateRoomFactorySourceReconciliation } from "./roomFactorySourceReconciliation";
 
 describe("Room Factory source reconciliation", () => {
-  it("keeps the candidate source internally complete", () => {
+  it("keeps the candidate source internally complete in both directions", () => {
     const result = evaluateRoomFactorySourceReconciliation([]);
 
     expect(result.sourceTemplatesMissingDomainProfiles).toEqual([]);
+    expect(result.sourceDomainProfilesMissingTemplates).toEqual([]);
+    expect(result.consistent).toBe(true);
   });
 
   it("keeps template IDs unique and exactly paired with Domain Profile identities", () => {
@@ -36,5 +38,7 @@ describe("Room Factory source reconciliation", () => {
 
     expect(result.consistent).toBe(true);
     expect(result.hostedTemplatesMissingFromSource).toEqual([]);
+    expect(result.sourceTemplatesMissingDomainProfiles).toEqual([]);
+    expect(result.sourceDomainProfilesMissingTemplates).toEqual([]);
   });
 });
