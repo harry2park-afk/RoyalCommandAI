@@ -104,7 +104,7 @@ export default forwardRef<StudioWorkHandle, Props>(function StudioWorkPanels({ r
         <div className="text-xs text-slate-400">{ko ? "등록됨" : "Registered"} · {connection(worker.id)} · {ko ? "창 열림" : "Window open"}</div>
         {worker.id === "astra" && work?.design && <p className="mt-2 whitespace-pre-wrap text-sm text-slate-200">{work.design.summary}</p>}
         {worker.id === "github" && state?.commitSha && <code className="mt-2 block break-all text-xs text-slate-300">{state.commitSha}</code>}
-        {worker.id === "vercel" && state?.previewUrl && <a className="text-sm text-yellow-200 underline" href={state.previewUrl} target="_blank" rel="noreferrer">Open Preview</a>}
+        {worker.id === "vercel" && state?.previewUrl && <a className="text-sm text-yellow-200 underline" href={state.previewUrl} target="_blank" rel="noreferrer">Preview</a>}
       </details>;
     })}
     {(error || state?.errorCode) && <p role="alert" className="text-sm text-red-300">{error || state?.errorCode}</p>}
