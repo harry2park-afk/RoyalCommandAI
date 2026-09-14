@@ -58,6 +58,8 @@ export type CountryOperationalReleaseScope = {
 
 export const MAX_OPERATIONAL_EVIDENCE_VALIDITY_MS = 24 * 60 * 60 * 1000;
 
+const OFFSET_AWARE_RFC3339_TIMESTAMP = /^\d{4}-(?:0[1-9]|1[0-2])-(?:0[1-9]|[12]\d|3[01])T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:0\d|1\d|2[0-3]):[0-5]\d)$/;
+
 /**
  * Operational evidence is deliberately separate from CountryConfig.
  *
@@ -104,6 +106,13 @@ export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
 };
 
 function hasFreshOperationalEvidenceWindow(evidence: CountryOperationalEvidence, evaluatedAtMs: number): boolean {
+  if (
+    !OFFSET_AWARE_RFC3339_TIMESTAMP.test(evidence.operationalEvidenceObservedAt) ||
+    !OFFSET_AWARE_RFC3339_TIMESTAMP.test(evidence.operationalEvidenceExpiresAt)
+  ) {
+    return false;
+  }
+
   const observedAtMs = Date.parse(evidence.operationalEvidenceObservedAt);
   const expiresAtMs = Date.parse(evidence.operationalEvidenceExpiresAt);
 
@@ -156,9 +165,9 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * Hosted Production environment. Evidence from another country, another
  * release candidate, another migration apply set, another Room Factory/template
  * contract, another Hosted operational-data snapshot, expired/overlong/future
- * operational proof, or Preview/disposable environments fails closed. This
- * function has no side effects and grants no deployment or domain-binding
- * authority by itself.
+ * operational proof, timezone-less timestamps, or Preview/disposable
+ * environments fails closed. This function has no side effects and grants no
+ * deployment or domain-binding authority by itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
