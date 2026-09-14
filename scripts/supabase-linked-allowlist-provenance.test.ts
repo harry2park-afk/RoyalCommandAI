@@ -8,7 +8,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const manifestPath = path.join(
   repoRoot,
   "scripts",
-  "supabase-unresolved-local-migration-classification-20260908.json",
+  "supabase-unresolved-local-migration-classification-20260914.json",
 );
 const workflowPath = path.join(
   repoRoot,
@@ -16,6 +16,11 @@ const workflowPath = path.join(
   "workflows",
   "supabase-linked-dry-run-evidence.yml",
 );
+
+const expectedCandidates = [
+  "20260831225500_scope_matter_staff_access.sql",
+  "20260901025800_room_factory_atomic_non_encounter.sql",
+];
 
 function loadManifest() {
   return JSON.parse(fs.readFileSync(manifestPath, "utf8"));
@@ -29,7 +34,7 @@ function readWorkflowAllowlist(): string {
 }
 
 describe("Supabase linked dry-run allow-list provenance", () => {
-  it("binds the workflow allow-list exactly to the provenance-authorized new candidate", () => {
+  it("binds the workflow allow-list exactly to both provenance-authorized new candidates", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
       requestedAllowlist: readWorkflowAllowlist(),
@@ -38,17 +43,14 @@ describe("Supabase linked dry-run allow-list provenance", () => {
     expect(report.blockers).toEqual([]);
     expect(report.dry_run_allowlist_verified).toBe(true);
     expect(report.ready_for_apply).toBe(false);
-    expect(report.requested_allowlist).toEqual(["20260831225500_scope_matter_staff_access.sql"]);
-    expect(report.provenance_authorized_dry_run).toEqual([
-      "20260831225500_scope_matter_staff_access.sql",
-    ]);
+    expect(report.requested_allowlist).toEqual(expectedCandidates);
+    expect(report.provenance_authorized_dry_run).toEqual(expectedCandidates);
   });
 
   it("fails closed if a quarantined historical migration is added to the dry-run allow-list", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
-      requestedAllowlist:
-        "20260831225500_scope_matter_staff_access.sql,20260825041500_fix_room_member_insert_rls.sql",
+      requestedAllowlist: `${expectedCandidates.join(",")},20260825041500_fix_room_member_insert_rls.sql`,
     });
 
     expect(report.dry_run_allowlist_verified).toBe(false);
@@ -58,7 +60,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
   it("fails closed if the workflow allow-list is narrower than the provenance manifest", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
-      requestedAllowlist: "20260810065600_passkeys.sql",
+      requestedAllowlist: "20260831225500_scope_matter_staff_access.sql",
     });
 
     expect(report.dry_run_allowlist_verified).toBe(false);
@@ -71,7 +73,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
     const migration = "20260831225500_scope_matter_staff_access.sql";
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
-      requestedAllowlist: `${migration},${migration}`,
+      requestedAllowlist: `${expectedCandidates.join(",")},${migration}`,
     });
 
     expect(report.dry_run_allowlist_verified).toBe(false);
@@ -82,7 +84,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
     const manifest = { ...loadManifest(), ready_for_apply: true };
     const report = verifyLinkedDryRunAllowlist({
       manifest,
-      requestedAllowlist: "20260831225500_scope_matter_staff_access.sql",
+      requestedAllowlist: expectedCandidates.join(","),
     });
 
     expect(report.dry_run_allowlist_verified).toBe(false);
