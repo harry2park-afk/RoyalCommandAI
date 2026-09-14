@@ -15,6 +15,7 @@ export type LaunchBlockerCode =
   | "OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH"
   | "OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH"
   | "OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED"
   | "COUNTRY_TERMS_NOT_REVIEWED"
   | "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED"
   | "LOCAL_PRICE_NOT_READY"
@@ -63,13 +64,14 @@ export type CountryOperationalReleaseScope = {
  * candidate, the exact linked migration apply-set fingerprint, the exact Room
  * Factory/template contract fingerprint and the exact Hosted operational-data
  * snapshot fingerprint before it can authorize an operational launch decision.
- * Preview/disposable or stale release/database/Room Factory/Hosted-data evidence
- * remains useful for engineering verification but can never be reused as
- * Production launch authority; scope is part of the evidence contract.
+ * Preview/disposable, stale-scope, or expired operational evidence remains
+ * useful for engineering verification but can never be reused as Production
+ * launch authority; scope and freshness are part of the evidence contract.
  */
 export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   countryCode: string;
   environment: CountryOperationalEvidenceEnvironment;
+  operationalEvidenceFreshnessVerified: boolean;
   countryTermsReviewed: boolean;
   countryTermsReviewerProven: boolean;
   positiveLocalPrice: boolean;
@@ -130,15 +132,17 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  *
  * A country can pass configuration review and still remain blocked when
  * commercial/compliance records lack reviewer provenance, recording-policy
- * approval is not reviewer-proven, the complete payment-operational safety set
- * is not verified, tenant isolation, Room Factory isolation and Hosted/source
+ * approval is not reviewer-proven, operational evidence freshness is not
+ * independently verified, the complete payment-operational safety set is not
+ * verified, tenant isolation, Room Factory isolation and Hosted/source
  * reconciliation, exact migration evidence, authenticated browser regressions,
  * security checks, observability, or rollback proof have not been verified
  * against the intended Hosted Production environment. Evidence from another
  * country, another release candidate, another migration apply set, another Room
- * Factory/template contract, another Hosted operational-data snapshot, or from
- * Preview/disposable environments fails closed. This function has no side
- * effects and grants no deployment or domain-binding authority by itself.
+ * Factory/template contract, another Hosted operational-data snapshot, expired
+ * operational proof, or Preview/disposable environments fails closed. This
+ * function has no side effects and grants no deployment or domain-binding
+ * authority by itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -177,6 +181,7 @@ export function evaluateCountryOperationalLaunch(
   ) {
     blockers.push("OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH");
   }
+  if (!evidence.operationalEvidenceFreshnessVerified) blockers.push("OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED");
   if (!evidence.countryTermsReviewed) blockers.push("COUNTRY_TERMS_NOT_REVIEWED");
   if (!evidence.countryTermsReviewerProven) blockers.push("COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED");
   if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
