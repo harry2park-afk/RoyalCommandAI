@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -10,6 +11,11 @@ function sameStrings(left, right) {
   const a = sorted(left);
   const b = sorted(right);
   return a.length === b.length && a.every((value, index) => value === b[index]);
+}
+
+function gitBlobSha(buffer) {
+  const header = Buffer.from(`blob ${buffer.length}\0`, "utf8");
+  return crypto.createHash("sha1").update(header).update(buffer).digest("hex");
 }
 
 export function parseAllowlistCsv(raw) {
@@ -38,7 +44,7 @@ export function parseAllowlistCsv(raw) {
   return { migrations, blockers };
 }
 
-export function verifyLinkedDryRunAllowlist({ manifest, requestedAllowlist }) {
+export function verifyLinkedDryRunAllowlist({ manifest, requestedAllowlist, migrationDir = null }) {
   const parsed = parseAllowlistCsv(requestedAllowlist);
   const blockers = [...parsed.blockers];
   const entries = Array.isArray(manifest?.entries) ? manifest.entries : [];
@@ -91,18 +97,64 @@ export function verifyLinkedDryRunAllowlist({ manifest, requestedAllowlist }) {
     );
   }
 
+  const sourceBlobChecks = [];
+  if (migrationDir) {
+    for (const entry of entries) {
+      if (
+        entry?.classification !== "NEW_CANDIDATE_EXPECTED_APPLY" ||
+        entry?.expected_apply !== true ||
+        !entry?.source_blob_sha
+      ) {
+        continue;
+      }
+
+      const basename = entry.local_basename;
+      const expectedBlobSha = String(entry.source_blob_sha).toLowerCase();
+      if (!basename || path.basename(basename) !== basename) {
+        blockers.push(`candidate provenance has invalid migration basename: ${String(basename)}`);
+        continue;
+      }
+      if (!/^[0-9a-f]{40}$/.test(expectedBlobSha)) {
+        blockers.push(`candidate provenance has invalid source blob SHA for ${basename}`);
+        continue;
+      }
+
+      const migrationPath = path.join(migrationDir, basename);
+      if (!fs.existsSync(migrationPath)) {
+        blockers.push(`candidate source migration is missing for blob verification: ${basename}`);
+        sourceBlobChecks.push({ migration: basename, expected_blob_sha: expectedBlobSha, actual_blob_sha: null, verified: false });
+        continue;
+      }
+
+      const actualBlobSha = gitBlobSha(fs.readFileSync(migrationPath));
+      const verified = actualBlobSha === expectedBlobSha;
+      sourceBlobChecks.push({
+        migration: basename,
+        expected_blob_sha: expectedBlobSha,
+        actual_blob_sha: actualBlobSha,
+        verified,
+      });
+      if (!verified) {
+        blockers.push(
+          `candidate source blob mismatch for ${basename}; expected=${expectedBlobSha} actual=${actualBlobSha}`,
+        );
+      }
+    }
+  }
+
   if (manifest?.ready_for_apply !== false) {
     blockers.push("provenance manifest must remain ready_for_apply=false; this gate authorizes dry-run evidence only");
   }
 
   return {
-    contract_version: 1,
+    contract_version: 2,
     evidence_scope:
-      "Binds the linked dry-run allow-list to independently classified migration provenance. Passing this gate authorizes only evidence capture; it does not authorize migration apply, repair, Hosted mutation, merge, deploy, or Country READY.",
+      "Binds the linked dry-run allow-list to independently classified migration provenance and verifies copied candidate sources against recorded Git blob SHAs when available. Passing this gate authorizes only evidence capture; it does not authorize migration apply, repair, Hosted mutation, merge, deploy, provider activation, or Country READY.",
     requested_allowlist: parsed.migrations,
     manifest_expected_apply: manifestExpected,
     provenance_authorized_dry_run: provenanceAuthorized,
     quarantined_historical: quarantined,
+    source_blob_checks: sourceBlobChecks,
     dry_run_allowlist_verified: blockers.length === 0,
     ready_for_apply: false,
     blockers,
@@ -110,15 +162,16 @@ export function verifyLinkedDryRunAllowlist({ manifest, requestedAllowlist }) {
 }
 
 function main() {
-  const [manifestPath, requestedAllowlist] = process.argv.slice(2);
+  const [manifestPath, requestedAllowlist, migrationDirArg] = process.argv.slice(2);
   if (!manifestPath || requestedAllowlist === undefined) {
     throw new Error(
-      "usage: node scripts/supabase-linked-allowlist-provenance.mjs <classification-manifest.json> <comma-separated-expected-apply-migrations>",
+      "usage: node scripts/supabase-linked-allowlist-provenance.mjs <classification-manifest.json> <comma-separated-expected-apply-migrations> [migration-dir]",
     );
   }
 
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-  const report = verifyLinkedDryRunAllowlist({ manifest, requestedAllowlist });
+  const migrationDir = migrationDirArg ?? "supabase/migrations";
+  const report = verifyLinkedDryRunAllowlist({ manifest, requestedAllowlist, migrationDir });
   process.stdout.write(`${JSON.stringify(report, null, 2)}\n`);
   process.exitCode = report.dry_run_allowlist_verified ? 0 : 1;
 }
