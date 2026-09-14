@@ -69,6 +69,18 @@ $$;
 
 revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
+-- Profiles are auth-owned identity rows. Ordinary API users need read access
+-- through RLS plus a narrow set of preference/profile columns to update. They do
+-- not need direct INSERT/DELETE/TRUNCATE/TRIGGER/REFERENCES privileges, and they
+-- must not be able to update identity/authorization columns at the SQL privilege
+-- boundary. The role trigger remains defense in depth for any other JWT-backed
+-- path that reaches the table.
+revoke insert, delete, truncate, references, trigger on table public.profiles from anon, authenticated;
+revoke update on table public.profiles from anon, authenticated;
+grant update (full_name, default_language, avatar_url, ui_preferences, updated_at)
+on table public.profiles
+to authenticated;
+
 comment on function private.guard_profile_role_change() is
   'Rejects JWT-backed end-user privileged role inserts and role changes on public.profiles. Trusted service/admin contexts may provision roles deliberately.';
 
