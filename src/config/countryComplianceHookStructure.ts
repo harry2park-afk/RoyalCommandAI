@@ -41,6 +41,7 @@ export type CountryRoomPackConfigBinding = {
   phoneCountryCode: string;
   dateFormat: string;
   timeFormat: string;
+  addressFormat: readonly string[];
   secondaryLanguageTags?: readonly string[];
 };
 
@@ -78,6 +79,11 @@ export function isCountryRoomPackBoundToConfig(
     ? packSecondaryLocales.length === 1 &&
       packSecondaryLocales[0] === configuredSecondaryLocale
     : packSecondaryLocales.length === 0;
+  const addressFormatMatches =
+    roomPack.addressFormat.length === config.addressFormat.length &&
+    roomPack.addressFormat.every(
+      (field, index) => field === config.addressFormat[index],
+    );
 
   return (
     roomPack.id === config.countryCode &&
@@ -87,6 +93,7 @@ export function isCountryRoomPackBoundToConfig(
     roomPack.phoneCountryCode === config.phoneCountryCode &&
     roomPack.dateFormat === config.dateFormat &&
     roomPack.timeFormat === config.timeFormat &&
+    addressFormatMatches &&
     config.timezone.supportedExamples.includes(roomPack.timeZone) &&
     secondaryLocalesMatch
   );
