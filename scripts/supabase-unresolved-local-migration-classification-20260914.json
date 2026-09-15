@@ -1,14 +1,15 @@
 {
   "contract_version": 1,
-  "captured_at": "2026-09-15T09:49:00+10:00",
+  "captured_at": "2026-09-15T20:05:00+10:00",
   "project_ref": "aygawkavujjmybekswrg",
   "project_name": "RoyalCommand",
-  "source": "Fresh Hosted supabase_migrations.schema_migrations READ-ONLY inventory (no rows for the five candidate versions) plus exact #696 checkout sources, byte-identical #771 Room Factory candidate migration, byte-identical #658 payment operational safeguards candidate migration, byte-identical #691 profile-role authority candidate migration, and byte-identical #661 Room Factory manifest ACL hardening candidate migration",
-  "purpose": "Extend the fail-closed linked dry-run evidence set to the independently verified non-encounter Room Factory, payment operational safeguards, profile-role authority, and Room Factory manifest ACL hardening migrations without authorizing migration repair, push, deploy, provider activation, or Country READY. Historical equivalent/diverged migrations remain quarantined.",
+  "source": "Fresh Hosted supabase_migrations.schema_migrations READ-ONLY inventory (no rows for the six candidate versions) plus exact #696 checkout sources, byte-identical #771 Room Factory candidate migration, byte-identical #657 country compliance evidence registry candidate migration, byte-identical #658 payment operational safeguards candidate migration, byte-identical #691 profile-role authority candidate migration, and byte-identical #661 Room Factory manifest ACL hardening candidate migration",
+  "purpose": "Extend the fail-closed linked dry-run evidence set to the independently verified Matter isolation, non-encounter Room Factory, country compliance evidence registry, payment operational safeguards, profile-role authority, and Room Factory manifest ACL hardening migrations without authorizing migration repair, push, deploy, provider activation, or Country READY. Historical equivalent/diverged migrations remain quarantined.",
   "normalization": "CRLF to LF, trim whole source, drop blank lines and full-line -- comments, preserve remaining line bytes, SHA-256",
   "expected_apply_migrations": [
     "20260831225500_scope_matter_staff_access.sql",
     "20260901025800_room_factory_atomic_non_encounter.sql",
+    "20260903075000_country_compliance_evidence_registry.sql",
     "20260903205500_payment_operational_safeguards.sql",
     "20260904105500_harden_profile_role_authority.sql",
     "20260911045100_room_factory_manifest_acl_hardening.sql"
@@ -111,6 +112,16 @@
       "source_candidate": "PR #771 exact head fec834cd46380c74d46e737ffa6aa15cf7c00adb",
       "source_blob_sha": "85d66e9c97ad67fd22e16e84f6e030b386b44c14",
       "reason": "Fresh Hosted migration inventory has no 20260901025800 row and Hosted private.create_room_factory_room_atomic still rejects null encounters. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260903075000_country_compliance_evidence_registry.sql",
+      "local_name": "country_compliance_evidence_registry",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #657 exact head 51d51a5c10c2fef791d2cc3c6001518ae47ce9b2",
+      "source_blob_sha": "a6c406ee25e6c83ff4c031e98b1f23c68fc5295d",
+      "reason": "Fresh Hosted migration inventory has no 20260903075000 row and public.country_compliance_evidence is absent. The independently verified candidate seeds no approvals, requires reviewer provenance for VERIFIED evidence, enables RLS, and removes anon/authenticated direct access. This entry authorizes linked dry-run evidence capture only; it does not authorize apply, legal approval, Compliance READY, or Country READY."
     },
     {
       "local_basename": "20260903205500_payment_operational_safeguards.sql",
