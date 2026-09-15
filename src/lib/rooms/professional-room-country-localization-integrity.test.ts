@@ -168,6 +168,7 @@ describe("Professional Room first-wave localization integrity", () => {
         expect(plan?.phoneCountryCode).toBe(config!.phoneCountryCode);
         expect(plan?.dateFormat).toBe(config!.dateFormat);
         expect(plan?.timeFormat).toBe(config!.timeFormat);
+        expect(plan?.addressFormat).toEqual(config!.addressFormat);
         expect(plan?.timeZoneStorage).toBe(config!.timezone.storage);
         expect(plan?.timeZoneDisplay).toBe(config!.timezone.display);
         expect(plan?.supportedTimeZones).toEqual(config!.timezone.supportedExamples);
