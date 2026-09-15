@@ -9,6 +9,16 @@ import {
   type ProfessionalRoomFactoryPlan,
 } from "./professional-room-factory-adapter";
 
+export const REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE = [
+  "recordingConsentEvidence",
+  "legalComplianceEvidence",
+  "privacyLifecycleEvidence",
+  "commercialReadiness",
+] as const;
+
+export type ProfessionalRoomComplianceEvidenceKey =
+  (typeof REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE)[number];
+
 export type ProfessionalRoomCountryTemplatePlan = ProfessionalRoomFactoryPlan & {
   countryCode: string;
   locale: string;
@@ -35,6 +45,9 @@ export type ProfessionalRoomCountryTemplatePlan = ProfessionalRoomFactoryPlan & 
     tax: ReviewStatus;
     medical: ReviewStatus;
     investment: ReviewStatus;
+    requiredEvidence: readonly ProfessionalRoomComplianceEvidenceKey[];
+    humanReviewRequired: true;
+    automaticApprovalAllowed: false;
   };
   paymentHook: {
     primaryProvider: string;
@@ -64,8 +77,9 @@ function copySubdivisions(
  * Prepare one governed Professional Room template for a canonical CountryConfig.
  *
  * This is a source-only planning adapter. It binds the room plan to the country's
- * localization plus jurisdiction, legal/privacy/tax/payment readiness hooks, but
- * it never turns those configuration values into execution authority. Regulated
+ * localization plus jurisdiction, legal/privacy/tax/payment readiness hooks, and
+ * the minimum human-reviewed compliance evidence surfaces required before launch.
+ * It never turns those configuration values into execution authority. Regulated
  * execution and live payment execution remain explicitly denied until separate
  * reviewed gates authorize them.
  *
@@ -114,6 +128,9 @@ export function buildProfessionalRoomCountryTemplatePlan(
       tax: countryConfig.compliance.tax,
       medical: countryConfig.compliance.medical,
       investment: countryConfig.compliance.investment,
+      requiredEvidence: [...REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE],
+      humanReviewRequired: true,
+      automaticApprovalAllowed: false,
     },
     paymentHook: {
       primaryProvider: countryConfig.payments.primary,
