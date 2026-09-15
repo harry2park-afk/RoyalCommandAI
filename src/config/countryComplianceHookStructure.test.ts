@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { getFirstWaveCountryRoomPack } from "../lib/rooms/countries";
 import { getCountryConfigByCountryCode } from "./countryResolver";
 import {
   FIRST_WAVE_COUNTRY_COMPLIANCE_HOOKS,
@@ -28,7 +29,22 @@ describe("first-wave country compliance hook structure", () => {
     }
   });
 
-  it("has a Legal Room Pack hook without promoting country review state", () => {
+  it("requires Legal and Accounting packs with structure-only safe clone defaults", () => {
+    for (const code of FIRST_WAVE) {
+      const pack = getFirstWaveCountryRoomPack(code);
+      expect(pack).not.toBeNull();
+      expect(pack?.packs.legal.trim().length).toBeGreaterThan(0);
+      expect(pack?.packs.accounting.trim().length).toBeGreaterThan(0);
+      expect(pack?.roomDefaults.clonePolicy).toBe("structure-only");
+      expect(pack?.roomDefaults.cloneCustomerData).toBe(false);
+      expect(pack?.roomDefaults.cloneMemory).toBe(false);
+      expect(pack?.roomDefaults.cloneCredentials).toBe(false);
+      expect(pack?.roomDefaults.cloneSecrets).toBe(false);
+      expect(pack?.roomDefaults.humanApprovalForExternalActions).toBe(true);
+    }
+  });
+
+  it("has first-wave compliance hooks without promoting country review state", () => {
     for (const code of FIRST_WAVE) {
       const config = getCountryConfigByCountryCode(code);
       expect(config).not.toBeNull();
