@@ -70,7 +70,7 @@ select jsonb_build_object(
         values
           ('scope_matter_staff_access'),
           ('room_factory_atomic_non_encounter'),
-          ('room_factory_manifest_atomic_only'),
+          ('room_factory_manifest_acl_hardening'),
           ('harden_profile_role_authority'),
           ('country_compliance_evidence_registry'),
           ('payment_operational_safeguards')
