@@ -1,5 +1,9 @@
 import { getCountryConfigByCountryCode } from "../../config/countryResolver";
-import type { ConnectionStatus, ReviewStatus } from "../../types/countryConfig";
+import type {
+  ConnectionStatus,
+  ReviewStatus,
+  SubdivisionConfig,
+} from "../../types/countryConfig";
 import {
   buildProfessionalRoomFactoryPlan,
   type ProfessionalRoomFactoryPlan,
@@ -17,6 +21,14 @@ export type ProfessionalRoomCountryTemplatePlan = ProfessionalRoomFactoryPlan & 
   timeZoneStorage: string;
   timeZoneDisplay: string;
   supportedTimeZones: string[];
+  jurisdictionHook: {
+    taxStructure: {
+      system: string;
+      status: ReviewStatus;
+    } | null;
+    states: Record<string, SubdivisionConfig>;
+    provinces: Record<string, SubdivisionConfig>;
+  };
   complianceHook: {
     legal: ReviewStatus;
     privacy: ReviewStatus;
@@ -40,14 +52,22 @@ export type ProfessionalRoomCountryTemplatePlan = ProfessionalRoomFactoryPlan & 
   activatesCountry: false;
 };
 
+function copySubdivisions(
+  subdivisions: Record<string, SubdivisionConfig> | undefined,
+): Record<string, SubdivisionConfig> {
+  return Object.fromEntries(
+    Object.entries(subdivisions ?? {}).map(([code, subdivision]) => [code, { ...subdivision }]),
+  );
+}
+
 /**
  * Prepare one governed Professional Room template for a canonical CountryConfig.
  *
  * This is a source-only planning adapter. It binds the room plan to the country's
- * localization plus legal/privacy/tax/payment readiness hooks, but it never turns
- * those configuration values into execution authority. Regulated execution and
- * live payment execution remain explicitly denied until separate reviewed gates
- * authorize them.
+ * localization plus jurisdiction, legal/privacy/tax/payment readiness hooks, but
+ * it never turns those configuration values into execution authority. Regulated
+ * execution and live payment execution remain explicitly denied until separate
+ * reviewed gates authorize them.
  *
  * It does not create a Room, persist a manifest, activate a country, approve
  * regulated advice, connect a provider, take payment, or bypass the country
@@ -83,6 +103,11 @@ export function buildProfessionalRoomCountryTemplatePlan(
     timeZoneStorage: countryConfig.timezone.storage,
     timeZoneDisplay: countryConfig.timezone.display,
     supportedTimeZones: [...countryConfig.timezone.supportedExamples],
+    jurisdictionHook: {
+      taxStructure: countryConfig.taxStructure ? { ...countryConfig.taxStructure } : null,
+      states: copySubdivisions(countryConfig.states),
+      provinces: copySubdivisions(countryConfig.provinces),
+    },
     complianceHook: {
       legal: countryConfig.compliance.legal,
       privacy: countryConfig.compliance.privacy,
