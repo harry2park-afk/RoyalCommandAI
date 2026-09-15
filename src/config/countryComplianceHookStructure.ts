@@ -35,6 +35,8 @@ export const FIRST_WAVE_COUNTRY_COMPLIANCE_HOOKS: readonly CountryComplianceHook
 export type CountryComplianceHookStructureBlocker =
   | "COUNTRY_COMPLIANCE_HOOK_MISSING"
   | "COUNTRY_LEGAL_ROOM_PACK_MISSING"
+  | "COUNTRY_ACCOUNTING_ROOM_PACK_MISSING"
+  | "COUNTRY_ROOM_PACK_CLONE_POLICY_UNSAFE"
   | "COUNTRY_COMPLIANCE_HOOK_EVIDENCE_INCOMPLETE"
   | "COUNTRY_COMPLIANCE_HOOK_AUTO_APPROVAL_UNSAFE";
 
@@ -66,6 +68,22 @@ export function evaluateCountryComplianceHookStructure(
 
   if (!roomPack?.packs.legal?.trim()) {
     blockers.push("COUNTRY_LEGAL_ROOM_PACK_MISSING");
+  }
+
+  if (!roomPack?.packs.accounting?.trim()) {
+    blockers.push("COUNTRY_ACCOUNTING_ROOM_PACK_MISSING");
+  }
+
+  if (
+    roomPack &&
+    (roomPack.roomDefaults.clonePolicy !== "structure-only" ||
+      roomPack.roomDefaults.cloneCustomerData !== false ||
+      roomPack.roomDefaults.cloneMemory !== false ||
+      roomPack.roomDefaults.cloneCredentials !== false ||
+      roomPack.roomDefaults.cloneSecrets !== false ||
+      roomPack.roomDefaults.humanApprovalForExternalActions !== true)
+  ) {
+    blockers.push("COUNTRY_ROOM_PACK_CLONE_POLICY_UNSAFE");
   }
 
   if (
