@@ -96,10 +96,10 @@ select jsonb_build_object(
       from supabase_migrations.schema_migrations
       where name = 'scope_matter_staff_access'
     ),
-    'room_factory_manifest_atomic_only', (
+    'room_factory_manifest_acl_hardening', (
       select count(*)::int
       from supabase_migrations.schema_migrations
-      where name = 'room_factory_manifest_atomic_only'
+      where name = 'room_factory_manifest_acl_hardening'
     )
   ),
   'launch_isolation_gate', jsonb_build_object(
