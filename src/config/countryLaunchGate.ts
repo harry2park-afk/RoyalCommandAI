@@ -8,11 +8,75 @@ export type LaunchBlockerCode =
   | "INVESTMENT_REVIEW"
   | "PRIVACY_REVIEW"
   | "PAYMENTS_NOT_CONNECTED"
-  | "TAX_NOT_CONNECTED";
+  | "TAX_NOT_CONNECTED"
+  | "OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_RELEASE_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH"
+  | "OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH"
+  | "COUNTRY_TERMS_NOT_REVIEWED"
+  | "LOCAL_PRICE_NOT_READY"
+  | "PROVIDER_OFFER_NOT_REVIEWED"
+  | "RECORDING_POLICY_NOT_REVIEWED"
+  | "PAYMENT_PROVIDER_REGISTRY_NOT_READY"
+  | "PAYMENT_EVENT_LEDGER_NOT_READY"
+  | "SERVICE_ORDER_IDEMPOTENCY_NOT_READY"
+  | "AUTH_DATA_ISOLATION_NOT_VERIFIED"
+  | "ROOM_FACTORY_ISOLATION_NOT_VERIFIED"
+  | "ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED"
+  | "LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED"
+  | "AUTH_RECOVERY_E2E_NOT_VERIFIED"
+  | "LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED"
+  | "SECURITY_REGRESSION_NOT_VERIFIED"
+  | "OBSERVABILITY_NOT_READY"
+  | "ROLLBACK_NOT_VERIFIED";
 
 export type CountryLaunchGate = {
   launchable: boolean;
   blockers: LaunchBlockerCode[];
+};
+
+export type CountryOperationalEvidenceEnvironment = "HOSTED_PRODUCTION" | "PREVIEW" | "DISPOSABLE";
+
+export type CountryOperationalReleaseScope = {
+  releaseCandidateSha: string;
+  migrationApplySetFingerprint: string;
+  roomFactoryTemplateFingerprint: string;
+  hostedOperationalDataFingerprint: string;
+};
+
+/**
+ * Operational evidence is deliberately separate from CountryConfig.
+ *
+ * CountryConfig describes reviewed configuration intent. Evidence must be
+ * explicitly scoped to the same country, Hosted Production, the exact release
+ * candidate, the exact linked migration apply-set fingerprint, the exact Room
+ * Factory/template contract fingerprint and the exact Hosted operational-data
+ * snapshot fingerprint before it can authorize an operational launch decision.
+ * Preview/disposable or stale release/database/Room Factory/Hosted-data evidence
+ * remains useful for engineering verification but can never be reused as
+ * Production launch authority; scope is part of the evidence contract.
+ */
+export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
+  countryCode: string;
+  environment: CountryOperationalEvidenceEnvironment;
+  countryTermsReviewed: boolean;
+  positiveLocalPrice: boolean;
+  providerOfferReviewed: boolean;
+  recordingPolicyReviewed: boolean;
+  paymentProviderRegistryReady: boolean;
+  paymentEventLedgerReady: boolean;
+  serviceOrderIdempotencyReady: boolean;
+  authDataIsolationVerified: boolean;
+  roomFactoryIsolationVerified: boolean;
+  roomFactorySourceReconciled: boolean;
+  linkedMigrationApplySetVerified: boolean;
+  authRecoveryE2EVerified: boolean;
+  authenticatedLocalizationBrowserVerified: boolean;
+  securityRegressionVerified: boolean;
+  observabilityReady: boolean;
+  rollbackVerified: boolean;
 };
 
 /**
@@ -36,6 +100,80 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
   if (config.compliance.privacy !== "READY") blockers.push("PRIVACY_REVIEW");
   if (config.payments.status !== "CONNECTED") blockers.push("PAYMENTS_NOT_CONNECTED");
   if (config.tax.status !== "CONNECTED") blockers.push("TAX_NOT_CONNECTED");
+
+  return {
+    launchable: blockers.length === 0,
+    blockers,
+  };
+}
+
+/**
+ * Final fail-closed launch decision for a configured country.
+ *
+ * A country can pass configuration review and still remain blocked when
+ * commercial/compliance records, payment safeguards, tenant isolation,
+ * Room Factory isolation and Hosted/source reconciliation, exact migration
+ * evidence, authenticated browser regressions, security checks, observability,
+ * or rollback proof have not been verified against the intended Hosted
+ * Production environment. Evidence from another country, another release
+ * candidate, another migration apply set, another Room Factory/template
+ * contract, another Hosted operational-data snapshot, or from
+ * Preview/disposable environments fails closed. This function has no side
+ * effects and grants no deployment or domain-binding authority by itself.
+ */
+export function evaluateCountryOperationalLaunch(
+  config: CountryConfig,
+  evidence: CountryOperationalEvidence,
+  expectedScope: CountryOperationalReleaseScope,
+): CountryLaunchGate {
+  const blockers: LaunchBlockerCode[] = [...evaluateCountryLaunch(config).blockers];
+
+  if (evidence.countryCode !== config.countryCode) blockers.push("OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH");
+  if (evidence.environment !== "HOSTED_PRODUCTION") blockers.push("OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH");
+  if (
+    evidence.releaseCandidateSha.trim().length === 0 ||
+    expectedScope.releaseCandidateSha.trim().length === 0 ||
+    evidence.releaseCandidateSha !== expectedScope.releaseCandidateSha
+  ) {
+    blockers.push("OPERATIONAL_EVIDENCE_RELEASE_MISMATCH");
+  }
+  if (
+    evidence.migrationApplySetFingerprint.trim().length === 0 ||
+    expectedScope.migrationApplySetFingerprint.trim().length === 0 ||
+    evidence.migrationApplySetFingerprint !== expectedScope.migrationApplySetFingerprint
+  ) {
+    blockers.push("OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH");
+  }
+  if (
+    evidence.roomFactoryTemplateFingerprint.trim().length === 0 ||
+    expectedScope.roomFactoryTemplateFingerprint.trim().length === 0 ||
+    evidence.roomFactoryTemplateFingerprint !== expectedScope.roomFactoryTemplateFingerprint
+  ) {
+    blockers.push("OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH");
+  }
+  if (
+    evidence.hostedOperationalDataFingerprint.trim().length === 0 ||
+    expectedScope.hostedOperationalDataFingerprint.trim().length === 0 ||
+    evidence.hostedOperationalDataFingerprint !== expectedScope.hostedOperationalDataFingerprint
+  ) {
+    blockers.push("OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH");
+  }
+  if (!evidence.countryTermsReviewed) blockers.push("COUNTRY_TERMS_NOT_REVIEWED");
+  if (!evidence.positiveLocalPrice) blockers.push("LOCAL_PRICE_NOT_READY");
+  if (!evidence.providerOfferReviewed) blockers.push("PROVIDER_OFFER_NOT_REVIEWED");
+  if (!evidence.recordingPolicyReviewed) blockers.push("RECORDING_POLICY_NOT_REVIEWED");
+  if (!evidence.paymentProviderRegistryReady) blockers.push("PAYMENT_PROVIDER_REGISTRY_NOT_READY");
+  if (!evidence.paymentEventLedgerReady) blockers.push("PAYMENT_EVENT_LEDGER_NOT_READY");
+  if (!evidence.serviceOrderIdempotencyReady) blockers.push("SERVICE_ORDER_IDEMPOTENCY_NOT_READY");
+  if (!evidence.authDataIsolationVerified) blockers.push("AUTH_DATA_ISOLATION_NOT_VERIFIED");
+  if (!evidence.roomFactoryIsolationVerified) blockers.push("ROOM_FACTORY_ISOLATION_NOT_VERIFIED");
+  if (!evidence.roomFactorySourceReconciled) blockers.push("ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED");
+  if (!evidence.linkedMigrationApplySetVerified) blockers.push("LINKED_MIGRATION_APPLY_SET_NOT_VERIFIED");
+  if (!evidence.authRecoveryE2EVerified) blockers.push("AUTH_RECOVERY_E2E_NOT_VERIFIED");
+  if (!evidence.authenticatedLocalizationBrowserVerified) blockers.push("LOCALIZATION_BROWSER_REGRESSION_NOT_VERIFIED");
+  if (!evidence.securityRegressionVerified) blockers.push("SECURITY_REGRESSION_NOT_VERIFIED");
+  if (!evidence.observabilityReady) blockers.push("OBSERVABILITY_NOT_READY");
+  if (!evidence.rollbackVerified) blockers.push("ROLLBACK_NOT_VERIFIED");
 
   return {
     launchable: blockers.length === 0,

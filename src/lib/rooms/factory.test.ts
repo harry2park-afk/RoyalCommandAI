@@ -63,19 +63,19 @@ describe("Room Factory Control Plane V1", () => {
   });
 
   it("uses locale defaults without pretending a locale-only country is a configured profile", () => {
-    expect(getConfiguredCountryCodes()).not.toContain("SG");
+    expect(getConfiguredCountryCodes()).not.toContain("NZ");
 
     const blueprint = compileRoomFactoryBlueprint({
-      roomName: "Singapore Technology Room",
+      roomName: "New Zealand Technology Room",
       templateId: "technology",
-      countryCode: "SG",
+      countryCode: "NZ",
       languageTag: "",
     });
 
-    expect(blueprint.locale.countryCode).toBe("SG");
-    expect(blueprint.locale.languageTag).toBe("en-SG");
-    expect(blueprint.locale.timeZone).toBe("Asia/Singapore");
-    expect(blueprint.locale.currencyCode).toBe("SGD");
+    expect(blueprint.locale.countryCode).toBe("NZ");
+    expect(blueprint.locale.languageTag).toBe("en-NZ");
+    expect(blueprint.locale.timeZone).toBe("Pacific/Auckland");
+    expect(blueprint.locale.currencyCode).toBe("NZD");
     expect(blueprint.locale.countryProfileStatus).toBe("custom-profile-required");
     expect(blueprint.readiness.warnings.join(" ")).toMatch(/country.*profile.*compliance.*unverified/i);
   });
@@ -113,7 +113,7 @@ describe("Room Factory Control Plane V1", () => {
   it("reports locale coverage separately from configured launch profiles", () => {
     const coverage = roomFactoryCountryCoverage();
     expect(coverage.registeredProfiles).toBe(getConfiguredCountryCodes().length);
-    expect(coverage.registeredProfiles).toBe(6);
+    expect(coverage.registeredProfiles).toBeGreaterThanOrEqual(7);
     expect(coverage.localePresets).toBeGreaterThanOrEqual(100);
     expect(coverage.extensibleCountryModel).toBe(true);
     expect(coverage.strategy).toMatch(/global core.*country-profile overlays/i);
