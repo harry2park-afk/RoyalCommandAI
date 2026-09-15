@@ -74,6 +74,12 @@ describe("first-wave country compliance hook structure", () => {
       isCountryRoomPackBoundToConfig({ ...pack, timeFormat: "24h" }, config),
     ).toBe(false);
     expect(
+      isCountryRoomPackBoundToConfig(
+        { ...pack, addressFormat: [...pack.addressFormat].reverse() },
+        config,
+      ),
+    ).toBe(false);
+    expect(
       isCountryRoomPackBoundToConfig({ ...pack, secondaryLanguageTags: [] }, config),
     ).toBe(false);
   });
