@@ -80,13 +80,15 @@ describe("next-priority jurisdiction and operational integration contract", () =
       expect(config.payments.status, `${countryCode}:payments`).toBe("NOT_CONNECTED");
       expect(config.tax.status, `${countryCode}:tax`).toBe("NOT_CONNECTED");
       expect(config.tax.provider, `${countryCode}:taxProvider`).toBeNull();
-      expect(Object.values(config.integrations), `${countryCode}:integrationStatuses`).toSatisfy(
-        (integrations: Array<{ status: string }>) =>
-          integrations.length > 0 && integrations.every(({ status }) => status === "NOT_CONNECTED"),
-      );
-      expect(Object.values(config.compliance), `${countryCode}:compliance`).toSatisfy(
-        (statuses: string[]) => statuses.every((status) => status === "NEEDS_REVIEW"),
-      );
+      expect(Object.values(config.integrations).length, `${countryCode}:integrationCount`).toBeGreaterThan(0);
+      expect(
+        Object.values(config.integrations).every(({ status }) => status === "NOT_CONNECTED"),
+        `${countryCode}:integrationStatuses`,
+      ).toBe(true);
+      expect(
+        Object.values(config.compliance).every((status) => status === "NEEDS_REVIEW"),
+        `${countryCode}:compliance`,
+      ).toBe(true);
     }
   });
 });
