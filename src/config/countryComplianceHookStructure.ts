@@ -32,11 +32,23 @@ export const FIRST_WAVE_COUNTRY_COMPLIANCE_HOOKS: readonly CountryComplianceHook
   automaticApprovalAllowed: false as const,
 }));
 
+export type CountryRoomPackConfigBinding = {
+  id: string;
+  locale: string;
+  languageTag: string;
+  timeZone: string;
+  currencyCode: string;
+  phoneCountryCode: string;
+  dateFormat: string;
+  secondaryLanguageTags?: readonly string[];
+};
+
 export type CountryComplianceHookStructureBlocker =
   | "COUNTRY_COMPLIANCE_HOOK_MISSING"
   | "COUNTRY_LEGAL_ROOM_PACK_MISSING"
   | "COUNTRY_ACCOUNTING_ROOM_PACK_MISSING"
   | "COUNTRY_ROOM_PACK_CLONE_POLICY_UNSAFE"
+  | "COUNTRY_ROOM_PACK_CONFIG_MISMATCH"
   | "COUNTRY_COMPLIANCE_HOOK_EVIDENCE_INCOMPLETE"
   | "COUNTRY_COMPLIANCE_HOOK_AUTO_APPROVAL_UNSAFE";
 
@@ -52,6 +64,29 @@ export function getCountryComplianceHook(
     FIRST_WAVE_COUNTRY_COMPLIANCE_HOOKS.find(
       (hook) => hook.countryCode === countryCode,
     ) ?? null
+  );
+}
+
+export function isCountryRoomPackBoundToConfig(
+  roomPack: CountryRoomPackConfigBinding,
+  config: CountryConfig,
+): boolean {
+  const configuredSecondaryLocale = config.secondaryLocale ?? null;
+  const packSecondaryLocales = roomPack.secondaryLanguageTags ?? [];
+  const secondaryLocalesMatch = configuredSecondaryLocale
+    ? packSecondaryLocales.length === 1 &&
+      packSecondaryLocales[0] === configuredSecondaryLocale
+    : packSecondaryLocales.length === 0;
+
+  return (
+    roomPack.id === config.countryCode &&
+    roomPack.locale === config.locale &&
+    roomPack.languageTag === config.locale &&
+    roomPack.currencyCode === config.currency &&
+    roomPack.phoneCountryCode === config.phoneCountryCode &&
+    roomPack.dateFormat === config.dateFormat &&
+    config.timezone.supportedExamples.includes(roomPack.timeZone) &&
+    secondaryLocalesMatch
   );
 }
 
@@ -84,6 +119,10 @@ export function evaluateCountryComplianceHookStructure(
       roomPack.roomDefaults.humanApprovalForExternalActions !== true)
   ) {
     blockers.push("COUNTRY_ROOM_PACK_CLONE_POLICY_UNSAFE");
+  }
+
+  if (roomPack && !isCountryRoomPackBoundToConfig(roomPack, config)) {
+    blockers.push("COUNTRY_ROOM_PACK_CONFIG_MISMATCH");
   }
 
   if (
