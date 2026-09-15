@@ -7,6 +7,7 @@ export const SOUTH_KOREA_COUNTRY_PACK = {
   currencyCode: "KRW",
   phoneCountryCode: "+82",
   dateFormat: "YYYY-MM-DD",
+  timeFormat: "24h",
   textDirection: "ltr" as const,
   encoding: "UTF-8" as const,
   addressFields: ["postalCode", "provinceOrSpecialCity", "cityDistrict", "roadNameAddress", "buildingDetail", "country"],
