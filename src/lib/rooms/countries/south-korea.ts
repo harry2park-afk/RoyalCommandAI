@@ -8,6 +8,13 @@ export const SOUTH_KOREA_COUNTRY_PACK = {
   phoneCountryCode: "+82",
   dateFormat: "YYYY-MM-DD",
   timeFormat: "24h",
+  addressFormat: [
+    "postal_code",
+    "province_or_special_city",
+    "city_district",
+    "road_name_address",
+    "building_detail",
+  ] as const,
   textDirection: "ltr" as const,
   encoding: "UTF-8" as const,
   addressFields: ["postalCode", "provinceOrSpecialCity", "cityDistrict", "roadNameAddress", "buildingDetail", "country"],
