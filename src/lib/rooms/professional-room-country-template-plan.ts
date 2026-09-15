@@ -13,6 +13,7 @@ export type ProfessionalRoomCountryTemplatePlan = ProfessionalRoomFactoryPlan & 
   phoneCountryCode: string;
   dateFormat: string;
   timeFormat: string;
+  addressFormat: string[];
   timeZoneStorage: string;
   timeZoneDisplay: string;
   supportedTimeZones: string[];
@@ -78,6 +79,7 @@ export function buildProfessionalRoomCountryTemplatePlan(
     phoneCountryCode: countryConfig.phoneCountryCode,
     dateFormat: countryConfig.dateFormat,
     timeFormat: countryConfig.timeFormat,
+    addressFormat: [...countryConfig.addressFormat],
     timeZoneStorage: countryConfig.timezone.storage,
     timeZoneDisplay: countryConfig.timezone.display,
     supportedTimeZones: [...countryConfig.timezone.supportedExamples],
