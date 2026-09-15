@@ -7,6 +7,7 @@ export const UNITED_STATES_COUNTRY_PACK = {
   currencyCode: "USD",
   phoneCountryCode: "+1",
   dateFormat: "MM/DD/YYYY",
+  timeFormat: "12h",
   textDirection: "ltr" as const,
   encoding: "UTF-8" as const,
   addressFields: ["addressLine1", "addressLine2", "city", "state", "zipCode", "country"],
