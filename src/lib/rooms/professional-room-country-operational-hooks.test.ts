@@ -7,6 +7,7 @@ import {
 import { getCountryConfigByCountryCode } from "../../config/countryResolver";
 import { PROFESSIONAL_ROOM_DIRECTORY } from "./professional-room-directory";
 import { buildProfessionalRoomCountryTemplateBatch } from "./professional-room-country-template-batch";
+import { REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE } from "./professional-room-country-template-plan";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
 
@@ -42,6 +43,9 @@ describe("Professional Room first-wave operational hook integrity", () => {
           tax: config!.compliance.tax,
           medical: config!.compliance.medical,
           investment: config!.compliance.investment,
+          requiredEvidence: REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE,
+          humanReviewRequired: true,
+          automaticApprovalAllowed: false,
         });
         expect(plan.paymentHook, `${countryCode}:${plan.catalogId}:payment`).toEqual({
           primaryProvider: config!.payments.primary,
@@ -60,6 +64,28 @@ describe("Professional Room first-wave operational hook integrity", () => {
         expect(plan.activatesCountry).toBe(false);
       }
     }
+  });
+
+  it("keeps compliance evidence requirements isolated per plan and impossible to mutate globally", () => {
+    const batch = buildProfessionalRoomCountryTemplateBatch("AU");
+    expect(batch).not.toBeNull();
+    expect(batch?.plans).toHaveLength(18);
+
+    const first = batch!.plans[0];
+    const second = batch!.plans[1];
+
+    expect(first.complianceHook.requiredEvidence).toEqual(
+      REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE,
+    );
+    expect(second.complianceHook.requiredEvidence).toEqual(
+      REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE,
+    );
+    expect(first.complianceHook.requiredEvidence).not.toBe(
+      second.complianceHook.requiredEvidence,
+    );
+    expect(first.complianceHook.requiredEvidence).not.toBe(
+      REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE,
+    );
   });
 
   it("does not let complete operational evidence bypass the canonical country legal/tax/payment gate", () => {
