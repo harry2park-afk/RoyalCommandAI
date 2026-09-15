@@ -18,6 +18,7 @@ on:
       - "scripts/supabase-room-factory-plpgsql-token-equivalence-20260911.json"
       - "scripts/supabase-room-factory-plpgsql-token-equivalence.test.ts"
       - "scripts/supabase-unresolved-local-migration-classification-20260908.json"
+      - "scripts/supabase-unresolved-local-migration-classification-20260914.json"
       - "scripts/supabase-unresolved-local-migration-classification.mjs"
       - "scripts/supabase-unresolved-local-migration-classification.test.ts"
       - "supabase/migrations/**"
@@ -39,7 +40,7 @@ jobs:
     env:
       CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       EXPECTED_APPLY_MIGRATIONS: >-
-        20260831225500_scope_matter_staff_access.sql
+        20260831225500_scope_matter_staff_access.sql,20260901025800_room_factory_atomic_non_encounter.sql,20260903075000_country_compliance_evidence_registry.sql,20260903205500_payment_operational_safeguards.sql,20260904105500_harden_profile_role_authority.sql,20260911045100_room_factory_manifest_acl_hardening.sql
     steps:
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
@@ -112,7 +113,7 @@ jobs:
             exit 1
           }
           node scripts/supabase-unresolved-local-migration-classification.mjs \
-            scripts/supabase-unresolved-local-migration-classification-20260908.json \
+            scripts/supabase-unresolved-local-migration-classification-20260914.json \
             "${reconciliation}" \
             supabase/migrations \
             artifacts/supabase-known-hosted-ledger/unresolved-local-classification.json
