@@ -1,0 +1,29 @@
+{
+  "contract_version": 1,
+  "captured_at_utc": "2026-09-12T10:46:24Z",
+  "repository": "harry2park-afk/RoyalCommandAI",
+  "source_branch": "launch/supabase-linked-dry-run-harness-20260904-2351",
+  "source_commit_before_witness": "3df60ebf708587449e8582c4edaa188b33556c9d",
+  "stable_base_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+  "migration_path": "supabase/migrations",
+  "migration_tree_sha": "6f513da58202785982a766b77278de0646169e89",
+  "hosted_ledger_receipt": "scripts/supabase-hosted-ledger-live-refresh-20260912.json",
+  "hosted_project_ref": "aygawkavujjmybekswrg",
+  "hosted_migration_count": 72,
+  "hosted_ordered_ledger_md5": "61da7181eb49c180fc1100b09f32f20e",
+  "verification": {
+    "local_migration_tree_bound": true,
+    "hosted_ledger_fresh_read_only": true,
+    "hosted_mutation_performed": false,
+    "linked_cli_inventory_proven": false,
+    "linked_db_push_dry_run_proven": false,
+    "ready_for_apply": false
+  },
+  "purpose": "Bind the exact local migration directory tree to the fresh read-only Hosted ledger receipt without converting evidence into migration apply authority.",
+  "notes": [
+    "The migration subtree SHA was read from the exact pre-witness PR #696 Git tree.",
+    "The stable base SHA was re-read from protected master before this witness was added.",
+    "No Production runtime, Hosted schema/data/Auth/Storage, migration history, provider, payment, domain, or Country READY state was changed.",
+    "Authenticated linked CLI inventory and supabase db push --linked --dry-run remain mandatory before any apply-set can be claimed."
+  ]
+}

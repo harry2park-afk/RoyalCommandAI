@@ -1,0 +1,103 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-08T22:51:27+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "project_name": "RoyalCommand",
+  "source": "Fresh Hosted supabase_migrations.schema_migrations READ-ONLY fingerprint evidence plus exact #696 checkout sources",
+  "purpose": "Narrow the seven unresolved LOCAL-only migration names without authorizing migration repair, push, deploy, or Country READY. Equivalent historical source is distinguished from diverged/superseded source and the one intended new Matter candidate.",
+  "normalization": "CRLF to LF, trim whole source, drop blank lines and full-line -- comments, preserve remaining line bytes, SHA-256",
+  "expected_apply_migrations": [
+    "20260831225500_scope_matter_staff_access.sql"
+  ],
+  "entries": [
+    {
+      "local_basename": "20260810065600_passkeys.sql",
+      "local_name": "passkeys",
+      "classification": "REMOTE_EQUIVALENT_AFTER_COMMENT_BLANK_NORMALIZATION",
+      "remote": [
+        {
+          "version": "20260809215715",
+          "name": "passkey_credentials",
+          "diagnostic_sha256": "e393ae4a9147a1365a17e827746bf5e57cd0dd4e649b880369e556cd25c46c5c"
+        }
+      ]
+    },
+    {
+      "local_basename": "20260825041500_fix_room_member_insert_rls.sql",
+      "local_name": "fix_room_member_insert_rls",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260825042819",
+          "name": "harden_room_membership_owner_only",
+          "diagnostic_sha256": "d3809760234af7edfdb3a20bea7b0ea98aee0b166b80f468437daf4c406d2a5f"
+        }
+      ],
+      "reason": "Hosted replacement source is not byte-equivalent after comment/blank normalization; keep the older local migration quarantined from any inferred apply set."
+    },
+    {
+      "local_basename": "20260829190000_global_service_commercial_terms.sql",
+      "local_name": "global_service_commercial_terms",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260829123104",
+          "name": "add_global_service_commercial_terms",
+          "diagnostic_sha256": "bad912cc9b846d00eb3a81f21799d1e1779c8040fd8aeba019d7039562b86bf3"
+        }
+      ],
+      "reason": "Hosted and local policy-creation source differ; historical replay must not be inferred from name similarity."
+    },
+    {
+      "local_basename": "20260829224000_service_provider_registry.sql",
+      "local_name": "service_provider_registry",
+      "classification": "REMOTE_EQUIVALENT_AFTER_COMMENT_BLANK_NORMALIZATION",
+      "remote": [
+        {
+          "version": "20260829125149",
+          "name": "add_service_provider_registry",
+          "diagnostic_sha256": "6745027401dfaceb86fa851287d6928ea4b651a4e82be4721e0bed801ea15f9d"
+        }
+      ]
+    },
+    {
+      "local_basename": "20260830013500_allow_shared_service_scope.sql",
+      "local_name": "allow_shared_service_scope",
+      "classification": "REMOTE_EQUIVALENT_TO_ORDERED_REMOTE_SEQUENCE",
+      "remote": [
+        {
+          "version": "20260829152721",
+          "name": "allow_service_connection_scope_both",
+          "diagnostic_sha256": "45dc6e348a5079d84163d794921853c4a19a5e040eee447f3c4b7134d64069ea"
+        },
+        {
+          "version": "20260829152826",
+          "name": "seed_shared_service_scopes",
+          "diagnostic_sha256": "5d0569f6434198048f5f59ce4cf0470d4075cfd80ff0d09db59092593e303127"
+        }
+      ],
+      "expected_combined_diagnostic_sha256": "b6ff4456cf691a633c5d45a146fc12c359fe99f566c5ee3e4ed446de770449a6"
+    },
+    {
+      "local_basename": "20260830020500_harden_room_household_insert.sql",
+      "local_name": "harden_room_household_insert",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260829165635",
+          "name": "harden_room_household_insert_rls",
+          "diagnostic_sha256": "e436422dca3ea2cc36ea15c65294acd01441bf7e636f1f94961e177112988488"
+        }
+      ],
+      "reason": "Hosted replacement source uses a different role/predicate shape; the older local migration must remain quarantined."
+    },
+    {
+      "local_basename": "20260831225500_scope_matter_staff_access.sql",
+      "local_name": "scope_matter_staff_access",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true
+    }
+  ],
+  "ready_for_apply": false
+}

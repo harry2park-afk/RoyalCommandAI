@@ -1,0 +1,50 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-10T22:51:47+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "evidence_scope": "READ-ONLY residual analysis after comparing 35 same-name Hosted migration source fingerprints against the exact PR checkout. This file does not authorize migration repair, push, deploy, Hosted mutation, or Country READY.",
+  "summary": {
+    "same_name_timestamp_drift_fingerprinted": 35,
+    "provenance_equivalent_under_current_conservative_gate": 30,
+    "residual_unproven": 5,
+    "ready_for_linked_apply": false
+  },
+  "residual": [
+    {
+      "name": "add_room_work_records",
+      "remote_version": "20260825044842",
+      "local_version": "20260825044500",
+      "status": "UNPROVEN_FORMATTING_CANONICALIZATION",
+      "evidence": "Direct READ-ONLY source comparison shows the same table, index and three RLS policy operations expressed with different line wrapping, but the current conservative diagnostic hash preserves non-comment line layout and therefore correctly remains fail-closed until a stronger SQL-aware canonical comparison is added."
+    },
+    {
+      "name": "legal_case_file_numbers",
+      "remote_version": "20260829070456",
+      "local_version": "20260829171000",
+      "status": "UNPROVEN_FORMATTING_CANONICALIZATION",
+      "evidence": "Direct READ-ONLY source comparison shows the same sequence, case_number column, backfill, default and unique index operations with different line wrapping, but no automated SQL-aware canonical equivalence proof exists yet."
+    },
+    {
+      "name": "legal_story_entries",
+      "remote_version": "20260829042019",
+      "local_version": "20260829142500",
+      "status": "HOSTED_SPLIT_HISTORY_CONFIRMED_BUT_LEDGER_DRIFT_REMAINS",
+      "evidence": "The local base migration includes audio_document_id while the Hosted base migration did not. Hosted migration history contains a separate 20260829042153_legal_story_entry_audio migration, and current Hosted information_schema confirms audio_document_id exists. This explains the source split but does not reconcile migration ledger identity or authorize repair."
+    },
+    {
+      "name": "room_factory_evidence_review",
+      "remote_version": "20260828221419",
+      "local_version": "20260829231500",
+      "status": "UNPROVEN_FORMATTING_CANONICALIZATION",
+      "evidence": "Direct READ-ONLY source comparison is consistent with substantial line-compaction/formatting drift in the PL/pgSQL bodies. The existing line-sensitive diagnostic cannot prove equivalence, so this remains blocked rather than inferred safe."
+    },
+    {
+      "name": "room_factory_start_execution",
+      "remote_version": "20260828222515",
+      "local_version": "20260829234500",
+      "status": "UNPROVEN_FORMATTING_AND_METADATA_CANONICALIZATION",
+      "evidence": "Direct READ-ONLY source comparison shows substantial line-compaction plus repository COMMENT metadata not present in the captured Hosted source. No SQL/PLpgSQL-aware canonical equivalence proof exists yet, so this remains fail-closed."
+    }
+  ],
+  "remaining_gate": "Do not run or approve linked db push until residual source/history drift is reconciled with machine-verifiable evidence and the exact linked dry-run has required Hosted credentials."
+}
