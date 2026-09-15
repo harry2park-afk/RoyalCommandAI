@@ -1,0 +1,98 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+const CANDIDATES = {
+  matterIsolation: "supabase/migrations/20260831225500_scope_matter_staff_access.sql",
+  roomFactoryNonEncounter:
+    "supabase/migrations/20260901025800_room_factory_atomic_non_encounter.sql",
+  complianceRegistry:
+    "supabase/migrations/20260903075000_country_compliance_evidence_registry.sql",
+  paymentSafeguards:
+    "supabase/migrations/20260903205500_payment_operational_safeguards.sql",
+  profileRoleAuthority:
+    "supabase/migrations/20260904105500_harden_profile_role_authority.sql",
+  manifestAcl:
+    "supabase/migrations/20260911045100_room_factory_manifest_acl_hardening.sql",
+} as const;
+
+function migration(path: string): string {
+  return readFileSync(resolve(process.cwd(), path), "utf8");
+}
+
+describe("October launch Supabase candidate blocker coverage", () => {
+  it("keeps the reviewed six-migration candidate set complete", () => {
+    expect(Object.values(CANDIDATES)).toEqual([
+      "supabase/migrations/20260831225500_scope_matter_staff_access.sql",
+      "supabase/migrations/20260901025800_room_factory_atomic_non_encounter.sql",
+      "supabase/migrations/20260903075000_country_compliance_evidence_registry.sql",
+      "supabase/migrations/20260903205500_payment_operational_safeguards.sql",
+      "supabase/migrations/20260904105500_harden_profile_role_authority.sql",
+      "supabase/migrations/20260911045100_room_factory_manifest_acl_hardening.sql",
+    ]);
+  });
+
+  it("covers Matter tenant and assignment authority without broad authenticated UPDATE", () => {
+    const sql = migration(CANDIDATES.matterIsolation);
+
+    expect(sql).toContain("revoke update on table public.matters from authenticated;");
+    expect(sql).toMatch(/grant update \(service_line, title, summary, status, updated_at\)[\s\S]*to authenticated;/);
+    expect(sql).toContain("public.set_matter_staff_assignment");
+    expect(sql).toContain("matter assignment requires admin role");
+    expect(sql).toContain("client_id = auth.uid()");
+    expect(sql).toContain("private.is_assigned_matter_staff(id)");
+  });
+
+  it("covers authenticated atomic non-encounter Room creation and keeps encounter identity strict", () => {
+    const sql = migration(CANDIDATES.roomFactoryNonEncounter);
+
+    expect(sql).toContain("if v_user_id is null then");
+    expect(sql).toContain("Non-encounter Room creation must not persist an encounterSessionId.");
+    expect(sql).toContain("Manifest encounterSessionId does not match the authoritative encounter key.");
+    expect(sql).toContain("if p_encounter_session_id is not null then");
+    expect(sql).toContain("insert into public.room_factory_manifests");
+  });
+
+  it("covers a server-owned fail-closed compliance evidence registry without verified seed data", () => {
+    const sql = migration(CANDIDATES.complianceRegistry);
+
+    expect(sql).toContain("create table if not exists public.country_compliance_evidence");
+    expect(sql).toContain("review_status text not null default 'NEEDS_REVIEW'");
+    expect(sql).toContain("country_compliance_evidence_verified_check");
+    expect(sql).toContain("revoke all on table public.country_compliance_evidence from anon;");
+    expect(sql).toContain("revoke all on table public.country_compliance_evidence from authenticated;");
+    expect(sql).not.toMatch(/insert\s+into\s+public\.country_compliance_evidence/i);
+  });
+
+  it("covers payment provider fail-closed state, verified webhooks and order idempotency", () => {
+    const sql = migration(CANDIDATES.paymentSafeguards);
+
+    expect(sql).toContain("status text not null default 'disabled'");
+    expect(sql).toContain("rc_payment_provider_registry_production_capabilities");
+    expect(sql).toContain("rc_payment_provider_events_processing_requires_verified_signature");
+    expect(sql).toContain("add column if not exists idempotency_key text");
+    expect(sql).toContain("rc_service_connection_orders_owner_idempotency_uidx");
+    expect(sql).not.toMatch(/insert\s+into\s+public\.rc_payment_provider_registry/i);
+  });
+
+  it("covers profile role authority and removes direct authenticated role updates", () => {
+    const sql = migration(CANDIDATES.profileRoleAuthority);
+
+    expect(sql).toContain("private.guard_profile_role_change");
+    expect(sql).toContain("new.role is distinct from old.role");
+    expect(sql).toContain("revoke update on table public.profiles from anon, authenticated;");
+    expect(sql).toMatch(/grant update \(full_name, default_language, avatar_url, ui_preferences, updated_at\)[\s\S]*to authenticated;/);
+    expect(sql).toContain("'client'");
+  });
+
+  it("covers Room Factory manifest ACL hardening without restoring client writes", () => {
+    const sql = migration(CANDIDATES.manifestAcl);
+
+    expect(sql).toMatch(/revoke select, insert, update, delete, truncate, references, trigger[\s\S]*from anon;/);
+    expect(sql).toMatch(/revoke insert, update, delete, truncate, references, trigger[\s\S]*from authenticated;/);
+    expect(sql).toMatch(/grant select[\s\S]*to authenticated;/);
+    expect(sql).toContain("drop policy if exists room_factory_manifests_insert_owner");
+    expect(sql).not.toMatch(/grant\s+(insert|update|delete)[\s\S]*room_factory_manifests[\s\S]*authenticated/i);
+  });
+});
