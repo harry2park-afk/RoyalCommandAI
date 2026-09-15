@@ -21,6 +21,7 @@ const migrationDir = path.join(repoRoot, "supabase", "migrations");
 const expectedCandidates = [
   "20260831225500_scope_matter_staff_access.sql",
   "20260901025800_room_factory_atomic_non_encounter.sql",
+  "20260903075000_country_compliance_evidence_registry.sql",
   "20260903205500_payment_operational_safeguards.sql",
   "20260904105500_harden_profile_role_authority.sql",
   "20260911045100_room_factory_manifest_acl_hardening.sql",
@@ -50,7 +51,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
     expect(report.ready_for_apply).toBe(false);
     expect(report.requested_allowlist).toEqual(expectedCandidates);
     expect(report.provenance_authorized_dry_run).toEqual(expectedCandidates);
-    expect(report.source_blob_checks.length).toBe(4);
+    expect(report.source_blob_checks.length).toBe(5);
     expect(report.source_blob_checks.every((check: { verified: boolean }) => check.verified)).toBe(true);
   });
 
@@ -68,7 +69,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
   it("fails closed if the workflow allow-list is narrower than the provenance manifest", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
-      requestedAllowlist: expectedCandidates.slice(0, 4).join(","),
+      requestedAllowlist: expectedCandidates.slice(0, 5).join(","),
       migrationDir,
     });
 
@@ -92,12 +93,12 @@ describe("Supabase linked dry-run allow-list provenance", () => {
 
   it("fails closed if a recorded candidate source blob no longer matches the copied migration", () => {
     const manifest = loadManifest();
-    const paymentEntry = manifest.entries.find(
+    const complianceEntry = manifest.entries.find(
       (entry: { local_basename?: string }) =>
-        entry.local_basename === "20260903205500_payment_operational_safeguards.sql",
+        entry.local_basename === "20260903075000_country_compliance_evidence_registry.sql",
     );
-    expect(paymentEntry).toBeTruthy();
-    paymentEntry.source_blob_sha = "0000000000000000000000000000000000000000";
+    expect(complianceEntry).toBeTruthy();
+    complianceEntry.source_blob_sha = "0000000000000000000000000000000000000000";
 
     const report = verifyLinkedDryRunAllowlist({
       manifest,
