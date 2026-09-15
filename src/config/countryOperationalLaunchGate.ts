@@ -1,5 +1,6 @@
 import type { CountryConfig } from "../types/countryConfig";
 import { evaluateCountryLaunch, type CountryLaunchGate } from "./countryLaunchGate";
+import { evaluateCountryComplianceHookStructure } from "./countryComplianceHookStructure";
 import { evaluateCountryLocalizationStructure } from "./countryLocalizationStructure";
 
 export type OperationalEvidenceStatus = "VERIFIED" | "NEEDS_REVIEW" | "BLOCKED";
@@ -46,6 +47,7 @@ export type CountryOperationalBlockerCode =
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
   | "LOCALIZATION_STRUCTURE_NOT_READY"
+  | "COMPLIANCE_HOOK_STRUCTURE_NOT_READY"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "COMMERCIAL_READINESS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
@@ -100,9 +102,9 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
 /**
  * Second-stage country activation gate. Evidence omitted by older callers fails
  * closed, so stacked country branches cannot silently weaken the hardened launch
- * path while remaining source-compatible. Repository localization structure is
- * checked independently from human/browser localization evidence so a VERIFIED
- * evidence flag cannot hide a missing or inconsistent country preset/locale path.
+ * path while remaining source-compatible. Repository localization and first-wave
+ * compliance-hook structure are checked independently from human/browser evidence
+ * so VERIFIED flags cannot hide missing country wiring.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -110,12 +112,17 @@ export function evaluateCountryOperationalLaunch(
 ): CountryOperationalLaunchGate {
   const countryGate = evaluateCountryLaunch(config);
   const localizationStructure = evaluateCountryLocalizationStructure(config);
+  const complianceHookStructure = evaluateCountryComplianceHookStructure(config);
   const operationalBlockers = OPERATIONAL_REQUIREMENTS
     .filter(({ key }) => evidence[key] !== "VERIFIED")
     .map(({ blocker }) => blocker);
 
   if (!localizationStructure.ready) {
     operationalBlockers.push("LOCALIZATION_STRUCTURE_NOT_READY");
+  }
+
+  if (!complianceHookStructure.ready) {
+    operationalBlockers.push("COMPLIANCE_HOOK_STRUCTURE_NOT_READY");
   }
 
   return {
