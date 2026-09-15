@@ -15,7 +15,13 @@ function withRoomNoCache(response: NextResponse, path: string) {
 
 export async function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
-  if (process.env.VERCEL_ENV === "preview" && request.nextUrl.hostname !== HARRY_RC_PREVIEW_HOST) {
+  // Keep the isolated v2 deployment on its own host, then run normal auth below.
+  const isStudioV2Host =
+    process.env.VERCEL_GIT_COMMIT_REF === "studio-work/runtime-tracing-20260914-7438370" &&
+    [process.env.VERCEL_URL, process.env.VERCEL_BRANCH_URL].some(
+      (host) => Boolean(host) && host === request.nextUrl.hostname,
+    );
+  if (process.env.VERCEL_ENV === "preview" && request.nextUrl.hostname !== HARRY_RC_PREVIEW_HOST && !isStudioV2Host) {
     const canonicalPreviewUrl = request.nextUrl.clone();
     canonicalPreviewUrl.hostname = HARRY_RC_PREVIEW_HOST;
     canonicalPreviewUrl.protocol = "https:";
