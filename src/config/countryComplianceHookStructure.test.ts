@@ -6,6 +6,7 @@ import {
   REQUIRED_COUNTRY_COMPLIANCE_EVIDENCE,
   evaluateCountryComplianceHookStructure,
   getCountryComplianceHook,
+  isCountryRoomPackBoundToConfig,
 } from "./countryComplianceHookStructure";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
@@ -42,6 +43,36 @@ describe("first-wave country compliance hook structure", () => {
       expect(pack?.roomDefaults.cloneSecrets).toBe(false);
       expect(pack?.roomDefaults.humanApprovalForExternalActions).toBe(true);
     }
+  });
+
+  it("binds every first-wave Room Pack identity and locale metadata to canonical CountryConfig", () => {
+    for (const code of FIRST_WAVE) {
+      const pack = getFirstWaveCountryRoomPack(code);
+      const config = getCountryConfigByCountryCode(code);
+      expect(pack, code).not.toBeNull();
+      expect(config, code).not.toBeNull();
+      if (!pack || !config) throw new Error(`Missing first-wave source for ${code}`);
+
+      expect(isCountryRoomPackBoundToConfig(pack, config), code).toBe(true);
+    }
+  });
+
+  it("fails the Room Pack binding when launch-critical country metadata drifts", () => {
+    const pack = getFirstWaveCountryRoomPack("CA");
+    const config = getCountryConfigByCountryCode("CA");
+    expect(pack).not.toBeNull();
+    expect(config).not.toBeNull();
+    if (!pack || !config) throw new Error("Missing Canada first-wave source");
+
+    expect(
+      isCountryRoomPackBoundToConfig({ ...pack, currencyCode: "USD" }, config),
+    ).toBe(false);
+    expect(
+      isCountryRoomPackBoundToConfig({ ...pack, timeZone: "America/New_York" }, config),
+    ).toBe(false);
+    expect(
+      isCountryRoomPackBoundToConfig({ ...pack, secondaryLanguageTags: [] }, config),
+    ).toBe(false);
   });
 
   it("has first-wave compliance hooks without promoting country review state", () => {
