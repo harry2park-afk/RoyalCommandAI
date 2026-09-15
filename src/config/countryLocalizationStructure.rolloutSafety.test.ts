@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CREATE_ROOM_LANGUAGES, createRoomCopy } from "../lib/rooms/create-room-i18n";
 import { getCountryConfigByCountryCode } from "./countryResolver";
 import { evaluateCountryLocalizationStructure } from "./countryLocalizationStructure";
 import {
@@ -42,17 +43,18 @@ describe("country localization structure rollout safety", () => {
     });
   });
 
-  it("fails Canada closed while its declared French secondary locale is absent from Create Room languages", () => {
+  it("supports Canada's declared French secondary locale in Create Room without critical English fallback", () => {
     const config = getCountryConfigByCountryCode("CA");
     expect(config?.secondaryLocale).toBe("fr-CA");
+    expect(CREATE_ROOM_LANGUAGES.map(({ locale }) => locale)).toContain("fr");
+    expect(createRoomCopy("fr").title).toBe("Créer votre Room");
 
     const structure = evaluateCountryLocalizationStructure(config!);
-    expect(structure.ready).toBe(false);
-    expect(structure.blockers).toContain("SECONDARY_CREATE_ROOM_LOCALE_UNSUPPORTED");
+    expect(structure).toEqual({ ready: true, blockers: [] });
 
     const gate = evaluateCountryOperationalLaunch(config!, VERIFIED_OPERATIONAL_EVIDENCE);
+    expect(gate.operationalBlockers).not.toContain("LOCALIZATION_STRUCTURE_NOT_READY");
     expect(gate.launchable).toBe(false);
-    expect(gate.operationalBlockers).toContain("LOCALIZATION_STRUCTURE_NOT_READY");
   });
 
   it("does not let a VERIFIED localization evidence flag hide missing repository wiring", () => {
