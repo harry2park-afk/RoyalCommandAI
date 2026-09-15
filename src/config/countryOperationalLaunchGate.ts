@@ -1,5 +1,6 @@
 import type { CountryConfig } from "../types/countryConfig";
 import { evaluateCountryLaunch, type CountryLaunchGate } from "./countryLaunchGate";
+import { evaluateCountryLocalizationStructure } from "./countryLocalizationStructure";
 
 export type OperationalEvidenceStatus = "VERIFIED" | "NEEDS_REVIEW" | "BLOCKED";
 
@@ -44,6 +45,7 @@ export type CountryOperationalBlockerCode =
   | "PRIVACY_LIFECYCLE_EVIDENCE_NOT_VERIFIED"
   | "DATA_RESIDENCY_NOT_VERIFIED"
   | "LOCALIZATION_NOT_VERIFIED"
+  | "LOCALIZATION_STRUCTURE_NOT_READY"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "COMMERCIAL_READINESS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
@@ -98,16 +100,23 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
 /**
  * Second-stage country activation gate. Evidence omitted by older callers fails
  * closed, so stacked country branches cannot silently weaken the hardened launch
- * path while remaining source-compatible.
+ * path while remaining source-compatible. Repository localization structure is
+ * checked independently from human/browser localization evidence so a VERIFIED
+ * evidence flag cannot hide a missing or inconsistent country preset/locale path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
   evidence: CountryOperationalEvidence,
 ): CountryOperationalLaunchGate {
   const countryGate = evaluateCountryLaunch(config);
+  const localizationStructure = evaluateCountryLocalizationStructure(config);
   const operationalBlockers = OPERATIONAL_REQUIREMENTS
     .filter(({ key }) => evidence[key] !== "VERIFIED")
     .map(({ blocker }) => blocker);
+
+  if (!localizationStructure.ready) {
+    operationalBlockers.push("LOCALIZATION_STRUCTURE_NOT_READY");
+  }
 
   return {
     launchable: countryGate.launchable && operationalBlockers.length === 0,
