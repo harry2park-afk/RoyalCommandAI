@@ -23,20 +23,41 @@ type OperationalEvidenceFlag = Exclude<
   | "migrationApplySetFingerprint"
   | "roomFactoryTemplateFingerprint"
   | "hostedOperationalDataFingerprint"
+  | "operationalEvidenceObservedAt"
+  | "operationalEvidenceExpiresAt"
 >;
+
+function freshOperationalEvidenceWindow() {
+  const now = Date.now();
+  return {
+    operationalEvidenceObservedAt: new Date(now - 60_000).toISOString(),
+    operationalEvidenceExpiresAt: new Date(now + 60 * 60 * 1000).toISOString(),
+  };
+}
 
 function readyOperationalEvidence(countryCode: string): CountryOperationalEvidence {
   return {
     countryCode,
     environment: "HOSTED_PRODUCTION",
     ...RELEASE_SCOPE,
+    operationalEvidenceFreshnessVerified: true,
+    ...freshOperationalEvidenceWindow(),
     countryTermsReviewed: true,
+    countryTermsReviewerProven: true,
     positiveLocalPrice: true,
     providerOfferReviewed: true,
+    providerOfferReviewerProven: true,
     recordingPolicyReviewed: true,
+    recordingPolicyReviewerProven: true,
     paymentProviderRegistryReady: true,
     paymentEventLedgerReady: true,
     serviceOrderIdempotencyReady: true,
+    paymentSignedWebhookVerified: true,
+    paymentWebhookReplayProtectionVerified: true,
+    paymentRefundCancelVerified: true,
+    paymentSandboxCheckoutVerified: true,
+    paymentSettlementVerified: true,
+    paymentRollbackVerified: true,
     authDataIsolationVerified: true,
     roomFactoryIsolationVerified: true,
     roomFactorySourceReconciled: true,
@@ -50,13 +71,23 @@ function readyOperationalEvidence(countryCode: string): CountryOperationalEviden
 }
 
 const OPERATIONAL_BLOCKERS: Array<[OperationalEvidenceFlag, LaunchBlockerCode]> = [
+  ["operationalEvidenceFreshnessVerified", "OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED"],
   ["countryTermsReviewed", "COUNTRY_TERMS_NOT_REVIEWED"],
+  ["countryTermsReviewerProven", "COUNTRY_TERMS_REVIEWER_PROVENANCE_NOT_VERIFIED"],
   ["positiveLocalPrice", "LOCAL_PRICE_NOT_READY"],
   ["providerOfferReviewed", "PROVIDER_OFFER_NOT_REVIEWED"],
+  ["providerOfferReviewerProven", "PROVIDER_OFFER_REVIEWER_PROVENANCE_NOT_VERIFIED"],
   ["recordingPolicyReviewed", "RECORDING_POLICY_NOT_REVIEWED"],
+  ["recordingPolicyReviewerProven", "RECORDING_POLICY_REVIEWER_PROVENANCE_NOT_VERIFIED"],
   ["paymentProviderRegistryReady", "PAYMENT_PROVIDER_REGISTRY_NOT_READY"],
   ["paymentEventLedgerReady", "PAYMENT_EVENT_LEDGER_NOT_READY"],
   ["serviceOrderIdempotencyReady", "SERVICE_ORDER_IDEMPOTENCY_NOT_READY"],
+  ["paymentSignedWebhookVerified", "PAYMENT_SIGNED_WEBHOOK_NOT_VERIFIED"],
+  ["paymentWebhookReplayProtectionVerified", "PAYMENT_WEBHOOK_REPLAY_PROTECTION_NOT_VERIFIED"],
+  ["paymentRefundCancelVerified", "PAYMENT_REFUND_CANCEL_NOT_VERIFIED"],
+  ["paymentSandboxCheckoutVerified", "PAYMENT_SANDBOX_CHECKOUT_NOT_VERIFIED"],
+  ["paymentSettlementVerified", "PAYMENT_SETTLEMENT_NOT_VERIFIED"],
+  ["paymentRollbackVerified", "PAYMENT_ROLLBACK_NOT_VERIFIED"],
   ["authDataIsolationVerified", "AUTH_DATA_ISOLATION_NOT_VERIFIED"],
   ["roomFactoryIsolationVerified", "ROOM_FACTORY_ISOLATION_NOT_VERIFIED"],
   ["roomFactorySourceReconciled", "ROOM_FACTORY_SOURCE_RECONCILIATION_NOT_VERIFIED"],
@@ -90,6 +121,23 @@ describe("next-priority country operational launch gate", () => {
           blockers: [expectedBlocker],
         });
       }
+    }
+  });
+
+  it("rejects expired operational evidence in every next-priority country", () => {
+    const now = Date.now();
+    for (const countryCode of NEXT_PRIORITY) {
+      const base = getCountryConfigByCountryCode(countryCode);
+      expect(base, countryCode).not.toBeNull();
+      const evidence: CountryOperationalEvidence = {
+        ...readyOperationalEvidence(countryCode),
+        operationalEvidenceObservedAt: new Date(now - 2 * 60 * 60 * 1000).toISOString(),
+        operationalEvidenceExpiresAt: new Date(now - 60 * 60 * 1000).toISOString(),
+      };
+      expect(evaluateCountryOperationalLaunch(asConfigReady(base!), evidence, RELEASE_SCOPE), `${countryCode}:expired`).toEqual({
+        launchable: false,
+        blockers: ["OPERATIONAL_EVIDENCE_FRESHNESS_NOT_VERIFIED"],
+      });
     }
   });
 
