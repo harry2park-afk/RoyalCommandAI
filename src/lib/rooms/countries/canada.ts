@@ -9,6 +9,13 @@ export const CANADA_COUNTRY_PACK = {
   phoneCountryCode: "+1",
   dateFormat: "YYYY-MM-DD",
   timeFormat: "12h",
+  addressFormat: [
+    "street_address_1",
+    "street_address_2",
+    "city",
+    "province_code",
+    "postal_code",
+  ] as const,
   textDirection: "ltr" as const,
   encoding: "UTF-8" as const,
   addressFields: ["addressLine1", "addressLine2", "city", "province", "postalCode", "country"],
