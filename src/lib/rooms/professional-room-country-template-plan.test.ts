@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { getCountryConfigByCountryCode } from "../../config/countryResolver";
 import { PROFESSIONAL_ROOM_DIRECTORY } from "./professional-room-directory";
-import { buildProfessionalRoomCountryTemplatePlan } from "./professional-room-country-template-plan";
+import {
+  buildProfessionalRoomCountryTemplatePlan,
+  REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE,
+} from "./professional-room-country-template-plan";
 
 const FIRST_WAVE = {
   AU: { locale: "en-AU", secondaryLocale: null, currency: "AUD", phoneCountryCode: "+61" },
@@ -43,6 +46,9 @@ describe("Professional Room country template plan", () => {
           tax: countryConfig?.compliance.tax,
           medical: countryConfig?.compliance.medical,
           investment: countryConfig?.compliance.investment,
+          requiredEvidence: REQUIRED_PROFESSIONAL_ROOM_COMPLIANCE_EVIDENCE,
+          humanReviewRequired: true,
+          automaticApprovalAllowed: false,
         });
         expect(plan?.paymentHook).toEqual({
           primaryProvider: countryConfig?.payments.primary,
