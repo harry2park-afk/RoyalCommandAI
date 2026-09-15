@@ -17,6 +17,8 @@ const CANDIDATES = {
     "supabase/migrations/20260911045100_room_factory_manifest_acl_hardening.sql",
 } as const;
 
+const FIRST_WAVE_SNAPSHOT = "scripts/supabase-first-wave-launch-snapshot.sql";
+
 function migration(path: string): string {
   return readFileSync(resolve(process.cwd(), path), "utf8");
 }
@@ -31,6 +33,18 @@ describe("October launch Supabase candidate blocker coverage", () => {
       "supabase/migrations/20260904105500_harden_profile_role_authority.sql",
       "supabase/migrations/20260911045100_room_factory_manifest_acl_hardening.sql",
     ]);
+  });
+
+  it("keeps the first-wave Hosted snapshot aligned to the exact reviewed candidate names", () => {
+    const sql = migration(FIRST_WAVE_SNAPSHOT);
+
+    expect(sql).toContain("'scope_matter_staff_access'");
+    expect(sql).toContain("'room_factory_atomic_non_encounter'");
+    expect(sql).toContain("'country_compliance_evidence_registry'");
+    expect(sql).toContain("'payment_operational_safeguards'");
+    expect(sql).toContain("'harden_profile_role_authority'");
+    expect(sql).toContain("'room_factory_manifest_acl_hardening'");
+    expect(sql).not.toContain("'room_factory_manifest_atomic_only'");
   });
 
   it("covers Matter tenant and assignment authority without broad authenticated UPDATE", () => {
