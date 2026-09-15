@@ -40,6 +40,7 @@ export type CountryRoomPackConfigBinding = {
   currencyCode: string;
   phoneCountryCode: string;
   dateFormat: string;
+  timeFormat: string;
   secondaryLanguageTags?: readonly string[];
 };
 
@@ -85,6 +86,7 @@ export function isCountryRoomPackBoundToConfig(
     roomPack.currencyCode === config.currency &&
     roomPack.phoneCountryCode === config.phoneCountryCode &&
     roomPack.dateFormat === config.dateFormat &&
+    roomPack.timeFormat === config.timeFormat &&
     config.timezone.supportedExamples.includes(roomPack.timeZone) &&
     secondaryLocalesMatch
   );
