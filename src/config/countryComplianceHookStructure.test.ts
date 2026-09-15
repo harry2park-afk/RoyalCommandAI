@@ -71,6 +71,9 @@ describe("first-wave country compliance hook structure", () => {
       isCountryRoomPackBoundToConfig({ ...pack, timeZone: "America/New_York" }, config),
     ).toBe(false);
     expect(
+      isCountryRoomPackBoundToConfig({ ...pack, timeFormat: "24h" }, config),
+    ).toBe(false);
+    expect(
       isCountryRoomPackBoundToConfig({ ...pack, secondaryLanguageTags: [] }, config),
     ).toBe(false);
   });
