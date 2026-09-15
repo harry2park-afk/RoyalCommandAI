@@ -7,6 +7,7 @@ export const UNITED_KINGDOM_COUNTRY_PACK = {
   currencyCode: "GBP",
   phoneCountryCode: "+44",
   dateFormat: "DD/MM/YYYY",
+  timeFormat: "24h",
   textDirection: "ltr" as const,
   encoding: "UTF-8" as const,
   addressFields: ["buildingAndStreet", "addressLine2", "locality", "postTown", "postcode", "country"],
