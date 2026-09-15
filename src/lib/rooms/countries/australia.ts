@@ -8,6 +8,13 @@ export const AUSTRALIA_COUNTRY_PACK = {
   phoneCountryCode: "+61",
   dateFormat: "DD/MM/YYYY",
   timeFormat: "12h",
+  addressFormat: [
+    "street_address_1",
+    "street_address_2",
+    "suburb",
+    "state_code",
+    "postcode",
+  ] as const,
   textDirection: "ltr" as const,
   encoding: "UTF-8" as const,
   addressFields: ["addressLine1", "addressLine2", "suburb", "state", "postcode", "country"],
