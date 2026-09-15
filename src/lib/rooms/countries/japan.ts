@@ -8,6 +8,13 @@ export const JAPAN_COUNTRY_PACK = {
   phoneCountryCode: "+81",
   dateFormat: "YYYY/MM/DD",
   timeFormat: "24h",
+  addressFormat: [
+    "postal_code",
+    "prefecture",
+    "city_ward_town",
+    "street_block",
+    "building_detail",
+  ] as const,
   textDirection: "ltr" as const,
   encoding: "UTF-8" as const,
   addressFields: ["postalCode", "prefecture", "cityWardTown", "streetBlock", "buildingDetail", "country"],
