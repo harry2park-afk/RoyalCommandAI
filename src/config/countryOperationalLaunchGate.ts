@@ -56,6 +56,7 @@ export type CountryOperationalBlockerCode =
   | "LOCALIZATION_STRUCTURE_NOT_READY"
   | "COMPLIANCE_HOOK_STRUCTURE_NOT_READY"
   | "COUNTRY_ROOM_PACK_SECURITY_POLICY_UNSAFE"
+  | "COUNTRY_ROOM_PACK_CONFIG_MISMATCH"
   | "SUBDIVISION_IDENTITY_NOT_VERIFIED"
   | "SUBDIVISION_TAX_REVIEW_NOT_VERIFIED"
   | "SUBDIVISION_COMPLIANCE_REVIEW_NOT_VERIFIED"
@@ -136,6 +137,71 @@ function hasSafeFirstWaveCountryRoomPackPolicy(countryCode: string): boolean {
   );
 }
 
+function sameOrderedStrings(left: readonly string[], right: readonly string[]): boolean {
+  return left.length === right.length && left.every((value, index) => value === right[index]);
+}
+
+function sameStringSet(left: readonly string[], right: readonly string[]): boolean {
+  if (left.length !== right.length) return false;
+  const leftSet = new Set(left);
+  return leftSet.size === left.length && right.every((value) => leftSet.has(value));
+}
+
+function hasCanonicalFirstWaveCountryRoomPackConfig(config: CountryConfig): boolean {
+  const normalizedCountryCode = config.countryCode.trim().toUpperCase();
+  if (!FIRST_WAVE_COUNTRY_CODES.has(normalizedCountryCode)) return true;
+
+  const pack = getFirstWaveCountryRoomPack(normalizedCountryCode);
+  if (!pack) return false;
+
+  if (
+    pack.locale !== config.locale ||
+    pack.languageTag !== config.locale ||
+    pack.currencyCode !== config.currency ||
+    pack.phoneCountryCode !== config.phoneCountryCode ||
+    pack.dateFormat !== config.dateFormat ||
+    pack.timeFormat !== config.timeFormat ||
+    !sameOrderedStrings(pack.addressFormat, config.addressFormat) ||
+    !config.timezone.supportedExamples.includes(pack.timeZone)
+  ) {
+    return false;
+  }
+
+  const secondaryLanguageTags =
+    "secondaryLanguageTags" in pack
+      ? (pack.secondaryLanguageTags as readonly string[])
+      : ([] as readonly string[]);
+  if (config.secondaryLocale && !secondaryLanguageTags.includes(config.secondaryLocale)) {
+    return false;
+  }
+
+  if (normalizedCountryCode === "AU") {
+    return (
+      "statesAndTerritories" in pack &&
+      sameStringSet(pack.statesAndTerritories as readonly string[], Object.keys(config.states ?? {}))
+    );
+  }
+
+  if (normalizedCountryCode === "US") {
+    return (
+      "statesAndDistrict" in pack &&
+      sameStringSet(pack.statesAndDistrict as readonly string[], Object.keys(config.states ?? {}))
+    );
+  }
+
+  if (normalizedCountryCode === "CA") {
+    return (
+      "provincesAndTerritories" in pack &&
+      sameStringSet(
+        pack.provincesAndTerritories as readonly string[],
+        Object.keys(config.provinces ?? {}),
+      )
+    );
+  }
+
+  return true;
+}
+
 function countrySubdivisions(config: CountryConfig) {
   return [
     ...Object.values(config.states ?? {}),
@@ -173,9 +239,11 @@ function hasVerifiedSubdivisionIdentity(config: CountryConfig): boolean {
  * so VERIFIED flags cannot hide missing country wiring.
  *
  * First-wave Room Packs are also checked at runtime for the structure-only clone,
- * isolation, secret-handling, human-approval and country-overlay invariants. This
- * prevents a static template-policy regression from being hidden behind VERIFIED
- * operational evidence.
+ * isolation, secret-handling, human-approval and country-overlay invariants. Their
+ * locale, currency, phone/date/time/address/timezone bindings and declared AU/US/CA
+ * jurisdiction inventories must also match canonical CountryConfig at runtime.
+ * This prevents a static template/config regression from being hidden behind
+ * VERIFIED operational evidence.
  *
  * Countries that declare state/province jurisdiction inventories also fail closed
  * until every declared jurisdiction has a canonical, unambiguous identifier and
@@ -212,6 +280,10 @@ export function evaluateCountryOperationalLaunch(
 
   if (!hasSafeFirstWaveCountryRoomPackPolicy(config.countryCode)) {
     operationalBlockers.push("COUNTRY_ROOM_PACK_SECURITY_POLICY_UNSAFE");
+  }
+
+  if (!hasCanonicalFirstWaveCountryRoomPackConfig(config)) {
+    operationalBlockers.push("COUNTRY_ROOM_PACK_CONFIG_MISMATCH");
   }
 
   if (subdivisions.length > 0 && !hasVerifiedSubdivisionIdentity(config)) {
