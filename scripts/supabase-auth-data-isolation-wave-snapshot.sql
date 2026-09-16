@@ -48,10 +48,16 @@ select jsonb_build_object(
     from table_evidence
   ),
   'sensitive_column_acl', jsonb_build_object(
+    'profiles_role_anon_update',
+      has_column_privilege('anon', 'public.profiles', 'role', 'UPDATE'),
     'profiles_role_authenticated_update',
       has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE'),
+    'matters_client_id_anon_update',
+      has_column_privilege('anon', 'public.matters', 'client_id', 'UPDATE'),
     'matters_client_id_authenticated_update',
       has_column_privilege('authenticated', 'public.matters', 'client_id', 'UPDATE'),
+    'matters_assigned_staff_id_anon_update',
+      has_column_privilege('anon', 'public.matters', 'assigned_staff_id', 'UPDATE'),
     'matters_assigned_staff_id_authenticated_update',
       has_column_privilege('authenticated', 'public.matters', 'assigned_staff_id', 'UPDATE')
   ),
@@ -104,9 +110,12 @@ select jsonb_build_object(
   ),
   'launch_isolation_gate', jsonb_build_object(
     'profile_role_direct_update_blocked',
-      not has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE'),
+      not has_column_privilege('anon', 'public.profiles', 'role', 'UPDATE')
+      and not has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE'),
     'matter_identity_assignment_direct_update_blocked',
-      not has_column_privilege('authenticated', 'public.matters', 'client_id', 'UPDATE')
+      not has_column_privilege('anon', 'public.matters', 'client_id', 'UPDATE')
+      and not has_column_privilege('anon', 'public.matters', 'assigned_staff_id', 'UPDATE')
+      and not has_column_privilege('authenticated', 'public.matters', 'client_id', 'UPDATE')
       and not has_column_privilege('authenticated', 'public.matters', 'assigned_staff_id', 'UPDATE'),
     'manifest_direct_write_blocked_for_clients',
       not has_table_privilege('anon', 'public.room_factory_manifests', 'INSERT,UPDATE,DELETE,TRUNCATE')
