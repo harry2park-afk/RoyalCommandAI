@@ -11,22 +11,48 @@ export const REQUIRED_COUNTRY_COMPLIANCE_EVIDENCE = [
 export type CountryComplianceEvidenceKey =
   (typeof REQUIRED_COUNTRY_COMPLIANCE_EVIDENCE)[number];
 
+const FIRST_WAVE_PROFESSIONAL_ROOM_PACK_IDENTITIES = {
+  AU: {
+    legal: "AU Legal Pack",
+    accounting: "AU Accounting & Tax Pack",
+  },
+  US: {
+    legal: "US Legal Pack",
+    accounting: "US Accounting & Tax Pack",
+  },
+  CA: {
+    legal: "CA Legal Pack",
+    accounting: "CA Accounting & Tax Pack",
+  },
+  KR: {
+    legal: "KR Legal Pack",
+    accounting: "KR Accounting & Tax Pack",
+  },
+  JP: {
+    legal: "JP Legal Pack",
+    accounting: "JP Accounting & Tax Pack",
+  },
+  GB: {
+    legal: "GB Legal Pack",
+    accounting: "GB Accounting & Tax Pack",
+  },
+} as const;
+
 export type CountryComplianceHook = {
-  countryCode: "AU" | "US" | "CA" | "KR" | "JP" | "GB";
+  countryCode: keyof typeof FIRST_WAVE_PROFESSIONAL_ROOM_PACK_IDENTITIES;
+  legalRoomPack: string;
+  accountingRoomPack: string;
   requiredEvidence: readonly CountryComplianceEvidenceKey[];
   humanReviewRequired: true;
   automaticApprovalAllowed: false;
 };
 
-export const FIRST_WAVE_COUNTRY_COMPLIANCE_HOOKS: readonly CountryComplianceHook[] = [
-  "AU",
-  "US",
-  "CA",
-  "KR",
-  "JP",
-  "GB",
-].map((countryCode) => ({
-  countryCode: countryCode as CountryComplianceHook["countryCode"],
+export const FIRST_WAVE_COUNTRY_COMPLIANCE_HOOKS: readonly CountryComplianceHook[] = (
+  ["AU", "US", "CA", "KR", "JP", "GB"] as const
+).map((countryCode) => ({
+  countryCode,
+  legalRoomPack: FIRST_WAVE_PROFESSIONAL_ROOM_PACK_IDENTITIES[countryCode].legal,
+  accountingRoomPack: FIRST_WAVE_PROFESSIONAL_ROOM_PACK_IDENTITIES[countryCode].accounting,
   requiredEvidence: REQUIRED_COUNTRY_COMPLIANCE_EVIDENCE,
   humanReviewRequired: true as const,
   automaticApprovalAllowed: false as const,
@@ -55,10 +81,18 @@ export type CountryRoomPackConfigBinding = {
   };
 };
 
+export type CountryProfessionalRoomPackIdentityBinding = {
+  packs: {
+    legal: string;
+    accounting: string;
+  };
+};
+
 export type CountryComplianceHookStructureBlocker =
   | "COUNTRY_COMPLIANCE_HOOK_MISSING"
   | "COUNTRY_LEGAL_ROOM_PACK_MISSING"
   | "COUNTRY_ACCOUNTING_ROOM_PACK_MISSING"
+  | "COUNTRY_PROFESSIONAL_ROOM_PACK_IDENTITY_MISMATCH"
   | "COUNTRY_ROOM_PACK_CLONE_POLICY_UNSAFE"
   | "COUNTRY_ROOM_PACK_SECURITY_POLICY_UNSAFE"
   | "COUNTRY_ROOM_PACK_CONFIG_MISMATCH"
@@ -77,6 +111,16 @@ export function getCountryComplianceHook(
     FIRST_WAVE_COUNTRY_COMPLIANCE_HOOKS.find(
       (hook) => hook.countryCode === countryCode,
     ) ?? null
+  );
+}
+
+export function isCountryProfessionalRoomPackIdentityBound(
+  roomPack: CountryProfessionalRoomPackIdentityBinding,
+  hook: CountryComplianceHook,
+): boolean {
+  return (
+    roomPack.packs.legal === hook.legalRoomPack &&
+    roomPack.packs.accounting === hook.accountingRoomPack
   );
 }
 
@@ -172,6 +216,10 @@ export function evaluateCountryComplianceHookStructure(
 
   if (!roomPack?.packs.accounting?.trim()) {
     blockers.push("COUNTRY_ACCOUNTING_ROOM_PACK_MISSING");
+  }
+
+  if (hook && roomPack && !isCountryProfessionalRoomPackIdentityBound(roomPack, hook)) {
+    blockers.push("COUNTRY_PROFESSIONAL_ROOM_PACK_IDENTITY_MISMATCH");
   }
 
   if (
