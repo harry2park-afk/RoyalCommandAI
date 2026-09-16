@@ -8,7 +8,8 @@
 --   * provider registry and event ledger are not directly accessible to anon/authenticated;
 --   * sandbox_ready is valid only for sandbox rows and production_ready only for production rows;
 --   * production_ready cannot be declared without webhook/refund/cancellation capability;
---   * webhook signature verification must carry an audit timestamp before processing/processed state.
+--   * webhook signature verification must carry an audit timestamp before processing/processed state;
+--   * payment-event audit timestamps must be chronologically consistent with event receipt.
 --
 -- This migration is source-only until separately approved for a controlled Hosted cutover.
 
@@ -90,10 +91,25 @@ create table if not exists public.rc_payment_provider_events (
       processing_status not in ('processing', 'processed')
       or (signature_verified and signature_verified_at is not null)
     ),
+  constraint rc_payment_provider_events_signature_after_receipt
+    check (
+      signature_verified_at is null
+      or signature_verified_at >= received_at
+    ),
   constraint rc_payment_provider_events_processed_timestamp
     check (
       processing_status not in ('processed', 'ignored')
       or processed_at is not null
+    ),
+  constraint rc_payment_provider_events_processed_after_receipt
+    check (
+      processed_at is null
+      or processed_at >= received_at
+    ),
+  constraint rc_payment_provider_events_processed_after_signature
+    check (
+      processing_status <> 'processed'
+      or processed_at >= signature_verified_at
     ),
   unique (provider_key, environment, external_event_id)
 );
@@ -110,7 +126,7 @@ create index if not exists rc_payment_provider_events_status_received_idx
   where processing_status in ('received', 'processing', 'failed');
 
 comment on table public.rc_payment_provider_events is
-  'Private payment webhook/event ledger with provider-event uniqueness. Store payload digest only; never raw webhook payloads. Processing requires timestamped signature-verification evidence.';
+  'Private payment webhook/event ledger with provider-event uniqueness. Store payload digest only; never raw webhook payloads. Processing requires timestamped signature-verification evidence and chronologically consistent receipt, verification, and processing timestamps.';
 
 alter table public.rc_service_connection_orders
   add column if not exists idempotency_key text;
