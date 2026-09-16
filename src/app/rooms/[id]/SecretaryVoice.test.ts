@@ -1,100 +1,123 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import SecretaryVoice from './SecretaryVoice';
+import { SecretaryVoiceSession } from '@/lib/ai-secretary/voice-session';
 
-const hooks = vi.hoisted(() => ({ cleanups: [] as Array<() => void> }));
-vi.mock('react', () => ({
-  useState: (value: unknown) => [value, vi.fn()],
-  useRef: (value: unknown) => ({ current: value }),
-  useEffect: (effect: () => (() => void)) => hooks.cleanups.push(effect()),
-}));
-
-class Mic {
-  static instances: Mic[] = [];
-  onstart?: () => void;
-  onend?: () => void;
-  onerror?: (e: { error: string }) => void;
-  onresult?: (e: unknown) => void;
-  abort = vi.fn();
-  start = vi.fn(() => this.onstart?.());
-  constructor() { Mic.instances.push(this); }
-  say(text: string) {
-    this.onresult?.({ results: [{ isFinal: true, 0: { transcript: text } }] });
-    this.onend?.();
-  }
-}
-class Speech {
-  onend?: () => void;
-  onerror?: () => void;
-  constructor(public text: string) {}
-}
+let level: number;
 let spoken: Speech[];
-let visibility: (() => void) | undefined;
-let cancel: ReturnType<typeof vi.fn>;
-function start(onMessage = vi.fn(async () => '답변입니다.')) {
-  const onActiveChange = vi.fn();
-  const tree = SecretaryVoice({ onMessage, busy: false, onActiveChange });
-  tree.props.children[0].props.children[0].props.onClick();
-  return { onMessage, onActiveChange };
+let sessions: SecretaryVoiceSession[];
+let track: { enabled: boolean; stop: ReturnType<typeof vi.fn> };
+let getUserMedia: ReturnType<typeof vi.fn>;
+let request: ReturnType<typeof vi.fn>;
+class Recorder {
+  static instances: Recorder[] = [];
+  static isTypeSupported = () => true;
+  state = 'inactive'; mimeType = 'audio/webm;codecs=opus';
+  ondataavailable?: (e: {data: Blob}) => void;
+  onstop?: () => void; onerror?: () => void;
+  constructor() { Recorder.instances.push(this); }
+  start() { this.state = 'recording'; }
+  stop() { this.state = 'inactive'; this.ondataavailable?.({data: new Blob(['audio-test'])}); this.onstop?.(); }
+}
+class Context {
+  resume = async () => {};
+  close = vi.fn(async () => {});
+  createAnalyser = () => ({fftSize: 2048, getFloatTimeDomainData: (buffer: Float32Array) => buffer.fill(level)});
+  createMediaStreamSource = () => ({connect: vi.fn()});
+}
+class Speech { onend?: () => void; onerror?: () => void; constructor(public text: string) {} }
+function make(language: 'ko-KR' | 'en-AU' = 'ko-KR', onMessage = vi.fn(async () => '답변입니다.')) {
+  const options = { language, onMessage, onTranscript: vi.fn(), onStatus: vi.fn(), onStop: vi.fn() };
+  const session = new SecretaryVoiceSession(options); sessions.push(session);
+  return {session, options};
+}
+async function phrase() {
+  level = 0.04; await vi.advanceTimersByTimeAsync(800);
+  level = 0; await vi.advanceTimersByTimeAsync(1900);
 }
 beforeEach(() => {
-  vi.useFakeTimers(); Mic.instances = []; hooks.cleanups = []; spoken = []; cancel = vi.fn();
-  vi.stubGlobal('window', { SpeechRecognition: Mic, speechSynthesis: { speak: (s: Speech) => spoken.push(s), cancel } });
-  vi.stubGlobal('SpeechSynthesisUtterance', Speech);
-  vi.stubGlobal('document', { hidden: false, addEventListener: (_: string, cb: () => void) => { visibility = cb; }, removeEventListener: vi.fn() });
+  vi.useFakeTimers(); level = 0; sessions = []; spoken = []; Recorder.instances = [];
+  track = {enabled: true, stop: vi.fn()};
+  getUserMedia = vi.fn(async () => ({getTracks: () => [track], getAudioTracks: () => [track]}));
+  request = vi.fn(async () => new Response(JSON.stringify({transcript: '오늘 할 일을 알려주세요'}), {status: 200}));
+  vi.stubGlobal('navigator', {mediaDevices: {getUserMedia}});
+  vi.stubGlobal('MediaRecorder', Recorder); vi.stubGlobal('AudioContext', Context);
+  vi.stubGlobal('window', {speechSynthesis: {speak: (s: Speech) => spoken.push(s), cancel: vi.fn()}});
+  vi.stubGlobal('SpeechSynthesisUtterance', Speech); vi.stubGlobal('fetch', request);
 });
-afterEach(() => { hooks.cleanups.forEach(fn => fn()); vi.useRealTimers(); vi.unstubAllGlobals(); });
-describe('secretary voice session with simulated browser speech services', () => {
-  it('does not listen on mount', () => {
-    SecretaryVoice({ onMessage: vi.fn(), busy: false, onActiveChange: vi.fn() });
-    expect(Mic.instances).toHaveLength(0);
+afterEach(() => { sessions.forEach(s => s.stop()); vi.useRealTimers(); vi.unstubAllGlobals(); });
+describe('Katie recorder sessions (simulated microphone/STT)', () => {
+  it('opens no microphone until explicitly started', () => { make(); expect(getUserMedia).not.toHaveBeenCalled(); });
+  it('keeps the whole utterance through a short pause and explicitly requests Korean', async () => {
+    const {session, options} = make(); await session.start();
+    level = .04; await vi.advanceTimersByTimeAsync(800);
+    level = 0; await vi.advanceTimersByTimeAsync(900);
+    expect(request).not.toHaveBeenCalled();
+    level = .04; await vi.advanceTimersByTimeAsync(800);
+    level = 0; await vi.advanceTimersByTimeAsync(1900);
+    expect(request).toHaveBeenCalledTimes(1);
+    const [url, init] = request.mock.calls[0];
+    expect(url).toBe('/api/voice/transcribe'); expect(init.body.get('language')).toBe('ko');
+    expect(init.body.get('audio').name).toBe('katie-voice.webm');
+    expect(options.onMessage).toHaveBeenCalledExactlyOnceWith('오늘 할 일을 알려주세요');
+    expect(track.enabled).toBe(false); expect(spoken).toHaveLength(1);
   });
-  it('submits once, speaks with mic stopped, then resumes after playback', async () => {
-    const { onMessage } = start();
-    const mic = Mic.instances[0];
-    mic.say('오늘 할 일'); mic.onend?.();
-    await vi.advanceTimersByTimeAsync(0);
-    expect(onMessage).toHaveBeenCalledExactlyOnceWith('오늘 할 일');
-    expect(spoken[0].text).toBe('답변입니다.');
-    expect(Mic.instances).toHaveLength(1);
-    spoken[0].onend?.();
-    await vi.advanceTimersByTimeAsync(350);
-    expect(Mic.instances).toHaveLength(2);
+  it('resumes recording after playback without reopening microphone', async () => {
+    const {session} = make(); await session.start(); await phrase();
+    expect(Recorder.instances).toHaveLength(1);
+    spoken[0].onend?.(); await vi.advanceTimersByTimeAsync(500);
+    expect(Recorder.instances).toHaveLength(2); expect(getUserMedia).toHaveBeenCalledTimes(1); expect(track.enabled).toBe(true);
   });
-  it('stops by voice without sending stop as a task', () => {
-    const { onMessage, onActiveChange } = start();
-    Mic.instances[0].say('대화 종료.');
-    expect(onMessage).not.toHaveBeenCalled();
-    expect(onActiveChange).toHaveBeenLastCalledWith(false);
+  it('maps Australian English to en', async () => {
+    const {session} = make('en-AU'); await session.start(); await phrase();
+    expect(request.mock.calls[0][1].body.get('language')).toBe('en');
   });
-  it('does not restart after microphone permission denial', async () => {
-    const { onActiveChange } = start();
-    Mic.instances[0].onerror?.({ error: 'not-allowed' });
-    await vi.runAllTimersAsync();
-    expect(Mic.instances).toHaveLength(1);
-    expect(Mic.instances[0].abort).toHaveBeenCalled();
-    expect(onActiveChange).toHaveBeenLastCalledWith(false);
+  it('stops on silence without transcription requests or restart beeps', async () => {
+    const {session, options} = make(); await session.start(); await vi.advanceTimersByTimeAsync(31000);
+    expect(request).not.toHaveBeenCalled(); expect(track.stop).toHaveBeenCalledTimes(1);
+    expect(getUserMedia).toHaveBeenCalledTimes(1); expect(options.onStop).toHaveBeenCalledTimes(1);
   });
-  it('does not speak a late response after leaving the conversation', async () => {
-    let resolve!: (value: string) => void;
-    start(vi.fn(() => new Promise<string>(r => { resolve = r; })));
-    Mic.instances[0].say('질문');
-    hooks.cleanups[0](); resolve('늦은 답변');
-    await vi.advanceTimersByTimeAsync(0);
-    expect(spoken).toHaveLength(0);
+  it('handles spoken stop without creating a task', async () => {
+    request.mockResolvedValue(new Response(JSON.stringify({transcript: '대화 종료.'})));
+    const {session, options} = make(); await session.start(); await phrase();
+    expect(options.onMessage).not.toHaveBeenCalled(); expect(track.stop).toHaveBeenCalled();
   });
-  it('stops and releases playback when hidden', async () => {
-    const { onActiveChange } = start();
-    Mic.instances[0].say('질문');
-    await vi.advanceTimersByTimeAsync(0);
-    Object.assign(document, { hidden: true }); visibility?.();
-    expect(cancel).toHaveBeenCalled();
-    expect(onActiveChange).toHaveBeenLastCalledWith(false);
-    await vi.runAllTimersAsync(); expect(Mic.instances).toHaveLength(1);
+  it('releases a late microphone grant after cancellation', async () => {
+    let grant!: (value: unknown) => void;
+    getUserMedia.mockImplementation(() => new Promise(r => {grant = r;}));
+    const {session} = make(); const starting = session.start(); session.stop();
+    grant({getTracks: () => [track], getAudioTracks: () => [track]}); await starting;
+    expect(track.stop).toHaveBeenCalled(); expect(Recorder.instances).toHaveLength(0);
   });
-  it('bounds silence restarts', async () => {
-    const { onActiveChange } = start();
-    for (let i = 0; i < 3; i++) { Mic.instances.at(-1)?.onend?.(); await vi.advanceTimersByTimeAsync(500); }
-    expect(Mic.instances).toHaveLength(3);
-    expect(onActiveChange).toHaveBeenLastCalledWith(false);
+  it('stops cleanly on permission denial', async () => {
+    getUserMedia.mockRejectedValue(new Error('denied'));
+    const {session, options} = make(); await session.start();
+    expect(options.onStop).toHaveBeenCalledOnce(); expect(request).not.toHaveBeenCalled();
+  });
+  it('aborts transcription on stop and suppresses late transcripts', async () => {
+    let resolve!: (value: Response) => void;
+    request.mockImplementation(() => new Promise(r => {resolve = r;}));
+    const {session, options} = make(); await session.start(); await phrase(); session.stop();
+    expect(request.mock.calls[0][1].signal.aborted).toBe(true);
+    resolve(new Response(JSON.stringify({transcript:'늦은 답변'}))); await vi.advanceTimersByTimeAsync(0);
+    expect(options.onMessage).not.toHaveBeenCalled();
+  });
+  it('handles audio-context rejection even when permission is also denied', async () => {
+    class FailedContext extends Context { resume = async () => { throw new Error('audio unavailable'); }; }
+    vi.stubGlobal('AudioContext', FailedContext);
+    getUserMedia.mockRejectedValue(new Error('denied'));
+    const {session, options} = make(); await session.start(); await vi.advanceTimersByTimeAsync(0);
+    expect(options.onStop).toHaveBeenCalledOnce(); expect(request).not.toHaveBeenCalled();
+  });
+  it('bounds a stalled transcription request', async () => {
+    request.mockImplementation((_url, init) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(new Error('aborted')));
+    }));
+    const {session, options} = make(); await session.start(); await phrase();
+    await vi.advanceTimersByTimeAsync(45000);
+    expect(options.onStop).toHaveBeenCalledOnce(); expect(track.stop).toHaveBeenCalled();
+  });
+  it('does not retry after server failure', async () => {
+    request.mockResolvedValue(new Response('{}', {status: 503}));
+    const {session, options} = make(); await session.start(); await phrase(); await vi.advanceTimersByTimeAsync(5000);
+    expect(request).toHaveBeenCalledTimes(1); expect(options.onStop).toHaveBeenCalledOnce(); expect(track.stop).toHaveBeenCalled();
   });
 });

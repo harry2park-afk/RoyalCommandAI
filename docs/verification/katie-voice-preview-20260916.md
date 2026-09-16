@@ -11,3 +11,17 @@
 - Behavior: user starts voice explicitly; browser speech recognition transcribes and auto-submits each utterance; device TTS speaks the reply, then listens again. Korean default / Australian English input selector. Exact voice stop command: 대화 종료 (or stop conversation). Stops on tab change, page hiding or errors. Existing external-action approvals remain.
 - Limitations: browser speech-service availability and network required; device voice is not the Retell telephone voice; no voice interruption while Katie is speaking (visible Stop remains available). This adds conversational voice, not voice operation of every application control.
 - No evidence-based claim of full device validation or end-to-end completion until actual microphone testing passes.
+
+
+## Android microphone correction (supersedes original input implementation)
+
+- Owner reported repeated recognition beeps, very short input and Korean misrecognition after testing the original Preview. Original mock tests did not establish device compatibility.
+- Code evidence: original input used SpeechRecognition with continuous=false and automatic onend restarts. Actual OS beeps and recognition language selection could not be inspected remotely.
+- Replaced only secretary input with one permission-granted getUserMedia stream, MediaRecorder utterances and the existing authenticated /api/voice/transcribe route. No backend, credentials or phone changes.
+- Korean is explicitly sent as language=ko; Australian English as en. SpeechRecognition is no longer used by this component. Silence does not invoke transcription or automatically reopen the microphone.
+- Speech end waits for 1.8 seconds of silence, with 30-second no-speech and 60-second capture bounds. Capture is muted during transcription and playback. TTS completes before the same microphone stream is re-enabled.
+- Cleanup releases all media tracks, closes the audio context, clears timers, aborts transcription and ignores late permission grants/results. Server transcription is limited to 45 seconds on the client.
+- Independent review found one P2 (early audio-context resume rejection); fixed with immediate rejection handling and regression test.
+- Tests use simulated media/STT, not device audio. Actual Android microphone capture, Korean accuracy, authenticated server transcription and playback remain UNVERIFIED until device testing. Do not mark this as full end-to-end success.
+
+- Correction validation passed: Next build + TypeScript, ESLint for changed implementation, 12 recorder-session tests including Korean parameter, pause preservation, one-stream reuse, silence, permission failures, late grants and cancellation.
