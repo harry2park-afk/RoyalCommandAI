@@ -84,6 +84,29 @@ describe("October launch Supabase candidate blocker coverage", () => {
     expect(sql).toContain("insert into public.room_factory_manifests");
   });
 
+  it("closes direct manifest writes before installing non-encounter Room creation", () => {
+    const sql = migration(CANDIDATES.roomFactoryNonEncounter);
+    const anonRevokeIndex = sql.indexOf(
+      "revoke select, insert, update, delete, truncate, references, trigger",
+    );
+    const authenticatedRevokeIndex = sql.indexOf(
+      "revoke insert, update, delete, truncate, references, trigger",
+      anonRevokeIndex + 1,
+    );
+    const legacyPolicyDropIndex = sql.indexOf(
+      "drop policy if exists room_factory_manifests_insert_owner",
+    );
+    const nonEncounterFunctionIndex = sql.indexOf(
+      "create or replace function private.create_room_factory_room_atomic(",
+    );
+
+    expect(anonRevokeIndex).toBeGreaterThanOrEqual(0);
+    expect(authenticatedRevokeIndex).toBeGreaterThan(anonRevokeIndex);
+    expect(legacyPolicyDropIndex).toBeGreaterThan(authenticatedRevokeIndex);
+    expect(nonEncounterFunctionIndex).toBeGreaterThan(legacyPolicyDropIndex);
+    expect(sql).toMatch(/grant select[\s\S]*on table public\.room_factory_manifests[\s\S]*to authenticated;/);
+  });
+
   it("covers a server-owned fail-closed compliance evidence registry without verified seed data", () => {
     const sql = migration(CANDIDATES.complianceRegistry);
 
