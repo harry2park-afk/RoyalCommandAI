@@ -66,7 +66,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
 };
 
 const expectedScope: CountryOperationalReleaseScope = {
-  releaseCandidateSha: "release-sha-for-test",
+  releaseCandidateSha: "1111111111111111111111111111111111111111",
   migrationApplySetFingerprint: "migration-fingerprint-for-test",
   roomFactoryTemplateFingerprint: "room-factory-fingerprint-for-test",
   hostedOperationalDataFingerprint: "hosted-data-fingerprint-for-test",
