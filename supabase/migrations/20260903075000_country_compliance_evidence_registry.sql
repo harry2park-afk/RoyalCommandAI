@@ -14,7 +14,7 @@ create table if not exists public.country_compliance_evidence (
   evidence_ref text,
   evidence_sha256 text,
   reviewed_at timestamptz,
-  reviewed_by uuid,
+  reviewed_by uuid references auth.users(id),
   valid_from timestamptz,
   valid_until timestamptz,
   blocker_reason text,
@@ -47,6 +47,11 @@ create table if not exists public.country_compliance_evidence (
     check (evidence_sha256 is null or evidence_sha256 ~ '^[0-9A-Fa-f]{64}$'),
   constraint country_compliance_evidence_validity_check
     check (valid_until is null or valid_from is null or valid_until > valid_from),
+  constraint country_compliance_evidence_review_chronology
+    check (
+      review_status <> 'VERIFIED'
+      or reviewed_at >= created_at
+    ),
   constraint country_compliance_evidence_verified_check
     check (
       review_status <> 'VERIFIED'
