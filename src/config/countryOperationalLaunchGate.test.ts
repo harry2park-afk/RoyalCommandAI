@@ -96,6 +96,23 @@ function makeScopedReleaseEvidence(countryCode: string): ScopedCountryOperationa
   };
 }
 
+function makeSubdivisionReviewsReady(
+  subdivisions: CountryConfig["states"],
+): CountryConfig["states"] {
+  if (!subdivisions) return undefined;
+
+  return Object.fromEntries(
+    Object.entries(subdivisions).map(([code, subdivision]) => [
+      code,
+      {
+        ...subdivision,
+        taxStatus: "READY" as const,
+        complianceStatus: "READY" as const,
+      },
+    ]),
+  );
+}
+
 function makeCountryGateReady(config: CountryConfig): CountryConfig {
   return {
     ...config,
@@ -111,6 +128,8 @@ function makeCountryGateReady(config: CountryConfig): CountryConfig {
       : { system: "verified-for-test", status: "READY" },
     payments: { ...config.payments, status: "CONNECTED" },
     tax: { ...config.tax, status: "CONNECTED" },
+    states: makeSubdivisionReviewsReady(config.states),
+    provinces: makeSubdivisionReviewsReady(config.provinces),
   };
 }
 
@@ -156,9 +175,62 @@ describe("country operational launch readiness gate", () => {
 
     const gate = evaluateCountryOperationalLaunch(config!, verifiedEvidence);
     expect(gate.launchable).toBe(false);
-    expect(gate.operationalBlockers).toEqual(["SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED"]);
+    expect(gate.operationalBlockers).toEqual([
+      "SUBDIVISION_TAX_REVIEW_NOT_VERIFIED",
+      "SUBDIVISION_COMPLIANCE_REVIEW_NOT_VERIFIED",
+      "SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED",
+    ]);
     expect(gate.countryGate.blockers.length).toBeGreaterThan(0);
     expect(gate.scopedReleaseGate).toBeNull();
+  });
+
+  it("requires explicit READY tax and compliance review for every declared state or province", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const globallyReadyButSubdivisionUnreviewed = {
+      ...makeCountryGateReady(base!),
+      states: base!.states,
+    };
+    const scopedEvidence = makeScopedReleaseEvidence("AU");
+
+    const unresolvedGate = evaluateCountryOperationalLaunch(
+      globallyReadyButSubdivisionUnreviewed,
+      verifiedEvidence,
+      scopedEvidence,
+      expectedScope,
+    );
+
+    expect(unresolvedGate.countryGate).toEqual({ launchable: true, blockers: [] });
+    expect(unresolvedGate.scopedReleaseGate).toEqual({ launchable: true, blockers: [] });
+    expect(unresolvedGate.launchable).toBe(false);
+    expect(unresolvedGate.operationalBlockers).toEqual([
+      "SUBDIVISION_TAX_REVIEW_NOT_VERIFIED",
+      "SUBDIVISION_COMPLIANCE_REVIEW_NOT_VERIFIED",
+    ]);
+
+    const allReady = makeCountryGateReady(base!);
+    expect(allReady.states?.NSW).toBeDefined();
+    const oneTaxReviewRegressed: CountryConfig = {
+      ...allReady,
+      states: {
+        ...allReady.states,
+        NSW: {
+          ...allReady.states!.NSW,
+          taxStatus: "NEEDS_REVIEW",
+        },
+      },
+    };
+    const taxRegressionGate = evaluateCountryOperationalLaunch(
+      oneTaxReviewRegressed,
+      verifiedEvidence,
+      scopedEvidence,
+      expectedScope,
+    );
+
+    expect(taxRegressionGate.launchable).toBe(false);
+    expect(taxRegressionGate.operationalBlockers).toEqual([
+      "SUBDIVISION_TAX_REVIEW_NOT_VERIFIED",
+    ]);
   });
 
   it("fails closed when hardened evidence added after legacy callers is omitted", () => {
