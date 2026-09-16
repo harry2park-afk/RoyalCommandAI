@@ -10,7 +10,14 @@ function paymentMigration(): string {
   return readFileSync(resolve(process.cwd(), PAYMENT_MIGRATION), "utf8");
 }
 
-describe("payment event audit chronology", () => {
+describe("payment readiness and event audit chronology", () => {
+  it("fails closed when provider readiness review predates registry creation", () => {
+    const sql = paymentMigration();
+
+    expect(sql).toContain("rc_payment_provider_registry_review_chronology");
+    expect(sql).toMatch(/reviewed_at is null[\s\S]*or reviewed_at >= created_at/);
+  });
+
   it("fails closed when signature verification predates event receipt", () => {
     const sql = paymentMigration();
 
