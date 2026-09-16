@@ -61,6 +61,29 @@ select jsonb_build_object(
           'updated_at'
         )
     ),
+    'reviewer_auth_fk_present', exists(
+      select 1
+      from pg_constraint constraint_row
+      join pg_class relation on relation.oid = constraint_row.conrelid
+      join pg_namespace namespace on namespace.oid = relation.relnamespace
+      join pg_class referenced_relation on referenced_relation.oid = constraint_row.confrelid
+      join pg_namespace referenced_namespace on referenced_namespace.oid = referenced_relation.relnamespace
+      where namespace.nspname = 'public'
+        and relation.relname = 'country_compliance_evidence'
+        and constraint_row.contype = 'f'
+        and referenced_namespace.nspname = 'auth'
+        and referenced_relation.relname = 'users'
+        and pg_get_constraintdef(constraint_row.oid) like 'FOREIGN KEY (reviewed_by) REFERENCES auth.users(id)%'
+    ),
+    'review_chronology_constraint_present', exists(
+      select 1
+      from pg_constraint constraint_row
+      join pg_class relation on relation.oid = constraint_row.conrelid
+      join pg_namespace namespace on namespace.oid = relation.relnamespace
+      where namespace.nspname = 'public'
+        and relation.relname = 'country_compliance_evidence'
+        and constraint_row.conname = 'country_compliance_evidence_review_chronology'
+    ),
     'verified_provenance_constraint_present', exists(
       select 1
       from pg_constraint constraint_row
