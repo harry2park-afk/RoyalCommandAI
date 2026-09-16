@@ -2,6 +2,8 @@
 // SpeechRecognition service (which can beep/restart at every short utterance).
 export type VoiceSessionOptions = {
   language: string;
+  onPhase?: (phase: "connecting" | "listening" | "transcribing" | "thinking" | "speaking") => void;
+  onLevel?: (level: number) => void;
   onMessage: (text: string) => Promise<string>;
   onTranscript: (text: string) => void;
   onStatus: (text: string) => void;
@@ -46,6 +48,7 @@ export class SecretaryVoiceSession {
       this.stop("이 브라우저에서는 음성 대화를 사용할 수 없습니다. 최신 Chrome에서 열어 주세요.");
       return;
     }
+    this.options.onPhase?.("connecting");
     this.options.onStatus("마이크 연결 중… 사용 권한을 허용해 주세요.");
     this.timer = setTimeout(() => this.stop("마이크 연결 시간이 초과되었습니다. 권한을 확인한 뒤 다시 시작해 주세요."), 30000);
     try {
@@ -98,11 +101,13 @@ export class SecretaryVoiceSession {
         void this.transcribe(audio);
       };
       recorder.start();
+      this.options.onPhase?.("listening");
       this.options.onStatus("듣고 있습니다. 문장을 마친 뒤 잠시 쉬면 자동 전송합니다.");
       this.poll = setInterval(() => {
         if (this.stopped || recorder.state !== "recording") return;
         this.analyser!.getFloatTimeDomainData(samples);
         const rms = Math.sqrt(samples.reduce((sum, value) => sum + value * value, 0) / samples.length);
+        this.options.onLevel?.(Math.min(1, rms / 0.06));
         const now = Date.now();
         if (rms >= 0.012) { voiceMs += Math.min(now - previous, 160); lastVoice = now; }
         previous = now;
@@ -113,6 +118,8 @@ export class SecretaryVoiceSession {
   }
 
   private async transcribe(audio: Blob) {
+    this.options.onPhase?.("transcribing");
+    this.options.onLevel?.(0);
     this.options.onStatus("말씀하신 내용을 받아쓰고 있습니다…");
     this.request = new AbortController();
     this.timer = setTimeout(() => this.request?.abort(), 45000);
@@ -125,7 +132,15 @@ export class SecretaryVoiceSession {
       clearTimeout(this.timer);
       if (this.stopped) return;
       if (!response.ok) {
-        this.stop(response.status === 401 ? "로그인이 만료되었습니다. 다시 로그인해 주세요." : "음성 받아쓰기에 실패했습니다. 잠시 후 다시 시작해 주세요.");
+        const errors: Record<string, string> = {
+          VOICE_AUTH: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
+          VOICE_CONFIG: "서버의 음성 인식 연결 설정이 없습니다. (VOICE_CONFIG)",
+          VOICE_AUDIO: "녹음된 음성이 서버에 전달되지 않았습니다. (VOICE_AUDIO)",
+          VOICE_PROVIDER: "음성 인식 서비스가 요청을 처리하지 못했습니다. (VOICE_PROVIDER)",
+          VOICE_EMPTY: "녹음은 전달됐지만 말소리를 인식하지 못했습니다. (VOICE_EMPTY)",
+          VOICE_TIMEOUT: "서버의 음성 인식 응답이 지연됐습니다. (VOICE_TIMEOUT)",
+        };
+        this.stop(errors[result.code] || (response.status === 401 ? errors.VOICE_AUTH : "음성 받아쓰기에 실패했습니다. (VOICE_REQUEST)"));
         return;
       }
       const text = typeof result.transcript === "string" ? result.transcript.trim() : "";
@@ -134,6 +149,7 @@ export class SecretaryVoiceSession {
       if (/^(대화\s*종료|음성\s*(대화\s*)?(종료|중지)|stop( voice)?( conversation)?|end conversation)[.!?。\s]*$/i.test(text)) {
         this.stop(); return;
       }
+      this.options.onPhase?.("thinking");
       this.options.onStatus("Katie가 답변을 준비하고 있습니다…");
       const answer = await this.options.onMessage(text);
       if (this.stopped) return;
@@ -153,6 +169,7 @@ export class SecretaryVoiceSession {
       this.timer = setTimeout(() => this.listen(), 500);
     };
     speech.onerror = () => this.stop("음성 재생에 실패했습니다. 화면의 답변을 확인해 주세요.");
+    this.options.onPhase?.("speaking");
     this.options.onStatus("Katie가 답변하고 있습니다…");
     this.timer = setTimeout(() => this.stop("음성 재생 시간이 초과되었습니다. 화면의 답변을 확인해 주세요."), 120000);
     window.speechSynthesis.speak(speech);

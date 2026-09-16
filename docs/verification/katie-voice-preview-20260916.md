@@ -34,3 +34,13 @@
 - Microphone reads existing /api/user/preferences language, with saved royalcommand:ui-locale and browser-locale fallback. No preference writes or login changes. Voice service receives the selected primary language tag rather than forcing every non-Korean locale to English.
 - Preserved: automatic spoken-question submission, same answer in chat and speech, then listening resumes. Icon retains accessible name, pressed state, screen-reader status and visible errors only on failure.
 - New UI does not change the audio engine, Retell, customer history, Production/master, or external-action approvals. Actual authenticated browser/device verification remains pending.
+
+## Microphone failure investigation and diagnostics
+
+- Risk STANDARD; independent voice_review review. User reports active microphone with no transcription. Screenshot confirms browser microphone indicator and misleading slashed microphone icon, not successful audio capture.
+- Preview runtime evidence: middleware trace for POST /api/voice/transcribe at 23:31:34; no matching helper request or error log. Middleware HTTP 200 does not establish transcription success. Managed browser redirects to login. Root cause remains UNRESOLVED.
+- Corrected active icon to microphone; listening has a green ring whose intensity follows measured input. Other processing phases use amber. No language selector or standing instructions added.
+- Added sanitized transcription stage/error diagnostics with random request ID, stable failure codes and timings; never log audio, transcript, credentials or user identifiers. Upstream timeout is 35 seconds, below client 45 seconds. Preserve successful response contract.
+- Review P2 fixed: response-body timeout is rethrown and classified as VOICE_TIMEOUT; malformed provider JSON is VOICE_PROVIDER. Regression coverage added.
+- Validation: Next build including TypeScript, ESLint, diff check, 20 tests across recorder session and transcription route passed. Tests simulate media/provider behavior; real device microphone, authenticated transcription and audible reply remain UNVERIFIED.
+- Scope: Preview only. No Retell, phone, database, environment, authentication or Production/master changes. No claim that the reported microphone failure is resolved until actual runtime evidence establishes it.
