@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import SecretaryVoice from "./SecretaryVoice";
 import { mailChatIntent, readMailForChat } from "@/lib/ai-secretary/mail-chat";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { CalendarDays, Check, ChevronRight, Clock3, FileText, Mail, MessageCircle, Phone, Send, X } from "lucide-react";
@@ -43,10 +44,12 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
   const [tab, setTab] = useState<Tab>("대화");
   const [input, setInput] = useState("");
   const [busy, setBusy] = useState(false);
+  const [voiceActive, setVoiceActive] = useState(false);
   const [callError, setCallError] = useState("");
   const [mailCount, setMailCount] = useState<number | null>(null);
   const [calls, setCalls] = useState<RetellCall[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const sending = useRef(false);
 
   useEffect(() => {
     if (!roomId || roomId.toLowerCase() === "rca") return;
@@ -106,22 +109,29 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
 
   async function sendInstruction(event: FormEvent) {
     event.preventDefault();
-    const text = input.trim();
-    if (!text || busy) return;
+    try { await submitInstruction(input); } catch { /* Failure is displayed in the conversation. */ }
+  }
+
+  async function submitInstruction(value: string): Promise<string> {
+    const text = value.trim();
+    if (!text || sending.current) return "";
+    sending.current = true;
+    const requestSignal = AbortSignal.timeout(45000);
     const intent = mailChatIntent(text);
     if (intent) {
       setInput(""); setBusy(true);
       setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "user", text, at: now() }] }));
       try {
         const result = intent === "read"
-          ? await readMailForChat(roomId, text)
+          ? await readMailForChat(roomId, text, (url, init) => fetch(url, { ...init, signal: requestSignal }))
           : { count: null, answer: "메일 발송·삭제·이동은 실행하지 않았습니다. 메일·전화에서 원문을 확인하고 답장 내용을 검토해 주세요. 발송은 받는 사람과 내용을 확인한 뒤 승인할 수 있습니다." };
         if (result.count !== null) setMailCount(result.count);
         setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "assistant", text: result.answer, at: now() }] }));
+        return result.answer;
       } catch (error) {
         setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "assistant", text: error instanceof Error ? error.message : "메일 조회에 실패했습니다. 다시 시도해 주세요.", at: now() }] }));
-      } finally { setBusy(false); }
-      return;
+        throw error;
+      } finally { sending.current = false; setBusy(false); }
     }
     const at = now();
     const needsApproval = EXTERNAL.test(text);
@@ -140,12 +150,19 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
     setBusy(true);
     try {
       const response = await fetch("/api/ai/helper", {
-        method: "POST", headers: { "Content-Type": "application/json" },
+        method: "POST", headers: { "Content-Type": "application/json" }, signal: requestSignal,
         body: JSON.stringify({ roomId, selectedLanguage: "ko", message: `고객 전용 AI 비서로서 다음 지시를 간단히 확인하고 다음 단계를 알려주세요. 외부 실행은 하지 마세요: ${text}`, history: [] }),
       });
       const payload = await response.json().catch(() => ({}));
-      if (response.ok && payload?.answer) setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "assistant", text: String(payload.answer), at: now() }] }));
-    } catch {} finally { setBusy(false); }
+      if (!response.ok || !payload?.answer) throw new Error("비서 답변을 받지 못했습니다. 다시 시도해 주세요.");
+      const answer = String(payload.answer);
+      setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "assistant", text: answer, at: now() }] }));
+      return answer;
+    } catch {
+      const answer = "비서 답변을 받지 못했습니다. 다시 시도해 주세요.";
+      setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "assistant", text: answer, at: now() }] }));
+      throw new Error(answer);
+    } finally { sending.current = false; setBusy(false); }
   }
 
   function updateTask(taskId: string, status: TaskStatus) {
@@ -187,7 +204,8 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
             {tab === "대화" ? <div className="mx-auto flex h-full max-w-3xl flex-col">
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{data.chats.map((chat) => <div key={chat.id} className={`max-w-[82%] rounded-xl px-3 py-2 whitespace-pre-wrap text-sm leading-6 ${chat.role === "user" ? "ml-auto bg-[#173663]" : "bg-white/7"}`}>{chat.text}<div className="mt-1 text-[9px] text-white/35">{stamp(chat.at)}</div></div>)}</div>
               {busy ? <p role="status" className="mt-2 text-sm text-[#f0d36a]">요청을 처리하고 있습니다…</p> : null}
-              <form onSubmit={sendInstruction} className="mt-3 flex gap-2"><textarea value={input} onChange={(e) => setInput(e.target.value)} placeholder="비서에게 새로운 업무를 지시하세요" className="min-h-12 flex-1 resize-none rounded-xl border border-white/15 bg-black/20 p-3 text-sm outline-none focus:border-[#d7b64d]"/><button disabled={!input.trim() || busy} className="grid w-12 place-items-center rounded-xl border border-[#d7b64d] bg-[#7A0C2E] text-[#ffe18a] disabled:opacity-30"><Send size={18}/></button></form>
+              <SecretaryVoice key={roomId} busy={busy} onMessage={submitInstruction} onActiveChange={setVoiceActive}/>
+              <form onSubmit={sendInstruction} className="mt-3 flex gap-2"><textarea disabled={voiceActive} value={input} onChange={(e) => setInput(e.target.value)} placeholder="비서에게 새로운 업무를 지시하세요" className="min-h-12 flex-1 resize-none rounded-xl border border-white/15 bg-black/20 p-3 text-sm outline-none focus:border-[#d7b64d]"/><button disabled={!input.trim() || busy || voiceActive} className="grid w-12 place-items-center rounded-xl border border-[#d7b64d] bg-[#7A0C2E] text-[#ffe18a] disabled:opacity-30"><Send size={18}/></button></form>
             </div> : null}
             {tab === "오늘의 보고" ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[
               ["받은 전화", report.calls, Phone], ["음성메시지", report.voicemail, MessageCircle], ["조회된 이메일", report.email, Mail],
