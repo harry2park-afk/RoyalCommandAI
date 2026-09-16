@@ -40,6 +40,13 @@ describe("first-wave country Room packs", () => {
       expect(pack?.roomDefaults.cloneCredentials).toBe(false);
       expect(pack?.roomDefaults.cloneSecrets).toBe(false);
       expect(pack?.roomDefaults.humanApprovalForExternalActions).toBe(true);
+      expect(pack?.policy).toEqual({
+        globalCoreImmutable: true,
+        countryRulesSeparateFromCore: true,
+        customerDataIsolationRequired: true,
+        customerSecretsNeverCopied: true,
+        countrySpecificComplianceMustBeVersioned: true,
+      });
     }
   });
 
