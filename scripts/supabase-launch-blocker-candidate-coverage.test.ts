@@ -18,6 +18,7 @@ const CANDIDATES = {
 } as const;
 
 const FIRST_WAVE_SNAPSHOT = "scripts/supabase-first-wave-launch-snapshot.sql";
+const AUTH_DATA_ISOLATION_SNAPSHOT = "scripts/supabase-auth-data-isolation-wave-snapshot.sql";
 
 function migration(path: string): string {
   return readFileSync(resolve(process.cwd(), path), "utf8");
@@ -63,15 +64,28 @@ describe("October launch Supabase candidate blocker coverage", () => {
     expect(sql).not.toContain("raw_user_meta_data->>'role'");
   });
 
-  it("covers Matter tenant and assignment authority without broad authenticated UPDATE", () => {
+  it("covers Matter tenant and assignment authority without broad untrusted UPDATE", () => {
     const sql = migration(CANDIDATES.matterIsolation);
 
-    expect(sql).toContain("revoke update on table public.matters from authenticated;");
+    expect(sql).toContain("revoke update on table public.matters from anon, authenticated;");
     expect(sql).toMatch(/grant update \(service_line, title, summary, status, updated_at\)[\s\S]*to authenticated;/);
     expect(sql).toContain("public.set_matter_staff_assignment");
     expect(sql).toContain("matter assignment requires admin role");
     expect(sql).toContain("client_id = auth.uid()");
     expect(sql).toContain("private.is_assigned_matter_staff(id)");
+  });
+
+  it("keeps auth/data-isolation read-back fail-closed for anon and authenticated sensitive columns", () => {
+    const sql = migration(AUTH_DATA_ISOLATION_SNAPSHOT);
+
+    expect(sql).toContain("'profiles_role_anon_update'");
+    expect(sql).toContain("'profiles_role_authenticated_update'");
+    expect(sql).toContain("'matters_client_id_anon_update'");
+    expect(sql).toContain("'matters_client_id_authenticated_update'");
+    expect(sql).toContain("'matters_assigned_staff_id_anon_update'");
+    expect(sql).toContain("'matters_assigned_staff_id_authenticated_update'");
+    expect(sql).toMatch(/'profile_role_direct_update_blocked'[\s\S]*not has_column_privilege\('anon',[\s\S]*and not has_column_privilege\('authenticated'/);
+    expect(sql).toMatch(/'matter_identity_assignment_direct_update_blocked'[\s\S]*not has_column_privilege\('anon',[\s\S]*and not has_column_privilege\('authenticated'/);
   });
 
   it("covers authenticated atomic non-encounter Room creation and keeps encounter identity strict", () => {
