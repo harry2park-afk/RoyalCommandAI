@@ -47,6 +47,22 @@ describe("October launch Supabase candidate blocker coverage", () => {
     expect(sql).not.toContain("'room_factory_manifest_atomic_only'");
   });
 
+  it("closes profile-role escalation before the first role-gated Matter authorization is installed", () => {
+    const sql = migration(CANDIDATES.matterIsolation);
+    const roleGuardIndex = sql.indexOf("create or replace function private.guard_profile_role_change()");
+    const signupGuardIndex = sql.indexOf("create or replace function public.handle_new_user()");
+    const adminGateIndex = sql.indexOf("create or replace function private.is_admin()");
+
+    expect(roleGuardIndex).toBeGreaterThanOrEqual(0);
+    expect(signupGuardIndex).toBeGreaterThan(roleGuardIndex);
+    expect(adminGateIndex).toBeGreaterThan(signupGuardIndex);
+    expect(sql).toContain("new.role is distinct from old.role");
+    expect(sql).toContain("revoke update on table public.profiles from anon, authenticated;");
+    expect(sql).toMatch(/grant update \(full_name, default_language, avatar_url, ui_preferences, updated_at\)[\s\S]*to authenticated;/);
+    expect(sql).toContain("'client'");
+    expect(sql).not.toContain("raw_user_meta_data->>'role'");
+  });
+
   it("covers Matter tenant and assignment authority without broad authenticated UPDATE", () => {
     const sql = migration(CANDIDATES.matterIsolation);
 
