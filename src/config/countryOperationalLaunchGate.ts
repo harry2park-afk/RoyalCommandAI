@@ -54,6 +54,8 @@ export type CountryOperationalBlockerCode =
   | "LOCALIZATION_NOT_VERIFIED"
   | "LOCALIZATION_STRUCTURE_NOT_READY"
   | "COMPLIANCE_HOOK_STRUCTURE_NOT_READY"
+  | "SUBDIVISION_TAX_REVIEW_NOT_VERIFIED"
+  | "SUBDIVISION_COMPLIANCE_REVIEW_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "COMMERCIAL_READINESS_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATE_NOT_VERIFIED"
@@ -107,12 +109,23 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
 ] as const;
 
+function countrySubdivisions(config: CountryConfig) {
+  return [
+    ...Object.values(config.states ?? {}),
+    ...Object.values(config.provinces ?? {}),
+  ];
+}
+
 /**
  * Second-stage country activation gate. Evidence omitted by older callers fails
  * closed, so stacked country branches cannot silently weaken the hardened launch
  * path while remaining source-compatible. Repository localization and first-wave
  * compliance-hook structure are checked independently from human/browser evidence
  * so VERIFIED flags cannot hide missing country wiring.
+ *
+ * Countries that declare state/province jurisdiction inventories also fail closed
+ * until every declared jurisdiction has explicit READY tax and compliance review
+ * status. Missing optional status fields are unresolved evidence, not approval.
  *
  * Generic VERIFIED flags are not release authority. A launchable result also
  * requires the scoped Hosted-Production release gate from countryLaunchGate.ts,
@@ -129,6 +142,7 @@ export function evaluateCountryOperationalLaunch(
   const countryGate = evaluateCountryLaunch(config);
   const localizationStructure = evaluateCountryLocalizationStructure(config);
   const complianceHookStructure = evaluateCountryComplianceHookStructure(config);
+  const subdivisions = countrySubdivisions(config);
   const operationalBlockers = OPERATIONAL_REQUIREMENTS
     .filter(({ key }) => evidence[key] !== "VERIFIED")
     .map(({ blocker }) => blocker);
@@ -139,6 +153,20 @@ export function evaluateCountryOperationalLaunch(
 
   if (!complianceHookStructure.ready) {
     operationalBlockers.push("COMPLIANCE_HOOK_STRUCTURE_NOT_READY");
+  }
+
+  if (
+    subdivisions.length > 0 &&
+    subdivisions.some(({ taxStatus }) => taxStatus !== "READY")
+  ) {
+    operationalBlockers.push("SUBDIVISION_TAX_REVIEW_NOT_VERIFIED");
+  }
+
+  if (
+    subdivisions.length > 0 &&
+    subdivisions.some(({ complianceStatus }) => complianceStatus !== "READY")
+  ) {
+    operationalBlockers.push("SUBDIVISION_COMPLIANCE_REVIEW_NOT_VERIFIED");
   }
 
   const scopedReleaseGate =
