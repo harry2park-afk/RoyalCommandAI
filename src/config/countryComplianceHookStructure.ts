@@ -43,6 +43,9 @@ export type CountryRoomPackConfigBinding = {
   timeFormat: string;
   addressFormat: readonly string[];
   secondaryLanguageTags?: readonly string[];
+  statesAndTerritories?: readonly string[];
+  statesAndDistrict?: readonly string[];
+  provincesAndTerritories?: readonly string[];
   policy: {
     globalCoreImmutable: boolean;
     countryRulesSeparateFromCore: boolean;
@@ -77,6 +80,34 @@ export function getCountryComplianceHook(
   );
 }
 
+function sameSubdivisionCodeSet(
+  configuredCodes: readonly string[],
+  roomPackCodes: readonly string[],
+): boolean {
+  return (
+    configuredCodes.length === roomPackCodes.length &&
+    configuredCodes.every((code) => roomPackCodes.includes(code))
+  );
+}
+
+function configuredSubdivisionCodes(config: CountryConfig): string[] {
+  return [
+    ...Object.keys(config.states ?? {}),
+    ...Object.keys(config.provinces ?? {}),
+  ];
+}
+
+function roomPackSubdivisionCodes(
+  roomPack: CountryRoomPackConfigBinding,
+): readonly string[] {
+  return (
+    roomPack.statesAndTerritories ??
+    roomPack.statesAndDistrict ??
+    roomPack.provincesAndTerritories ??
+    []
+  );
+}
+
 export function isCountryRoomPackBoundToConfig(
   roomPack: CountryRoomPackConfigBinding,
   config: CountryConfig,
@@ -92,6 +123,10 @@ export function isCountryRoomPackBoundToConfig(
     roomPack.addressFormat.every(
       (field, index) => field === config.addressFormat[index],
     );
+  const configSubdivisionCodes = configuredSubdivisionCodes(config);
+  const subdivisionCodesMatch =
+    configSubdivisionCodes.length === 0 ||
+    sameSubdivisionCodeSet(configSubdivisionCodes, roomPackSubdivisionCodes(roomPack));
 
   return (
     roomPack.id === config.countryCode &&
@@ -103,7 +138,8 @@ export function isCountryRoomPackBoundToConfig(
     roomPack.timeFormat === config.timeFormat &&
     addressFormatMatches &&
     config.timezone.supportedExamples.includes(roomPack.timeZone) &&
-    secondaryLocalesMatch
+    secondaryLocalesMatch &&
+    subdivisionCodesMatch
   );
 }
 
