@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import type { CountryConfig } from "../types/countryConfig";
 import { getConfiguredCountryCodes, getCountryConfigByCountryCode } from "./countryResolver";
+import type {
+  CountryOperationalEvidence as ScopedCountryOperationalEvidence,
+  CountryOperationalReleaseScope,
+} from "./countryLaunchGate";
 import {
   evaluateCountryOperationalLaunch,
   type CountryOperationalEvidence,
@@ -61,6 +65,37 @@ const verifiedEvidence: CountryOperationalEvidence = {
   rollbackPath: "VERIFIED",
 };
 
+const expectedScope: CountryOperationalReleaseScope = {
+  releaseCandidateSha: "release-sha-for-test",
+  migrationApplySetFingerprint: "migration-fingerprint-for-test",
+  roomFactoryTemplateFingerprint: "room-factory-fingerprint-for-test",
+  hostedOperationalDataFingerprint: "hosted-data-fingerprint-for-test",
+};
+
+function makeScopedReleaseEvidence(countryCode: string): ScopedCountryOperationalEvidence {
+  return {
+    countryCode,
+    environment: "HOSTED_PRODUCTION",
+    ...expectedScope,
+    countryTermsReviewed: true,
+    positiveLocalPrice: true,
+    providerOfferReviewed: true,
+    recordingPolicyReviewed: true,
+    paymentProviderRegistryReady: true,
+    paymentEventLedgerReady: true,
+    serviceOrderIdempotencyReady: true,
+    authDataIsolationVerified: true,
+    roomFactoryIsolationVerified: true,
+    roomFactorySourceReconciled: true,
+    linkedMigrationApplySetVerified: true,
+    authRecoveryE2EVerified: true,
+    authenticatedLocalizationBrowserVerified: true,
+    securityRegressionVerified: true,
+    observabilityReady: true,
+    rollbackVerified: true,
+  };
+}
+
 function makeCountryGateReady(config: CountryConfig): CountryConfig {
   return {
     ...config,
@@ -111,6 +146,7 @@ describe("country operational launch readiness gate", () => {
       );
       expect(gate.operationalBlockers, countryCode).toContain("QA_SECURITY_REGRESSION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("DEPLOYMENT_PROTECTION_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED");
     }
   });
 
@@ -120,8 +156,9 @@ describe("country operational launch readiness gate", () => {
 
     const gate = evaluateCountryOperationalLaunch(config!, verifiedEvidence);
     expect(gate.launchable).toBe(false);
-    expect(gate.operationalBlockers).toEqual([]);
+    expect(gate.operationalBlockers).toEqual(["SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED"]);
     expect(gate.countryGate.blockers.length).toBeGreaterThan(0);
+    expect(gate.scopedReleaseGate).toBeNull();
   });
 
   it("fails closed when hardened evidence added after legacy callers is omitted", () => {
@@ -165,6 +202,7 @@ describe("country operational launch readiness gate", () => {
       "OBSERVABILITY_INCIDENT_RESPONSE_NOT_VERIFIED",
       "QA_SECURITY_REGRESSION_NOT_VERIFIED",
       "DEPLOYMENT_PROTECTION_NOT_VERIFIED",
+      "SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED",
     ]);
   });
 
@@ -181,7 +219,10 @@ describe("country operational launch readiness gate", () => {
     });
 
     expect(gate.launchable).toBe(false);
-    expect(gate.operationalBlockers).toEqual(["DATABASE_MIGRATION_SAFETY_NOT_VERIFIED"]);
+    expect(gate.operationalBlockers).toEqual([
+      "DATABASE_MIGRATION_SAFETY_NOT_VERIFIED",
+      "SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED",
+    ]);
   });
 
   it("keeps Matter assignment authority and authorization-role authority independent from tenant isolation", () => {
@@ -200,18 +241,62 @@ describe("country operational launch readiness gate", () => {
     expect(gate.operationalBlockers).toEqual([
       "MATTER_OWNERSHIP_ASSIGNMENT_AUTHORITY_NOT_VERIFIED",
       "AUTHORIZATION_ROLE_AUTHORITY_NOT_VERIFIED",
+      "SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED",
     ]);
   });
 
-  it("only becomes launchable when both country authority and the full operational superset are verified", () => {
+  it("keeps complete generic VERIFIED flags blocked without scoped release authority", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const ready = makeCountryGateReady(base!);
 
-    expect(evaluateCountryOperationalLaunch(ready, verifiedEvidence)).toEqual({
+    const gate = evaluateCountryOperationalLaunch(ready, verifiedEvidence);
+
+    expect(gate.countryGate).toEqual({ launchable: true, blockers: [] });
+    expect(gate.scopedReleaseGate).toBeNull();
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual(["SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED"]);
+  });
+
+  it("only becomes launchable when generic evidence and exact scoped release authority both pass", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+    const scopedEvidence = makeScopedReleaseEvidence("AU");
+
+    expect(
+      evaluateCountryOperationalLaunch(
+        ready,
+        verifiedEvidence,
+        scopedEvidence,
+        expectedScope,
+      ),
+    ).toEqual({
       launchable: true,
       countryGate: { launchable: true, blockers: [] },
+      scopedReleaseGate: { launchable: true, blockers: [] },
       operationalBlockers: [],
     });
+  });
+
+  it("fails closed when scoped release evidence is for another release fingerprint", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+    const scopedEvidence = {
+      ...makeScopedReleaseEvidence("AU"),
+      releaseCandidateSha: "different-release-sha",
+    };
+
+    const gate = evaluateCountryOperationalLaunch(
+      ready,
+      verifiedEvidence,
+      scopedEvidence,
+      expectedScope,
+    );
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.scopedReleaseGate?.blockers).toContain("OPERATIONAL_EVIDENCE_RELEASE_MISMATCH");
+    expect(gate.operationalBlockers).toEqual(["SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED"]);
   });
 });
