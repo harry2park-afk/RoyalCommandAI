@@ -46,6 +46,16 @@ export type CountryOperationalReleaseScope = {
   hostedOperationalDataFingerprint: string;
 };
 
+const FULL_GIT_COMMIT_SHA = /^[0-9a-f]{40}$/;
+
+function isExactReleaseCandidateBinding(evidenceSha: string, expectedSha: string): boolean {
+  return (
+    FULL_GIT_COMMIT_SHA.test(evidenceSha) &&
+    FULL_GIT_COMMIT_SHA.test(expectedSha) &&
+    evidenceSha === expectedSha
+  );
+}
+
 /**
  * Operational evidence is deliberately separate from CountryConfig.
  *
@@ -130,11 +140,7 @@ export function evaluateCountryOperationalLaunch(
 
   if (evidence.countryCode !== config.countryCode) blockers.push("OPERATIONAL_EVIDENCE_COUNTRY_MISMATCH");
   if (evidence.environment !== "HOSTED_PRODUCTION") blockers.push("OPERATIONAL_EVIDENCE_ENVIRONMENT_MISMATCH");
-  if (
-    evidence.releaseCandidateSha.trim().length === 0 ||
-    expectedScope.releaseCandidateSha.trim().length === 0 ||
-    evidence.releaseCandidateSha !== expectedScope.releaseCandidateSha
-  ) {
+  if (!isExactReleaseCandidateBinding(evidence.releaseCandidateSha, expectedScope.releaseCandidateSha)) {
     blockers.push("OPERATIONAL_EVIDENCE_RELEASE_MISMATCH");
   }
   if (
