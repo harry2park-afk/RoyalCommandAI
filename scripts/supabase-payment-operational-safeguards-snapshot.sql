@@ -81,6 +81,23 @@ select jsonb_build_object(
       'SELECT,INSERT,UPDATE,DELETE'
     )
   end,
+  'provider_events_signature_verified_at_present', exists(
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'rc_payment_provider_events'
+      and column_name = 'signature_verified_at'
+  ),
+  'provider_events_signature_provenance_constraint_present', exists(
+    select 1
+    from pg_constraint constraint_row
+    join pg_class relation on relation.oid = constraint_row.conrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'public'
+      and relation.relname = 'rc_payment_provider_events'
+      and constraint_row.conname =
+        'rc_payment_provider_events_signature_verification_provenance'
+  ),
   'provider_events_signature_gate_constraint_present', exists(
     select 1
     from pg_constraint constraint_row
