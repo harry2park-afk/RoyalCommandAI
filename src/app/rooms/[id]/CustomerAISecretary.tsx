@@ -35,7 +35,7 @@ function stamp(value: string) {
   catch { return value; }
 }
 
-export default function CustomerAISecretary({ roomId }: { roomId: string }) {
+export default function CustomerAISecretary({ roomId, standalone = false }: { roomId: string; standalone?: boolean }) {
   const [data, setData] = useState<SecretaryData>(() => initialData());
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
@@ -149,16 +149,17 @@ export default function CustomerAISecretary({ roomId }: { roomId: string }) {
     setData((current) => ({ ...current, files: [...added, ...current.files], logs: [`${stamp(at)} · 파일 ${added.length}개 Room 기록에 추가`, ...current.logs] }));
   }
 
-  if (!data.connected) return null;
+  if (!data.connected && !standalone) return null;
+  if (standalone && !loaded) return <p role="status" className="p-6">기존 비서 기록을 불러오는 중입니다.</p>;
 
   return (
     <>
-      {open ? <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/65 p-3">
+      {open || standalone ? <div className={standalone ? "flex justify-center p-3" : "fixed inset-0 z-[500] flex items-center justify-center bg-black/65 p-3"}>
         <section className="flex h-[min(760px,94dvh)] w-[min(1180px,96vw)] flex-col overflow-hidden rounded-2xl border border-[#d7b64d]/50 bg-[#07111f] shadow-2xl">
           <header className="flex h-20 shrink-0 items-center gap-3 border-b border-white/10 px-5">
             <img src="/images/katie-avatar.png" alt="" className="h-16 w-14 rounded-lg object-contain"/>
             <div><h2 className="font-serif text-xl font-bold text-[#f0d36a]">{data.name} · AI 비서 사무실</h2><p className="text-sm text-white/65">무엇을 도와드릴까요?</p></div>
-            <button type="button" onClick={() => setOpen(false)} className="ml-auto grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="닫기"><X/></button>
+            {!standalone ? <button type="button" onClick={() => setOpen(false)} className="ml-auto grid h-10 w-10 place-items-center rounded-full hover:bg-white/10" aria-label="닫기"><X/></button> : null}
           </header>
           <nav className="flex shrink-0 gap-1 overflow-x-auto border-b border-white/10 p-2">
             {TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={`h-9 shrink-0 rounded-lg px-3 text-xs font-semibold ${tab === item ? "bg-[#7A0C2E] text-[#ffe18a]" : "text-white/70 hover:bg-white/5"}`}>{item}</button>)}
