@@ -48,6 +48,15 @@ select jsonb_build_object(
       and relation.relname = 'rc_payment_provider_registry'
       and constraint_row.conname = 'rc_payment_provider_registry_review_provenance'
   ),
+  'provider_registry_review_chronology_constraint_present', exists(
+    select 1
+    from pg_constraint constraint_row
+    join pg_class relation on relation.oid = constraint_row.conrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'public'
+      and relation.relname = 'rc_payment_provider_registry'
+      and constraint_row.conname = 'rc_payment_provider_registry_review_chronology'
+  ),
   'provider_registry_production_capabilities_constraint_present', exists(
     select 1
     from pg_constraint constraint_row
