@@ -51,7 +51,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
     expect(report.ready_for_apply).toBe(false);
     expect(report.requested_allowlist).toEqual(expectedCandidates);
     expect(report.provenance_authorized_dry_run).toEqual(expectedCandidates);
-    expect(report.source_blob_checks.length).toBe(5);
+    expect(report.source_blob_checks.length).toBe(expectedCandidates.length);
     expect(report.source_blob_checks.every((check: { verified: boolean }) => check.verified)).toBe(true);
   });
 
@@ -89,6 +89,25 @@ describe("Supabase linked dry-run allow-list provenance", () => {
 
     expect(report.dry_run_allowlist_verified).toBe(false);
     expect(report.blockers.join("\n")).toContain("duplicate migration");
+  });
+
+  it("fails closed if any expected-apply candidate omits source blob provenance", () => {
+    const manifest = loadManifest();
+    const matterEntry = manifest.entries.find(
+      (entry: { local_basename?: string }) =>
+        entry.local_basename === "20260831225500_scope_matter_staff_access.sql",
+    );
+    expect(matterEntry).toBeTruthy();
+    delete matterEntry.source_blob_sha;
+
+    const report = verifyLinkedDryRunAllowlist({
+      manifest,
+      requestedAllowlist: expectedCandidates.join(","),
+      migrationDir,
+    });
+
+    expect(report.dry_run_allowlist_verified).toBe(false);
+    expect(report.blockers.join("\n")).toContain("candidate provenance missing source blob SHA");
   });
 
   it("fails closed if a recorded candidate source blob no longer matches the copied migration", () => {
