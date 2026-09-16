@@ -47,6 +47,7 @@ export type CountryOperationalReleaseScope = {
 };
 
 const FULL_GIT_COMMIT_SHA = /^[0-9a-f]{40}$/;
+const SHA256_FINGERPRINT = /^[0-9a-f]{64}$/;
 
 function isExactReleaseCandidateBinding(evidenceSha: string, expectedSha: string): boolean {
   return (
@@ -56,17 +57,29 @@ function isExactReleaseCandidateBinding(evidenceSha: string, expectedSha: string
   );
 }
 
+function isExactSha256FingerprintBinding(
+  evidenceFingerprint: string,
+  expectedFingerprint: string,
+): boolean {
+  return (
+    SHA256_FINGERPRINT.test(evidenceFingerprint) &&
+    SHA256_FINGERPRINT.test(expectedFingerprint) &&
+    evidenceFingerprint === expectedFingerprint
+  );
+}
+
 /**
  * Operational evidence is deliberately separate from CountryConfig.
  *
  * CountryConfig describes reviewed configuration intent. Evidence must be
  * explicitly scoped to the same country, Hosted Production, the exact release
- * candidate, the exact linked migration apply-set fingerprint, the exact Room
- * Factory/template contract fingerprint and the exact Hosted operational-data
- * snapshot fingerprint before it can authorize an operational launch decision.
- * Preview/disposable or stale release/database/Room Factory/Hosted-data evidence
- * remains useful for engineering verification but can never be reused as
- * Production launch authority; scope is part of the evidence contract.
+ * candidate, the exact linked migration apply-set SHA-256 fingerprint, the exact
+ * Room Factory/template contract SHA-256 fingerprint and the exact Hosted
+ * operational-data snapshot SHA-256 fingerprint before it can authorize an
+ * operational launch decision. Preview/disposable or stale release/database/
+ * Room Factory/Hosted-data evidence remains useful for engineering verification
+ * but can never be reused as Production launch authority; scope is part of the
+ * evidence contract.
  */
 export type CountryOperationalEvidence = CountryOperationalReleaseScope & {
   countryCode: string;
@@ -128,8 +141,11 @@ export function evaluateCountryLaunch(config: CountryConfig): CountryLaunchGate 
  * Production environment. Evidence from another country, another release
  * candidate, another migration apply set, another Room Factory/template
  * contract, another Hosted operational-data snapshot, or from
- * Preview/disposable environments fails closed. This function has no side
- * effects and grants no deployment or domain-binding authority by itself.
+ * Preview/disposable environments fails closed. The three non-release scope
+ * fingerprints must be canonical lowercase SHA-256 digests, so matching mutable
+ * labels/placeholders cannot be mistaken for immutable launch evidence. This
+ * function has no side effects and grants no deployment or domain-binding
+ * authority by itself.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
@@ -144,23 +160,26 @@ export function evaluateCountryOperationalLaunch(
     blockers.push("OPERATIONAL_EVIDENCE_RELEASE_MISMATCH");
   }
   if (
-    evidence.migrationApplySetFingerprint.trim().length === 0 ||
-    expectedScope.migrationApplySetFingerprint.trim().length === 0 ||
-    evidence.migrationApplySetFingerprint !== expectedScope.migrationApplySetFingerprint
+    !isExactSha256FingerprintBinding(
+      evidence.migrationApplySetFingerprint,
+      expectedScope.migrationApplySetFingerprint,
+    )
   ) {
     blockers.push("OPERATIONAL_EVIDENCE_MIGRATION_SCOPE_MISMATCH");
   }
   if (
-    evidence.roomFactoryTemplateFingerprint.trim().length === 0 ||
-    expectedScope.roomFactoryTemplateFingerprint.trim().length === 0 ||
-    evidence.roomFactoryTemplateFingerprint !== expectedScope.roomFactoryTemplateFingerprint
+    !isExactSha256FingerprintBinding(
+      evidence.roomFactoryTemplateFingerprint,
+      expectedScope.roomFactoryTemplateFingerprint,
+    )
   ) {
     blockers.push("OPERATIONAL_EVIDENCE_ROOM_FACTORY_SCOPE_MISMATCH");
   }
   if (
-    evidence.hostedOperationalDataFingerprint.trim().length === 0 ||
-    expectedScope.hostedOperationalDataFingerprint.trim().length === 0 ||
-    evidence.hostedOperationalDataFingerprint !== expectedScope.hostedOperationalDataFingerprint
+    !isExactSha256FingerprintBinding(
+      evidence.hostedOperationalDataFingerprint,
+      expectedScope.hostedOperationalDataFingerprint,
+    )
   ) {
     blockers.push("OPERATIONAL_EVIDENCE_HOSTED_DATA_SCOPE_MISMATCH");
   }
