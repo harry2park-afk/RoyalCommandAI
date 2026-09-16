@@ -1,3 +1,4 @@
+import { configuredIncomingRoom } from "@/lib/integrations/retellCallRecords";
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -42,6 +43,8 @@ async function roomFor(call:Json){
  const explicit=str(meta.room_id)??str(meta.roomId)??str(vars.room_id)??str(vars.roomId);
  const db=createAdminClient();
  if(explicit&&UUID.test(explicit)){const {data}=await db.from("rooms").select("id").eq("id",explicit).maybeSingle();return data?.id??null;}
+ const configuredRoom=configuredIncomingRoom(call,process.env);
+ if(configuredRoom){const {data,error}=await db.from("rooms").select("id").eq("id",configuredRoom).maybeSingle();if(error)throw error;if(data)return data.id;}
  const called=tel(call.to_number);
  if(called){
   const {data,error}=await db.from("service_instances").select("room_id,provider_binding").eq("service_class","call_agency").eq("status","active");

@@ -1,3 +1,4 @@
+import { mergeCallRecords } from "@/lib/integrations/retellCallRecords";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -15,7 +16,5 @@ export async function GET(_request:Request,context:{params:Promise<{id:string}>}
  const {data,error}=await db.from("activity_events").select("id,payload,created_at").eq("room_id",roomId)
   .eq("event_type","ai_secretary.retell_post_call").order("created_at",{ascending:false}).limit(100);
  if(error)return NextResponse.json({error:"Unable to load calls"},{status:500});
- const merged=new Map<string,Record<string,unknown>>();
- for(const row of data??[]){const p=row.payload&&typeof row.payload==="object"?row.payload as Record<string,unknown>:{};const id=typeof p.call_id==="string"?p.call_id:row.id;merged.set(id,{...(merged.get(id)??{}),...p,id:row.id,created_at:row.created_at});}
- return NextResponse.json({calls:Array.from(merged.values())},{headers:{"Cache-Control":"private, no-store"}});
+ return NextResponse.json({calls:mergeCallRecords(data??[])},{headers:{"Cache-Control":"private, no-store"}});
 }
