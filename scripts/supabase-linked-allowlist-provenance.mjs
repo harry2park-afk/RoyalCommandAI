@@ -97,25 +97,36 @@ export function verifyLinkedDryRunAllowlist({ manifest, requestedAllowlist, migr
     );
   }
 
+  const candidateEntries = entries.filter(
+    (entry) =>
+      entry?.classification === "NEW_CANDIDATE_EXPECTED_APPLY" &&
+      entry?.expected_apply === true,
+  );
+  for (const entry of candidateEntries) {
+    const basename = entry?.local_basename;
+    const sourceBlobSha = String(entry?.source_blob_sha ?? "").toLowerCase();
+    if (!basename || path.basename(basename) !== basename) {
+      blockers.push(`candidate provenance has invalid migration basename: ${String(basename)}`);
+      continue;
+    }
+    if (!sourceBlobSha) {
+      blockers.push(`candidate provenance missing source blob SHA for ${basename}`);
+      continue;
+    }
+    if (!/^[0-9a-f]{40}$/.test(sourceBlobSha)) {
+      blockers.push(`candidate provenance has invalid source blob SHA for ${basename}`);
+    }
+  }
+
   const sourceBlobChecks = [];
   if (migrationDir) {
-    for (const entry of entries) {
-      if (
-        entry?.classification !== "NEW_CANDIDATE_EXPECTED_APPLY" ||
-        entry?.expected_apply !== true ||
-        !entry?.source_blob_sha
-      ) {
-        continue;
-      }
-
-      const basename = entry.local_basename;
-      const expectedBlobSha = String(entry.source_blob_sha).toLowerCase();
+    for (const entry of candidateEntries) {
+      const basename = entry?.local_basename;
+      const expectedBlobSha = String(entry?.source_blob_sha ?? "").toLowerCase();
       if (!basename || path.basename(basename) !== basename) {
-        blockers.push(`candidate provenance has invalid migration basename: ${String(basename)}`);
         continue;
       }
       if (!/^[0-9a-f]{40}$/.test(expectedBlobSha)) {
-        blockers.push(`candidate provenance has invalid source blob SHA for ${basename}`);
         continue;
       }
 
@@ -149,7 +160,7 @@ export function verifyLinkedDryRunAllowlist({ manifest, requestedAllowlist, migr
   return {
     contract_version: 2,
     evidence_scope:
-      "Binds the linked dry-run allow-list to independently classified migration provenance and verifies copied candidate sources against recorded Git blob SHAs when available. Passing this gate authorizes only evidence capture; it does not authorize migration apply, repair, Hosted mutation, merge, deploy, provider activation, or Country READY.",
+      "Binds the linked dry-run allow-list to independently classified migration provenance and requires every expected-apply candidate to carry a verified Git source-blob SHA when source files are available. Passing this gate authorizes only evidence capture; it does not authorize migration apply, repair, Hosted mutation, merge, deploy, provider activation, or Country READY.",
     requested_allowlist: parsed.migrations,
     manifest_expected_apply: manifestExpected,
     provenance_authorized_dry_run: provenanceAuthorized,
