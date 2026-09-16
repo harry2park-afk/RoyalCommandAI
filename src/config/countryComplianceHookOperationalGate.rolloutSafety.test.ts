@@ -35,13 +35,16 @@ const verifiedEvidence: CountryOperationalEvidence = {
 };
 
 describe("country compliance-hook rollout safety", () => {
-  it("has structural compliance wiring for every first-wave country", () => {
+  it("has structural compliance and Room Pack security wiring for every first-wave country", () => {
     for (const code of FIRST_WAVE) {
       const config = getCountryConfigByCountryCode(code);
       expect(config).not.toBeNull();
       const gate = evaluateCountryOperationalLaunch(config!, verifiedEvidence);
       expect(gate.operationalBlockers).not.toContain(
         "COMPLIANCE_HOOK_STRUCTURE_NOT_READY",
+      );
+      expect(gate.operationalBlockers).not.toContain(
+        "COUNTRY_ROOM_PACK_SECURITY_POLICY_UNSAFE",
       );
     }
   });
