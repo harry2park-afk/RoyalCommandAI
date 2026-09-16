@@ -125,8 +125,14 @@ describe("country operational launch subdivision identity guard", () => {
         ...ready,
         states: {
           ...ready.states,
-          NSW: undefined as never,
           " NSW": ready.states!.NSW,
+        },
+      },
+      {
+        ...ready,
+        states: {
+          ...ready.states,
+          nsw: ready.states!.NSW,
         },
       },
       {
