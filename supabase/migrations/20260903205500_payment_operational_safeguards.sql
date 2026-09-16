@@ -6,6 +6,7 @@
 --   * order idempotency remains nullable until the runtime path is verified to supply it;
 --   * webhook/event payloads are represented by a SHA-256 digest, not raw payload data;
 --   * provider registry and event ledger are not directly accessible to anon/authenticated;
+--   * sandbox_ready is valid only for sandbox rows and production_ready only for production rows;
 --   * production_ready cannot be declared without webhook/refund/cancellation capability;
 --   * webhook events cannot enter processing/processed state until signature verification is recorded.
 --
@@ -27,6 +28,12 @@ create table if not exists public.rc_payment_provider_registry (
   primary key (provider_key, environment),
   constraint rc_payment_provider_registry_key_nonempty
     check (length(btrim(provider_key)) between 2 and 64),
+  constraint rc_payment_provider_registry_status_environment_match
+    check (
+      status = 'disabled'
+      or (environment = 'sandbox' and status = 'sandbox_ready')
+      or (environment = 'production' and status = 'production_ready')
+    ),
   constraint rc_payment_provider_registry_review_provenance
     check (
       status = 'disabled'
@@ -45,7 +52,7 @@ revoke all on table public.rc_payment_provider_registry from public, anon, authe
 comment on table public.rc_payment_provider_registry is
   'Fail-closed payment-provider readiness registry. No providers are seeded by the launch safeguard migration.';
 comment on column public.rc_payment_provider_registry.status is
-  'disabled by default; sandbox_ready/production_ready require reviewer provenance, and production_ready also requires webhook/refund/cancellation capability.';
+  'disabled by default; sandbox_ready is sandbox-only, production_ready is production-only, both require reviewer provenance, and production_ready also requires webhook/refund/cancellation capability.';
 
 create table if not exists public.rc_payment_provider_events (
   id uuid primary key default gen_random_uuid(),
