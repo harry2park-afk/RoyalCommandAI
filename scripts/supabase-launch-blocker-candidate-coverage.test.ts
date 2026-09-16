@@ -118,10 +118,12 @@ describe("October launch Supabase candidate blocker coverage", () => {
     expect(sql).not.toMatch(/insert\s+into\s+public\.country_compliance_evidence/i);
   });
 
-  it("covers payment provider fail-closed state, verified webhooks and order idempotency", () => {
+  it("covers payment provider fail-closed state, environment binding, verified webhooks and order idempotency", () => {
     const sql = migration(CANDIDATES.paymentSafeguards);
 
     expect(sql).toContain("status text not null default 'disabled'");
+    expect(sql).toContain("rc_payment_provider_registry_status_environment_match");
+    expect(sql).toMatch(/status = 'disabled'[\s\S]*environment = 'sandbox' and status = 'sandbox_ready'[\s\S]*environment = 'production' and status = 'production_ready'/);
     expect(sql).toContain("rc_payment_provider_registry_production_capabilities");
     expect(sql).toContain("rc_payment_provider_events_processing_requires_verified_signature");
     expect(sql).toContain("add column if not exists idempotency_key text");
