@@ -54,6 +54,7 @@ export type CountryOperationalBlockerCode =
   | "LOCALIZATION_NOT_VERIFIED"
   | "LOCALIZATION_STRUCTURE_NOT_READY"
   | "COMPLIANCE_HOOK_STRUCTURE_NOT_READY"
+  | "SUBDIVISION_IDENTITY_NOT_VERIFIED"
   | "SUBDIVISION_TAX_REVIEW_NOT_VERIFIED"
   | "SUBDIVISION_COMPLIANCE_REVIEW_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
@@ -116,6 +117,28 @@ function countrySubdivisions(config: CountryConfig) {
   ];
 }
 
+function hasVerifiedSubdivisionIdentity(config: CountryConfig): boolean {
+  const entries = [
+    ...Object.entries(config.states ?? {}),
+    ...Object.entries(config.provinces ?? {}),
+  ];
+
+  if (
+    entries.some(
+      ([code, subdivision]) =>
+        code.length === 0 ||
+        code !== code.trim() ||
+        code !== code.toUpperCase() ||
+        !/^[A-Z0-9][A-Z0-9-]{0,15}$/.test(code) ||
+        subdivision.name.trim().length === 0,
+    )
+  ) {
+    return false;
+  }
+
+  return new Set(entries.map(([code]) => code)).size === entries.length;
+}
+
 /**
  * Second-stage country activation gate. Evidence omitted by older callers fails
  * closed, so stacked country branches cannot silently weaken the hardened launch
@@ -124,8 +147,9 @@ function countrySubdivisions(config: CountryConfig) {
  * so VERIFIED flags cannot hide missing country wiring.
  *
  * Countries that declare state/province jurisdiction inventories also fail closed
- * until every declared jurisdiction has explicit READY tax and compliance review
- * status. Missing optional status fields are unresolved evidence, not approval.
+ * until every declared jurisdiction has a canonical, unambiguous identifier and
+ * explicit READY tax and compliance review status. Missing optional status fields
+ * are unresolved evidence, not approval.
  *
  * Generic VERIFIED flags are not release authority. A launchable result also
  * requires the scoped Hosted-Production release gate from countryLaunchGate.ts,
@@ -153,6 +177,10 @@ export function evaluateCountryOperationalLaunch(
 
   if (!complianceHookStructure.ready) {
     operationalBlockers.push("COMPLIANCE_HOOK_STRUCTURE_NOT_READY");
+  }
+
+  if (subdivisions.length > 0 && !hasVerifiedSubdivisionIdentity(config)) {
+    operationalBlockers.push("SUBDIVISION_IDENTITY_NOT_VERIFIED");
   }
 
   if (
