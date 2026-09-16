@@ -60,7 +60,7 @@ returns trigger
 language plpgsql
 security definer
 set search_path = pg_catalog
-as $$
+as $$;
 begin
   insert into public.profiles (id, email, full_name, default_language, role)
   values (
@@ -213,11 +213,11 @@ with check (
 
 -- Protect tenant ownership and staff assignment at the SQL privilege boundary.
 -- RLS WITH CHECK cannot compare OLD and NEW rows, so relying on RLS alone would
--- let an allowed updater rewrite client_id or assigned_staff_id. Authenticated
--- users keep UPDATE only on mutable matter fields. Assignment/transfer must use a
--- separately reviewed privileged workflow (or service_role) rather than direct
--- authenticated table updates.
-revoke update on table public.matters from authenticated;
+-- let an allowed updater rewrite client_id or assigned_staff_id. Untrusted API
+-- roles lose broad table UPDATE; authenticated users keep UPDATE only on mutable
+-- matter fields. Assignment/transfer must use a separately reviewed privileged
+-- workflow (or service_role) rather than direct client-table updates.
+revoke update on table public.matters from anon, authenticated;
 grant update (service_line, title, summary, status, updated_at)
 on table public.matters
 to authenticated;
