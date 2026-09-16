@@ -7,6 +7,7 @@ import {
   evaluateCountryComplianceHookStructure,
   getCountryComplianceHook,
   isCountryRoomPackBoundToConfig,
+  isCountryRoomPackSecurityPolicySafe,
 } from "./countryComplianceHookStructure";
 
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
@@ -42,6 +43,23 @@ describe("first-wave country compliance hook structure", () => {
       expect(pack?.roomDefaults.cloneCredentials).toBe(false);
       expect(pack?.roomDefaults.cloneSecrets).toBe(false);
       expect(pack?.roomDefaults.humanApprovalForExternalActions).toBe(true);
+      expect(pack && isCountryRoomPackSecurityPolicySafe(pack), code).toBe(true);
+    }
+  });
+
+  it("fails closed if a country Room Pack weakens tenant, secret, core, or compliance-version safety", () => {
+    const pack = getFirstWaveCountryRoomPack("CA");
+    expect(pack).not.toBeNull();
+    if (!pack) throw new Error("Missing Canada first-wave source");
+
+    for (const unsafePolicy of [
+      { ...pack.policy, globalCoreImmutable: false },
+      { ...pack.policy, countryRulesSeparateFromCore: false },
+      { ...pack.policy, customerDataIsolationRequired: false },
+      { ...pack.policy, customerSecretsNeverCopied: false },
+      { ...pack.policy, countrySpecificComplianceMustBeVersioned: false },
+    ]) {
+      expect(isCountryRoomPackSecurityPolicySafe({ ...pack, policy: unsafePolicy })).toBe(false);
     }
   });
 
