@@ -2,8 +2,10 @@ import { describe, expect, it } from "vitest";
 import { getCountryConfigByCountryCode } from "../../../config/countryResolver";
 import { COUNTRY_ROOM_PRESETS } from "../countryPresets";
 import {
+  AUSTRALIA_COUNTRY_PACK,
   CANADA_COUNTRY_PACK,
   FIRST_WAVE_COUNTRY_ROOM_PACKS,
+  UNITED_STATES_COUNTRY_PACK,
   getFirstWaveCountryRoomPack,
 } from ".";
 
@@ -47,6 +49,23 @@ describe("first-wave country Room packs", () => {
         customerSecretsNeverCopied: true,
         countrySpecificComplianceMustBeVersioned: true,
       });
+    }
+  });
+
+  it("binds declared AU/US/CA Room Pack jurisdictions to canonical country config", () => {
+    const jurisdictionBindings = [
+      ["AU", AUSTRALIA_COUNTRY_PACK.statesAndTerritories, "states"],
+      ["US", UNITED_STATES_COUNTRY_PACK.statesAndDistrict, "states"],
+      ["CA", CANADA_COUNTRY_PACK.provincesAndTerritories, "provinces"],
+    ] as const;
+
+    for (const [code, packJurisdictions, configKey] of jurisdictionBindings) {
+      const config = getCountryConfigByCountryCode(code);
+      expect(config).not.toBeNull();
+      const canonicalJurisdictions = Object.keys(config?.[configKey] ?? {});
+
+      expect(new Set(packJurisdictions).size, code).toBe(packJurisdictions.length);
+      expect([...packJurisdictions].sort(), code).toEqual(canonicalJurisdictions.sort());
     }
   });
 
