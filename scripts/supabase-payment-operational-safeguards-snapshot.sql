@@ -30,6 +30,13 @@ select jsonb_build_object(
       'SELECT,INSERT,UPDATE,DELETE'
     )
   end,
+  'provider_registry_signed_webhooks_column_present', exists(
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'rc_payment_provider_registry'
+      and column_name = 'supports_signed_webhooks'
+  ),
   'provider_registry_status_environment_constraint_present', exists(
     select 1
     from pg_constraint constraint_row
@@ -56,6 +63,15 @@ select jsonb_build_object(
     where namespace.nspname = 'public'
       and relation.relname = 'rc_payment_provider_registry'
       and constraint_row.conname = 'rc_payment_provider_registry_review_chronology'
+  ),
+  'provider_registry_signed_webhook_capability_constraint_present', exists(
+    select 1
+    from pg_constraint constraint_row
+    join pg_class relation on relation.oid = constraint_row.conrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'public'
+      and relation.relname = 'rc_payment_provider_registry'
+      and constraint_row.conname = 'rc_payment_provider_registry_signed_webhook_capability'
   ),
   'provider_registry_production_capabilities_constraint_present', exists(
     select 1
