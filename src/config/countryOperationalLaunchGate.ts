@@ -1,3 +1,4 @@
+import { getFirstWaveCountryRoomPack } from "../lib/rooms/countries";
 import type { CountryConfig } from "../types/countryConfig";
 import {
   evaluateCountryLaunch,
@@ -54,6 +55,7 @@ export type CountryOperationalBlockerCode =
   | "LOCALIZATION_NOT_VERIFIED"
   | "LOCALIZATION_STRUCTURE_NOT_READY"
   | "COMPLIANCE_HOOK_STRUCTURE_NOT_READY"
+  | "COUNTRY_ROOM_PACK_SECURITY_POLICY_UNSAFE"
   | "SUBDIVISION_IDENTITY_NOT_VERIFIED"
   | "SUBDIVISION_TAX_REVIEW_NOT_VERIFIED"
   | "SUBDIVISION_COMPLIANCE_REVIEW_NOT_VERIFIED"
@@ -110,6 +112,30 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
 ] as const;
 
+const FIRST_WAVE_COUNTRY_CODES = new Set(["AU", "US", "CA", "KR", "JP", "GB"]);
+
+function hasSafeFirstWaveCountryRoomPackPolicy(countryCode: string): boolean {
+  const normalizedCountryCode = countryCode.trim().toUpperCase();
+  if (!FIRST_WAVE_COUNTRY_CODES.has(normalizedCountryCode)) return true;
+
+  const pack = getFirstWaveCountryRoomPack(normalizedCountryCode);
+  if (!pack) return false;
+
+  return (
+    pack.roomDefaults.clonePolicy === "structure-only" &&
+    pack.roomDefaults.cloneCustomerData === false &&
+    pack.roomDefaults.cloneMemory === false &&
+    pack.roomDefaults.cloneCredentials === false &&
+    pack.roomDefaults.cloneSecrets === false &&
+    pack.roomDefaults.humanApprovalForExternalActions === true &&
+    pack.policy.globalCoreImmutable === true &&
+    pack.policy.countryRulesSeparateFromCore === true &&
+    pack.policy.customerDataIsolationRequired === true &&
+    pack.policy.customerSecretsNeverCopied === true &&
+    pack.policy.countrySpecificComplianceMustBeVersioned === true
+  );
+}
+
 function countrySubdivisions(config: CountryConfig) {
   return [
     ...Object.values(config.states ?? {}),
@@ -146,6 +172,11 @@ function hasVerifiedSubdivisionIdentity(config: CountryConfig): boolean {
  * compliance-hook structure are checked independently from human/browser evidence
  * so VERIFIED flags cannot hide missing country wiring.
  *
+ * First-wave Room Packs are also checked at runtime for the structure-only clone,
+ * isolation, secret-handling, human-approval and country-overlay invariants. This
+ * prevents a static template-policy regression from being hidden behind VERIFIED
+ * operational evidence.
+ *
  * Countries that declare state/province jurisdiction inventories also fail closed
  * until every declared jurisdiction has a canonical, unambiguous identifier and
  * explicit READY tax and compliance review status. Missing optional status fields
@@ -177,6 +208,10 @@ export function evaluateCountryOperationalLaunch(
 
   if (!complianceHookStructure.ready) {
     operationalBlockers.push("COMPLIANCE_HOOK_STRUCTURE_NOT_READY");
+  }
+
+  if (!hasSafeFirstWaveCountryRoomPackPolicy(config.countryCode)) {
+    operationalBlockers.push("COUNTRY_ROOM_PACK_SECURITY_POLICY_UNSAFE");
   }
 
   if (subdivisions.length > 0 && !hasVerifiedSubdivisionIdentity(config)) {
