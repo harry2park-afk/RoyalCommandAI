@@ -7,7 +7,7 @@
 --   * webhook/event payloads are represented by a SHA-256 digest, not raw payload data;
 --   * provider registry and event ledger are not directly accessible to anon/authenticated;
 --   * sandbox_ready is valid only for sandbox rows and production_ready only for production rows;
---   * production_ready cannot be declared without webhook/refund/cancellation capability;
+--   * any ready provider must support signed webhooks; production_ready also requires refund/cancellation capability;
 --   * provider readiness review timestamps cannot predate registry creation;
 --   * webhook signature verification must carry an audit timestamp before processing/processed state;
 --   * payment-event audit timestamps must be chronologically consistent with event receipt.
@@ -21,6 +21,7 @@ create table if not exists public.rc_payment_provider_registry (
   status text not null default 'disabled'
     check (status in ('disabled', 'sandbox_ready', 'production_ready')),
   supports_webhooks boolean not null default false,
+  supports_signed_webhooks boolean not null default false,
   supports_refunds boolean not null default false,
   supports_cancellations boolean not null default false,
   reviewed_by uuid references auth.users(id) on delete set null,
@@ -46,10 +47,15 @@ create table if not exists public.rc_payment_provider_registry (
       reviewed_at is null
       or reviewed_at >= created_at
     ),
+  constraint rc_payment_provider_registry_signed_webhook_capability
+    check (
+      status = 'disabled'
+      or (supports_webhooks and supports_signed_webhooks)
+    ),
   constraint rc_payment_provider_registry_production_capabilities
     check (
       status <> 'production_ready'
-      or (supports_webhooks and supports_refunds and supports_cancellations)
+      or (supports_webhooks and supports_signed_webhooks and supports_refunds and supports_cancellations)
     )
 );
 
@@ -59,7 +65,7 @@ revoke all on table public.rc_payment_provider_registry from public, anon, authe
 comment on table public.rc_payment_provider_registry is
   'Fail-closed payment-provider readiness registry. No providers are seeded by the launch safeguard migration.';
 comment on column public.rc_payment_provider_registry.status is
-  'disabled by default; sandbox_ready is sandbox-only, production_ready is production-only, both require reviewer provenance with non-impossible review chronology, and production_ready also requires webhook/refund/cancellation capability.';
+  'disabled by default; sandbox_ready is sandbox-only, production_ready is production-only, both require reviewer provenance, valid review chronology, and signed-webhook capability; production_ready additionally requires refund/cancellation capability.';
 
 create table if not exists public.rc_payment_provider_events (
   id uuid primary key default gen_random_uuid(),
