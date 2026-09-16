@@ -67,9 +67,9 @@ const verifiedEvidence: CountryOperationalEvidence = {
 
 const expectedScope: CountryOperationalReleaseScope = {
   releaseCandidateSha: "1111111111111111111111111111111111111111",
-  migrationApplySetFingerprint: "migration-fingerprint-for-test",
-  roomFactoryTemplateFingerprint: "room-factory-fingerprint-for-test",
-  hostedOperationalDataFingerprint: "hosted-data-fingerprint-for-test",
+  migrationApplySetFingerprint: "2222222222222222222222222222222222222222222222222222222222222222",
+  roomFactoryTemplateFingerprint: "3333333333333333333333333333333333333333333333333333333333333333",
+  hostedOperationalDataFingerprint: "4444444444444444444444444444444444444444444444444444444444444444",
 };
 
 function makeScopedReleaseEvidence(countryCode: string): ScopedCountryOperationalEvidence {
