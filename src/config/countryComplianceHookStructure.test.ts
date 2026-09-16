@@ -81,6 +81,9 @@ describe("first-wave country compliance hook structure", () => {
     expect(pack).not.toBeNull();
     expect(config).not.toBeNull();
     if (!pack || !config) throw new Error("Missing Canada first-wave source");
+    if (!("provincesAndTerritories" in pack)) {
+      throw new Error("Canada Room Pack is missing province and territory bindings");
+    }
 
     expect(
       isCountryRoomPackBoundToConfig({ ...pack, currencyCode: "USD" }, config),
