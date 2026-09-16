@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { reportConfig, sendOwnerReport } from "@/lib/integrations/retellOwnerReport";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const EVENTS = new Set(["call_ended", "call_analyzed"]);
@@ -9,6 +10,24 @@ type Json = Record<string, unknown>;
 const obj=(v:unknown):Json=>v&&typeof v==="object"&&!Array.isArray(v)?v as Json:{};
 const str=(v:unknown)=>typeof v==="string"&&v.trim()?v.trim():null;
 const tel=(v:unknown)=>str(v)?.replace(/[^+\d]/g,"")??null;
+async function reportOwner(event:string,call:Json,roomId:string){
+ const config=reportConfig(process.env);
+ if(!config)return;
+ const db=createAdminClient();
+ const result=await sendOwnerReport(event,call,roomId,config,{
+  async claim(id,ownerRoom,sourceCallId){
+   const {error}=await db.from("activity_events").insert({id,room_id:ownerRoom,event_type:"ai_secretary.owner_report",payload:{source_call_id:sourceCallId,state:"attempting"}});
+   if(error?.code==="23505")return false;
+   if(error)throw new Error("Owner report claim failed");
+   return true;
+  },
+  async finish(id,state,outboundCallId){
+   const {error}=await db.from("activity_events").update({payload:{source_call_id:call.call_id,state,outbound_call_id:outboundCallId??null}}).eq("id",id).eq("room_id",roomId).eq("event_type","ai_secretary.owner_report");
+   if(error)throw new Error("Owner report outcome save failed");
+  }
+ });
+ console.log(JSON.stringify({msg:"retell_owner_report",result}));
+}
 export function verifyRetellWebhook(raw:string,signature:string|null,key:string,now=Date.now()){
  const normalizedSignature=signature?.trim();
  const normalizedKey=key.trim();
@@ -51,7 +70,7 @@ export async function POST(request:NextRequest){
   const db=createAdminClient(),dedupKey=`${callId}:${event}`;
   const {data:prior,error:lookupError}=await db.from("activity_events").select("id").eq("room_id",roomId).eq("event_type","ai_secretary.retell_post_call").contains("payload",{dedup_key:dedupKey}).limit(1);
   if(lookupError)throw lookupError;
-  if(prior?.length)return NextResponse.json({received:true,duplicate:true});
+  if(prior?.length){await reportOwner(event,call,roomId);return NextResponse.json({received:true,duplicate:true});}
   const analysis=obj(call.call_analysis);
   const {error}=await db.from("activity_events").insert({room_id:roomId,event_type:"ai_secretary.retell_post_call",payload:{
    provider:"retell",dedup_key:dedupKey,event,call_id:callId,from_number:str(call.from_number),to_number:str(call.to_number),
@@ -60,6 +79,7 @@ export async function POST(request:NextRequest){
    transcript:str(call.transcript),summary:str(analysis.call_summary),successful:analysis.call_successful??null,received_at:new Date().toISOString()
   }});
   if(error)throw error;
+  await reportOwner(event,call,roomId);
   console.log(JSON.stringify({level:"info",msg:"retell_webhook_saved",event,callId,roomId,ms:Date.now()-started}));
   return NextResponse.json({received:true});
  }catch(error){
