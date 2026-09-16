@@ -108,6 +108,36 @@ select jsonb_build_object(
       and constraint_row.conname =
         'rc_payment_provider_events_processing_requires_verified_signature'
   ),
+  'provider_events_signature_after_receipt_constraint_present', exists(
+    select 1
+    from pg_constraint constraint_row
+    join pg_class relation on relation.oid = constraint_row.conrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'public'
+      and relation.relname = 'rc_payment_provider_events'
+      and constraint_row.conname =
+        'rc_payment_provider_events_signature_after_receipt'
+  ),
+  'provider_events_processed_after_receipt_constraint_present', exists(
+    select 1
+    from pg_constraint constraint_row
+    join pg_class relation on relation.oid = constraint_row.conrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'public'
+      and relation.relname = 'rc_payment_provider_events'
+      and constraint_row.conname =
+        'rc_payment_provider_events_processed_after_receipt'
+  ),
+  'provider_events_processed_after_signature_constraint_present', exists(
+    select 1
+    from pg_constraint constraint_row
+    join pg_class relation on relation.oid = constraint_row.conrelid
+    join pg_namespace namespace on namespace.oid = relation.relnamespace
+    where namespace.nspname = 'public'
+      and relation.relname = 'rc_payment_provider_events'
+      and constraint_row.conname =
+        'rc_payment_provider_events_processed_after_signature'
+  ),
   'provider_events_payload_sha256_constraint_present', exists(
     select 1
     from pg_constraint constraint_row
