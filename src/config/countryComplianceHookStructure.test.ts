@@ -100,6 +100,24 @@ describe("first-wave country compliance hook structure", () => {
     expect(
       isCountryRoomPackBoundToConfig({ ...pack, secondaryLanguageTags: [] }, config),
     ).toBe(false);
+    expect(
+      isCountryRoomPackBoundToConfig(
+        {
+          ...pack,
+          provincesAndTerritories: pack.provincesAndTerritories.filter((code) => code !== "QC"),
+        },
+        config,
+      ),
+    ).toBe(false);
+    expect(
+      isCountryRoomPackBoundToConfig(
+        {
+          ...pack,
+          provincesAndTerritories: [...pack.provincesAndTerritories, "XX"],
+        },
+        config,
+      ),
+    ).toBe(false);
   });
 
   it("has first-wave compliance hooks without promoting country review state", () => {
