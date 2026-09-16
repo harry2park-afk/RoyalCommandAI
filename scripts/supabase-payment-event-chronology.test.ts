@@ -11,6 +11,19 @@ function paymentMigration(): string {
 }
 
 describe("payment readiness and event audit chronology", () => {
+  it("requires signed-webhook capability before a provider can be marked ready", () => {
+    const sql = paymentMigration();
+
+    expect(sql).toContain("supports_signed_webhooks boolean not null default false");
+    expect(sql).toContain("rc_payment_provider_registry_signed_webhook_capability");
+    expect(sql).toMatch(
+      /status = 'disabled'[\s\S]*or \(supports_webhooks and supports_signed_webhooks\)/,
+    );
+    expect(sql).toMatch(
+      /status <> 'production_ready'[\s\S]*supports_signed_webhooks[\s\S]*supports_refunds[\s\S]*supports_cancellations/,
+    );
+  });
+
   it("fails closed when provider readiness review predates registry creation", () => {
     const sql = paymentMigration();
 
