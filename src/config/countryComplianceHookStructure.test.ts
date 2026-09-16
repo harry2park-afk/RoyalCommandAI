@@ -6,6 +6,7 @@ import {
   REQUIRED_COUNTRY_COMPLIANCE_EVIDENCE,
   evaluateCountryComplianceHookStructure,
   getCountryComplianceHook,
+  isCountryProfessionalRoomPackIdentityBound,
   isCountryRoomPackBoundToConfig,
   isCountryRoomPackSecurityPolicySafe,
 } from "./countryComplianceHookStructure";
@@ -29,6 +30,43 @@ describe("first-wave country compliance hook structure", () => {
       expect(hook?.humanReviewRequired).toBe(true);
       expect(hook?.automaticApprovalAllowed).toBe(false);
     }
+  });
+
+  it("binds each first-wave hook to its exact Legal and Accounting template identities", () => {
+    for (const code of FIRST_WAVE) {
+      const hook = getCountryComplianceHook(code);
+      const pack = getFirstWaveCountryRoomPack(code);
+      expect(hook, code).not.toBeNull();
+      expect(pack, code).not.toBeNull();
+      if (!hook || !pack) throw new Error(`Missing first-wave source for ${code}`);
+
+      expect(isCountryProfessionalRoomPackIdentityBound(pack, hook), code).toBe(true);
+    }
+
+    const canadaHook = getCountryComplianceHook("CA");
+    const canadaPack = getFirstWaveCountryRoomPack("CA");
+    expect(canadaHook).not.toBeNull();
+    expect(canadaPack).not.toBeNull();
+    if (!canadaHook || !canadaPack) throw new Error("Missing Canada first-wave source");
+
+    expect(
+      isCountryProfessionalRoomPackIdentityBound(
+        {
+          ...canadaPack,
+          packs: { ...canadaPack.packs, legal: "US Legal Pack" },
+        },
+        canadaHook,
+      ),
+    ).toBe(false);
+    expect(
+      isCountryProfessionalRoomPackIdentityBound(
+        {
+          ...canadaPack,
+          packs: { ...canadaPack.packs, accounting: "US Accounting & Tax Pack" },
+        },
+        canadaHook,
+      ),
+    ).toBe(false);
   });
 
   it("requires Legal and Accounting packs with structure-only safe clone defaults", () => {
