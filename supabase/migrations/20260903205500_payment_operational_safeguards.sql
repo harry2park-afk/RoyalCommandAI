@@ -8,7 +8,7 @@
 --   * provider registry and event ledger are not directly accessible to anon/authenticated;
 --   * sandbox_ready is valid only for sandbox rows and production_ready only for production rows;
 --   * production_ready cannot be declared without webhook/refund/cancellation capability;
---   * webhook events cannot enter processing/processed state until signature verification is recorded.
+--   * webhook signature verification must carry an audit timestamp before processing/processed state.
 --
 -- This migration is source-only until separately approved for a controlled Hosted cutover.
 
@@ -64,6 +64,7 @@ create table if not exists public.rc_payment_provider_events (
   order_id uuid references public.rc_service_connection_orders(id) on delete set null,
   payload_sha256 text not null,
   signature_verified boolean not null default false,
+  signature_verified_at timestamptz,
   processing_status text not null default 'received'
     check (processing_status in ('received', 'processing', 'processed', 'ignored', 'failed')),
   received_at timestamptz not null default now(),
@@ -79,10 +80,15 @@ create table if not exists public.rc_payment_provider_events (
     check (length(btrim(event_type)) between 1 and 128),
   constraint rc_payment_provider_events_payload_sha256
     check (payload_sha256 ~ '^[0-9a-f]{64}$'),
+  constraint rc_payment_provider_events_signature_verification_provenance
+    check (
+      (signature_verified and signature_verified_at is not null)
+      or (not signature_verified and signature_verified_at is null)
+    ),
   constraint rc_payment_provider_events_processing_requires_verified_signature
     check (
       processing_status not in ('processing', 'processed')
-      or signature_verified
+      or (signature_verified and signature_verified_at is not null)
     ),
   constraint rc_payment_provider_events_processed_timestamp
     check (
@@ -104,7 +110,7 @@ create index if not exists rc_payment_provider_events_status_received_idx
   where processing_status in ('received', 'processing', 'failed');
 
 comment on table public.rc_payment_provider_events is
-  'Private payment webhook/event ledger with provider-event uniqueness. Store payload digest only; never raw webhook payloads. Processing requires recorded signature verification.';
+  'Private payment webhook/event ledger with provider-event uniqueness. Store payload digest only; never raw webhook payloads. Processing requires timestamped signature-verification evidence.';
 
 alter table public.rc_service_connection_orders
   add column if not exists idempotency_key text;
