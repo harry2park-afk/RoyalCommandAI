@@ -1,5 +1,11 @@
 import type { CountryConfig } from "../types/countryConfig";
-import { evaluateCountryLaunch, type CountryLaunchGate } from "./countryLaunchGate";
+import {
+  evaluateCountryLaunch,
+  evaluateCountryOperationalLaunch as evaluateScopedCountryOperationalLaunch,
+  type CountryLaunchGate,
+  type CountryOperationalEvidence as ScopedCountryOperationalEvidence,
+  type CountryOperationalReleaseScope,
+} from "./countryLaunchGate";
 import { evaluateCountryComplianceHookStructure } from "./countryComplianceHookStructure";
 import { evaluateCountryLocalizationStructure } from "./countryLocalizationStructure";
 
@@ -56,11 +62,13 @@ export type CountryOperationalBlockerCode =
   | "QA_SECURITY_REGRESSION_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
   | "DEPLOYMENT_PROTECTION_NOT_VERIFIED"
-  | "ROLLBACK_PATH_NOT_VERIFIED";
+  | "ROLLBACK_PATH_NOT_VERIFIED"
+  | "SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED";
 
 export type CountryOperationalLaunchGate = {
   launchable: boolean;
   countryGate: CountryLaunchGate;
+  scopedReleaseGate: CountryLaunchGate | null;
   operationalBlockers: CountryOperationalBlockerCode[];
 };
 
@@ -105,10 +113,18 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * path while remaining source-compatible. Repository localization and first-wave
  * compliance-hook structure are checked independently from human/browser evidence
  * so VERIFIED flags cannot hide missing country wiring.
+ *
+ * Generic VERIFIED flags are not release authority. A launchable result also
+ * requires the scoped Hosted-Production release gate from countryLaunchGate.ts,
+ * bound to the exact country, release SHA, migration apply-set, Room Factory
+ * contract and Hosted operational-data fingerprint. Older two-argument callers
+ * remain source-compatible but fail closed until that scoped authority is passed.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
   evidence: CountryOperationalEvidence,
+  scopedEvidence?: ScopedCountryOperationalEvidence,
+  expectedScope?: CountryOperationalReleaseScope,
 ): CountryOperationalLaunchGate {
   const countryGate = evaluateCountryLaunch(config);
   const localizationStructure = evaluateCountryLocalizationStructure(config);
@@ -125,9 +141,22 @@ export function evaluateCountryOperationalLaunch(
     operationalBlockers.push("COMPLIANCE_HOOK_STRUCTURE_NOT_READY");
   }
 
+  const scopedReleaseGate =
+    scopedEvidence && expectedScope
+      ? evaluateScopedCountryOperationalLaunch(config, scopedEvidence, expectedScope)
+      : null;
+
+  if (!scopedReleaseGate?.launchable) {
+    operationalBlockers.push("SCOPED_RELEASE_AUTHORITY_NOT_VERIFIED");
+  }
+
   return {
-    launchable: countryGate.launchable && operationalBlockers.length === 0,
+    launchable:
+      countryGate.launchable &&
+      scopedReleaseGate?.launchable === true &&
+      operationalBlockers.length === 0,
     countryGate,
+    scopedReleaseGate,
     operationalBlockers,
   };
 }
