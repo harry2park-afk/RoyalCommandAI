@@ -43,6 +43,13 @@ export type CountryRoomPackConfigBinding = {
   timeFormat: string;
   addressFormat: readonly string[];
   secondaryLanguageTags?: readonly string[];
+  policy: {
+    globalCoreImmutable: boolean;
+    countryRulesSeparateFromCore: boolean;
+    customerDataIsolationRequired: boolean;
+    customerSecretsNeverCopied: boolean;
+    countrySpecificComplianceMustBeVersioned: boolean;
+  };
 };
 
 export type CountryComplianceHookStructureBlocker =
@@ -50,6 +57,7 @@ export type CountryComplianceHookStructureBlocker =
   | "COUNTRY_LEGAL_ROOM_PACK_MISSING"
   | "COUNTRY_ACCOUNTING_ROOM_PACK_MISSING"
   | "COUNTRY_ROOM_PACK_CLONE_POLICY_UNSAFE"
+  | "COUNTRY_ROOM_PACK_SECURITY_POLICY_UNSAFE"
   | "COUNTRY_ROOM_PACK_CONFIG_MISMATCH"
   | "COUNTRY_COMPLIANCE_HOOK_EVIDENCE_INCOMPLETE"
   | "COUNTRY_COMPLIANCE_HOOK_AUTO_APPROVAL_UNSAFE";
@@ -99,6 +107,18 @@ export function isCountryRoomPackBoundToConfig(
   );
 }
 
+export function isCountryRoomPackSecurityPolicySafe(
+  roomPack: CountryRoomPackConfigBinding,
+): boolean {
+  return (
+    roomPack.policy.globalCoreImmutable === true &&
+    roomPack.policy.countryRulesSeparateFromCore === true &&
+    roomPack.policy.customerDataIsolationRequired === true &&
+    roomPack.policy.customerSecretsNeverCopied === true &&
+    roomPack.policy.countrySpecificComplianceMustBeVersioned === true
+  );
+}
+
 export function evaluateCountryComplianceHookStructure(
   config: CountryConfig,
 ): CountryComplianceHookStructure {
@@ -128,6 +148,10 @@ export function evaluateCountryComplianceHookStructure(
       roomPack.roomDefaults.humanApprovalForExternalActions !== true)
   ) {
     blockers.push("COUNTRY_ROOM_PACK_CLONE_POLICY_UNSAFE");
+  }
+
+  if (roomPack && !isCountryRoomPackSecurityPolicySafe(roomPack)) {
+    blockers.push("COUNTRY_ROOM_PACK_SECURITY_POLICY_UNSAFE");
   }
 
   if (roomPack && !isCountryRoomPackBoundToConfig(roomPack, config)) {
