@@ -26,9 +26,14 @@ describe("first-wave country Room packs", () => {
       expect(config).not.toBeNull();
       expect(preset).toBeDefined();
       expect(pack?.locale).toBe(config?.locale);
+      expect(pack?.languageTag).toBe(config?.locale);
       expect(pack?.currencyCode).toBe(config?.currency);
       expect(pack?.phoneCountryCode).toBe(config?.phoneCountryCode);
+      expect(pack?.dateFormat).toBe(config?.dateFormat);
+      expect(pack?.timeFormat).toBe(config?.timeFormat);
+      expect(pack?.addressFormat).toEqual(config?.addressFormat);
       expect(pack?.timeZone).toBe(preset?.timeZone);
+      expect(config?.timezone.supportedExamples).toContain(pack?.timeZone);
       expect(pack?.roomDefaults.clonePolicy).toBe("structure-only");
       expect(pack?.roomDefaults.cloneCustomerData).toBe(false);
       expect(pack?.roomDefaults.cloneMemory).toBe(false);
