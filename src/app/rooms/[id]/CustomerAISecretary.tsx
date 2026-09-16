@@ -49,6 +49,7 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
   const [mailCount, setMailCount] = useState<number | null>(null);
   const [calls, setCalls] = useState<RetellCall[]>([]);
   const fileRef = useRef<HTMLInputElement>(null);
+  const chatListRef = useRef<HTMLDivElement>(null);
   const sending = useRef(false);
 
   useEffect(() => {
@@ -95,6 +96,11 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
     window.addEventListener("royalcommand:open-ai-secretary", openSecretary);
     return () => window.removeEventListener("royalcommand:open-ai-secretary", openSecretary);
   }, [roomId]);
+
+  useEffect(() => {
+    const list = chatListRef.current;
+    if (list) list.scrollTo({ top: list.scrollHeight, behavior: "smooth" });
+  }, [data.chats.length, tab]);
 
   const report = useMemo(() => ({
     calls: calls.length + data.logs.filter((x) => x.includes("전화")).length,
@@ -201,11 +207,15 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
           </nav>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
             {tab === "메일·전화" ? <KatieGmailAssistant roomId={roomId} onMailLoaded={setMailCount}/> : null}
-            {tab === "대화" ? <div className="mx-auto flex h-full max-w-3xl flex-col">
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto">{data.chats.map((chat) => <div key={chat.id} className={`max-w-[82%] rounded-xl px-3 py-2 whitespace-pre-wrap text-sm leading-6 ${chat.role === "user" ? "ml-auto bg-[#173663]" : "bg-white/7"}`}>{chat.text}<div className="mt-1 text-[9px] text-white/35">{stamp(chat.at)}</div></div>)}</div>
+            {tab === "대화" ? <div className="mx-auto flex h-full w-full flex-col">
+              <div ref={chatListRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto">{data.chats.map((chat) => <div key={chat.id} className={`max-w-[82%] rounded-xl px-3 py-2 whitespace-pre-wrap text-sm leading-6 ${chat.role === "user" ? "ml-auto bg-[#173663]" : "bg-white/7"}`}>{chat.text}<div className="mt-1 text-[9px] text-white/35">{stamp(chat.at)}</div></div>)}</div>
               {busy ? <p role="status" className="mt-2 text-sm text-[#f0d36a]">요청을 처리하고 있습니다…</p> : null}
-              <SecretaryVoice key={roomId} busy={busy} onMessage={submitInstruction} onActiveChange={setVoiceActive}/>
-              <form onSubmit={sendInstruction} className="mt-3 flex gap-2"><textarea disabled={voiceActive} value={input} onChange={(e) => setInput(e.target.value)} placeholder="비서에게 새로운 업무를 지시하세요" className="min-h-12 flex-1 resize-none rounded-xl border border-white/15 bg-black/20 p-3 text-sm outline-none focus:border-[#d7b64d]"/><button disabled={!input.trim() || busy || voiceActive} className="grid w-12 place-items-center rounded-xl border border-[#d7b64d] bg-[#7A0C2E] text-[#ffe18a] disabled:opacity-30"><Send size={18}/></button></form>
+              <form onSubmit={sendInstruction} className="relative mt-3 shrink-0">
+                <textarea disabled={voiceActive} value={input} onChange={(e) => setInput(e.target.value)} aria-label="Katie에게 메시지"
+                  className="block min-h-40 max-h-72 w-full resize-y rounded-xl border border-[#d7b64d]/60 bg-black/20 px-4 pt-4 pb-20 text-base leading-7 outline-none focus:border-[#d7b64d]"/>
+                <div className="absolute bottom-3 left-3"><SecretaryVoice key={roomId} busy={busy} onMessage={submitInstruction} onActiveChange={setVoiceActive}/></div>
+                <button aria-label="메시지 전송" disabled={!input.trim() || busy || voiceActive} className="absolute right-3 bottom-3 grid h-12 w-12 place-items-center rounded-xl bg-[#7A0C2E] text-[#ffe18a] disabled:opacity-30"><Send size={20}/></button>
+              </form>
             </div> : null}
             {tab === "오늘의 보고" ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[
               ["받은 전화", report.calls, Phone], ["음성메시지", report.voicemail, MessageCircle], ["조회된 이메일", report.email, Mail],

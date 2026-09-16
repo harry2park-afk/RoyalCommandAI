@@ -25,3 +25,12 @@
 - Tests use simulated media/STT, not device audio. Actual Android microphone capture, Korean accuracy, authenticated server transcription and playback remain UNVERIFIED until device testing. Do not mark this as full end-to-end success.
 
 - Correction validation passed: Next build + TypeScript, ESLint for changed implementation, 12 recorder-session tests including Korean parameter, pause preservation, one-stream reuse, silence, permission failures, late grants and cancellation.
+
+
+## Composer simplification
+
+- Risk FAST, single writer Codex. User requested icon-only microphone inside a larger chat composer, no separate language picker or standing instruction panel.
+- Input is now full conversation width with 160px minimum height and an 80px bottom inset for the microphone/send controls; latest messages scroll into view.
+- Microphone reads existing /api/user/preferences language, with saved royalcommand:ui-locale and browser-locale fallback. No preference writes or login changes. Voice service receives the selected primary language tag rather than forcing every non-Korean locale to English.
+- Preserved: automatic spoken-question submission, same answer in chat and speech, then listening resumes. Icon retains accessible name, pressed state, screen-reader status and visible errors only on failure.
+- New UI does not change the audio engine, Retell, customer history, Production/master, or external-action approvals. Actual authenticated browser/device verification remains pending.

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Mic, MicOff } from "lucide-react";
+import { resolveGlobalLocale } from "@/lib/locale/globalLocaleCore";
 import { SecretaryVoiceSession } from "@/lib/ai-secretary/voice-session";
 
 export default function SecretaryVoice({ onMessage, busy, onActiveChange }: {
@@ -11,8 +12,8 @@ export default function SecretaryVoice({ onMessage, busy, onActiveChange }: {
 }) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("");
-  const [transcript, setTranscript] = useState("");
-  const [language, setLanguage] = useState<"ko-KR" | "en-AU">("ko-KR");
+  const [error, setError] = useState("");
+  const [language, setLanguage] = useState("");
   const session = useRef<SecretaryVoiceSession | null>(null);
   const alive = useRef(true);
 
@@ -28,35 +29,49 @@ export default function SecretaryVoice({ onMessage, busy, onActiveChange }: {
     };
   }, [onActiveChange]);
 
+  useEffect(() => {
+    let mounted = true;
+    let saved = "";
+    try { saved = localStorage.getItem("royalcommand:ui-locale") || ""; } catch {}
+    const fallback = resolveGlobalLocale({ explicitUiLocale: saved || navigator.language }).locale;
+    void fetch("/api/user/preferences", { cache: "no-store", credentials: "same-origin", signal: AbortSignal.timeout(5000) })
+      .then(response => response.ok ? response.json() : null)
+      .then(payload => {
+        const prefs = payload?.preferences;
+        const locale = prefs && (prefs.uiLocale || prefs.language)
+          ? resolveGlobalLocale({ explicitUiLocale: prefs.uiLocale, legacyLanguage: prefs.language, countryCode: prefs.countryCode }).locale
+          : fallback;
+        if (mounted) setLanguage(locale);
+      })
+      .catch(() => { if (mounted) setLanguage(fallback); });
+    return () => { mounted = false; };
+  }, []);
+
   function start() {
-    if (session.current || busy) return;
+    if (session.current || busy || !language) return;
     setActive(true);
     onActiveChange(true);
-    setTranscript("");
+    setError("");
     session.current = new SecretaryVoiceSession({
       language, onMessage,
-      onTranscript: text => { if (alive.current) setTranscript(text); },
+      onTranscript: () => {},
       onStatus: text => { if (alive.current) setStatus(text); },
       onStop: text => {
         session.current = null;
-        if (alive.current) { setActive(false); setStatus(text); onActiveChange(false); }
+        if (alive.current) { setActive(false); setStatus(text); setError(text === "음성 대화를 종료했습니다." || text.startsWith("화면을 벗어나") ? "" : text); onActiveChange(false); }
       },
     });
     void session.current.start();
   }
 
-  return <div className="mt-3 space-y-2 rounded-xl border border-[#d7b64d]/40 bg-white/5 p-3">
-    <div className="flex flex-wrap items-center gap-3">
-      <button type="button" aria-pressed={active} disabled={!active && busy} onClick={() => active ? session.current?.stop() : start()}
-        className="flex min-h-12 items-center gap-2 rounded-xl bg-[#7A0C2E] px-4 text-base font-semibold text-[#ffe18a] disabled:opacity-40">
-        {active ? <MicOff size={22}/> : <Mic size={22}/>} {active ? "음성 대화 종료" : "음성 대화 시작"}
-      </button>
-      <select aria-label="음성 입력 언어" value={language} disabled={active} onChange={(event) => setLanguage(event.target.value as "ko-KR" | "en-AU")} className="min-h-12 rounded-lg border border-white/20 bg-[#07111f] px-3 text-base">
-        <option value="ko-KR">한국어</option><option value="en-AU">English (AU)</option>
-      </select>
-    </div>
-    <p role="status" className="text-sm text-[#f0d36a]">{status || "시작 후 말하면 자동 전송하고 음성으로 답합니다. ‘대화 종료’로 멈추세요."}</p>
-    {transcript ? <p className="text-sm text-white/80">{transcript}</p> : null}
-    {!active ? <p className="text-xs text-white/50">말씀을 잠시 녹음해 서버에서 받아씁니다. 한국어 선택 시 한국어로 인식하며, 기기 음성으로 답합니다.</p> : null}
-  </div>;
+  return <>
+    <button type="button" aria-label={active ? "음성 대화 종료" : "음성 대화 시작"}
+      title={active ? status : "음성 대화 시작"} aria-pressed={active}
+      disabled={!active && (busy || !language)} onClick={() => active ? session.current?.stop() : start()}
+      className={`grid h-12 w-12 place-items-center rounded-full transition-colors disabled:opacity-40 ${active ? "bg-[#7A0C2E] text-[#ffe18a] ring-2 ring-[#d7b64d]" : "text-[#f0d36a] hover:bg-white/10"}`}>
+      {active ? <MicOff size={24}/> : <Mic size={24}/>}
+    </button>
+    <span role="status" className="sr-only">{status}</span>
+    {error ? <p role="alert" className="absolute bottom-full left-0 mb-2 w-72 rounded-lg bg-[#07111f] p-2 text-sm text-red-200">{error}</p> : null}
+  </>;
 }

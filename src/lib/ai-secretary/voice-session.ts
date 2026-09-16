@@ -1,7 +1,7 @@
 // One microphone stream per user-started session. Does not use Android's
 // SpeechRecognition service (which can beep/restart at every short utterance).
 export type VoiceSessionOptions = {
-  language: "ko-KR" | "en-AU";
+  language: string;
   onMessage: (text: string) => Promise<string>;
   onTranscript: (text: string) => void;
   onStatus: (text: string) => void;
@@ -119,7 +119,7 @@ export class SecretaryVoiceSession {
     try {
       const form = new FormData();
       form.append("audio", audio, audio.type.includes("mp4") ? "katie-voice.m4a" : "katie-voice.webm");
-      form.append("language", this.options.language === "ko-KR" ? "ko" : "en");
+      form.append("language", this.options.language.split("-")[0].toLowerCase());
       const response = await fetch("/api/voice/transcribe", { method: "POST", body: form, signal: this.request.signal });
       const result = await response.json();
       clearTimeout(this.timer);
