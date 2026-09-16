@@ -10,6 +10,31 @@
 -- privileges. This migration changes only the private implementation's null
 -- encounter semantics; direct application-role execution remains revoked by
 -- the prior hardening migrations.
+--
+-- SECURITY ORDERING PRECONDITION:
+-- Fresh Hosted evidence shows the legacy manifest owner-insert policy and broad
+-- anon/authenticated table grants are still present before this candidate set is
+-- applied. Do not introduce the non-encounter creation contract while that
+-- direct-write bypass remains open. Reassert the manifest ACL boundary here,
+-- before replacing the private creation function. The later dedicated manifest
+-- ACL migration intentionally repeats the same idempotent protections as defense
+-- in depth and remains in the reviewed six-migration allow-list.
+
+alter table public.room_factory_manifests enable row level security;
+
+revoke select, insert, update, delete, truncate, references, trigger
+  on table public.room_factory_manifests
+  from anon;
+
+revoke insert, update, delete, truncate, references, trigger
+  on table public.room_factory_manifests
+  from authenticated;
+grant select
+  on table public.room_factory_manifests
+  to authenticated;
+
+drop policy if exists room_factory_manifests_insert_owner
+  on public.room_factory_manifests;
 
 create or replace function private.create_room_factory_room_atomic(
   p_encounter_session_id uuid,
