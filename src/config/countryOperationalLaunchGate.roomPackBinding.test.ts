@@ -76,18 +76,24 @@ describe("first-wave Room Pack runtime config binding", () => {
     ).toContain("COUNTRY_ROOM_PACK_CONFIG_MISMATCH");
   });
 
-  it("fails closed when AU/US/CA subdivision inventories drift from their Room Packs", () => {
+  it("fails closed when first-wave subdivision inventories drift from their Room Packs", () => {
     const au = getCountryConfigByCountryCode("AU");
     const us = getCountryConfigByCountryCode("US");
     const ca = getCountryConfigByCountryCode("CA");
+    const kr = getCountryConfigByCountryCode("KR");
+    const jp = getCountryConfigByCountryCode("JP");
     expect(au?.states?.NSW).toBeDefined();
     expect(us?.states).toBeDefined();
     expect(ca?.provinces?.QC).toBeDefined();
+    expect(kr?.provinces?.["11"]).toBeDefined();
+    expect(jp?.provinces?.["13"]).toBeDefined();
 
     const { NSW: _nsw, ...auWithoutNsw } = au!.states!;
     const [firstUsCode] = Object.keys(us!.states!);
     const { [firstUsCode]: _usSubdivision, ...usWithoutOneSubdivision } = us!.states!;
     const { QC: _qc, ...caWithoutQc } = ca!.provinces!;
+    const { "11": _seoul, ...krWithoutSeoul } = kr!.provinces!;
+    const { "13": _tokyo, ...jpWithoutTokyo } = jp!.provinces!;
 
     expect(blockers({ ...au!, states: auWithoutNsw })).toContain(
       "COUNTRY_ROOM_PACK_CONFIG_MISMATCH",
@@ -96,6 +102,12 @@ describe("first-wave Room Pack runtime config binding", () => {
       "COUNTRY_ROOM_PACK_CONFIG_MISMATCH",
     );
     expect(blockers({ ...ca!, provinces: caWithoutQc })).toContain(
+      "COUNTRY_ROOM_PACK_CONFIG_MISMATCH",
+    );
+    expect(blockers({ ...kr!, provinces: krWithoutSeoul })).toContain(
+      "COUNTRY_ROOM_PACK_CONFIG_MISMATCH",
+    );
+    expect(blockers({ ...jp!, provinces: jpWithoutTokyo })).toContain(
       "COUNTRY_ROOM_PACK_CONFIG_MISMATCH",
     );
   });
