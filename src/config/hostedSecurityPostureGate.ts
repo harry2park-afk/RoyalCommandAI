@@ -4,10 +4,13 @@ import {
 } from "./hostedSnapshotFreshnessGate";
 import { ROYAL_COMMAND_HOSTED_PROJECT_REF } from "./hostedLaunchCriticalSnapshotGate";
 
-export const HOSTED_SECURITY_POSTURE_CONTRACT_VERSION = 1;
+export const HOSTED_SECURITY_POSTURE_CONTRACT_VERSION = 2;
 
 export const HOSTED_SECURITY_SERVICE_ROLE_ONLY_TABLES = [
   "communication_recording_policies",
+  "country_compliance_evidence",
+  "rc_payment_provider_events",
+  "rc_payment_provider_registry",
   "rc_service_provider_offers",
   "rc_service_providers",
 ] as const;
@@ -17,6 +20,7 @@ export type HostedSecurityServiceRoleOnlyTable =
 
 export type HostedSecurityCatalogEvidenceRow = {
   tableName: string;
+  tableExists: boolean;
   rlsEnabled: boolean;
   anonSelect: boolean;
   anonInsert: boolean;
@@ -83,6 +87,7 @@ function pushUnique(
 
 function isCatalogRowDefaultDeny(row: HostedSecurityCatalogEvidenceRow): boolean {
   return (
+    row.tableExists &&
     row.rlsEnabled &&
     !row.anonSelect &&
     !row.anonInsert &&
@@ -104,9 +109,12 @@ function isCatalogRowDefaultDeny(row: HostedSecurityCatalogEvidenceRow): boolean
  * The Supabase advisor may report RLS-enabled/no-policy tables even when those
  * tables are intentionally service-role-only. This gate never treats the
  * advisor label alone as proof of safety: each launch-critical catalog table
- * must independently prove RLS, zero anon/authenticated CRUD authority, service
- * role read authority, and zero client policy. Profile-role, Matter-assignment,
- * and Room Factory manifest write boundaries must also all be blocked.
+ * must exist and independently prove RLS, zero anon/authenticated CRUD authority,
+ * service-role read authority, and zero client policy. The catalog includes the
+ * country compliance evidence registry and payment provider registry/event ledger
+ * required by the launch candidate, so their absence also remains fail-closed.
+ * Profile-role, Matter-assignment, and Room Factory manifest write boundaries
+ * must also all be blocked.
  *
  * Evidence is bound to the exact candidate SHA, Hosted project and the same
  * one-hour freshness / five-minute future-skew window used by other Hosted
