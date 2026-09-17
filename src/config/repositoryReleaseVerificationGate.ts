@@ -47,6 +47,7 @@ export type RepositoryReleaseVerificationBlocker =
   | "REPOSITORY_VERIFICATION_CHECK_DUPLICATE"
   | "REPOSITORY_VERIFICATION_CHECK_UNSUPPORTED"
   | "REPOSITORY_VERIFICATION_CHECK_EVIDENCE_REF_MISSING"
+  | "REPOSITORY_VERIFICATION_CHECK_EVIDENCE_REF_REUSED"
   | "REPOSITORY_VERIFICATION_CHECK_NOT_SUCCESS";
 
 export type RepositoryReleaseVerificationRow = {
@@ -96,8 +97,12 @@ function isValidUtcTimestamp(value: string): boolean {
  * never treated as SUCCESS.
  *
  * Evidence is bound to the same exact candidate SHA and Preview deployment used
- * by the higher-level Production review, and must be fresh. This function has no
- * side effects and grants no merge/deploy/migration authority by itself.
+ * by the higher-level Production review, and must be fresh. Each required check
+ * must also carry its own non-empty evidence reference; one artifact reference
+ * cannot be reused to impersonate multiple independent launch checks.
+ *
+ * This function has no side effects and grants no merge/deploy/migration authority
+ * by itself.
  */
 export function evaluateRepositoryReleaseVerification(
   expectedExactHeadSha: string,
@@ -180,6 +185,7 @@ export function evaluateRepositoryReleaseVerification(
     byCheck.set(typedCheck, checkEvidence);
   }
 
+  const usedEvidenceRefs = new Set<string>();
   const checks = REQUIRED_REPOSITORY_RELEASE_CHECKS.map((check) => {
     const checkEvidence = byCheck.get(check);
     if (!checkEvidence) {
@@ -194,9 +200,16 @@ export function evaluateRepositoryReleaseVerification(
     }
 
     const evidenceRef = checkEvidence.evidenceRef.trim();
+    let evidenceRefReused = false;
     if (!evidenceRef) {
       pushUnique(blockers, "REPOSITORY_VERIFICATION_CHECK_EVIDENCE_REF_MISSING");
+    } else if (usedEvidenceRefs.has(evidenceRef)) {
+      evidenceRefReused = true;
+      pushUnique(blockers, "REPOSITORY_VERIFICATION_CHECK_EVIDENCE_REF_REUSED");
+    } else {
+      usedEvidenceRefs.add(evidenceRef);
     }
+
     if (checkEvidence.state !== "SUCCESS") {
       pushUnique(blockers, "REPOSITORY_VERIFICATION_CHECK_NOT_SUCCESS");
     }
@@ -206,7 +219,10 @@ export function evaluateRepositoryReleaseVerification(
       evaluated: true,
       state: checkEvidence.state,
       evidenceRef,
-      ready: checkEvidence.state === "SUCCESS" && Boolean(evidenceRef),
+      ready:
+        checkEvidence.state === "SUCCESS" &&
+        Boolean(evidenceRef) &&
+        !evidenceRefReused,
     };
   });
 
