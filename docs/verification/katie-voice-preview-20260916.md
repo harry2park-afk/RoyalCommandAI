@@ -54,3 +54,12 @@
 - Partial input remains after stop/error; typed prefix preserved; no phone, Retell, customer data, Production/master or credential changes.
 - Focused simulated WebRTC tests: 9 passed (live partial text, final once, playback/resume, spoken stop, late permission cleanup, cancellation, provider failure, timeouts, closing channel). Changed session/component lint passed; CustomerAISecretary has existing unrelated any at tab handler and existing warnings. Typecheck passed before final lifecycle guard; full build validates final code.
 - Actual authenticated Preview WebRTC/provider/device audio and audible playback remain UNVERIFIED. Deployment is not an end-to-end success claim. No further request to wait 60 seconds; this transport should provide deltas while speaking if provider connection succeeds.
+
+## Confirmed 504 investigation and bounded connection correction
+
+- User authorized repair after read-only investigation. STANDARD, one writer Codex, independent voice_review: no material regression found.
+- Deployed 7c963a99018c7ad3307d01c096a8edf9053373df runtime evidence at 2026-09-17 00:19:45, 00:20:05 and 00:20:21 UTC: POST /api/voice/realtime-session 504, Vercel Runtime Timeout Error: Task timed out after 30 seconds. Underlying stalled stage not established from old logs.
+- Confirmed code defect: upstream request and response-body wait had no deadline, and transient responses caused a second upstream call within the same 30-second invocation. Replaced with one bounded call, cancellation propagation, and separate auth (5s), SDP input (2s), upstream including body (15s) deadlines. Existing authentication, provider/model/session configuration and success SDP contract retained.
+- Added voice-path-only middleware entry/exit trace and route stage timing so middleware/auth/input/provider/body failures can be distinguished. Logs contain generated trace, stage, duration, stable code, numeric status only; removed raw upstream error logging. UI maps safe codes to Korean.
+- 20 focused route and live-session tests passed; relevant ESLint and diff check passed. Independent review confirmed late completions do not resume the route. Auth/body underlying operations cannot be cancelled by these local races; middleware auth remains unchanged and only instrumented.
+- Actual authenticated Preview connection and device transcription remain pending. This is a confirmed timeout-handling/diagnostic correction, not a proven resolution of the underlying delay. No Retell, phone, customer history, credentials, environment or Production/master changes.

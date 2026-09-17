@@ -87,7 +87,20 @@ export class RealtimeSecretaryVoiceSession {
       const answer = await response.text();
       if (this.stopped) return;
       if (!response.ok || !answer.startsWith("v=0")) {
-        this.stop(response.status === 401 ? "로그인이 만료되었습니다. 다시 로그인해 주세요." : `실시간 음성 서버에 연결하지 못했습니다. (VOICE_CONNECT_${response.status})`); return;
+        let code = "";
+        try { const error = JSON.parse(answer); if (typeof error.code === "string") code = error.code; } catch {}
+        const messages: Record<string, string> = {
+          VOICE_AUTH: "로그인이 만료되었습니다. 다시 로그인해 주세요.",
+          VOICE_AUTH_TIMEOUT: "로그인 확인 서버가 응답하지 않습니다. (VOICE_AUTH_TIMEOUT)",
+          VOICE_SDP_TIMEOUT: "음성 연결 정보가 서버에 전달되지 않았습니다. (VOICE_SDP_TIMEOUT)",
+          VOICE_CONFIG: "음성 서버 연결 설정이 없습니다. (VOICE_CONFIG)",
+          VOICE_PROVIDER_TIMEOUT: "외부 음성 서버가 응답하지 않습니다. (VOICE_PROVIDER_TIMEOUT)",
+          VOICE_PROVIDER_AUTH: "음성 서비스 인증을 확인해야 합니다. (VOICE_PROVIDER_AUTH)",
+          VOICE_PROVIDER_LIMIT: "음성 서비스 사용 한도에 도달했습니다. (VOICE_PROVIDER_LIMIT)",
+          VOICE_PROVIDER_REQUEST: "음성 서버가 연결 설정을 거절했습니다. (VOICE_PROVIDER_REQUEST)",
+          VOICE_PROVIDER_UNAVAILABLE: "음성 서비스가 일시적으로 응답하지 않습니다. (VOICE_PROVIDER_UNAVAILABLE)",
+        };
+        this.stop(messages[code] || (response.status === 401 ? messages.VOICE_AUTH : `실시간 음성 서버에 연결하지 못했습니다. (VOICE_CONNECT_${response.status})`)); return;
       }
       await peer.setRemoteDescription({ type: "answer", sdp: answer });
     } catch { if (!this.stopped) this.stop("마이크 또는 실시간 음성 연결을 시작하지 못했습니다. (VOICE_CONNECT)"); }

@@ -1,5 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { updateSession } from "@/lib/supabase/middleware";
+import { logger } from "@/lib/logger";
 import { getDomainRuntimeContext } from "@/config/countryResolver";
 
 const HARRY_RC_PREVIEW_HOST = "royal-command-ai-git-feat-indep-0be966-harry2park-afks-projects.vercel.app";
@@ -54,7 +55,14 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  const voiceTrace = path === "/api/voice/realtime-session" ? crypto.randomUUID() : undefined;
+  const voiceStarted = Date.now();
+  if (voiceTrace) {
+    runtimeHeaders.set("x-rc-voice-trace", voiceTrace);
+    logger.info("voice.realtime.middleware_started", { requestId: voiceTrace });
+  }
   const response = await updateSession(request, runtimeHeaders);
+  if (voiceTrace) logger.info("voice.realtime.middleware_completed", { requestId: voiceTrace, elapsedMs: Date.now() - voiceStarted });
   return withRoomNoCache(response, path);
 }
 
