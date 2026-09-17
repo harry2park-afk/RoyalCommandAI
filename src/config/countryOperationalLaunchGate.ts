@@ -171,7 +171,10 @@ function hasCanonicalFirstWaveCountryRoomPackConfig(config: CountryConfig): bool
     "secondaryLanguageTags" in pack
       ? (pack.secondaryLanguageTags as readonly string[])
       : ([] as readonly string[]);
-  if (config.secondaryLocale && !secondaryLanguageTags.includes(config.secondaryLocale)) {
+  const expectedSecondaryLanguageTags = config.secondaryLocale
+    ? [config.secondaryLocale]
+    : [];
+  if (!sameOrderedStrings(secondaryLanguageTags, expectedSecondaryLanguageTags)) {
     return false;
   }
 
@@ -240,10 +243,10 @@ function hasVerifiedSubdivisionIdentity(config: CountryConfig): boolean {
  *
  * First-wave Room Packs are also checked at runtime for the structure-only clone,
  * isolation, secret-handling, human-approval and country-overlay invariants. Their
- * locale, currency, phone/date/time/address/timezone bindings and declared AU/US/CA
- * jurisdiction inventories must also match canonical CountryConfig at runtime.
- * This prevents a static template/config regression from being hidden behind
- * VERIFIED operational evidence.
+ * locale, currency, phone/date/time/address/timezone bindings, exact declared
+ * secondary locale inventory, and declared AU/US/CA jurisdiction inventories must
+ * also match canonical CountryConfig at runtime. This prevents a static
+ * template/config regression from being hidden behind VERIFIED operational evidence.
  *
  * Countries that declare state/province jurisdiction inventories also fail closed
  * until every declared jurisdiction has a canonical, unambiguous identifier and
