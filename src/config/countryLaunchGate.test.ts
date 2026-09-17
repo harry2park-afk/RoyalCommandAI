@@ -12,9 +12,9 @@ import type { CountryConfig } from "../types/countryConfig";
 const FIRST_WAVE = ["AU", "US", "CA", "KR", "JP", "GB"] as const;
 const RELEASE_SCOPE: CountryOperationalReleaseScope = {
   releaseCandidateSha: "1111111111111111111111111111111111111111",
-  migrationApplySetFingerprint: "migration-set-v1",
-  roomFactoryTemplateFingerprint: "room-factory-template-set-v1",
-  hostedOperationalDataFingerprint: "hosted-operational-data-v1",
+  migrationApplySetFingerprint: "2222222222222222222222222222222222222222222222222222222222222222",
+  roomFactoryTemplateFingerprint: "3333333333333333333333333333333333333333333333333333333333333333",
+  hostedOperationalDataFingerprint: "4444444444444444444444444444444444444444444444444444444444444444",
 };
 type OperationalEvidenceFlag = Exclude<
   keyof CountryOperationalEvidence,
