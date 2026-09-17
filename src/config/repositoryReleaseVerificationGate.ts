@@ -6,6 +6,7 @@ export const REQUIRED_REPOSITORY_RELEASE_CHECKS = [
   "SUPABASE_LINKED_DRY_RUN",
   "ROOM_FACTORY_CONCURRENCY",
   "MASTER_REQUIRED_STATUS_CHECKS",
+  "MASTER_HUMAN_APPROVAL_PROTECTION",
   "STABLE_RESTORE_REF",
   "VERCEL_PREVIEW_DEPLOYMENT",
 ] as const;
@@ -90,8 +91,9 @@ function isValidUtcTimestamp(value: string): boolean {
  * actual exact-head delivery evidence needed before Production review. A green
  * Quality Gate does not stand in for Conflict Guard, Change Control, clean
  * migration replay, linked Supabase dry-run, Room Factory concurrency, actual
- * master required-status-check enforcement, a verified stable restore ref, or
- * the exact Preview deployment. SKIPPED and PENDING are never treated as SUCCESS.
+ * master required-status-check enforcement, human approval protection, a verified
+ * stable restore ref, or the exact Preview deployment. SKIPPED and PENDING are
+ * never treated as SUCCESS.
  *
  * Evidence is bound to the same exact candidate SHA and Preview deployment used
  * by the higher-level Production review, and must be fresh. This function has no
