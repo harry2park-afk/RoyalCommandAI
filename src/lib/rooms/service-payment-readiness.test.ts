@@ -53,13 +53,27 @@ describe("service payment readiness", () => {
     })).toMatchObject({ paymentRequired: true, ready: false, reason: "CURRENCY_INVALID" });
   });
 
-  it("allows a positive fixed minor-unit amount with a three-letter uppercase currency", () => {
+  it("fails closed when fixed-price checkout is disconnected", () => {
     expect(evaluateServicePaymentReadiness({
       default_included: false,
       pricing_type: "monthly",
       price_status: "fixed",
       price_minor: 100,
       currency: "AUD",
-    })).toEqual({ paymentRequired: true, ready: true, reason: "READY" });
+    }, false)).toEqual({
+      paymentRequired: true,
+      ready: false,
+      reason: "CHECKOUT_NOT_READY",
+    });
+  });
+
+  it("allows a positive fixed minor-unit amount with a three-letter uppercase currency when checkout is connected", () => {
+    expect(evaluateServicePaymentReadiness({
+      default_included: false,
+      pricing_type: "monthly",
+      price_status: "fixed",
+      price_minor: 100,
+      currency: "AUD",
+    }, true)).toEqual({ paymentRequired: true, ready: true, reason: "READY" });
   });
 });
