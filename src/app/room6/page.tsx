@@ -6,6 +6,7 @@ import { DomainRuntimeProvider } from "@/components/DomainRuntimeProvider";
 import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
 import { toPublicDomainRuntimeContext } from "@/config/countryResolver";
 import Room6 from "./Room6";
+import { trialId } from "@/lib/rooms/room6-trial";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Room 6 · Royal Command Preview" };
@@ -23,8 +24,9 @@ export default async function Room6Page({ searchParams }: { searchParams: Promis
   const room = rooms.find(r => r.id === query.room);
   if (query.room && !room) notFound();
   return <DomainRuntimeProvider value={toPublicDomainRuntimeContext(runtime)}>
-    {room ? <Room6 key={room.id} room={room} rooms={rooms}/> : <main className="min-h-screen bg-[#07111f] p-8 text-white">
+    {room ? <Room6 key={room.id} room={room} rooms={rooms} trial={room.id === trialId(user.id, "room")}/> : <main className="min-h-screen bg-[#07111f] p-8 text-white">
       <Link href="/rooms/rca" className="text-[#ffe18a]">← RC Room</Link>
+      <Link href="/room6/trial" className="ml-6 rounded-lg bg-amber-300 px-4 py-3 text-black">새 시험방</Link>
       <h1 className="my-6 text-2xl">룸6 적용할 방 선택</h1>
       <div className="grid max-w-3xl gap-3">{rooms.map(r => <Link className="rounded-xl border border-white/30 p-5 hover:bg-white/10" key={r.id} href={`/room6?room=${r.id}`}>{r.name}</Link>)}</div>
       {!rooms.length && <p>기존 방이 없습니다. <Link className="underline" href="/create-room">방 만들기</Link></p>}

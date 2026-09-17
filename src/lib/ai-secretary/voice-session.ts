@@ -2,6 +2,9 @@
 // SpeechRecognition service (which can beep/restart at every short utterance).
 export type VoiceSessionOptions = {
   language: string;
+  negotiate?: (sdp: string, signal: AbortSignal) => Promise<Response>;
+  speakerLabel?: string;
+  answerTimeoutMs?: number;
   onPhase?: (phase: "connecting" | "listening" | "transcribing" | "thinking" | "speaking") => void;
   onLevel?: (level: number) => void;
   onMessage: (text: string) => Promise<string>;

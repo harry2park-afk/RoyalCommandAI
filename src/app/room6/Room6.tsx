@@ -8,7 +8,7 @@ import { defaultRoom6Button, defaultRoom6Design, ROOM6_BUTTONS, ROOM6_LABELS, ro
 type Room = { id: string; name: string };
 type Stored = { revision: number; design: Room6Design };
 const IndependentAIRooms = dynamic(() => import("../rooms/[id]/IndependentAIRooms"), { loading: () => <p className="p-6">AI 대화를 불러오고 있습니다…</p> });
-export default function Room6({ room, rooms }: { room: Room; rooms: Room[] }) {
+export default function Room6({ room, rooms, trial = false }: { room: Room; rooms: Room[]; trial?: boolean }) {
   const [stored, setStored] = useState<Stored | null>(null);
   const [draft, setDraft] = useState<Room6Design>(defaultRoom6Design);
   const [editing, setEditing] = useState(false);
@@ -137,7 +137,7 @@ export default function Room6({ room, rooms }: { room: Room; rooms: Room[] }) {
     <div ref={stage} className="relative mx-auto min-h-[560px] w-full overflow-hidden border-y border-white/10" style={{ backgroundColor: bg, backgroundImage: active.background === "image" ? `url("${active.image}")` : undefined, backgroundSize: "cover", backgroundPosition: "center" }}>
       {active.buttons.map(b => <button key={b.id} data-room6-action={b.id} aria-label={ROOM6_LABELS[b.id]} disabled={!stored || busy}
         onPointerDown={e => pointerDown(e, b.id)} onPointerMove={pointerMove} onPointerUp={() => { dragging.current = null; }} onPointerCancel={() => { dragging.current = null; }}
-        onClick={() => { if (editing) setSelected(b.id); else if (b.id === "chat") setChat(true); else window.location.assign(b.id === "secretary" ? "/secretary" : `/rooms/${room.id}`); }}
+        onClick={() => { if (editing) setSelected(b.id); else if (b.id === "chat") { if (trial) window.location.assign("/room6/trial"); else setChat(true); } else window.location.assign(b.id === "secretary" ? "/secretary" : `/rooms/${room.id}`); }}
         onKeyDown={e => { if (!editing || !["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) return; e.preventDefault(); setSelected(b.id); setDraft(d => ({ ...d, buttons: d.buttons.map(item => item.id === b.id ? { ...item, x: Math.min(85, Math.max(0, item.x + (e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0))), y: Math.min(85, Math.max(0, item.y + (e.key === "ArrowDown" ? 1 : e.key === "ArrowUp" ? -1 : 0))) } : item) })); }}
         className={`absolute rounded-xl border border-current px-3 font-semibold focus-visible:outline-4 focus-visible:outline-white ${editing ? "cursor-move touch-none" : ""} ${selected === b.id && editing ? "ring-4 ring-amber-300" : ""}`}
         style={{ left: `min(${b.x}%, calc(100% - min(${b.width}px, 90vw)))`, top: `min(${b.y}%, calc(100% - ${b.height}px))`, width: `min(${b.width}px, 90vw)`, height: b.height, color: b.colour, backgroundColor: `${b.background}${Math.round(b.opacity * 255).toString(16).padStart(2, "0")}` }}>{b.label}</button>)}

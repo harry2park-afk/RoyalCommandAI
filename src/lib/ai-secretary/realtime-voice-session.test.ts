@@ -38,6 +38,12 @@ beforeEach(() => {
 });
 afterEach(() => {sessions.forEach(s=>s.stop());vi.useRealTimers();vi.unstubAllGlobals();});
 describe('live secretary speech transport',()=>{
+  it('uses optional direct negotiation without changing legacy transport',async()=>{
+    const options={language:'ko-KR',negotiate:vi.fn(async(_sdp:string,_signal:AbortSignal)=>new Response('v=0\r\nanswer')),onTranscript:vi.fn(),onMessage:vi.fn(async()=> '답'),onStatus:vi.fn(),onStop:vi.fn()};
+    const session=new RealtimeSecretaryVoiceSession(options);sessions.push(session);await session.start();
+    expect(options.negotiate).toHaveBeenCalledWith('v=0\r\ntest',expect.any(AbortSignal));expect(fetch).not.toHaveBeenCalled();
+    session.stop();expect(options.negotiate.mock.calls[0][1].aborted).toBe(true);
+  });
   it('starts only on request, and enables audio only after server configuration acknowledgement',async()=>{
     const {session,options}=make();expect(getUserMedia).not.toHaveBeenCalled();await session.start();
     expect(track.enabled).toBe(false);expect(options.onPhase).not.toHaveBeenCalledWith('listening');

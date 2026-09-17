@@ -80,7 +80,7 @@ export class RealtimeSecretaryVoiceSession {
       await peer.setLocalDescription(offer);
       if (this.stopped) return;
       const language = this.options.language.toLowerCase().startsWith("zh-") ? this.options.language.toLowerCase() : this.options.language.split("-")[0].toLowerCase();
-      const response = await fetch(`/api/voice/realtime-session?lang=${encodeURIComponent(language)}`, {
+      const response = this.options.negotiate ? await this.options.negotiate(offer.sdp || "", this.request.signal) : await fetch(`/api/voice/realtime-session?lang=${encodeURIComponent(language)}`, {
         method: "POST", headers: { "Content-Type": "application/sdp" }, body: offer.sdp,
         signal: this.request.signal,
       });
@@ -153,8 +153,8 @@ export class RealtimeSecretaryVoiceSession {
 
   private async answer(text: string) {
     this.options.onPhase?.("thinking");
-    this.options.onStatus("Katie가 답변을 준비하고 있습니다…");
-    this.deadline(50000, "답변 시간이 초과됐습니다. (VOICE_ANSWER_TIMEOUT)");
+    this.options.onStatus(`${this.options.speakerLabel || "Katie"} · 답변 준비 중…`);
+    this.deadline(this.options.answerTimeoutMs || 50000, "답변 시간이 초과됐습니다. (VOICE_ANSWER_TIMEOUT)");
     try {
       const answer = await this.options.onMessage(text);
       if (this.stopped) return;
@@ -174,7 +174,7 @@ export class RealtimeSecretaryVoiceSession {
       };
       speech.onerror = () => this.stop("음성 재생에 실패했습니다. 화면의 답변을 확인해 주세요.");
       this.options.onPhase?.("speaking");
-      this.options.onStatus("Katie가 답변하고 있습니다…");
+      this.options.onStatus(`${this.options.speakerLabel || "Katie"} · 음성 재생 중…`);
       this.deadline(120000, "음성 재생 시간이 초과됐습니다.");
       window.speechSynthesis.speak(speech);
     } catch { if (!this.stopped) this.stop("답변 요청에 실패했습니다. 화면을 확인해 주세요."); }

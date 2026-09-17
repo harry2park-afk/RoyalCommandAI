@@ -1,0 +1,12 @@
+import {beforeEach,afterEach,it,expect,vi} from "vitest";
+const m=vi.hoisted(()=>({access:vi.fn(),store:vi.fn(),profile:vi.fn(),runtime:vi.fn(),ready:vi.fn(),insert:vi.fn()}));
+vi.mock("@/lib/auth",()=>({getCurrentUser:vi.fn()}));vi.mock("@/lib/supabase/server",()=>({createClient:vi.fn()}));
+vi.mock("@/lib/rooms/room6-trial",async orig=>({...await orig<object>(),trialAccess:m.access}));
+vi.mock("@/lib/rooms/room6-trial-store",()=>({trialStore:m.store,readTrialProfile:m.profile}));
+vi.mock("@/lib/runtime/serverDomainContext",()=>({getServerDomainRuntimeContext:m.runtime}));vi.mock("@/config/countryResolver",()=>({isDomainFeatureReady:m.ready}));
+import {POST} from "./route";
+beforeEach(()=>{vi.clearAllMocks();vi.stubEnv("OPENAI_API_KEY","permanent-test-key");m.access.mockResolvedValue({user:{id:"owner",countryCode:"AU",defaultLanguage:"ko"},db:{},roomId:"trial"});m.store.mockReturnValue({insert:m.insert});m.insert.mockResolvedValue(undefined);m.profile.mockResolvedValue({profile:{language:"ko-KR"}});m.runtime.mockResolvedValue({});m.ready.mockReturnValue(true);vi.stubGlobal("fetch",vi.fn(async()=>Response.json({value:"ephemeral-test-token"})));});
+afterEach(()=>vi.unstubAllGlobals());
+it("returns only a memory-use ephemeral value and honours saved language",async()=>{const r=await POST(),d=await r.json();expect(r.status).toBe(200);expect(r.headers.get("cache-control")).toBe("no-store");expect(d.value).toBe("ephemeral-test-token");expect(JSON.stringify(d)).not.toContain("permanent-test-key");const call=vi.mocked(fetch).mock.calls[0];expect(call[0]).toBe("https://api.openai.com/v1/realtime/client_secrets");expect(JSON.parse(call[1]!.body as string).session.audio.input.transcription.languages).toEqual(["ko"]);});
+it("does not call provider without auth or domain allowance",async()=>{m.access.mockRejectedValue(new Error("TRIAL_AUTH"));expect((await POST()).status).toBe(401);expect(fetch).not.toHaveBeenCalled();});
+it("bounds mint retries with atomic reservation",async()=>{m.insert.mockRejectedValue(new Error("TRIAL_CONFLICT"));expect((await POST()).status).toBe(409);expect(fetch).not.toHaveBeenCalled();});
