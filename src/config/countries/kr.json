@@ -51,5 +51,24 @@
     "taxEngine": { "status": "NOT_CONNECTED" },
     "krLegalProvider": { "status": "NOT_CONNECTED" },
     "krPrivacyProvider": { "status": "NOT_CONNECTED" }
+  },
+  "provinces": {
+    "11": { "name": "Seoul" },
+    "26": { "name": "Busan" },
+    "27": { "name": "Daegu" },
+    "28": { "name": "Incheon" },
+    "29": { "name": "Gwangju" },
+    "30": { "name": "Daejeon" },
+    "31": { "name": "Ulsan" },
+    "41": { "name": "Gyeonggi-do" },
+    "42": { "name": "Gangwon State" },
+    "43": { "name": "Chungcheongbuk-do" },
+    "44": { "name": "Chungcheongnam-do" },
+    "45": { "name": "Jeonbuk State" },
+    "46": { "name": "Jeollanam-do" },
+    "47": { "name": "Gyeongsangbuk-do" },
+    "48": { "name": "Gyeongsangnam-do" },
+    "49": { "name": "Jeju Special Self-Governing Province" },
+    "50": { "name": "Sejong" }
   }
 }
