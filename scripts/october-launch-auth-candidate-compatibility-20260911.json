@@ -1,0 +1,43 @@
+{
+  "contract_version": 2,
+  "captured_at_utc": "2026-09-10T23:49:27Z",
+  "scope": "AUTH_CANDIDATE_LAUNCH_GATE_COMPATIBILITY_EVIDENCE_ONLY",
+  "launch_gate": {
+    "pr": 753,
+    "alignment_commit": "d5503f7f7f49060db1dcc5fd8bfda41896f4f280",
+    "guard_search_path_expected": "search_path=pg_catalog",
+    "handle_new_user_search_path_expected": "search_path=pg_catalog"
+  },
+  "auth_candidate": {
+    "pr": 691,
+    "head": "edaba498a81da38e38226f161fef82fb0ba61c5e",
+    "guard_search_path_declared": "search_path=pg_catalog",
+    "handle_new_user_search_path_declared": "search_path=pg_catalog",
+    "signup_role_metadata_consumed": false,
+    "direct_end_user_execute_blocked": true
+  },
+  "hosted_read_only_snapshot": {
+    "project_ref": "aygawkavujjmybekswrg",
+    "profiles_total": 10,
+    "matters_total": 3,
+    "matters_assigned": 0,
+    "profile_guard_present": false,
+    "handle_new_user_present": true,
+    "handle_new_user_security_definer": true,
+    "handle_new_user_search_path": "search_path=public",
+    "handle_new_user_uses_role_metadata": true,
+    "authenticated_role_update_grant": true,
+    "authenticated_matter_client_update_grant": true,
+    "authenticated_matter_staff_update_grant": true,
+    "harden_profile_role_authority_rows": 0,
+    "scope_matter_staff_access_rows": 0
+  },
+  "integration_compatible": true,
+  "release_ready": false,
+  "blocker": "PR #753 full Auth/Data Isolation readiness now matches PR #691's isolated pg_catalog SECURITY DEFINER contract. Hosted RoyalCommand remains pre-candidate: the role guard is absent, handle_new_user still uses search_path=public and consumes role metadata, authenticated role/Matter authority grants remain, and both candidate migrations are absent from Hosted history. Controlled staging remains blocked on exact linked migration/apply-set evidence and subsequent negative tenant/privilege verification.",
+  "safety": {
+    "hosted_mutation_performed": false,
+    "production_change_authorized": false,
+    "country_ready_authorized": false
+  }
+}

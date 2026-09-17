@@ -1,0 +1,1 @@
+drop policy if exists "authenticated users can view incident events" on public.incident_events;

@@ -1,0 +1,57 @@
+{
+  "countryCode": "TW",
+  "locale": "zh-TW",
+  "secondaryLocale": null,
+  "currency": "TWD",
+  "phoneCountryCode": "+886",
+  "dateFormat": "YYYY/MM/DD",
+  "timeFormat": "24h",
+  "addressFormat": [
+    "postal_code",
+    "city_county",
+    "district_township",
+    "street",
+    "building_detail"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Asia/Taipei"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "business_registration_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "NOT_SELECTED",
+    "status": "NOT_CONNECTED",
+    "future": [
+      "Provider selection after review",
+      "Local payment methods after review"
+    ]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": []
+  },
+  "taxStructure": {
+    "system": "TBD",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "twPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "twLegalProvider": { "status": "NOT_CONNECTED" },
+    "twPrivacyProvider": { "status": "NOT_CONNECTED" }
+  }
+}
