@@ -67,6 +67,22 @@ async function exactCount(query, label) {
   return count ?? 0;
 }
 
+function manifestIdentity(encounterSessionId, evidence, extra = {}) {
+  return {
+    encounterSessionId,
+    version: "concurrency-evidence-v1",
+    room: { templateId: "general" },
+    locale: {
+      countryCode: "AU",
+      languageTag: "en-AU",
+      countryProfileStatus: "registered",
+    },
+    evidence,
+    disposable: true,
+    ...extra,
+  };
+}
+
 async function main() {
   const url = required("RC_CONCURRENCY_SUPABASE_URL");
   const anonKey = required("RC_CONCURRENCY_ANON_KEY");
@@ -128,11 +144,7 @@ async function main() {
     p_country_code: "AU",
     p_language_tag: "en-AU",
     p_country_profile_status: "registered",
-    p_manifest: {
-      encounterSessionId,
-      evidence: "two-independent-callers",
-      disposable: true,
-    },
+    p_manifest: manifestIdentity(encounterSessionId, "two-independent-callers"),
   };
 
   try {
@@ -155,12 +167,9 @@ async function main() {
         ...args,
         p_encounter_session_id: rollbackEncounterId,
         p_room_name: rollbackRoomName,
-        p_manifest: {
-          encounterSessionId: rollbackEncounterId,
-          evidence: "forced-transaction-rollback",
+        p_manifest: manifestIdentity(rollbackEncounterId, "forced-transaction-rollback", {
           forceRollback: true,
-          disposable: true,
-        },
+        }),
       });
       assert.ok(rollbackResult.error, "Forced downstream manifest failure unexpectedly succeeded");
 
