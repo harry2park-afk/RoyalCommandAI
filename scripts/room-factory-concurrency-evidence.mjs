@@ -256,6 +256,83 @@ async function main() {
     if (memberError) throw new Error(`Room-member verification failed: ${memberError.message}`);
     assert.equal(members?.length, 1, "Expected exactly one owner membership for the persisted Room");
 
+    // Idempotency is valid only for the same immutable Room creation intent.
+    // Reusing an encounter while changing version/template/country/language or
+    // profile status must fail closed rather than silently returning the old Room.
+    const conflictingReuseCases = [
+      {
+        label: "factory version",
+        overrides: { p_factory_version: "concurrency-evidence-v2" },
+        manifest: manifestIdentity(encounterSessionId, "conflicting-reuse-version", {
+          version: "concurrency-evidence-v2",
+        }),
+      },
+      {
+        label: "template",
+        overrides: { p_template_id: "legal" },
+        manifest: manifestIdentity(encounterSessionId, "conflicting-reuse-template", {
+          room: { templateId: "legal" },
+        }),
+      },
+      {
+        label: "country",
+        overrides: { p_country_code: "US" },
+        manifest: manifestIdentity(encounterSessionId, "conflicting-reuse-country", {
+          locale: {
+            countryCode: "US",
+            languageTag: "en-AU",
+            countryProfileStatus: "registered",
+          },
+        }),
+      },
+      {
+        label: "language",
+        overrides: { p_language_tag: "en-US" },
+        manifest: manifestIdentity(encounterSessionId, "conflicting-reuse-language", {
+          locale: {
+            countryCode: "AU",
+            languageTag: "en-US",
+            countryProfileStatus: "registered",
+          },
+        }),
+      },
+      {
+        label: "country profile status",
+        overrides: { p_country_profile_status: "custom-profile-required" },
+        manifest: manifestIdentity(encounterSessionId, "conflicting-reuse-profile-status", {
+          locale: {
+            countryCode: "AU",
+            languageTag: "en-AU",
+            countryProfileStatus: "custom-profile-required",
+          },
+        }),
+      },
+    ];
+
+    for (const conflictCase of conflictingReuseCases) {
+      const conflictResult = await callerA.rpc("create_room_factory_room_atomic", {
+        ...args,
+        ...conflictCase.overrides,
+        p_manifest: conflictCase.manifest,
+      });
+      assert.ok(
+        conflictResult.error,
+        `Same encounter with conflicting ${conflictCase.label} unexpectedly reused the existing Room`,
+      );
+      assert.equal(
+        conflictResult.error.code,
+        "22023",
+        `Conflicting ${conflictCase.label} reuse did not fail with the expected invalid-parameter code`,
+      );
+    }
+
+    const postConflictManifestCount = await exactCount(
+      admin.from("room_factory_manifests").select("id", { count: "exact", head: true })
+        .eq("owner_id", ownerId).eq("encounter_session_id", encounterSessionId),
+      "Post-conflict manifest",
+    );
+    assert.equal(postConflictManifestCount, 1, "Conflicting encounter reuse changed persisted manifest count");
+
     console.log(JSON.stringify({
       ok: true,
       projectRef,
@@ -265,6 +342,7 @@ async function main() {
       roomId: createdRoomId,
       manifestId: manifests[0].id,
       rollback: rollbackEvidence,
+      conflictingReuseCasesVerified: conflictingReuseCases.map(({ label }) => label),
       callerResults: [
         { reused: rowA.reused, roomId: rowA.room_data.id, manifestId: rowA.manifest_data.id },
         { reused: rowB.reused, roomId: rowB.room_data.id, manifestId: rowB.manifest_data.id },
