@@ -54,6 +54,52 @@ describe("Room service launch fail-closed boundaries", () => {
     mocks.isSupabaseConfigured.mockReturnValue(true);
   });
 
+  it("does not create a selection or order when the global connection status is not available", async () => {
+    const rooms = queryBuilder({ data: { id: roomId }, error: null });
+    const catalog = queryBuilder({
+      data: {
+        service_key: "operationally-blocked-service",
+        default_included: false,
+        active: true,
+        customer_selectable: true,
+        connection_scope: "room",
+        connection_status: "review",
+        pricing_type: "free",
+        price_status: "fixed",
+        price_minor: 0,
+        currency: "AUD",
+        terms_version: "2026-09",
+        agreement_required: false,
+      },
+      error: null,
+    });
+    const countryTerms = availableCountryTerm();
+    const selections = { upsert: vi.fn() };
+    const orders = { insert: vi.fn() };
+
+    mocks.from.mockImplementation((table: string) => {
+      if (table === "rooms") return rooms;
+      if (table === "rc_service_catalog") return catalog;
+      if (table === "rc_service_country_terms") return countryTerms;
+      if (table === "rc_room_service_selections") return selections;
+      if (table === "rc_service_connection_orders") return orders;
+      throw new Error(`unexpected table ${table}`);
+    });
+    mocks.createClient.mockResolvedValue({ from: mocks.from });
+
+    const response = await POST(request("operationally-blocked-service"), context());
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "Service connection is not operationally ready",
+      code: "SERVICE_CONNECTION_NOT_READY",
+      serviceKey: "operationally-blocked-service",
+    });
+    expect(countryTerms.maybeSingle).not.toHaveBeenCalled();
+    expect(selections.upsert).not.toHaveBeenCalled();
+    expect(orders.insert).not.toHaveBeenCalled();
+  });
+
   it("does not create a selection or order when the service has no available country term", async () => {
     const rooms = queryBuilder({ data: { id: roomId }, error: null });
     const catalog = queryBuilder({
@@ -63,6 +109,7 @@ describe("Room service launch fail-closed boundaries", () => {
         active: true,
         customer_selectable: true,
         connection_scope: "room",
+        connection_status: "available",
         pricing_type: "free",
         price_status: "fixed",
         price_minor: 0,
@@ -108,6 +155,7 @@ describe("Room service launch fail-closed boundaries", () => {
         active: true,
         customer_selectable: true,
         connection_scope: "room",
+        connection_status: "available",
         pricing_type: "monthly",
         price_status: "fixed",
         price_minor: 4900,
@@ -154,6 +202,7 @@ describe("Room service launch fail-closed boundaries", () => {
         active: true,
         customer_selectable: true,
         connection_scope: "room",
+        connection_status: "available",
         pricing_type: "custom",
         price_status: "quote",
         price_minor: null,
