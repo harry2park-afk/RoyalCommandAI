@@ -16,6 +16,7 @@ export type CountryLocalizationStructureBlockerCode =
   | "CREATE_ROOM_COUNTRY_LOCALE_MISMATCH"
   | "PRIMARY_CREATE_ROOM_LOCALE_UNSUPPORTED"
   | "SECONDARY_CREATE_ROOM_LOCALE_UNSUPPORTED"
+  | "ADDRESS_SUBDIVISION_INVENTORY_MISSING"
   | "PRIMARY_CREATE_ROOM_CRITICAL_COPY_INCOMPLETE"
   | "SECONDARY_CREATE_ROOM_CRITICAL_COPY_INCOMPLETE";
 
@@ -29,6 +30,13 @@ const SUPPORTED_CREATE_ROOM_LANGUAGES = new Set(
 );
 
 const FIRST_WAVE_COUNTRY_CODES = new Set(["AU", "US", "CA", "KR", "JP", "GB"]);
+
+const SUBDIVISION_ADDRESS_FIELDS = new Set([
+  "state_code",
+  "province_code",
+  "prefecture",
+  "province_or_special_city",
+]);
 
 /**
  * High-risk user-facing Create Room copy that must not silently inherit English
@@ -69,6 +77,16 @@ function hasCriticalEnglishFallback(locale: CreateRoomLocale): boolean {
   return CRITICAL_CREATE_ROOM_COPY_KEYS.some((key) => localized[key] === english[key]);
 }
 
+function requiresSubdivisionInventory(config: CountryConfig): boolean {
+  return config.addressFormat.some((field) => SUBDIVISION_ADDRESS_FIELDS.has(field));
+}
+
+function hasDeclaredSubdivisionInventory(config: CountryConfig): boolean {
+  return (
+    Object.keys(config.states ?? {}).length + Object.keys(config.provinces ?? {}).length > 0
+  );
+}
+
 /**
  * Repository-grounded localization structure gate.
  *
@@ -77,8 +95,10 @@ function hasCriticalEnglishFallback(locale: CreateRoomLocale): boolean {
  * Factory preset, the Create Room country selector, and the Create Room language
  * registry. For the October first wave it also prevents critical user-facing
  * Create Room copy from silently falling back to English for a declared
- * non-English primary or secondary locale. A passing result still does not prove
- * translation quality, browser rendering, legal wording, or locale E2E.
+ * non-English primary or secondary locale, and requires a canonical subdivision
+ * inventory whenever the configured address contract requires a state, province,
+ * prefecture, or equivalent top-level jurisdiction. A passing result still does
+ * not prove translation quality, browser rendering, legal wording, or locale E2E.
  */
 export function evaluateCountryLocalizationStructure(
   config: CountryConfig,
@@ -116,6 +136,10 @@ export function evaluateCountryLocalizationStructure(
   }
 
   if (FIRST_WAVE_COUNTRY_CODES.has(config.countryCode)) {
+    if (requiresSubdivisionInventory(config) && !hasDeclaredSubdivisionInventory(config)) {
+      blockers.push("ADDRESS_SUBDIVISION_INVENTORY_MISSING");
+    }
+
     if (
       primaryLocale !== "en" &&
       SUPPORTED_CREATE_ROOM_LANGUAGES.has(primaryLocale) &&
