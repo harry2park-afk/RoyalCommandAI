@@ -43,11 +43,60 @@ function queryBuilder<T>(result: T) {
   };
 }
 
-describe("Room service payment fail-closed boundary", () => {
+function availableCountryTerm() {
+  return queryBuilder({ data: { availability_status: "available" }, error: null });
+}
+
+describe("Room service launch fail-closed boundaries", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.getCurrentUser.mockResolvedValue(user);
     mocks.isSupabaseConfigured.mockReturnValue(true);
+  });
+
+  it("does not create a selection or order when the service has no available country term", async () => {
+    const rooms = queryBuilder({ data: { id: roomId }, error: null });
+    const catalog = queryBuilder({
+      data: {
+        service_key: "country-blocked-service",
+        default_included: false,
+        active: true,
+        customer_selectable: true,
+        connection_scope: "room",
+        pricing_type: "free",
+        price_status: "fixed",
+        price_minor: 0,
+        currency: "AUD",
+        terms_version: "2026-09",
+        agreement_required: false,
+      },
+      error: null,
+    });
+    const countryTerms = queryBuilder({ data: null, error: null });
+    const selections = { upsert: vi.fn() };
+    const orders = { insert: vi.fn() };
+
+    mocks.from.mockImplementation((table: string) => {
+      if (table === "rooms") return rooms;
+      if (table === "rc_service_catalog") return catalog;
+      if (table === "rc_service_country_terms") return countryTerms;
+      if (table === "rc_room_service_selections") return selections;
+      if (table === "rc_service_connection_orders") return orders;
+      throw new Error(`unexpected table ${table}`);
+    });
+    mocks.createClient.mockResolvedValue({ from: mocks.from });
+
+    const response = await POST(request("country-blocked-service"), context());
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "Service is not approved for connection in this country",
+      code: "COUNTRY_SERVICE_NOT_READY",
+      serviceKey: "country-blocked-service",
+      countryCode: "AU",
+    });
+    expect(selections.upsert).not.toHaveBeenCalled();
+    expect(orders.insert).not.toHaveBeenCalled();
   });
 
   it("does not create a selection or order when fixed-price checkout is disconnected", async () => {
@@ -68,12 +117,14 @@ describe("Room service payment fail-closed boundary", () => {
       },
       error: null,
     });
+    const countryTerms = availableCountryTerm();
     const selections = { upsert: vi.fn() };
     const orders = { insert: vi.fn() };
 
     mocks.from.mockImplementation((table: string) => {
       if (table === "rooms") return rooms;
       if (table === "rc_service_catalog") return catalog;
+      if (table === "rc_service_country_terms") return countryTerms;
       if (table === "rc_room_service_selections") return selections;
       if (table === "rc_service_connection_orders") return orders;
       throw new Error(`unexpected table ${table}`);
@@ -112,12 +163,14 @@ describe("Room service payment fail-closed boundary", () => {
       },
       error: null,
     });
+    const countryTerms = availableCountryTerm();
     const selections = { upsert: vi.fn() };
     const orders = { insert: vi.fn() };
 
     mocks.from.mockImplementation((table: string) => {
       if (table === "rooms") return rooms;
       if (table === "rc_service_catalog") return catalog;
+      if (table === "rc_service_country_terms") return countryTerms;
       if (table === "rc_room_service_selections") return selections;
       if (table === "rc_service_connection_orders") return orders;
       throw new Error(`unexpected table ${table}`);
