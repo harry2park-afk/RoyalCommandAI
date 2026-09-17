@@ -75,6 +75,18 @@ describe("October launch Supabase candidate blocker coverage", () => {
     expect(sql).toContain("private.is_assigned_matter_staff(id)");
   });
 
+  it("removes untrusted Legal Matter control-plane ACLs while preserving reviewed DML", () => {
+    const sql = migration(CANDIDATES.matterIsolation);
+
+    expect(sql).toMatch(/revoke select, insert, update, delete, truncate, references, trigger[\s\S]*public\.matters, public\.matter_documents, public\.matter_messages, public\.matter_chat_reads[\s\S]*from anon;/);
+    expect(sql).toMatch(/revoke all privileges[\s\S]*public\.matters, public\.matter_documents, public\.matter_messages, public\.matter_chat_reads[\s\S]*from authenticated;/);
+    expect(sql).toContain("grant select, insert on table public.matters to authenticated;");
+    expect(sql).toContain("grant select, insert, update on table public.matter_documents to authenticated;");
+    expect(sql).toContain("grant select, insert on table public.matter_messages to authenticated;");
+    expect(sql).toContain("grant select, insert, update on table public.matter_chat_reads to authenticated;");
+    expect(sql).not.toMatch(/grant\s+(truncate|references|trigger)[\s\S]*public\.(matters|matter_documents|matter_messages|matter_chat_reads)[\s\S]*authenticated/i);
+  });
+
   it("keeps auth/data-isolation read-back fail-closed for anon and authenticated sensitive columns", () => {
     const sql = migration(AUTH_DATA_ISOLATION_SNAPSHOT);
 
