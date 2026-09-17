@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { evaluateServicePaymentReadiness } from "@/lib/rooms/service-payment-readiness";
 
+const CHECKOUT_CONFIGURED = false;
+
 function isRcaScope(scope?: string | null) {
   return scope === "rca_chat" || scope === "both";
 }
@@ -37,7 +39,7 @@ export async function GET() {
   return NextResponse.json({
     services: (services || []).map((service) => {
       const selection = selectionByKey.get(service.service_key);
-      const paymentReadiness = evaluateServicePaymentReadiness(service);
+      const paymentReadiness = evaluateServicePaymentReadiness(service, CHECKOUT_CONFIGURED);
       return {
         ...service,
         payment_required: paymentReadiness.paymentRequired,
@@ -48,7 +50,7 @@ export async function GET() {
         agreed_at: selection?.agreed_at || null,
       };
     }),
-    checkoutConfigured: false,
+    checkoutConfigured: CHECKOUT_CONFIGURED,
   });
 }
 
@@ -86,11 +88,15 @@ export async function POST(request: Request) {
 
   if (service.agreement_required && body?.agree !== true) return NextResponse.json({ error: "Agreement is required" }, { status: 400 });
 
-  const paymentReadiness = evaluateServicePaymentReadiness(service);
+  const paymentReadiness = evaluateServicePaymentReadiness(service, CHECKOUT_CONFIGURED);
   if (paymentReadiness.paymentRequired && !paymentReadiness.ready) {
+    const checkoutNotReady = paymentReadiness.reason === "CHECKOUT_NOT_READY";
     return NextResponse.json({
-      error: "Paid service pricing is not ready",
+      error: checkoutNotReady ? "Checkout is not connected" : "Paid service pricing is not ready",
       code: paymentReadiness.reason,
+      serviceKey,
+      paymentRequired: true,
+      checkoutConfigured: CHECKOUT_CONFIGURED,
     }, { status: 409 });
   }
 
@@ -138,5 +144,5 @@ export async function POST(request: Request) {
     orderId = order.id;
   }
 
-  return NextResponse.json({ ok: true, serviceKey, selectionStatus, paymentStatus, paymentRequired, orderId, checkoutConfigured: false });
+  return NextResponse.json({ ok: true, serviceKey, selectionStatus, paymentStatus, paymentRequired, orderId, checkoutConfigured: CHECKOUT_CONFIGURED });
 }
