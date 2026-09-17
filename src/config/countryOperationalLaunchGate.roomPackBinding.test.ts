@@ -64,6 +64,18 @@ describe("first-wave Room Pack runtime config binding", () => {
     ).toContain("COUNTRY_ROOM_PACK_CONFIG_MISMATCH");
   });
 
+  it("fails closed when Canada's required secondary locale is removed", () => {
+    const ca = getCountryConfigByCountryCode("CA");
+    expect(ca?.secondaryLocale).toBe("fr-CA");
+
+    expect(
+      blockers({
+        ...ca!,
+        secondaryLocale: undefined,
+      }),
+    ).toContain("COUNTRY_ROOM_PACK_CONFIG_MISMATCH");
+  });
+
   it("fails closed when AU/US/CA subdivision inventories drift from their Room Packs", () => {
     const au = getCountryConfigByCountryCode("AU");
     const us = getCountryConfigByCountryCode("US");
