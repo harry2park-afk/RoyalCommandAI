@@ -117,6 +117,33 @@ export async function POST(
     return NextResponse.json({ ok: true, serviceKey, selectionStatus: "cancelled", paymentStatus: "not_required" });
   }
 
+  const countryCode = typeof user.countryCode === "string" ? user.countryCode.trim().toUpperCase() : "";
+  if (!/^[A-Z]{2}$/.test(countryCode)) {
+    return NextResponse.json({
+      error: "Country context is required before connecting this service",
+      code: "COUNTRY_CONTEXT_REQUIRED",
+      serviceKey,
+    }, { status: 409 });
+  }
+
+  const { data: countryTerm, error: countryTermError } = await supabase
+    .from("rc_service_country_terms")
+    .select("availability_status")
+    .eq("service_key", serviceKey)
+    .eq("country_code", countryCode)
+    .maybeSingle();
+  if (countryTermError) {
+    return NextResponse.json({ error: "Unable to verify country service availability" }, { status: 503 });
+  }
+  if (countryTerm?.availability_status !== "available") {
+    return NextResponse.json({
+      error: "Service is not approved for connection in this country",
+      code: "COUNTRY_SERVICE_NOT_READY",
+      serviceKey,
+      countryCode,
+    }, { status: 409 });
+  }
+
   if (service.agreement_required && body?.agree !== true) {
     return NextResponse.json({ error: "Agreement is required" }, { status: 400 });
   }
