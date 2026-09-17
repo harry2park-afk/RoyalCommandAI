@@ -5,6 +5,8 @@ import {
   AUSTRALIA_COUNTRY_PACK,
   CANADA_COUNTRY_PACK,
   FIRST_WAVE_COUNTRY_ROOM_PACKS,
+  JAPAN_COUNTRY_PACK,
+  SOUTH_KOREA_COUNTRY_PACK,
   UNITED_STATES_COUNTRY_PACK,
   getFirstWaveCountryRoomPack,
 } from ".";
@@ -52,11 +54,13 @@ describe("first-wave country Room packs", () => {
     }
   });
 
-  it("binds declared AU/US/CA Room Pack jurisdictions to canonical country config", () => {
+  it("binds declared AU/US/CA/KR/JP Room Pack jurisdictions to canonical country config", () => {
     const jurisdictionBindings = [
       ["AU", AUSTRALIA_COUNTRY_PACK.statesAndTerritories, "states"],
       ["US", UNITED_STATES_COUNTRY_PACK.statesAndDistrict, "states"],
       ["CA", CANADA_COUNTRY_PACK.provincesAndTerritories, "provinces"],
+      ["KR", SOUTH_KOREA_COUNTRY_PACK.provincesAndTerritories, "provinces"],
+      ["JP", JAPAN_COUNTRY_PACK.provincesAndTerritories, "provinces"],
     ] as const;
 
     for (const [code, packJurisdictions, configKey] of jurisdictionBindings) {
