@@ -57,6 +57,28 @@ describe("country localization structure rollout safety", () => {
     expect(gate.launchable).toBe(false);
   });
 
+  it("fails closed when a first-wave address contract requires a subdivision but no canonical inventory exists", () => {
+    for (const countryCode of ["JP", "KR"] as const) {
+      const config = getCountryConfigByCountryCode(countryCode);
+      expect(config, countryCode).not.toBeNull();
+      if (!config) throw new Error(`Missing CountryConfig for ${countryCode}`);
+
+      const structure = evaluateCountryLocalizationStructure(config);
+      expect(structure.ready, countryCode).toBe(false);
+      expect(structure.blockers, countryCode).toContain("ADDRESS_SUBDIVISION_INVENTORY_MISSING");
+    }
+
+    for (const countryCode of ["AU", "US", "CA", "GB"] as const) {
+      const config = getCountryConfigByCountryCode(countryCode);
+      expect(config, countryCode).not.toBeNull();
+      if (!config) throw new Error(`Missing CountryConfig for ${countryCode}`);
+
+      expect(evaluateCountryLocalizationStructure(config).blockers, countryCode).not.toContain(
+        "ADDRESS_SUBDIVISION_INVENTORY_MISSING",
+      );
+    }
+  });
+
   it("does not let a VERIFIED localization evidence flag hide missing repository wiring", () => {
     const config = getCountryConfigByCountryCode("AU");
     expect(config).not.toBeNull();
