@@ -11,7 +11,8 @@ export type ServicePaymentReadinessReason =
   | "READY"
   | "PRICE_NOT_FIXED"
   | "PRICE_MISSING"
-  | "CURRENCY_INVALID";
+  | "CURRENCY_INVALID"
+  | "CHECKOUT_NOT_READY";
 
 export type ServicePaymentReadiness = {
   paymentRequired: boolean;
@@ -21,11 +22,12 @@ export type ServicePaymentReadiness = {
 
 /**
  * A paid service may only create a payment order after its commercial amount
- * is explicitly fixed. Quote/TBD/null pricing must fail closed rather than
- * creating an order with an invented or missing amount.
+ * is explicitly fixed and checkout is connected. Quote/TBD/null pricing and
+ * disconnected checkout fail closed before any selection/order mutation.
  */
 export function evaluateServicePaymentReadiness(
   service: ServicePaymentDescriptor,
+  checkoutConfigured = true,
 ): ServicePaymentReadiness {
   const paymentRequired = !service.default_included && service.pricing_type !== "free";
 
@@ -47,6 +49,10 @@ export function evaluateServicePaymentReadiness(
 
   if (typeof service.currency !== "string" || !/^[A-Z]{3}$/.test(service.currency)) {
     return { paymentRequired: true, ready: false, reason: "CURRENCY_INVALID" };
+  }
+
+  if (!checkoutConfigured) {
+    return { paymentRequired: true, ready: false, reason: "CHECKOUT_NOT_READY" };
   }
 
   return { paymentRequired: true, ready: true, reason: "READY" };
