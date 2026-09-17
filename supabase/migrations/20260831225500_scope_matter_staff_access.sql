@@ -88,6 +88,24 @@ grant update (full_name, default_language, avatar_url, ui_preferences, updated_a
 on table public.profiles
 to authenticated;
 
+-- Hosted read-only evidence showed anon/authenticated inherited broad table ACLs,
+-- including TRUNCATE / REFERENCES / TRIGGER on the Legal Matter data plane.
+-- Those control-plane privileges are not required by browser/API clients. Reset
+-- the four Matter tables to an explicit least-privilege DML contract before any
+-- role-gated policy is installed. service_role is deliberately left untouched.
+revoke select, insert, update, delete, truncate, references, trigger
+on table public.matters, public.matter_documents, public.matter_messages, public.matter_chat_reads
+from anon;
+
+revoke all privileges
+on table public.matters, public.matter_documents, public.matter_messages, public.matter_chat_reads
+from authenticated;
+
+grant select, insert on table public.matters to authenticated;
+grant select, insert, update on table public.matter_documents to authenticated;
+grant select, insert on table public.matter_messages to authenticated;
+grant select, insert, update on table public.matter_chat_reads to authenticated;
+
 create or replace function private.is_admin()
 returns boolean
 language sql
