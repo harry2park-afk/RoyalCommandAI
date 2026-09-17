@@ -139,6 +139,18 @@ begin
     limit 1;
 
     if v_manifest.id is not null then
+      -- Encounter idempotency may reuse only the same immutable creation intent.
+      -- Otherwise a stale encounter key could silently return a Room created for
+      -- a different template/country/localization while the new request appears
+      -- successful to the caller.
+      if v_manifest.factory_version is distinct from btrim(p_factory_version)
+         or v_manifest.template_id is distinct from btrim(p_template_id)
+         or v_manifest.country_code is distinct from btrim(p_country_code)
+         or v_manifest.language_tag is distinct from btrim(p_language_tag)
+         or v_manifest.country_profile_status is distinct from p_country_profile_status then
+        raise exception using errcode = '22023', message = 'Encounter reuse metadata does not match the existing Room Factory manifest.';
+      end if;
+
       select r.*
       into v_room
       from public.rooms r
@@ -253,4 +265,4 @@ $$;
 comment on function private.create_room_factory_room_atomic(
   uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb
 ) is
-  'Privileged Room Factory transaction. Encounter-backed calls are atomic/idempotent per owner+encounter; null-encounter calls are atomic and always create a new Room. Persisted manifest identity/localization fields must match authoritative transaction metadata. Direct application-role execution remains revoked.';
+  'Privileged Room Factory transaction. Encounter-backed calls are atomic/idempotent per owner+encounter only when immutable creation metadata matches the existing manifest; conflicting reuse intent fails closed. Null-encounter calls are atomic and always create a new Room. Persisted manifest identity/localization fields must match authoritative transaction metadata. Direct application-role execution remains revoked.';
