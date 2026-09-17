@@ -61,4 +61,22 @@ describe("Room Factory manifest identity binding", () => {
     expect(roomInsertIndex).toBeGreaterThan(ownerLockIndex);
     expect(manifestInsertIndex).toBeGreaterThan(roomInsertIndex);
   });
+
+  it("fails closed when the same encounter replays a different full Room Factory manifest", () => {
+    const sql = migration();
+    const metadataGuardIndex = sql.indexOf(
+      "Encounter reuse metadata does not match the existing Room Factory manifest.",
+    );
+    const manifestGuardIndex = sql.indexOf(
+      "v_manifest.manifest is distinct from p_manifest",
+    );
+    const roomLookupIndex = sql.indexOf("select r.*", manifestGuardIndex);
+
+    expect(metadataGuardIndex).toBeGreaterThanOrEqual(0);
+    expect(manifestGuardIndex).toBeGreaterThan(metadataGuardIndex);
+    expect(sql).toContain(
+      "Encounter reuse manifest does not match the existing Room Factory creation intent.",
+    );
+    expect(roomLookupIndex).toBeGreaterThan(manifestGuardIndex);
+  });
 });
