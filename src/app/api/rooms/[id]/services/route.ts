@@ -90,7 +90,7 @@ export async function POST(
 
   const { data: service } = await supabase
     .from("rc_service_catalog")
-    .select("service_key,default_included,active,customer_selectable,connection_scope,pricing_type,price_minor,price_status,currency,terms_version,agreement_required")
+    .select("service_key,default_included,active,customer_selectable,connection_scope,connection_status,pricing_type,price_minor,price_status,currency,terms_version,agreement_required")
     .eq("service_key", serviceKey)
     .maybeSingle();
   if (!service?.active || !service?.customer_selectable || !isRoomScope(service.connection_scope)) {
@@ -115,6 +115,14 @@ export async function POST(
       }, { onConflict: "room_id,service_key" });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true, serviceKey, selectionStatus: "cancelled", paymentStatus: "not_required" });
+  }
+
+  if (service.connection_status !== "available") {
+    return NextResponse.json({
+      error: "Service connection is not operationally ready",
+      code: "SERVICE_CONNECTION_NOT_READY",
+      serviceKey,
+    }, { status: 409 });
   }
 
   const countryCode = typeof user.countryCode === "string" ? user.countryCode.trim().toUpperCase() : "";
