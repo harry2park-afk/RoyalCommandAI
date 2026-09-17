@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
+import { evaluateServicePaymentReadiness } from "@/lib/rooms/service-payment-readiness";
 
 async function ownedRoom(supabase: Awaited<ReturnType<typeof createClient>>, roomId: string, userId: string) {
   const { data } = await supabase
@@ -11,10 +12,6 @@ async function ownedRoom(supabase: Awaited<ReturnType<typeof createClient>>, roo
     .eq("room_owner_id", userId)
     .maybeSingle();
   return Boolean(data);
-}
-
-function requiresPayment(service: { pricing_type?: string | null; price_minor?: number | null; default_included?: boolean | null }) {
-  return !service.default_included && service.pricing_type !== "free";
 }
 
 function isRoomScope(scope?: string | null) {
@@ -57,9 +54,12 @@ export async function GET(
   return NextResponse.json({
     services: (services || []).map((service) => {
       const selection = selectionByKey.get(service.service_key);
+      const paymentReadiness = evaluateServicePaymentReadiness(service);
       return {
         ...service,
-        payment_required: requiresPayment(service),
+        payment_required: paymentReadiness.paymentRequired,
+        payment_ready: paymentReadiness.ready,
+        payment_readiness_reason: paymentReadiness.reason,
         selection_status: selection?.selection_status || (service.default_included ? "active" : "cancelled"),
         payment_status: selection?.payment_status || "not_required",
         agreed_at: selection?.agreed_at || null,
@@ -88,7 +88,7 @@ export async function POST(
 
   const { data: service } = await supabase
     .from("rc_service_catalog")
-    .select("service_key,default_included,active,customer_selectable,connection_scope,pricing_type,price_minor,currency,terms_version,agreement_required")
+    .select("service_key,default_included,active,customer_selectable,connection_scope,pricing_type,price_minor,price_status,currency,terms_version,agreement_required")
     .eq("service_key", serviceKey)
     .maybeSingle();
   if (!service?.active || !service?.customer_selectable || !isRoomScope(service.connection_scope)) {
@@ -119,7 +119,15 @@ export async function POST(
     return NextResponse.json({ error: "Agreement is required" }, { status: 400 });
   }
 
-  const paymentRequired = requiresPayment(service);
+  const paymentReadiness = evaluateServicePaymentReadiness(service);
+  if (paymentReadiness.paymentRequired && !paymentReadiness.ready) {
+    return NextResponse.json({
+      error: "Paid service pricing is not ready",
+      code: paymentReadiness.reason,
+    }, { status: 409 });
+  }
+
+  const paymentRequired = paymentReadiness.paymentRequired;
   const selectionStatus = paymentRequired ? "pending_payment" : "active";
   const paymentStatus = paymentRequired ? "required" : "not_required";
 
