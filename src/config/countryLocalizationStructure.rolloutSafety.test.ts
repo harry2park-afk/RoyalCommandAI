@@ -57,17 +57,80 @@ describe("country localization structure rollout safety", () => {
     expect(gate.launchable).toBe(false);
   });
 
-  it("fails closed when a first-wave address contract requires a subdivision but no canonical inventory exists", () => {
+  it("binds canonical JP/KR top-level jurisdiction inventories without treating identity as review approval", () => {
+    const expected = {
+      JP: {
+        codes: Array.from({ length: 47 }, (_, index) => String(index + 1).padStart(2, "0")),
+        samples: {
+          "01": "Hokkaido",
+          "13": "Tokyo",
+          "47": "Okinawa",
+        },
+      },
+      KR: {
+        codes: [
+          "11",
+          "26",
+          "27",
+          "28",
+          "29",
+          "30",
+          "31",
+          "41",
+          "42",
+          "43",
+          "44",
+          "45",
+          "46",
+          "47",
+          "48",
+          "49",
+          "50",
+        ],
+        samples: {
+          "11": "Seoul",
+          "42": "Gangwon State",
+          "45": "Jeonbuk State",
+          "50": "Sejong",
+        },
+      },
+    } as const;
+
     for (const countryCode of ["JP", "KR"] as const) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
       if (!config) throw new Error(`Missing CountryConfig for ${countryCode}`);
 
-      const structure = evaluateCountryLocalizationStructure(config);
-      expect(structure.ready, countryCode).toBe(false);
-      expect(structure.blockers, countryCode).toContain("ADDRESS_SUBDIVISION_INVENTORY_MISSING");
-    }
+      const subdivisions = config.provinces ?? config.states ?? {};
+      expect(Object.keys(subdivisions).sort(), countryCode).toEqual(
+        [...expected[countryCode].codes].sort(),
+      );
+      for (const [code, name] of Object.entries(expected[countryCode].samples)) {
+        expect(subdivisions[code]?.name, `${countryCode}-${code}`).toBe(name);
+      }
 
+      const structure = evaluateCountryLocalizationStructure(config);
+      expect(structure.blockers, countryCode).not.toContain("ADDRESS_SUBDIVISION_INVENTORY_MISSING");
+
+      const gate = evaluateCountryOperationalLaunch(config, VERIFIED_OPERATIONAL_EVIDENCE);
+      expect(gate.operationalBlockers, countryCode).toContain("SUBDIVISION_TAX_REVIEW_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain(
+        "SUBDIVISION_COMPLIANCE_REVIEW_NOT_VERIFIED",
+      );
+      expect(gate.launchable, countryCode).toBe(false);
+
+      const withoutInventory = {
+        ...config,
+        states: undefined,
+        provinces: undefined,
+      };
+      expect(evaluateCountryLocalizationStructure(withoutInventory).blockers, countryCode).toContain(
+        "ADDRESS_SUBDIVISION_INVENTORY_MISSING",
+      );
+    }
+  });
+
+  it("keeps countries without a required subdivision field free of the inventory blocker", () => {
     for (const countryCode of ["AU", "US", "CA", "GB"] as const) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
