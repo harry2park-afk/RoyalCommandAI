@@ -58,7 +58,11 @@ describe("repository release verification gate", () => {
   });
 
   it("fails closed independently without master protection or stable restore evidence", () => {
-    for (const requiredCheck of ["MASTER_REQUIRED_STATUS_CHECKS", "STABLE_RESTORE_REF"] as const) {
+    for (const requiredCheck of [
+      "MASTER_REQUIRED_STATUS_CHECKS",
+      "MASTER_HUMAN_APPROVAL_PROTECTION",
+      "STABLE_RESTORE_REF",
+    ] as const) {
       const evidence = verifiedEvidence();
       const result = evaluateRepositoryReleaseVerification(
         EXACT_HEAD,
