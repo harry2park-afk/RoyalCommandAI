@@ -96,6 +96,31 @@ begin
     raise exception using errcode = '22023', message = 'Invalid country profile status.';
   end if;
 
+  -- The JSON manifest is persisted as host-verifiable Room Factory evidence.
+  -- Bind its immutable identity/localization fields to the authoritative columns
+  -- supplied to this transaction so a direct RPC caller cannot create a split-
+  -- identity record whose indexed columns say one template/country while the
+  -- manifest body claims another.
+  if p_manifest->>'version' is distinct from btrim(p_factory_version) then
+    raise exception using errcode = '22023', message = 'Manifest version does not match the authoritative factory version.';
+  end if;
+
+  if p_manifest#>>'{room,templateId}' is distinct from btrim(p_template_id) then
+    raise exception using errcode = '22023', message = 'Manifest templateId does not match the authoritative template id.';
+  end if;
+
+  if p_manifest#>>'{locale,countryCode}' is distinct from btrim(p_country_code) then
+    raise exception using errcode = '22023', message = 'Manifest countryCode does not match the authoritative country code.';
+  end if;
+
+  if p_manifest#>>'{locale,languageTag}' is distinct from btrim(p_language_tag) then
+    raise exception using errcode = '22023', message = 'Manifest languageTag does not match the authoritative language tag.';
+  end if;
+
+  if p_manifest#>>'{locale,countryProfileStatus}' is distinct from p_country_profile_status then
+    raise exception using errcode = '22023', message = 'Manifest countryProfileStatus does not match the authoritative country profile status.';
+  end if;
+
   -- Serialize all Room Factory creation for one owner. Besides encounter
   -- idempotency, this keeps first-household bootstrap transactional and avoids
   -- duplicate bootstrap households across concurrent creation modes.
@@ -228,4 +253,4 @@ $$;
 comment on function private.create_room_factory_room_atomic(
   uuid, uuid, text, text, text, text, text, text, text, text, text, jsonb
 ) is
-  'Privileged Room Factory transaction. Encounter-backed calls are atomic/idempotent per owner+encounter; null-encounter calls are atomic and always create a new Room. Direct application-role execution remains revoked.';
+  'Privileged Room Factory transaction. Encounter-backed calls are atomic/idempotent per owner+encounter; null-encounter calls are atomic and always create a new Room. Persisted manifest identity/localization fields must match authoritative transaction metadata. Direct application-role execution remains revoked.';
