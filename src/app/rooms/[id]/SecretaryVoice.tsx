@@ -3,11 +3,13 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { resolveGlobalLocale } from "@/lib/locale/globalLocaleCore";
-import { SecretaryVoiceSession } from "@/lib/ai-secretary/voice-session";
+import { RealtimeSecretaryVoiceSession as SecretaryVoiceSession } from "@/lib/ai-secretary/realtime-voice-session";
 
-export default function SecretaryVoice({ onMessage, busy, onActiveChange }: {
+export default function SecretaryVoice({ onMessage, busy, onActiveChange, onTranscript, initialText }: {
   onMessage: (text: string) => Promise<string>;
   busy: boolean;
+  initialText: string;
+  onTranscript: (text: string) => void;
   onActiveChange: (active: boolean) => void;
 }) {
   const [active, setActive] = useState(false);
@@ -54,11 +56,17 @@ export default function SecretaryVoice({ onMessage, busy, onActiveChange }: {
     setActive(true);
     onActiveChange(true);
     setError("");
+    let prefix = initialText.trim();
+    const combined = (text: string) => [prefix, text].filter(Boolean).join(" ");
     session.current = new SecretaryVoiceSession({
-      language, onMessage,
+      language, onMessage: text => {
+        const message = combined(text);
+        prefix = "";
+        return onMessage(message);
+      },
       onPhase: value => { if (alive.current) setPhase(value); },
       onLevel: value => { if (alive.current) setLevel(value); },
-      onTranscript: () => {},
+      onTranscript: text => { if (alive.current) onTranscript(combined(text)); },
       onStatus: text => { if (alive.current) setStatus(text); },
       onStop: text => {
         session.current = null;

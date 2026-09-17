@@ -213,7 +213,7 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
               <form onSubmit={sendInstruction} className="relative mt-3 shrink-0">
                 <textarea disabled={voiceActive} value={input} onChange={(e) => setInput(e.target.value)} aria-label="Katie에게 메시지"
                   className="block min-h-40 max-h-72 w-full resize-y rounded-xl border border-[#d7b64d]/60 bg-black/20 px-4 pt-4 pb-20 text-base leading-7 outline-none focus:border-[#d7b64d]"/>
-                <div className="absolute bottom-3 left-3"><SecretaryVoice key={roomId} busy={busy} onMessage={submitInstruction} onActiveChange={setVoiceActive}/></div>
+                <div className="absolute bottom-3 left-3"><SecretaryVoice key={roomId} busy={busy} initialText={input} onTranscript={setInput} onMessage={submitInstruction} onActiveChange={setVoiceActive}/></div>
                 <button aria-label="메시지 전송" disabled={!input.trim() || busy || voiceActive} className="absolute right-3 bottom-3 grid h-12 w-12 place-items-center rounded-xl bg-[#7A0C2E] text-[#ffe18a] disabled:opacity-30"><Send size={20}/></button>
               </form>
             </div> : null}

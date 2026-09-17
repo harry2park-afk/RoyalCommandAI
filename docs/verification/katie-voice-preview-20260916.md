@@ -44,3 +44,13 @@
 - Review P2 fixed: response-body timeout is rethrown and classified as VOICE_TIMEOUT; malformed provider JSON is VOICE_PROVIDER. Regression coverage added.
 - Validation: Next build including TypeScript, ESLint, diff check, 20 tests across recorder session and transcription route passed. Tests simulate media/provider behavior; real device microphone, authenticated transcription and audible reply remain UNVERIFIED.
 - Scope: Preview only. No Retell, phone, database, environment, authentication or Production/master changes. No claim that the reported microphone failure is resolved until actual runtime evidence establishes it.
+
+## Live text correction (2026-09-17)
+
+- STANDARD; single writer Codex; continuing Owner authorization. Independent voice_review reviewed WebRTC lifecycle; closing-channel send issue fixed with ready-state check, caught failure and regression coverage.
+- Confirmed design mismatch: recorder waited until the utterance ended and SecretaryVoice discarded onTranscript updates. It could not display text as speech arrived. Previous adaptive-RMS experiment was rejected and not deployed.
+- Connected a new live secretary transport to the existing authenticated /api/voice/realtime-session SDP broker. Existing route/provider configuration remains unchanged. Reference verified: https://developers.openai.com/api/docs/guides/realtime-transcription (gpt-live-transcribe, delta/completed events, server VAD).
+- Waits for server configuration acknowledgement before enabling audio; 1.8-second server turn detection; partial deltas immediately update React input; final transcript uses the existing secretary submission once. Device TTS reads that answer, microphone stays muted until playback finishes. One stream, no SpeechRecognition restarts or local RMS endpoint gate.
+- Partial input remains after stop/error; typed prefix preserved; no phone, Retell, customer data, Production/master or credential changes.
+- Focused simulated WebRTC tests: 9 passed (live partial text, final once, playback/resume, spoken stop, late permission cleanup, cancellation, provider failure, timeouts, closing channel). Changed session/component lint passed; CustomerAISecretary has existing unrelated any at tab handler and existing warnings. Typecheck passed before final lifecycle guard; full build validates final code.
+- Actual authenticated Preview WebRTC/provider/device audio and audible playback remain UNVERIFIED. Deployment is not an end-to-end success claim. No further request to wait 60 seconds; this transport should provide deltas while speaking if provider connection succeeds.
