@@ -110,10 +110,13 @@ jobs:
           alter table public.matter_messages enable row level security;
           alter table public.matter_chat_reads enable row level security;
 
-          grant select, insert, update, delete on public.matters to authenticated, service_role;
-          grant select, insert, update, delete on public.matter_documents to authenticated, service_role;
-          grant select, insert, update, delete on public.matter_messages to authenticated, service_role;
-          grant select, insert, update, delete on public.matter_chat_reads to authenticated, service_role;
+          -- Mirror the broad Hosted starting ACL discovered by read-only evidence.
+          -- The candidate must remove untrusted control-plane/destructive access
+          -- while preserving only the reviewed authenticated DML contract.
+          grant all privileges on public.matters to anon, authenticated, service_role;
+          grant all privileges on public.matter_documents to anon, authenticated, service_role;
+          grant all privileges on public.matter_messages to anon, authenticated, service_role;
+          grant all privileges on public.matter_chat_reads to anon, authenticated, service_role;
 
           create or replace function private.is_matter_client(m_id uuid)
           returns boolean
@@ -170,6 +173,8 @@ jobs:
           eval "$(supabase status -o env)"
           psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
           do $$
+          declare
+            target_table text;
           begin
             if not has_function_privilege('authenticated', 'public.set_matter_staff_assignment(uuid,uuid)', 'EXECUTE') then
               raise exception 'authenticated must be able to call public assignment wrapper';
@@ -197,6 +202,50 @@ jobs:
             end if;
             if has_column_privilege('authenticated', 'public.matters', 'assigned_staff_id', 'UPDATE') then
               raise exception 'authenticated must not UPDATE assigned_staff_id';
+            end if;
+
+            foreach target_table in array array[
+              'public.matters',
+              'public.matter_documents',
+              'public.matter_messages',
+              'public.matter_chat_reads'
+            ] loop
+              if has_table_privilege('anon', target_table, 'SELECT')
+                or has_table_privilege('anon', target_table, 'INSERT')
+                or has_table_privilege('anon', target_table, 'UPDATE')
+                or has_table_privilege('anon', target_table, 'DELETE')
+                or has_table_privilege('anon', target_table, 'TRUNCATE')
+                or has_table_privilege('anon', target_table, 'REFERENCES')
+                or has_table_privilege('anon', target_table, 'TRIGGER') then
+                raise exception 'anon must have no direct Legal Matter table privilege on %', target_table;
+              end if;
+
+              if has_table_privilege('authenticated', target_table, 'TRUNCATE')
+                or has_table_privilege('authenticated', target_table, 'REFERENCES')
+                or has_table_privilege('authenticated', target_table, 'TRIGGER')
+                or has_table_privilege('authenticated', target_table, 'DELETE') then
+                raise exception 'authenticated retains forbidden Legal Matter privilege on %', target_table;
+              end if;
+            end loop;
+
+            if not has_table_privilege('authenticated', 'public.matters', 'SELECT')
+              or not has_table_privilege('authenticated', 'public.matters', 'INSERT') then
+              raise exception 'authenticated Matter read/create DML was not preserved';
+            end if;
+            if not has_table_privilege('authenticated', 'public.matter_documents', 'SELECT')
+              or not has_table_privilege('authenticated', 'public.matter_documents', 'INSERT')
+              or not has_table_privilege('authenticated', 'public.matter_documents', 'UPDATE') then
+              raise exception 'authenticated Matter document DML was not preserved';
+            end if;
+            if not has_table_privilege('authenticated', 'public.matter_messages', 'SELECT')
+              or not has_table_privilege('authenticated', 'public.matter_messages', 'INSERT')
+              or has_table_privilege('authenticated', 'public.matter_messages', 'UPDATE') then
+              raise exception 'authenticated Matter message DML is broader/narrower than reviewed contract';
+            end if;
+            if not has_table_privilege('authenticated', 'public.matter_chat_reads', 'SELECT')
+              or not has_table_privilege('authenticated', 'public.matter_chat_reads', 'INSERT')
+              or not has_table_privilege('authenticated', 'public.matter_chat_reads', 'UPDATE') then
+              raise exception 'authenticated Matter chat-read DML was not preserved';
             end if;
           end;
           $$;
