@@ -164,4 +164,29 @@ describe("repository release verification gate", () => {
     );
     expect(result.ready).toBe(false);
   });
+
+  it("rejects reuse of one evidence reference across independent launch checks", () => {
+    const evidence = verifiedEvidence();
+    const sharedEvidenceRef = "evidence-shared-across-independent-checks";
+    const result = evaluateRepositoryReleaseVerification(
+      EXACT_HEAD,
+      PREVIEW_DEPLOYMENT_ID,
+      {
+        ...evidence,
+        checks: evidence.checks.map((checkEvidence) =>
+          checkEvidence.check === "MASTER_HUMAN_APPROVAL_PROTECTION" ||
+          checkEvidence.check === "MASTER_REQUIRED_STATUS_CHECKS"
+            ? { ...checkEvidence, evidenceRef: sharedEvidenceRef }
+            : checkEvidence,
+        ),
+      },
+      EVALUATED_AT,
+    );
+
+    expect(result.blockers).toContain("REPOSITORY_VERIFICATION_CHECK_EVIDENCE_REF_REUSED");
+    expect(
+      result.checks.find(({ check }) => check === "MASTER_HUMAN_APPROVAL_PROTECTION")?.ready,
+    ).toBe(false);
+    expect(result.ready).toBe(false);
+  });
 });
