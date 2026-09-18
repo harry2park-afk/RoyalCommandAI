@@ -4,25 +4,26 @@
 
 begin read only;
 
-with countries(country_code, wave, currency, expected_locale) as (
+with countries(country_code, wave, currency, expected_locale, expected_secondary_locale) as (
   values
-    ('AU','first','AUD','en-AU'),
-    ('US','first','USD','en-US'),
-    ('CA','first','CAD','en-CA'),
-    ('KR','first','KRW','ko-KR'),
-    ('JP','first','JPY','ja-JP'),
-    ('GB','first','GBP','en-GB'),
-    ('SG','next','SGD','en-SG'),
-    ('CN','next','CNY','zh-CN'),
-    ('HK','next','HKD','zh-HK'),
-    ('TW','next','TWD','zh-TW'),
-    ('IN','next','INR','en-IN')
+    ('AU','first','AUD','en-AU',null),
+    ('US','first','USD','en-US',null),
+    ('CA','first','CAD','en-CA','fr-CA'),
+    ('KR','first','KRW','ko-KR',null),
+    ('JP','first','JPY','ja-JP',null),
+    ('GB','first','GBP','en-GB',null),
+    ('SG','next','SGD','en-SG',null),
+    ('CN','next','CNY','zh-CN',null),
+    ('HK','next','HKD','zh-HK',null),
+    ('TW','next','TWD','zh-TW',null),
+    ('IN','next','INR','en-IN',null)
 ), country_evidence as (
   select
     country.country_code,
     country.wave,
     country.currency,
     country.expected_locale,
+    country.expected_secondary_locale,
     (
       select count(*)::int
       from public.room_factory_manifests manifest
@@ -34,6 +35,15 @@ with countries(country_code, wave, currency, expected_locale) as (
       where upper(manifest.country_code) = country.country_code
         and lower(coalesce(manifest.language_tag, '')) = lower(country.expected_locale)
     ) as room_factory_exact_locale_rows,
+    case
+      when country.expected_secondary_locale is null then null
+      else (
+        select count(*)::int
+        from public.room_factory_manifests manifest
+        where upper(manifest.country_code) = country.country_code
+          and lower(coalesce(manifest.language_tag, '')) = lower(country.expected_secondary_locale)
+      )
+    end as room_factory_secondary_locale_rows,
     (
       select count(distinct manifest.template_id)::int
       from public.room_factory_manifests manifest
