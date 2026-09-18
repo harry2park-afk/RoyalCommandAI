@@ -136,7 +136,7 @@ export default function Room({ providers, secretaryRooms, language }: { provider
   const shownProviders=[...new Set([...(state?.selectedProviders??[]),...batchIds])];
   const button=state?.design.buttons.find(b=>b.id===selected);
   return <main className={styles.root}>
-    <header className={styles.header}><a href="/rooms/rca">← RC</a><strong>My Room</strong><button disabled={busy||dirty} onClick={()=>{setGalleryTab("Rooms");setWarehouse(!warehouse);}}>Warehouse</button><button disabled={busy||dirty} onClick={openKatie}>Katie</button><button disabled={busy||dirty||!state} onClick={()=>void openFiles()}>Files</button></header>
+    <header className={styles.header}><a href="/rooms/rca">← RC</a><strong>RC V3 · My Room</strong><button disabled={busy||dirty} onClick={()=>{setGalleryTab("Rooms");setWarehouse(!warehouse);}}>Warehouse</button><button disabled={busy||dirty} onClick={openKatie}>Katie</button><button disabled={busy||dirty||!state} onClick={()=>void openFiles()}>Files</button></header>
     {error&&<div className={styles.error} role="alert">{error}</div>}
     {warehouse&&<section ref={galleryRef} className={styles.gallery} role="dialog" aria-modal="true" aria-label="Room Warehouse">
       <div className={styles.galleryHeader}><div><small>ROYAL COMMAND</small><h1>Room Warehouse</h1></div><input autoFocus aria-label="Search rooms" placeholder="Search rooms…" value={roomSearch} onChange={e=>{setRoomSearch(e.target.value);setGalleryTab("Rooms");}}/><button disabled={busy} onClick={()=>setWarehouse(false)}>Close</button></div>
