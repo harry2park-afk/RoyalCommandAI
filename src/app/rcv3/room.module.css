@@ -9,5 +9,5 @@
 
 .editor{position:fixed;right:20px;bottom:20px;z-index:500;width:min(470px,calc(100vw - 40px));max-height:55vh;overflow:auto;box-sizing:border-box;box-shadow:0 12px 40px #0009;margin:0}.editor .fields{display:grid;grid-template-columns:1fr 1fr;gap:12px}.editor .fields>strong{grid-column:1/-1}.editor .fields label{display:flex;flex-direction:column;align-items:flex-start;gap:5px}.editor .fields input{max-width:100%;box-sizing:border-box}.editor .fields input[type=range]{width:100%}@media(max-width:650px){.editor{right:10px;bottom:10px;width:calc(100vw - 20px);max-height:45vh}}
 
-/* Keep save controls visible while button settings scroll. */
-.editor > .editorToolbar{position:sticky;top:-18px;z-index:2;background:#142536;margin:-18px -18px 16px;padding:16px 18px;border-bottom:1px solid #3d566b}.editor > .editorToolbar button:first-of-type{background:#79edc7;color:#08121d;border-color:#79edc7;font-weight:700;min-width:96px;min-height:44px}
+/* Settings scroll independently; Save stays at the bottom. */
+.editor:has(> .editorToolbar){display:flex;flex-direction:column;overflow:hidden}.editor:has(> .editorToolbar) > .fields{overflow:auto;min-height:0;margin-top:0;padding-bottom:16px}.editor > .editorToolbar{flex-shrink:0;background:#142536;margin:0;padding-top:14px;border-top:1px solid #3d566b}.editor > .editorToolbar button:first-of-type{background:#79edc7;color:#08121d;border-color:#79edc7;font-weight:700;min-width:96px;min-height:44px}
