@@ -1,3 +1,11 @@
+# Current status — deployed Preview, 2026-09-18
+
+Authenticated GitHub connector committed RCV3 to the existing Preview branch; Vercel deployment reached READY. Real AI and Korean TTS/STT calls succeeded using the deployed server secret. Local terminal Vercel authentication remains unavailable and was not bypassed; supported connected apps removed it as a deployment blocker. No secret was extracted or displayed.
+
+See docs/verification/rcv3-preview-integration-20260918.md for actual room IDs and evidence. Physical microphone testing is not passed: the cloud browser reported no input device. Paid tiers and external secretary execution are not implemented by this Preview.
+
+## Historical observations (superseded where above differs)
+
 # RCV3 environment evidence — 2026-09-18
 
 Owner explicitly approved adding Development to the existing OPENAI_API_KEY scope.

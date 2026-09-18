@@ -31,7 +31,7 @@ export default function Room({ providers }: { providers: { id: AIProviderId; lab
   const imageInput=useRef<HTMLInputElement>(null), fileInput=useRef<HTMLInputElement>(null);
 
   const openRoom = useCallback(async (id:string) => {
-    const token=++generation.current; roomRef.current=id; setRoomId(id); setState(null); setError(""); setDirty(false); setEditing(false); setSelected(null); setTurns([]); setText(""); setFiles([]); setShowFiles(false); setBackground("");
+    const token=++generation.current; roomRef.current=id; setRoomId(id); setState(null); setError(""); setDirty(false); setEditing(false); setSelected(null); setTurns([]); setText(""); setFiles([]); setShowFiles(false); setBackground(""); setCheckResult("");
     audioRef.current?.pause();continuousVoice.current=false;
     try { const result=await api(`state?room=${id}`); if(token!==generation.current)return;
       setState(result.state); saved.current=result.state; setBackground(result.background?.data??"");
@@ -51,7 +51,7 @@ export default function Room({ providers }: { providers: { id: AIProviderId; lab
     try{createId.current??=crypto.randomUUID();const name=copy?`${state?.name??"RCV3"} 복사`:"RCV3 · Room6";const r=await api("rooms",{requestId:createId.current,name,...(copy?{sourceRoom:roomId}:{})});createId.current=null;const list=await api("rooms");setRooms(list.rooms);await openRoom(r.roomId);}
     catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);}}
   async function send(message=text,spoken=false){if(!message.trim()||busyRef.current||!state)return;busyRef.current=true;setBusy(true);setError("");const target=roomId;
-    try{const t:Turn=await api("chat",{roomId:target,requestId:crypto.randomUUID(),scope,provider,prompt:message});if(roomRef.current!==target)return;setTurns(old=>[...old,t]);setText("");
+    try{const t:Turn=await api("chat",{roomId:target,requestId:crypto.randomUUID(),scope,provider,prompt:message});if(roomRef.current!==target)return;setTurns(old=>[...old,t]);setText(current=>current===message?"":current);
       if(spoken){const r=await fetch("/api/rcv3/audio",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({roomId:target,requestId:crypto.randomUUID(),text:t.answer.slice(0,4000)}),signal:AbortSignal.timeout(35000)});if(!r.ok)throw new Error("글 답변은 저장됐지만 음성 재생을 준비하지 못했습니다.");const url=URL.createObjectURL(await r.blob());if(roomRef.current!==target){URL.revokeObjectURL(url);return;}const audio=new Audio(url);audioRef.current=audio;await new Promise<void>((resolve,reject)=>{const done=()=>{URL.revokeObjectURL(url);playbackDone.current=null;resolve();};playbackDone.current=done;audio.onended=done;audio.onerror=()=>{done();reject(new Error("음성을 재생하지 못했습니다."));};void audio.play().catch(reject);});if(continuousVoice.current&&roomRef.current===target&&!document.hidden)void voiceRef.current?.start();}
     }catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);}}
   transcriptHandler.current=(message)=>{setText(message);void send(message,true);};
