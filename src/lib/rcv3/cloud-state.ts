@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { appearanceLimits as limits } from "./appearance-limits";
 import { AI_PROVIDER_IDS } from "@/lib/ai/types";
 import type { createClient } from "@/lib/supabase/server";
 import { validateDesign } from "../../../rcv3/core.mjs";
@@ -18,8 +19,8 @@ export const designSchema = z.object({
 const colour = z.string().regex(/^#[0-9a-fA-F]{6}$/);
 export const appearanceSchema = z.object({
   color: colour.default("#ffffff"), background: colour.default("#172a41"),
-  borderColor: colour.default("#64748b"), borderWidth: z.number().min(0).max(8).default(0),
-  radius: z.number().min(0).max(50).default(12), fontSize: z.number().min(12).max(40).default(16),
+  borderColor: colour.default("#64748b"), borderWidth: z.number().min(limits.borderWidth.min).max(limits.borderWidth.max).default(limits.borderWidth.default),
+  radius: z.number().min(limits.radius.min).max(limits.radius.max).default(limits.radius.default), fontSize: z.number().min(limits.fontSize.min).max(limits.fontSize.max).default(limits.fontSize.default),
 }).strict();
 export const stateSchema = z.object({
   revision: z.number().int().min(1).max(9999999999),

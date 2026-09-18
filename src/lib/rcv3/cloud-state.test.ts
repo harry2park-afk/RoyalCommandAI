@@ -22,3 +22,17 @@ describe("RCV3 immutable cloud design", () => {
 });
 
 describe("RCV3 provider selection",()=>{it("rejects unconnected responders and duplicate providers",()=>{expect(stateSchema.safeParse({...original,selectedProviders:["anthropic"]}).success).toBe(false);expect(stateSchema.safeParse({...original,selectedProviders:["openai","openai"]}).success).toBe(false);});it("reads old room revisions with defaults",()=>{const {connectedProviders,selectedProviders,secretaryRoomId,...legacy}=original;expect(stateSchema.parse(legacy).selectedProviders).toEqual(["openai"]);});});
+
+// Regression: the editor previously allowed 10px borders / 10–48px text,
+// but the server rejected them as a generic RCV3_ERROR.
+describe("button editor save range",()=>{
+ it.each([10,48])("saves a 10px border with %ipx text and reloads unchanged",fontSize=>{
+  const next={...original,revision:2,appearances:{[id]:{color:'#ffffff',background:'#172a41',borderColor:'#222299',borderWidth:10,radius:50,fontSize}}};
+  const saved=evolveState(original,next,1);
+  expect(stateSchema.parse(JSON.parse(JSON.stringify(saved))).appearances[id]).toEqual(next.appearances[id]);
+ });
+ it("still rejects out-of-range and unsafe appearance input",()=>{
+  expect(stateSchema.safeParse({...original,appearances:{[id]:{borderWidth:11}}}).success).toBe(false);
+  expect(stateSchema.safeParse({...original,appearances:{[id]:{fontSize:49}}}).success).toBe(false);
+ });
+});
