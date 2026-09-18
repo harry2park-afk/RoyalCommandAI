@@ -13,6 +13,10 @@ export type CountryOperationalEvidence = {
   requiredIntegrations: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
+  roomFactoryTemplates?: OperationalEvidenceStatus;
+  tenantIsolation?: OperationalEvidenceStatus;
+  paymentOperations?: OperationalEvidenceStatus;
+  complianceEvidence?: OperationalEvidenceStatus;
 };
 
 export type CountryOperationalBlockerCode =
@@ -24,13 +28,11 @@ export type CountryOperationalBlockerCode =
   | "LOCALIZATION_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
-  | "ROLLBACK_PATH_NOT_VERIFIED";
-
-export type CountryOperationalLaunchGate = {
-  launchable: boolean;
-  countryGate: CountryLaunchGate;
-  operationalBlockers: CountryOperationalBlockerCode[];
-};
+  | "ROLLBACK_PATH_NOT_VERIFIED"
+  | "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED"
+  | "TENANT_ISOLATION_NOT_VERIFIED"
+  | "PAYMENT_OPERATIONS_NOT_VERIFIED"
+  | "COMPLIANCE_EVIDENCE_NOT_VERIFIED";
 
 const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   key: keyof CountryOperationalEvidence;
@@ -45,15 +47,21 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
+  { key: "roomFactoryTemplates", blocker: "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED" },
+  { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
+  { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
+  { key: "complianceEvidence", blocker: "COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
 ] as const;
 
 /**
  * Second-stage country activation gate.
  *
- * The existing country launch gate covers legal/tax/payment readiness. This
- * gate adds the operational evidence required by the 100-country onboarding
- * contract without changing any existing production routing or activation.
- * Every item fails closed until evidence is explicitly VERIFIED.
+ * The existing country launch gate covers configured legal/tax/payment
+ * readiness. This gate requires independent operational evidence for the
+ * launch-critical runtime path without changing production routing or country
+ * activation. Newly added evidence keys are optional at the type boundary so
+ * older evidence producers still compile, but missing values fail closed.
+ * Every item must be explicitly VERIFIED before a country can be launchable.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
