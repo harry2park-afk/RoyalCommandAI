@@ -4,6 +4,7 @@ import { Mic, Send, Settings2, Plus, Copy, Image as ImageIcon, Folder, X } from 
 import type { CloudState, Button } from "@/lib/rcv3/cloud-state";
 import type { Turn } from "@/lib/rcv3/execution";
 import type { AIProviderId } from "@/lib/ai/types";
+import {roomTemplates,templateImage} from "@/lib/rcv3/templates";
 import styles from "./room.module.css";
 
 type VoiceElement = HTMLElement & { autoSubmit:boolean; liveDictation:boolean; language:string; cancel:()=>void; transcribe: (blob: Blob, options: { signal: AbortSignal }) => Promise<string>; start: () => Promise<void>; stop: () => void };
@@ -22,7 +23,10 @@ export default function Room({ providers, secretaryRooms, language }: { provider
   const [editing,setEditing] = useState(false), [selected,setSelected] = useState<string|null>(null);
   const [files,setFiles] = useState<{id:string;name:string;text:string}[]>([]), [showFiles,setShowFiles] = useState(false);
 
-  const [warehouse,setWarehouse]=useState(false);
+  const roomGroups=[{name:"Office",categories:["Office","Study"]},{name:"Creative",categories:["Nature","Studio","Illustration"]},{name:"Simple",categories:["Simple"]}];
+  const [warehouse,setWarehouse]=useState(false), [galleryTab,setGalleryTab]=useState("Rooms"), [roomSearch,setRoomSearch]=useState(""), [roomCategory,setRoomCategory]=useState("All"), [creatingTemplate,setCreatingTemplate]=useState<string|null>(null);
+  const galleryRef=useRef<HTMLElement>(null);
+  const templateRequest=useRef<{id:string;requestId:string}|null>(null);
   const [cardStatus,setCardStatus]=useState<Record<string,string>>({});
   const [batchIds,setBatchIds]=useState<AIProviderId[]>([]);
   const drag=useRef<{id:string;x:number;y:number;left:number;top:number;width:number;height:number}|null>(null);
@@ -105,7 +109,20 @@ export default function Room({ providers, secretaryRooms, language }: { provider
     }catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);}
   }
   async function linkKatie(id:string){if(!state||busyRef.current)return;busyRef.current=true;setBusy(true);try{await persist({...state,secretaryRoomId:id||null});}catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);}}
-  function openKatie(){if(state?.secretaryRoomId)window.location.assign(`/secretary?room=${encodeURIComponent(state.secretaryRoomId)}`);else setWarehouse(true);}
+  function openKatie(){if(state?.secretaryRoomId)window.location.assign(`/secretary?room=${encodeURIComponent(state.secretaryRoomId)}`);else {setGalleryTab("Connections");setWarehouse(true);}}
+  async function chooseTemplate(id:string){
+    if(busyRef.current||dirty)return;
+    const template=roomTemplates.find(t=>t.id===id);if(!template)return;
+    busyRef.current=true;setBusy(true);setError("");setCreatingTemplate(id);voiceRef.current?.cancel();
+    if(templateRequest.current?.id!==id)templateRequest.current={id,requestId:crypto.randomUUID()};
+    try{
+      const r=await api("rooms",{requestId:templateRequest.current.requestId,name:template.name,templateId:id,...(roomId?{sourceRoom:roomId}:{})});
+      const loaded=await api(`state?room=${r.roomId}`);
+      generation.current++;roomRef.current=r.roomId;setRoomId(r.roomId);setState(loaded.state);saved.current=loaded.state;setBackground(loaded.background?.data??"");setTurns([]);setText("");setFiles([]);setShowFiles(false);setBatchIds([]);setCardStatus({});setDirty(false);setSelected(null);
+      window.history.replaceState(null,"",r.url);setWarehouse(false);setEditing(true);templateRequest.current=null;window.scrollTo({top:0,behavior:"instant"});
+    }catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);setCreatingTemplate(null);}
+  }
+  useEffect(()=>{if(!warehouse)return;const old=document.body.style.overflow;document.body.style.overflow="hidden";const previous=document.activeElement as HTMLElement|null;const close=(e:KeyboardEvent)=>{if(e.key==="Escape"&&!busyRef.current)setWarehouse(false);if(e.key==="Tab"){const items=Array.from(galleryRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)')??[]);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}};window.addEventListener("keydown",close);return()=>{document.body.style.overflow=old;window.removeEventListener("keydown",close);previous?.focus();};},[warehouse]);
   function placeTemplate(){
     if(!state){void create();return;}
     const buttons:Button[]=(["chat","secretary","files"] as const).map((capability,i)=>({id:crypto.randomUUID(),capability,label:capability==="chat"?"My AI":capability==="secretary"?"Katie":"Files",x:5+i*30,y:8,width:24,height:18,opacity:1}));
@@ -119,11 +136,18 @@ export default function Room({ providers, secretaryRooms, language }: { provider
   const shownProviders=[...new Set([...(state?.selectedProviders??[]),...batchIds])];
   const button=state?.design.buttons.find(b=>b.id===selected);
   return <main className={styles.root}>
-    <header className={styles.header}><a href="/rooms/rca">← RC</a><strong>My Room</strong><button disabled={busy||dirty} onClick={()=>setWarehouse(!warehouse)}>Warehouse</button><button disabled={busy||dirty} onClick={openKatie}>Katie</button><button disabled={busy||dirty||!state} onClick={()=>void openFiles()}>Files</button></header>
+    <header className={styles.header}><a href="/rooms/rca">← RC</a><strong>My Room</strong><button disabled={busy||dirty} onClick={()=>{setGalleryTab("Rooms");setWarehouse(!warehouse);}}>Warehouse</button><button disabled={busy||dirty} onClick={openKatie}>Katie</button><button disabled={busy||dirty||!state} onClick={()=>void openFiles()}>Files</button></header>
     {error&&<div className={styles.error} role="alert">{error}</div>}
-    {warehouse&&<section className={styles.editor} aria-label="Warehouse"><div className={styles.toolbar}><h2>Warehouse</h2><button onClick={()=>setWarehouse(false)}>Close</button></div>
-      <h3>Rooms</h3><button disabled={busy||dirty} onClick={placeTemplate}>Use Blank Room</button>{state&&<><button disabled={busy} onClick={()=>{setEditing(true);setWarehouse(false);imageInput.current?.click();}}>Use My Picture</button><button disabled={busy} onClick={()=>{setWarehouse(false);setEditing(true);}}>Move Buttons</button></>}
-      {state&&<><h3>AI Connections</h3><div className={styles.providerGrid}>{providers.map(p=><label key={p.id} className={styles.providerChoice}><input type="checkbox" aria-label={`Connect ${p.label}`} checked={state.connectedProviders.includes(p.id)} disabled={busy||dirty||!p.configured} onChange={()=>void selectAI(p.id,true)}/>{brand(p.id)}<small>{state.connectedProviders.includes(p.id)?"Connected":p.configured?"Connect":"Unavailable"}</small></label>)}</div><h3>Katie</h3><label>Existing secretary room <select aria-label="Katie room" value={state.secretaryRoomId??""} disabled={busy||dirty} onChange={e=>void linkKatie(e.target.value)}><option value="">Select your existing secretary room</option>{secretaryRooms.map(r=><option key={r.id} value={r.id}>{r.name} · {r.id.slice(0,8)}</option>)}</select></label></>}
+    {warehouse&&<section ref={galleryRef} className={styles.gallery} role="dialog" aria-modal="true" aria-label="Room Warehouse">
+      <div className={styles.galleryHeader}><div><small>ROYAL COMMAND</small><h1>Room Warehouse</h1></div><input autoFocus aria-label="Search rooms" placeholder="Search rooms…" value={roomSearch} onChange={e=>{setRoomSearch(e.target.value);setGalleryTab("Rooms");}}/><button disabled={busy} onClick={()=>setWarehouse(false)}>Close</button></div>
+      <nav className={styles.galleryTabs} aria-label="Warehouse sections">{["Rooms","Connections"].map(t=><button key={t} aria-pressed={galleryTab===t} onClick={()=>setGalleryTab(t)}>{t}</button>)}{state&&<><button disabled={busy} onClick={()=>{setEditing(true);setWarehouse(false);imageInput.current?.click();}}>Use My Picture</button><button disabled={busy} onClick={()=>{setWarehouse(false);setEditing(true);}}>Move Buttons</button></>}</nav>
+      {error&&<p role="alert" className={styles.error}>{error}</p>}
+      {galleryTab==="Rooms"?<>
+        <div className={styles.galleryLayout}><aside className={styles.roomSidebar} aria-label="Room categories"><strong>Room List</strong><button aria-pressed={roomCategory==="All"} onClick={()=>{setRoomCategory("All");setRoomSearch("");}}>All Room Types</button>{roomGroups.map(g=><div key={g.name}><button aria-pressed={roomCategory===g.name} onClick={()=>{setRoomCategory(g.name);setRoomSearch("");}}>{g.name}<span>{roomTemplates.filter(t=>g.categories.includes(t.category)).length}</span></button>{roomCategory===g.name&&roomTemplates.filter(t=>g.categories.includes(t.category)).map(t=><button className={styles.subRoom} key={t.id} disabled={busy||dirty} onClick={()=>void chooseTemplate(t.id)}>{t.name}</button>)}</div>)}</aside><div className={styles.galleryContent}><h2>{roomCategory==="All"&&!roomSearch?"Choose a Room Type":roomCategory==="All"?"Search Results":`${roomCategory} Rooms`}</h2>
+        <p className={styles.galleryHint}>{creatingTemplate?"Creating your room…":roomCategory==="All"&&!roomSearch?"Choose a type, then choose your room design.":"Choose a design to open your own room. Move buttons, then Save."}</p>
+        {roomCategory==="All"&&!roomSearch?<div className={styles.roomGrid}>{roomGroups.map(g=>{const t=roomTemplates.find(t=>g.categories.includes(t.category)&&t.id!=="blank")!;return <button className={styles.roomCard} key={g.name} onClick={()=>setRoomCategory(g.name)} aria-label={`Browse ${g.name} rooms`}><div className={styles.roomPreview}><img src={templateImage(t)} alt={`${g.name} room type`}/><span className={styles.previewTag}>View designs</span></div><div className={styles.roomCaption}><strong>{g.name}</strong><small>{roomTemplates.filter(t=>g.categories.includes(t.category)).length} designs</small></div></button>;})}</div>:<div className={styles.roomGrid}>{roomTemplates.filter(t=>(roomCategory==="All"||roomGroups.find(g=>g.name===roomCategory)?.categories.includes(t.category))&&`${t.name} ${t.category} ${t.keywords}`.toLowerCase().includes(roomSearch.toLowerCase().trim())).map(t=><button className={styles.roomCard} key={t.id} disabled={busy||dirty} aria-label={`Create ${t.name}`} onClick={()=>void chooseTemplate(t.id)}><div className={styles.roomPreview} style={{background:t.wall}}>{t.id!=="blank"?<img src={templateImage(t)} alt={`${t.name} design`}/>:<div className={styles.blankPreview}><span>My AI</span><span>Katie</span><span>Files</span></div>}<span className={styles.previewTag}>{creatingTemplate===t.id?"Creating…":"Select room"}</span></div><div className={styles.roomCaption}><strong>{t.name}</strong><small>{t.category}</small></div></button>)}</div>}
+        {!roomTemplates.some(t=>(roomCategory==="All"||roomGroups.find(g=>g.name===roomCategory)?.categories.includes(t.category))&&`${t.name} ${t.category} ${t.keywords}`.toLowerCase().includes(roomSearch.toLowerCase().trim()))&&<p>No rooms found. Try another search.</p>}</div></div>
+      </>:state?<><h2>AI Connections</h2><div className={styles.providerGrid}>{providers.map(p=><label key={p.id} className={styles.providerChoice}><input type="checkbox" aria-label={`Connect ${p.label}`} checked={state.connectedProviders.includes(p.id)} disabled={busy||dirty||!p.configured} onChange={()=>void selectAI(p.id,true)}/>{brand(p.id)}<small>{state.connectedProviders.includes(p.id)?"Connected":p.configured?"Connect":"Unavailable"}</small></label>)}</div><h2>Katie</h2><label>Existing secretary room <select aria-label="Katie room" value={state.secretaryRoomId??""} disabled={busy||dirty} onChange={e=>void linkKatie(e.target.value)}><option value="">Select your existing secretary room</option>{secretaryRooms.map(r=><option key={r.id} value={r.id}>{r.name} · {r.id.slice(0,8)}</option>)}</select></label></>:<p>Choose a room first.</p>}
     </section>}
     {!state?<section className={styles.empty}><h1>Choose a room from Warehouse</h1></section>:<>
       <section className={styles.toolbar} aria-label="Answer AIs"><strong>Answer AIs</strong>{state.connectedProviders.map(id=><label className={styles.providerChoice} key={id}><input type="checkbox" aria-label={`Answer with ${providers.find(p=>p.id===id)?.label??id}`} checked={state.selectedProviders.includes(id)} disabled={busy||dirty} onChange={()=>void selectAI(id,false)}/>{brand(id)}</label>)}</section>

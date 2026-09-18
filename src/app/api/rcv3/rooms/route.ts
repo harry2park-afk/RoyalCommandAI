@@ -1,3 +1,4 @@
+import { roomTemplates, templateImage } from "@/lib/rcv3/templates";
 import { z } from "zod";
 import { session, access, stableId, RCV3_MARKER, reply, failure, input } from "@/lib/rcv3/access";
 import { cloudStore, readState, revisionFile, stateSchema, designSchema } from "@/lib/rcv3/cloud-state";
@@ -12,16 +13,19 @@ export async function GET() {
 }
 export async function POST(request: Request) {
   try {
-    const d = z.object({ requestId: z.string().uuid(), name: z.string().trim().min(1).max(80), sourceRoom: z.string().uuid().optional() }).strict().parse(await input(request, 1000));
+    const d = z.object({ requestId: z.string().uuid(), name: z.string().trim().min(1).max(80), sourceRoom: z.string().uuid().optional(), templateId: z.string().optional() }).strict().parse(await input(request, 1000));
     const { user, db } = await session();
     const roomId = stableId(user.id, `room:${d.requestId.toLowerCase()}`), householdId = stableId(user.id, "household");
     const source = d.sourceRoom ? await access(d.sourceRoom) : null;
     const sourceState = source ? await readState(source.store) : null;
     if (source && !sourceState) throw new Error("RCV3_NOT_FOUND");
-    const design = designSchema.parse(sourceState?.design ?? defaultDesign());
+    const template = d.templateId ? roomTemplates.find(t=>t.id===d.templateId) : null;
+    if(d.templateId&&!template)throw new Error("RCV3_TEMPLATE");
+    const image = template ? templateImage(template) : "";
+    const design = designSchema.parse(template ? {backgroundAssetId:image?stableId(roomId,"template-background"):null,buttons:(["chat","secretary","files"] as const).map((capability,i)=>({id:stableId(roomId,capability),capability,label:capability==="chat"?"My AI":capability==="secretary"?"Katie":"Files",x:8+i*30,y:12,width:24,height:12,opacity:1}))} : sourceState?.design ?? defaultDesign());
     const state = stateSchema.parse({ revision: 1, release: "rcv3-1", name: d.name, design,
       connectedProviders:sourceState?.connectedProviders, selectedProviders:sourceState?.selectedProviders, secretaryRoomId:sourceState?.secretaryRoomId,
-      appearances: sourceState?.appearances ?? {}, bindings: Object.fromEntries(design.buttons.map(b => [b.id, b.capability])) });
+      appearances: template ? {} : sourceState?.appearances ?? {}, bindings: Object.fromEntries(design.buttons.map(b => [b.id, b.capability])) });
     if(state.secretaryRoomId){const linked=await db.from("rooms").select("id").eq("id",state.secretaryRoomId).eq("room_owner_id",user.id).neq("status","archived").maybeSingle();if(linked.error||!linked.data)throw new Error("RCV3_NOT_FOUND");}
     const h = await db.from("households").insert({ id: householdId, owner_id: user.id, name: "RCV3 Private Preview", household_type: "individual" });
     if (h.error && h.error.code !== "23505") throw new Error("RCV3_STORAGE");
@@ -32,7 +36,10 @@ export async function POST(request: Request) {
     const verified = await access(roomId), store = cloudStore(db, user.id, roomId);
     if (!await readState(store)) {
       // Copy only the selected background, never conversations or request reservations.
-      if (source && state.design.backgroundAssetId) {
+      if (image && state.design.backgroundAssetId) {
+        try {await store.insert(`assets/${state.design.backgroundAssetId}.txt`,{data:image});}
+        catch(e){if(!(e instanceof Error)||e.message!=="RCV3_CONFLICT")throw e;}
+      } else if (source && !template && state.design.backgroundAssetId) {
         const asset = await source.store.read(`assets/${state.design.backgroundAssetId}.txt`);
         try { await store.insert(`assets/${state.design.backgroundAssetId}.txt`, asset); }
         catch(e) { if (!(e instanceof Error) || e.message !== "RCV3_CONFLICT") throw e; }
