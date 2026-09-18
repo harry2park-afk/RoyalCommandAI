@@ -14,9 +14,13 @@ export async function reserve(a: Awaited<ReturnType<typeof access>>, requestId: 
   // Account-wide limits, unaffected by cloning rooms. Every attempt reserves once.
   await budget.insert(`requests/${kind}-${requestId}.txt`, { at: new Date().toISOString() });
   const day = new Date().toISOString().slice(0,10);
-  const slots = await budget.list(`budget/${day}`, 301);
-  if (slots.length >= 300) throw new Error("RCV3_LIMIT");
-  await budget.insert(`budget/${day}/${String(slots.length).padStart(4,"0")}.txt`, { requestId, kind });
+  for(let attempt=0;attempt<32;attempt++) {
+    const slots=await budget.list(`budget/${day}`,301);
+    if(slots.length>=300)throw new Error("RCV3_LIMIT");
+    try { await budget.insert(`budget/${day}/${String(slots.length).padStart(4,"0")}.txt`,{requestId,kind}); return; }
+    catch(e){if(!(e instanceof Error)||e.message!=="RCV3_CONFLICT")throw e;}
+  }
+  throw new Error("RCV3_LIMIT");
 }
 export async function history(a: Awaited<ReturnType<typeof access>>, scope: z.infer<typeof scopeSchema>) {
   const files = await a.store.list(`turns/${scope}`, 30);

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { AI_PROVIDER_IDS } from "@/lib/ai/types";
 import type { createClient } from "@/lib/supabase/server";
 import { validateDesign } from "../../../rcv3/core.mjs";
 
@@ -23,10 +24,14 @@ export const appearanceSchema = z.object({
 export const stateSchema = z.object({
   revision: z.number().int().min(1).max(9999999999),
   release: z.literal("rcv3-1"), name: z.string().trim().min(1).max(80),
+  connectedProviders: z.array(z.enum(AI_PROVIDER_IDS)).max(27).default(["openai"]),
+  selectedProviders: z.array(z.enum(AI_PROVIDER_IDS)).max(27).default(["openai"]),
+  secretaryRoomId: z.string().uuid().nullable().default(null),
   design: designSchema,
   appearances: z.record(z.string().uuid(), appearanceSchema),
   bindings: z.record(z.string().uuid(), capability),
 }).strict().superRefine((state, ctx) => {
+  if(new Set(state.connectedProviders).size!==state.connectedProviders.length || new Set(state.selectedProviders).size!==state.selectedProviders.length || state.selectedProviders.some(id=>!state.connectedProviders.includes(id))) ctx.addIssue({code:"custom",message:"INVALID_PROVIDER_SELECTION"});
   for (const button of state.design.buttons) {
     if (state.bindings[button.id] !== button.capability) ctx.addIssue({ code: "custom", message: "CAPABILITY_LOCKED" });
   }

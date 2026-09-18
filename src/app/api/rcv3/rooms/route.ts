@@ -20,7 +20,9 @@ export async function POST(request: Request) {
     if (source && !sourceState) throw new Error("RCV3_NOT_FOUND");
     const design = designSchema.parse(sourceState?.design ?? defaultDesign());
     const state = stateSchema.parse({ revision: 1, release: "rcv3-1", name: d.name, design,
+      connectedProviders:sourceState?.connectedProviders, selectedProviders:sourceState?.selectedProviders, secretaryRoomId:sourceState?.secretaryRoomId,
       appearances: sourceState?.appearances ?? {}, bindings: Object.fromEntries(design.buttons.map(b => [b.id, b.capability])) });
+    if(state.secretaryRoomId){const linked=await db.from("rooms").select("id").eq("id",state.secretaryRoomId).eq("room_owner_id",user.id).neq("status","archived").maybeSingle();if(linked.error||!linked.data)throw new Error("RCV3_NOT_FOUND");}
     const h = await db.from("households").insert({ id: householdId, owner_id: user.id, name: "RCV3 Private Preview", household_type: "individual" });
     if (h.error && h.error.code !== "23505") throw new Error("RCV3_STORAGE");
     const owner = await db.from("households").select("owner_id").eq("id", householdId).eq("owner_id", user.id).maybeSingle();
