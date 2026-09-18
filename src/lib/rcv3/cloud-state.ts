@@ -26,6 +26,7 @@ export const stateSchema = z.object({
   release: z.literal("rcv3-1"), name: z.string().trim().min(1).max(80),
   connectedProviders: z.array(z.enum(AI_PROVIDER_IDS)).max(27).default(["openai"]),
   selectedProviders: z.array(z.enum(AI_PROVIDER_IDS)).max(27).default(["openai"]),
+  providerOrder: z.array(z.enum(AI_PROVIDER_IDS)).max(27).refine(ids=>new Set(ids).size===ids.length, "DUPLICATE_PROVIDER_ORDER").optional(),
   secretaryRoomId: z.string().uuid().nullable().default(null),
   design: designSchema,
   appearances: z.record(z.string().uuid(), appearanceSchema),

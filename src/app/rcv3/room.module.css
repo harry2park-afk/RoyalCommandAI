@@ -18,3 +18,5 @@
 .editor .fields .editorHandle{grid-column:1/-1;cursor:grab;touch-action:none;user-select:none;justify-content:flex-start;background:transparent;border:0;padding:2px 0;font-weight:700;font-size:14px}.editor .fields .editorHandle:active{cursor:grabbing}
 
 .root .fixedAI{box-sizing:border-box;flex:0 0 50px;width:50px;height:25px;padding:0;gap:0;border:0;border-radius:0;background:transparent;display:flex;flex-direction:column;justify-content:center}.fixedAI img{width:14px;height:14px;object-fit:contain}.fixedAI span{font-size:8px;line-height:11px;max-width:50px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+
+.root .aiMove{padding:0;width:20px;min-width:20px;height:28px;border:0;background:transparent;cursor:grab;touch-action:none;user-select:none;color:#9cbbbc}.root .aiMove:active{cursor:grabbing}.aiSelect{display:flex;align-items:center;gap:10px;flex:1;min-width:0;cursor:pointer}.aiSelect small{margin-left:auto}
