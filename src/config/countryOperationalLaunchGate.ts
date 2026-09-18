@@ -34,6 +34,12 @@ export type CountryOperationalBlockerCode =
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "COMPLIANCE_EVIDENCE_NOT_VERIFIED";
 
+export type CountryOperationalLaunchGate = {
+  launchable: boolean;
+  countryGate: CountryLaunchGate;
+  operationalBlockers: CountryOperationalBlockerCode[];
+};
+
 const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   key: keyof CountryOperationalEvidence;
   blocker: CountryOperationalBlockerCode;
