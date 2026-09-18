@@ -4,24 +4,47 @@
 
 begin read only;
 
-with countries(country_code, wave, currency) as (
+with countries(country_code, wave, currency, expected_locale) as (
   values
-    ('AU','first','AUD'),
-    ('US','first','USD'),
-    ('CA','first','CAD'),
-    ('KR','first','KRW'),
-    ('JP','first','JPY'),
-    ('GB','first','GBP'),
-    ('SG','next','SGD'),
-    ('CN','next','CNY'),
-    ('HK','next','HKD'),
-    ('TW','next','TWD'),
-    ('IN','next','INR')
+    ('AU','first','AUD','en-AU'),
+    ('US','first','USD','en-US'),
+    ('CA','first','CAD','en-CA'),
+    ('KR','first','KRW','ko-KR'),
+    ('JP','first','JPY','ja-JP'),
+    ('GB','first','GBP','en-GB'),
+    ('SG','next','SGD','en-SG'),
+    ('CN','next','CNY','zh-CN'),
+    ('HK','next','HKD','zh-HK'),
+    ('TW','next','TWD','zh-TW'),
+    ('IN','next','INR','en-IN')
 ), country_evidence as (
   select
     country.country_code,
     country.wave,
     country.currency,
+    country.expected_locale,
+    (
+      select count(*)::int
+      from public.room_factory_manifests manifest
+      where upper(manifest.country_code) = country.country_code
+    ) as room_factory_manifest_rows,
+    (
+      select count(*)::int
+      from public.room_factory_manifests manifest
+      where upper(manifest.country_code) = country.country_code
+        and lower(coalesce(manifest.language_tag, '')) = lower(country.expected_locale)
+    ) as room_factory_exact_locale_rows,
+    (
+      select count(distinct manifest.template_id)::int
+      from public.room_factory_manifests manifest
+      where upper(manifest.country_code) = country.country_code
+    ) as room_factory_template_count,
+    (
+      select count(*)::int
+      from public.room_factory_manifests manifest
+      where upper(manifest.country_code) = country.country_code
+        and manifest.encounter_session_id is not null
+    ) as room_factory_encounter_keyed_rows,
     (
       select count(*)::int
       from public.rc_service_country_terms terms
@@ -69,6 +92,8 @@ with countries(country_code, wave, currency) as (
 )
 select jsonb_build_object(
   'table_inventory', jsonb_build_object(
+    'room_factory_manifests_present', to_regclass('public.room_factory_manifests') is not null,
+    'room_factory_manifests_total', (select count(*)::int from public.room_factory_manifests),
     'rc_service_country_terms_present', to_regclass('public.rc_service_country_terms') is not null,
     'rc_service_country_terms_total', (select count(*)::int from public.rc_service_country_terms),
     'rc_country_terms_present', to_regclass('public.rc_country_terms') is not null,
