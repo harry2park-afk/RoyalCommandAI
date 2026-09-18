@@ -6,14 +6,14 @@ import type { Turn } from "@/lib/rcv3/execution";
 import type { AIProviderId } from "@/lib/ai/types";
 import styles from "./room.module.css";
 
-type VoiceElement = HTMLElement & { autoSubmit:boolean; cancel:()=>void; transcribe: (blob: Blob, options: { signal: AbortSignal }) => Promise<string>; start: () => Promise<void>; stop: () => void };
+type VoiceElement = HTMLElement & { autoSubmit:boolean; liveDictation:boolean; language:string; cancel:()=>void; transcribe: (blob: Blob, options: { signal: AbortSignal }) => Promise<string>; start: () => Promise<void>; stop: () => void };
 async function api(path: string, body?: unknown, method = "POST") {
   const response = await fetch(`/api/rcv3/${path}`, body === undefined ? { cache: "no-store" } : { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), signal: AbortSignal.timeout(120000) });
   const value = await response.json();
   if (!response.ok) throw new Error(`${value.error ?? "요청 실패"} (${value.code ?? response.status})`);
   return value;
 }
-export default function Room({ providers, secretaryRooms }: { providers: { id: AIProviderId; label: string; configured:boolean }[]; secretaryRooms:{id:string;name:string}[] }) {
+export default function Room({ providers, secretaryRooms, language }: { providers: { id: AIProviderId; label: string; configured:boolean }[]; secretaryRooms:{id:string;name:string}[]; language:string }) {
   const [rooms,setRooms] = useState<{id:string;name:string}[]>([]), [roomId,setRoomId] = useState("");
   const [state,setState] = useState<CloudState|null>(null), [background,setBackground] = useState("");
 
@@ -31,6 +31,7 @@ export default function Room({ providers, secretaryRooms }: { providers: { id: A
   function brand(id:string){const p=providers.find(p=>p.id===id);return <>{logo(id)?<img src={logo(id)} alt="" width={24} height={24}/>:<span aria-hidden="true">{p?.label.slice(0,2)}</span>}<span>{p?.label??id}</span></>;}
 
   const [voiceLoaded,setVoiceLoaded] = useState(false), [dirty,setDirty] = useState(false);
+  const dictationBase=useRef(""), draftRef=useRef(""); draftRef.current=text;
   const continuousVoice=useRef(false), playbackDone=useRef<(()=>void)|null>(null);
   const voiceRef = useRef<VoiceElement|null>(null), busyRef = useRef(false), roomRef=useRef("");
   const createId = useRef<string|null>(null), generation=useRef(0), audioRef=useRef<HTMLAudioElement|null>(null);
@@ -57,9 +58,9 @@ export default function Room({ providers, secretaryRooms }: { providers: { id: A
   useEffect(()=>{if(!roomId)return;let active=true;setTurns([]);api(`chat?room=${roomId}&scope=${scope}`).then(r=>{if(active)setTurns(current=>[...new Map([...r.turns,...current].map((t:Turn)=>[t.requestId,t])).values()].sort((a,b)=>a.at.localeCompare(b.at)));}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[roomId,scope]);
   useEffect(()=>{import("../../../rcv3/voice-control.mjs").then(()=>setVoiceLoaded(true)).catch(()=>setError("마이크 구성요소를 불러오지 못했습니다."));return()=>{audioRef.current?.pause();};},[]);
   useEffect(()=>{const el=voiceRef.current;if(!el||!roomId||!voiceLoaded)return;
-    el.autoSubmit=true;el.transcribe=async(blob,{signal})=>{const form=new FormData();form.set("roomId",roomId);form.set("requestId",crypto.randomUUID());form.set("audio",blob,blob.type.includes("mp4")?"voice.mp4":"voice.webm");const r=await fetch("/api/rcv3/audio",{method:"POST",body:form,signal});const d=await r.json();if(!r.ok)throw new Error(d.error);return d.text;};
-    const listener=(event:Event)=>transcriptHandler.current((event as CustomEvent).detail.text);const toggle=(event:Event)=>{continuousVoice.current=(event as CustomEvent).detail.enabled;if(!continuousVoice.current){audioRef.current?.pause();playbackDone.current?.();}};el.addEventListener("voice-toggle",toggle);el.addEventListener("transcript",listener);return()=>{el.removeEventListener("transcript",listener);el.removeEventListener("voice-toggle",toggle);};
-  },[roomId,voiceLoaded,mounted]);
+    el.autoSubmit=false;el.liveDictation=true;el.language=language;el.transcribe=async(blob,{signal})=>{const form=new FormData();form.set("roomId",roomId);form.set("requestId",crypto.randomUUID());form.set("audio",blob,blob.type.includes("mp4")?"voice.mp4":"voice.webm");const r=await fetch("/api/rcv3/audio",{method:"POST",body:form,signal});const d=await r.json();if(!r.ok)throw new Error(d.error);return d.text;};
+    const listener=(event:Event)=>transcriptHandler.current((event as CustomEvent).detail.text);const toggle=(event:Event)=>{continuousVoice.current=false;if((event as CustomEvent).detail.enabled){dictationBase.current=draftRef.current;audioRef.current?.pause();playbackDone.current?.();messageInput.current?.focus({preventScroll:true});}};el.addEventListener("voice-toggle",toggle);el.addEventListener("transcript",listener);return()=>{el.removeEventListener("transcript",listener);el.removeEventListener("voice-toggle",toggle);};
+  },[roomId,voiceLoaded,mounted,language]);
   useEffect(()=>{const hide=()=>{if(document.hidden){continuousVoice.current=false;voiceRef.current?.cancel();audioRef.current?.pause();playbackDone.current?.();}};document.addEventListener("visibilitychange",hide);return()=>{document.removeEventListener("visibilitychange",hide);hide();};},[]);
   async function create(copy=false){if(busyRef.current)return;busyRef.current=true;setBusy(true);setError("");
     try{createId.current??=crypto.randomUUID();const name=copy?`${state?.name??"RCV3"} 복사`:"RCV3 · Room6";const r=await api("rooms",{requestId:createId.current,name,...(copy?{sourceRoom:roomId}:{})});createId.current=null;const list=await api("rooms");setRooms(list.rooms);await openRoom(r.roomId);setWarehouse(false);setEditing(true);}
@@ -67,7 +68,7 @@ export default function Room({ providers, secretaryRooms }: { providers: { id: A
   async function send(message=text,spoken=false){
     if(!message.trim()||busyRef.current||!state)return;
     const chosen=[...state.selectedProviders];if(!chosen.length){setError("Select at least one AI in Answer AIs.");return;}
-    busyRef.current=true;setBusy(true);setError("");const target=roomId;
+    voiceRef.current?.cancel();busyRef.current=true;setBusy(true);setError("");const target=roomId;
     setBatchIds(chosen);setCardStatus(Object.fromEntries(chosen.map(id=>[id,"Working…"])));
     try{
       const outcomes=await Promise.allSettled(chosen.map(async id=>{
@@ -81,7 +82,7 @@ export default function Room({ providers, secretaryRooms }: { providers: { id: A
       if(spoken&&t){const r=await fetch("/api/rcv3/audio",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({roomId:target,requestId:crypto.randomUUID(),text:t.answer.slice(0,4000)}),signal:AbortSignal.timeout(35000)});if(!r.ok)throw new Error("글 답변은 저장됐지만 음성 재생을 준비하지 못했습니다.");const url=URL.createObjectURL(await r.blob());if(roomRef.current!==target){URL.revokeObjectURL(url);return;}const audio=new Audio(url);audioRef.current=audio;await new Promise<void>((resolve,reject)=>{const done=()=>{URL.revokeObjectURL(url);playbackDone.current=null;resolve();};playbackDone.current=done;audio.onended=done;audio.onerror=()=>{done();reject(new Error("음성을 재생하지 못했습니다."));};void audio.play().catch(reject);});if(continuousVoice.current&&roomRef.current===target&&!document.hidden)void voiceRef.current?.start();}
     }catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);}
   }
-  transcriptHandler.current=(message)=>{setText(message);void send(message,true);};
+  transcriptHandler.current=(message)=>{const base=dictationBase.current;setText(base+(base&&!/\s$/.test(base)?" ":"")+message);requestAnimationFrame(()=>{const input=messageInput.current;if(input)input.scrollTop=input.scrollHeight;});};
   function update(next:CloudState){setState(next);setDirty(true);}
   function editButton(patch:Partial<Button>){if(!state||!selected)return;update({...state,design:{...state.design,buttons:state.design.buttons.map(b=>b.id===selected?{...b,...patch}:b)}});}
   async function save(){if(!state||!saved.current||busyRef.current)return;busyRef.current=true;const target=roomId,token=generation.current;setBusy(true);setError("");try{const r=await api("state",{roomId,revision:saved.current.revision,state:{...state,revision:saved.current.revision+1}},"PUT");if(target!==roomRef.current||token!==generation.current)return;setState(r.state);saved.current=r.state;setDirty(false);setEditing(false);setSelected(null);}catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);}}
@@ -132,8 +133,8 @@ export default function Room({ providers, secretaryRooms }: { providers: { id: A
       {editing&&<fieldset disabled={busy} className={styles.editor}><div className={styles.toolbar}><strong>Move buttons, then Save</strong><button onClick={()=>void save()}>Save</button><button onClick={()=>{setState(saved.current);setDirty(false);setEditing(false);setSelected(null);void openRoom(roomId);}}>Cancel</button></div>
       {button&&<div className={styles.fields}><label>Label<input value={button.label} onChange={e=>editButton({label:e.target.value})}/></label>{([['x','Left',0,100-button.width],['y','Top',0,100-button.height],['width','Width',4,100-button.x],['height','Height',4,100-button.y],['opacity','Opacity',0,1]] as const).map(([key,label,min,max])=><label key={key}>{label}<input type="range" min={min} max={max} step={key==="opacity"?.05:1} value={button[key]} onChange={e=>editButton({[key]:Number(e.target.value)})}/></label>)}{([['color','Text colour'],['background','Background'],['borderColor','Border']] as const).map(([key,label])=><label key={key}>{label}<input type="color" value={state.appearances[button.id]?.[key]??"#ffffff"} onChange={e=>update({...state,appearances:{...state.appearances,[button.id]:{...(state.appearances[button.id]??{color:"#ffffff",background:"#172a41",borderColor:"#64748b",borderWidth:0,radius:12,fontSize:16}),[key]:e.target.value}}})}/></label>)}</div>}</fieldset>}
       <section ref={chatPanel} className={styles.chat} aria-label="AI answers"><h2>AI Answers</h2><div className={styles.answerRow}>{shownProviders.map(id=><article className={styles.answerCard} key={id} aria-label={`${providers.find(p=>p.id===id)?.label??id} answers`}><header>{brand(id)}</header><div className={styles.messages}>{turns.filter(t=>t.provider===id&&t.scope==="chat").map(t=><div key={t.requestId}><p className={styles.user}>{t.prompt}</p><p className={styles.answer}>{t.answer}</p></div>)}{cardStatus[id]&&<p role="status">{cardStatus[id]}</p>}</div></article>)}</div>
-      <textarea ref={messageInput} aria-label="Message" value={text} onChange={e=>setText(e.target.value)} placeholder="Ask your selected AIs…" onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void send();}}}/><div className={styles.compose}>{voiceLoaded?createElement('rc-voice-control',{key:roomId,ref:(el:VoiceElement|null)=>{voiceRef.current=el;}}):<Mic/>}<button aria-label="Send" className={styles.send} disabled={busy||!text.trim()||!state.selectedProviders.length} onClick={()=>void send()}><Send size={19}/></button></div></section>
-      {showFiles&&<section ref={filesPanel} className={styles.editor}><div className={styles.toolbar}><h2>Files</h2><button onClick={()=>fileInput.current?.click()}>Add Text File</button><button onClick={()=>setShowFiles(false)}>Close Files</button></div>{files.map(f=><button key={f.id} onClick={()=>{setText(`Please summarise this file.\nFile: ${f.name}\n${f.text.slice(0,11000)}`);setShowFiles(false);openConversation("chat");}}>{f.name}</button>)}</section>}
+      <textarea ref={messageInput} aria-label="Message" value={text} onChange={e=>{voiceRef.current?.cancel();setText(e.target.value);}} placeholder="Ask your selected AIs…" onKeyDown={e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.nativeEvent.isComposing){e.preventDefault();void send();}}}/><div className={styles.compose}>{voiceLoaded?createElement('rc-voice-control',{key:roomId,ref:(el:VoiceElement|null)=>{voiceRef.current=el;}}):<Mic/>}<button aria-label="Send" className={styles.send} disabled={busy||!text.trim()||!state.selectedProviders.length} onClick={()=>void send()}><Send size={19}/></button></div></section>
+      {showFiles&&<section ref={filesPanel} className={styles.editor}><div className={styles.toolbar}><h2>Files</h2><button onClick={()=>fileInput.current?.click()}>Add Text File</button><button onClick={()=>setShowFiles(false)}>Close Files</button></div>{files.map(f=><button key={f.id} onClick={()=>{voiceRef.current?.cancel();setText(`Please summarise this file.\nFile: ${f.name}\n${f.text.slice(0,11000)}`);setShowFiles(false);openConversation("chat");}}>{f.name}</button>)}</section>}
     </>}
     <input ref={imageInput} type="file" accept="image/png,image/jpeg,image/webp" hidden onChange={e=>void uploadImage(e.target.files?.[0])}/><input ref={fileInput} type="file" accept=".txt,.md,.csv" hidden onChange={e=>void uploadFile(e.target.files?.[0])}/>
   </main>;

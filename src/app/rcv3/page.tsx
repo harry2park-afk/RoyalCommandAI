@@ -9,5 +9,5 @@ export default async function Page() {
   try { await session(); } catch(e) { if (e instanceof Error && e.message === "RCV3_AUTH") redirect("/login?next=%2Frcv3"); throw e; }
   const {user,db}=await session();
   const {data:secretaryRooms}=await db.from("rooms").select("id,name").eq("room_owner_id",user.id).neq("status","archived").or("description.is.null,description.neq.rcv3-private-preview-v1");
-  return <Room secretaryRooms={secretaryRooms??[]} providers={listConnectors().map(c=>({id:c.id,label:PROVIDER_LABELS[c.id],configured:isProviderConfigured(c.id)}))} />;
+  return <Room language={user.defaultLanguage} secretaryRooms={secretaryRooms??[]} providers={listConnectors().map(c=>({id:c.id,label:PROVIDER_LABELS[c.id],configured:isProviderConfigured(c.id)}))} />;
 }
