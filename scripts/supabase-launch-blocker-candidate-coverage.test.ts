@@ -11,6 +11,8 @@ const CANDIDATES = {
     "supabase/migrations/20260903075000_country_compliance_evidence_registry.sql",
   paymentSafeguards:
     "supabase/migrations/20260903205500_payment_operational_safeguards.sql",
+  roomFactoryFkIndexes:
+    "supabase/migrations/20260904005500_add_room_factory_fk_indexes.sql",
   profileRoleAuthority:
     "supabase/migrations/20260904105500_harden_profile_role_authority.sql",
   manifestAcl:
@@ -25,12 +27,13 @@ function migration(path: string): string {
 }
 
 describe("October launch Supabase candidate blocker coverage", () => {
-  it("keeps the reviewed six-migration candidate set complete", () => {
+  it("keeps the reviewed seven-migration candidate set complete", () => {
     expect(Object.values(CANDIDATES)).toEqual([
       "supabase/migrations/20260831225500_scope_matter_staff_access.sql",
       "supabase/migrations/20260901025800_room_factory_atomic_non_encounter.sql",
       "supabase/migrations/20260903075000_country_compliance_evidence_registry.sql",
       "supabase/migrations/20260903205500_payment_operational_safeguards.sql",
+      "supabase/migrations/20260904005500_add_room_factory_fk_indexes.sql",
       "supabase/migrations/20260904105500_harden_profile_role_authority.sql",
       "supabase/migrations/20260911045100_room_factory_manifest_acl_hardening.sql",
     ]);
@@ -158,6 +161,23 @@ describe("October launch Supabase candidate blocker coverage", () => {
     expect(sql).toContain("add column if not exists idempotency_key text");
     expect(sql).toContain("rc_service_connection_orders_owner_idempotency_uidx");
     expect(sql).not.toMatch(/insert\s+into\s+public\.rc_payment_provider_registry/i);
+  });
+
+  it("covers the reviewed additive Room Factory/Core Room FK-index candidate", () => {
+    const sql = migration(CANDIDATES.roomFactoryFkIndexes);
+
+    expect(sql.match(/create index if not exists/gi)).toHaveLength(5);
+    expect(sql).toContain("create index if not exists household_members_user_id_idx");
+    expect(sql).toContain("on public.household_members (user_id);");
+    expect(sql).toContain("create index if not exists households_owner_id_idx");
+    expect(sql).toContain("on public.households (owner_id);");
+    expect(sql).toContain("create index if not exists rooms_household_id_idx");
+    expect(sql).toContain("on public.rooms (household_id);");
+    expect(sql).toContain("create index if not exists rooms_room_owner_id_idx");
+    expect(sql).toContain("on public.rooms (room_owner_id);");
+    expect(sql).toContain("create index if not exists room_members_user_id_idx");
+    expect(sql).toContain("on public.room_members (user_id);");
+    expect(sql).not.toMatch(/\b(create|alter|drop)\s+(policy|table|function|trigger)\b/i);
   });
 
   it("covers profile role authority and removes direct authenticated role updates", () => {
