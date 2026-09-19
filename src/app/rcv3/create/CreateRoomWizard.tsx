@@ -35,7 +35,12 @@ export default function CreateRoomWizard({ language, providers }: {
     let active = true;
     draftsRequest().then(result => {
       if (!active) return;
-      setRegistry(result); setDraftId(crypto.randomUUID()); setLoaded(true);
+      setRegistry(result);
+      const requestedId = new URLSearchParams(window.location.search).get("draft");
+      const resumed = result.drafts.find(d => d.id === requestedId);
+      if (resumed) { setInput(resumed.input); latestInput.current = resumed.input; setDraftId(resumed.id); }
+      else { setDraftId(crypto.randomUUID()); }
+      setLoaded(true);
     }).catch(() => { if (active) setError("error"); });
     return () => { active = false; };
   }, []);
@@ -56,6 +61,9 @@ export default function CreateRoomWizard({ language, providers }: {
       const id = asNew ? crypto.randomUUID() : draftId;
       const result = await draftsRequest({ id, expectedRevision: current.revision, input });
       setRegistry(result); setDraftId(id);
+      const url = new URL(window.location.href);
+      url.searchParams.set("draft", id);
+      window.history.replaceState(null, "", url);
       const unchanged = JSON.stringify(latestInput.current) === JSON.stringify(input);
       setDirty(!unchanged); setStatus(unchanged ? "draft" : "");
     } catch (e) {
@@ -78,7 +86,9 @@ export default function CreateRoomWizard({ language, providers }: {
   function loadDraft(id: string) {
     const draft = registry.drafts.find(d => d.id === id);
     if (dirty || !draft) return;
-    setInput(draft.input); setDraftId(id); setStatus(""); setError("");
+    latestInput.current = draft.input; setInput(draft.input); setDraftId(id); setStatus(""); setError("");
+    const url = new URL(window.location.href); url.searchParams.set("draft", id);
+    window.history.replaceState(null, "", url);
   }
   const providerToggle = (id: AIProviderId) => update({ ...input,
     providers: input.providers.includes(id) ? input.providers.filter(p => p !== id) : [...input.providers, id],
@@ -90,7 +100,7 @@ export default function CreateRoomWizard({ language, providers }: {
     </header>
     <div className={styles.layout}>
       <aside className={styles.sidebar}>
-        <h2>My Drafts</h2><button disabled={busy || dirty || !loaded} onClick={() => { setInput(newRoomDraft()); setDraftId(crypto.randomUUID()); setStatus(""); setError(""); }}>New Draft</button>
+        <h2>My Drafts</h2><button disabled={busy || dirty || !loaded} onClick={() => { const fresh = newRoomDraft(); latestInput.current = fresh; setInput(fresh); setDraftId(crypto.randomUUID()); setStatus(""); setError(""); const url = new URL(window.location.href); url.searchParams.delete("draft"); url.searchParams.delete("checkout"); window.history.replaceState(null, "", url); }}>New Draft</button>
         {registry.drafts.map(d => <button key={d.id} disabled={busy || dirty} aria-pressed={draftId === d.id} onClick={() => loadDraft(d.id)}>{d.input.name || "Untitled Room"}<small>{roomPurposes.find(p => p.id === d.input.purpose)?.name}</small></button>)}
       </aside>
       <section className={styles.workspace} aria-label="Room creation">

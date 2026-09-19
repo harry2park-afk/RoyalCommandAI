@@ -31,3 +31,71 @@ The new commerce module is a **tested decision contract only**, not an integrate
 - Legacy global commercial-delivery policy conflicts with automated monetary display. Do not broadly delete it: implement a reviewed, narrow approved-catalog exception when commercial inputs exist.
 
 Do not label this a completed paid-room flow. No money was charged, no signature was collected, and no paid service was activated.
+
+## Stripe sandbox continuation — 2026-09-19
+
+Risk HIGH-RISK for payment boundary preparation. Writer Codex; read-only reviews
+`review_payment_architecture` and `review_checkout_correctness`. Continuing Owner
+approval covers Preview implementation. No live operation, customer charge, or
+Production/master change. CODEX_AVAILABLE (host writer/security review).
+
+### Verified account and catalogue
+
+Stripe OAuth reconnection succeeded. MCP read confirmed sandbox
+`acct_1UB2UwA6h5Xn5AQj`, one active product `Personal Legal Room`
+(`prod_VBPzCzvmbkpRKw`), price `price_1UB39nA6h5Xn5AQj6DjheRMF`,
+AUD 10/month, tax_behavior unspecified. This is an observation, NOT approval to
+sell every room or provision selected services for this amount. No new Stripe
+products, prices, sessions, subscriptions or charges were created.
+
+### Added code
+
+- Pinned Stripe SDK 22.6.2 (verified npm registry).
+- `stripe-checkout.ts`: Preview/test-key-only adapter; exact approved purpose and
+  service-bundle mapping; server Stripe account/price/currency/interval/tax check;
+  immutable order input binds draft hash, terms hash/version and typed signature;
+  stored-order idempotency key; server verification of payment, line items and
+  subscription; raw-body webhook signature verification rejects live events.
+- `POST /api/rcv3/checkout/quote`: authenticated, read-only quote from saved account
+  draft. No client price/owner/amount accepted. Always `checkoutEnabled:false`.
+- Saved drafts now have resumable `?draft=UUID` URLs and restore directly after
+  reload/return. A URL from another owner cannot restore their draft.
+
+The adapter's session creation and webhook helpers are NOT exposed as mutation
+routes. This avoids accepting a payment before reliable fulfillment exists.
+The quote API is not a completed checkout or paid activation system.
+
+### Required application configuration
+
+MCP OAuth cannot be reused as the deployed application's API credential. No
+Stripe variable was present in inspected local runtime/env names. Vercel project
+metadata tool does not expose environment-variable inventory; remote presence
+must be established by the actual quote request or authorized environment tools.
+
+- `RCV3_STRIPE_TEST_KEY`: a restricted TEST key for the RC sandbox, stored as a
+  Vercel Preview sensitive variable, scoped to PR748 branch. Read Account/Prices,
+  read/write Checkout Sessions, read Subscriptions. Never paste into chat or git.
+- `RCV3_CHECKOUT_CATALOG`: owner-approved exact bundle→price mappings, terms
+  version/text and included-tax treatment. Schema exported as checkoutCatalogSchema.
+  No default catalogue is fabricated from old mixed-currency constants.
+- Future webhook route needs a separate Preview signing secret and a server-owned
+  immutable order/event ledger inaccessible to customer writes; both pending.
+- All paid execution paths require entitlement enforcement and transactional
+  activation before exposing Checkout. Existing private Preview rooms are unchanged.
+
+The initial adapter supports approved AUD monthly, tax-inclusive bundles only.
+It refuses the observed unspecified-tax price until actual tax treatment and
+catalogue are approved. Automatic tax is not enabled; no tax registrations assumed.
+A narrow RCV3 approved-catalog exception is authorized by the Owner's automated
+room-purchase instruction; unrelated commercial-delivery rules remain unchanged.
+
+Still not complete: server ledger, event ingestion/replay handling, signature
+submission UI, Checkout launch/return UI, paid/free activation and My Rooms
+rename/delete protection, conversational Helper. These must not be reported done.
+
+Validation: 28 focused tests passed; full Next build passed. Independent reviewers
+both allowed the read-only quote/resume scope. Their duplicate-price finding was
+fixed by exact sorted line-item tuple comparison with a regression test. Typed
+Stripe account retrieval uses retrieve(null), verified in installed SDK source.
+`GET /api/rcv3/checkout/quote` is an authenticated read-only configuration check;
+no secret values or environment inventory are returned.
