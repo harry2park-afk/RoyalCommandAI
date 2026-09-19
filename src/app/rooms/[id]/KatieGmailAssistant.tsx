@@ -1,16 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AlertTriangle, CheckCircle2, Download, Loader2, Mail, RefreshCw } from "lucide-react";
+
+import { scanReceivedMail, type MailRow } from "@/lib/ai-secretary/mail-reader";
+import { katieMailText, katieMailError } from "@/lib/locale/katie-mail";
+import { useRoyalCommandLocale } from "./useRoyalCommandLocale";
 
 type Attachment = { filename: string; mimeType: string; size: number; attachmentId: string };
 type GmailMessage = {
   id: string; threadId: string; from: string; to: string; subject: string; date: string; snippet: string; original: string;
   labelIds: string[]; messageIdHeader: string; references: string; attachments: Attachment[];
 };
-type Connection = { connected: boolean; oauthConfigured: boolean; googleEmail: string | null };
+type Connection = { connected: boolean; oauthConfigured: boolean; googleEmail: string | null; code?: string };
 
-const ACTION_WORDS = /(please|action|required|due|deadline|confirm|approve|invoice|payment|reply|respond|필요|확인|승인|납부|답장)/i;
 const emailAddress = (value: string) => value.match(/<([^>]+)>/)?.[1] || value;
 const b64ToBlob = (data: string, type: string) => {
   const normalized = data.replace(/-/g, "+").replace(/_/g, "/");
@@ -19,7 +22,15 @@ const b64ToBlob = (data: string, type: string) => {
   return new Blob([bytes], { type });
 };
 
-export default function KatieGmailAssistant({ roomId, onMailLoaded }: { roomId: string; onMailLoaded?: (count: number) => void }) {
+export default function KatieGmailAssistant({ roomId, onMailLoaded, onReview }: { roomId: string; onMailLoaded?: (count: number) => void; onReview?: () => void }) {
+  const locale = useRoyalCommandLocale();
+  const text = (key: Parameters<typeof katieMailText>[0]) => katieMailText(key, locale);
+  const loadRef = useRef<AbortController | null>(null);
+  const [loadingMail, setLoadingMail] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(100);
+  const [reload, setReload] = useState(0);
+  const onLoaded = useRef(onMailLoaded);
+  useEffect(() => { onLoaded.current = onMailLoaded; }, [onMailLoaded]);
   const endpoint = `/api/rooms/${encodeURIComponent(roomId)}/ai-secretary/gmail`;
   const [connection, setConnection] = useState<Connection | null>(null);
   const [messages, setMessages] = useState<GmailMessage[]>([]);
@@ -35,19 +46,47 @@ export default function KatieGmailAssistant({ roomId, onMailLoaded }: { roomId: 
   const [error, setError] = useState("");
   const [mailLoaded, setMailLoaded] = useState(false);
   useEffect(() => {
+    const controller = new AbortController();
+    loadRef.current = controller;
     let active = true;
-    fetch(endpoint, { cache: "no-store" }).then(async (response) => {
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload.error || "Gmail 연결 확인 실패");
-      if (active) setConnection(payload);
-    }).catch(() => { if (active) setError("연결 상태를 불러오지 못했습니다. 연결 상태 확인을 눌러 주세요."); });
-    return () => { active = false; };
-  }, [endpoint]);
+    const rows: GmailMessage[] = [];
+    const request: typeof fetch = (url, init) => fetch(url, { ...init, signal: AbortSignal.any([controller.signal, init?.signal || AbortSignal.timeout(120000)]) });
+    const start = async () => {
+      setMessages([]); setSelected(null); setThread([]); setMailLoaded(false); setLoadingMail(true); setError("");
+      onLoaded.current?.(0);
+      try {
+        const response = await request(endpoint, { cache: "no-store" });
+        const payload = await response.json();
+        if (!response.ok) throw new Error(payload.code || "GMAIL_READ_FAILED");
+        if (!active) return;
+        setConnection(payload);
+        if (!payload.connected) throw new Error(payload.code || "GMAIL_RECONNECT_REQUIRED");
+        await scanReceivedMail(roomId, request, (batch: MailRow[]) => {
+          if (!active) return;
+          // Keep a light list. Full bodies are fetched only for opened messages or review.
+          rows.push(...batch.map((row) => ({ ...row, original: "" })));
+          setMessages([...rows]); onLoaded.current?.(rows.length);
+        }, { signal: controller.signal, metadataOnly: true });
+        if (active) setMailLoaded(true);
+      } catch (reason) {
+        if (active && !controller.signal.aborted) {
+          const code = reason instanceof Error ? reason.message : "GMAIL_READ_FAILED";
+          setError(code);
+          if (code === "GMAIL_RECONNECT_REQUIRED") setConnection((current) => current ? { ...current, connected: false, code } : current);
+        }
+      } finally { if (active) setLoadingMail(false); }
+    };
+    void start();
+    return () => { active = false; controller.abort(); };
+  }, [endpoint, roomId, reload]);
 
   async function api(body: Record<string, unknown>) {
     const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || "Gmail 요청에 실패했습니다.");
+    if (!response.ok) {
+      if (payload.code === "GMAIL_RECONNECT_REQUIRED") setConnection((current) => current ? { ...current, connected: false, code: payload.code } : current);
+      throw new Error(payload.code || "GMAIL_READ_FAILED");
+    }
     return payload.result;
   }
   async function ai(message: string) {
@@ -66,16 +105,13 @@ export default function KatieGmailAssistant({ roomId, onMailLoaded }: { roomId: 
     const payload = await response.json().catch(() => ({}));
     if (!response.ok) throw new Error(payload.error || "Gmail 연결 상태를 확인하지 못했습니다.");
     setConnection(payload);
+    if (payload.connected) setReload((value) => value + 1);
+    else setError(payload.code || "GMAIL_RECONNECT_REQUIRED");
   });
-  const loadMail = () => run(async () => {
-    const list = await api({ action: "search", query: "in:inbox", maxResults: 20 });
-    const ids = Array.isArray(list?.messages) ? list.messages.map((item: { id?: string }) => item.id).filter(Boolean) : [];
-    const rows = await Promise.all(ids.map((messageId: string) => api({ action: "message", messageId })));
-    setMailLoaded(true); onMailLoaded?.(rows.length);
-    setMessages(rows.sort((a: GmailMessage, b: GmailMessage) => Number(b.labelIds?.includes("IMPORTANT") || ACTION_WORDS.test(`${b.subject} ${b.snippet}`)) - Number(a.labelIds?.includes("IMPORTANT") || ACTION_WORDS.test(`${a.subject} ${a.snippet}`))));
-  });
+  const loadMail = () => setReload((value) => value + 1);
   const openOriginal = (message: GmailMessage) => run(async () => {
-    setSelected(message); setTranslation(""); setQuestion(""); setAnswer(""); setDraft({ to: "", subject: "", body: "" }); setApproved(false);
+    const original = await api({ action: "message", messageId: message.id });
+    setSelected(original); setTranslation(""); setQuestion(""); setAnswer(""); setDraft({ to: "", subject: "", body: "" }); setApproved(false);
     const value = await api({ action: "thread", threadId: message.threadId });
     setThread(Array.isArray(value?.messages) ? value.messages : [message]);
   });
@@ -101,12 +137,16 @@ export default function KatieGmailAssistant({ roomId, onMailLoaded }: { roomId: 
 
   return (
     <section className="rounded-xl border border-[#d7b64d]/35 bg-[#0b1728] p-4">
-      <div className="flex flex-wrap items-center gap-2"><Mail className="text-[#f0d36a]" size={19} /><h3 className="font-bold text-[#f0d36a]">Katie Gmail 개인비서</h3><button type="button" onClick={checkConnection} disabled={busy} className="ml-auto rounded-lg border border-white/15 px-3 py-2 text-xs">연결 상태 확인</button></div>
-      {connection && <div className="mt-3 flex items-center gap-2 text-sm">{connection.connected ? <CheckCircle2 className="text-emerald-400" size={17} /> : <AlertTriangle className="text-amber-300" size={17} />}<span>{connection.connected ? `${connection.googleEmail || "Gmail"} 연결됨` : "Gmail이 연결되지 않았습니다."}</span>{!connection.connected && connection.oauthConfigured && <a href="/api/tools/google/connect" className="rounded bg-blue-700 px-3 py-1.5 text-xs">Gmail 연결</a>}</div>}
-      {connection?.connected && <button type="button" onClick={loadMail} disabled={busy} className="mt-3 flex items-center gap-2 rounded-lg bg-[#173663] px-4 py-2 text-sm text-[#ffe18a] disabled:opacity-50">{busy ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}최근 받은 메일 20건 불러오기</button>}
-      {mailLoaded ? <p className="mt-3 text-xs text-white/60">받은편지함에서 {messages.length}건을 조회했습니다. 전체 메일 수가 아닙니다.</p> : null}
-      {error && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-xs text-red-200">{error}</p>}
-      {messages.length > 0 && <div className="mt-4 space-y-2">{messages.map((message) => <article key={message.id} className="rounded-lg border border-white/10 bg-black/15 p-3"><div className="flex gap-2"><span className="rounded bg-red-800 px-2 py-0.5 text-[10px]">{message.labelIds?.includes("IMPORTANT") ? "중요" : "메일"}</span><strong className="text-sm">{message.subject}</strong></div><p className="mt-1 text-xs text-white/50">{message.from} · {message.date}</p><p className="mt-2 line-clamp-3 text-sm text-white/75">{message.snippet || message.original}</p><button type="button" onClick={() => openOriginal(message)} className="mt-3 rounded border border-[#d7b64d]/50 px-3 py-1.5 text-xs text-[#ffe18a]">원문·번역·답장 열기</button></article>)}</div>}
+      <div className="flex flex-wrap items-center gap-2"><Mail className="text-[#f0d36a]" size={19} /><h3 className="font-bold text-[#f0d36a]">Katie Gmail 개인비서</h3><button type="button" onClick={checkConnection} disabled={busy || loadingMail} className="ml-auto rounded-lg border border-white/15 px-3 py-2 text-xs">연결 상태 확인</button></div>
+      {connection && <div className="mt-3 flex items-center gap-2 text-sm">{connection.connected ? <CheckCircle2 className="text-emerald-400" size={17} /> : <AlertTriangle className="text-amber-300" size={17} />}<span>{connection.connected ? `${connection.googleEmail || "Gmail"} 연결됨` : "Gmail이 연결되지 않았습니다."}</span>{!connection.connected && connection.oauthConfigured && connection.code === "GMAIL_RECONNECT_REQUIRED" && <a href="/api/tools/google/connect" className="rounded bg-blue-700 px-3 py-1.5 text-xs">{text("reconnect")}</a>}</div>}
+      {connection?.connected && <button type="button" onClick={loadMail} disabled={busy || loadingMail} className="mt-3 flex items-center gap-2 rounded-lg bg-[#173663] px-4 py-2 text-sm text-[#ffe18a] disabled:opacity-50">{loadingMail ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}{text("refresh")}</button>}
+      <p className="mt-3 text-xs text-white/60">{text("scope")}</p>
+      <p className="mt-2 text-xs text-white/60">{text("active")}</p>
+      <p role="status" className="mt-3 text-sm">{loadingMail ? text("loading") : mailLoaded ? text("complete") : ""} {messages.length}</p>
+      {connection?.connected && onReview && <button type="button" onClick={() => { loadRef.current?.abort(); setLoadingMail(false); onReview(); }} disabled={busy} className="mt-3 rounded bg-[#173663] px-4 py-2 text-sm">{text("review")}</button>}
+      {error && <p className="mt-3 rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-xs text-red-200">{error.startsWith("GMAIL_") ? katieMailError(error, locale) : error}</p>}
+      {messages.length > 0 && <div className="mt-4 space-y-2">{messages.slice(0, visibleCount).map((message) => <article key={message.id} className="rounded-lg border border-white/10 bg-black/15 p-3"><div className="flex gap-2"><span className="rounded bg-red-800 px-2 py-0.5 text-[10px]">{message.labelIds?.includes("IMPORTANT") ? "중요" : "메일"}</span><strong className="text-sm">{message.subject}</strong></div><p className="mt-1 text-xs text-white/50">{message.from} · {message.date}</p><p className="mt-2 line-clamp-3 text-sm text-white/75">{message.snippet || message.original}</p><button type="button" onClick={() => openOriginal(message)} className="mt-3 rounded border border-[#d7b64d]/50 px-3 py-1.5 text-xs text-[#ffe18a]">원문·번역·답장 열기</button></article>)}</div>}
+      {messages.length > visibleCount && <button type="button" onClick={() => setVisibleCount((count) => count + 100)} className="mt-3 rounded border px-3 py-2">Show more ({messages.length - visibleCount})</button>}
       {selected && <div className="mt-5 space-y-4 rounded-xl border border-[#d7b64d]/35 p-4">
         <div><h4 className="font-bold text-[#ffe18a]">{selected.subject}</h4><p className="text-xs text-white/50">전체 대화 {thread.length || 1}개</p></div>
         <div className="grid gap-3 lg:grid-cols-2"><div><h5 className="mb-2 text-sm font-bold">원문</h5><div className="max-h-96 space-y-3 overflow-auto rounded border border-white/10 bg-black/20 p-3">{(thread.length ? thread : [selected]).map((item) => <div key={item.id} className="border-b border-white/10 pb-3 last:border-0"><p className="mb-2 text-xs text-white/50">{item.from} · {item.date}</p><pre className="whitespace-pre-wrap font-sans text-sm leading-6">{item.original}</pre>{item.attachments.map((file) => <button key={file.attachmentId} type="button" onClick={() => download(item, file)} className="mt-2 flex items-center gap-1 rounded border border-white/15 px-2 py-1 text-xs"><Download size={13} />{file.filename}</button>)}</div>)}</div></div><div><div className="mb-2 flex items-center justify-between"><h5 className="text-sm font-bold">한국어 번역</h5><button type="button" onClick={translate} disabled={busy} className="rounded bg-[#173663] px-3 py-1.5 text-xs">번역하기</button></div><pre className="max-h-96 min-h-32 overflow-auto whitespace-pre-wrap rounded border border-white/10 bg-black/20 p-3 font-sans text-sm leading-6">{translation || "번역하기를 누르면 원문과 나란히 표시됩니다."}</pre></div></div>

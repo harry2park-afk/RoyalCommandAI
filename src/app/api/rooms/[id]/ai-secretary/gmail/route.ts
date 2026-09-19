@@ -5,6 +5,8 @@ import { getGoogleConnection, googleApi, googleWorkspaceConfigured } from "@/lib
 import { evaluateToolPermission, auditToolGateway } from "@/lib/tool-gateway";
 import { isHarryEmail, isKatieGmailAction, katieGmailNeedsApproval } from "@/lib/ai-secretary/katie-gmail-policy";
 
+import { gmailFailureCode, gmailSearchParams } from "@/lib/ai-secretary/mail-reader";
+
 export const dynamic = "force-dynamic";
 
 type Part = { mimeType?: string; filename?: string; body?: { data?: string; attachmentId?: string; size?: number }; parts?: Part[] };
@@ -38,7 +40,7 @@ function normalize(value: unknown) {
     id: String(message.id || ""), threadId: String(message.threadId || ""), labelIds: message.labelIds || [],
     from: getHeader(headers, "From"), to: getHeader(headers, "To"), subject: getHeader(headers, "Subject") || "(제목 없음)", date: getHeader(headers, "Date"),
     messageIdHeader: getHeader(headers, "Message-ID"), references: getHeader(headers, "References"), snippet: String(message.snippet || ""),
-    original: (out.plain.join("\n\n").trim() || textFromHtml(out.html.join("\n")) || String(message.snippet || "")).slice(0, 100_000), attachments: out.attachments,
+    original: (out.plain.join("\n\n").trim() || textFromHtml(out.html.join("\n")) || String(message.snippet || "")), attachments: out.attachments,
   };
 }
 function gmailRaw(to: string, subject: string, body: string, reply?: { messageId?: string; references?: string }) {
@@ -60,8 +62,16 @@ export async function GET(_request: Request, context: { params: Promise<{ id: st
   const { id } = await context.params;
   const auth = await authorize(id);
   if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
-  const connection = await getGoogleConnection(auth.user.id);
-  return NextResponse.json({ ok: true, oauthConfigured: googleWorkspaceConfigured(), connected: Boolean(connection), googleEmail: connection?.google_email || null }, { headers: { "Cache-Control": "private, no-store" } });
+  try {
+    const connection = await getGoogleConnection(auth.user.id);
+    if (!connection) return NextResponse.json({ ok: true, oauthConfigured: googleWorkspaceConfigured(), connected: false, code: "GMAIL_RECONNECT_REQUIRED" }, { headers: { "Cache-Control": "private, no-store" } });
+    // A saved connection is not proof that Gmail still permits reads.
+    const profile = await googleApi(auth.user.id, "https://gmail.googleapis.com/gmail/v1/users/me/profile") as { emailAddress?: string };
+    return NextResponse.json({ ok: true, oauthConfigured: googleWorkspaceConfigured(), connected: true, googleEmail: profile.emailAddress || connection.google_email }, { headers: { "Cache-Control": "private, no-store" } });
+  } catch (error) {
+    const code = gmailFailureCode(error);
+    return NextResponse.json({ ok: false, oauthConfigured: googleWorkspaceConfigured(), connected: false, code }, { headers: { "Cache-Control": "private, no-store" } });
+  }
 }
 
 export async function POST(request: Request, context: { params: Promise<{ id: string }> }) {
@@ -81,13 +91,12 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
 
     let result: unknown;
     if (body.action === "search") {
-      const query = String(body.query || "newer_than:14d (is:unread OR is:starred)").slice(0, 500);
-      const maxResults = Math.min(Math.max(Number(body.maxResults || 12), 1), 20);
-      result = await googleApi(auth.user.id, `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(query)}&maxResults=${maxResults}`);
+      const params = gmailSearchParams(body);
+      result = await googleApi(auth.user.id, `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`);
     } else if (body.action === "message") {
       const messageId = String(body.messageId || "").trim();
       if (!messageId) return NextResponse.json({ error: "messageId is required" }, { status: 400 });
-      result = normalize(await googleApi(auth.user.id, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=full`));
+      result = normalize(await googleApi(auth.user.id, `https://gmail.googleapis.com/gmail/v1/users/me/messages/${encodeURIComponent(messageId)}?format=${body.metadataOnly === true ? "metadata" : "full"}`));
     } else if (body.action === "thread") {
       const threadId = String(body.threadId || "").trim();
       if (!threadId) return NextResponse.json({ error: "threadId is required" }, { status: 400 });
@@ -110,7 +119,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     auditToolGateway("katie_gmail_execute", { userId: auth.user.id, roomId: id, action: body.action, approved: body.approved === true, ok: true });
     return NextResponse.json({ ok: true, action: body.action, result }, { headers: { "Cache-Control": "private, no-store" } });
   } catch (error) {
-    auditToolGateway("katie_gmail_failed", { error: error instanceof Error ? error.message : String(error) });
-    return NextResponse.json({ error: error instanceof Error ? error.message : "Gmail 요청에 실패했습니다." }, { status: 500 });
+    const code = gmailFailureCode(error);
+    auditToolGateway("katie_gmail_failed", { code });
+    return NextResponse.json({ code }, { status: code === "GMAIL_RECONNECT_REQUIRED" ? 401 : 502 });
   }
 }

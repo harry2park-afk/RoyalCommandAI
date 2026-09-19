@@ -1,6 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useRoyalCommandLocale } from "./useRoyalCommandLocale";
+import { katieMailText } from "@/lib/locale/katie-mail";
 import SecretaryVoice from "./SecretaryVoice";
 import { mailChatIntent, readMailForChat } from "@/lib/ai-secretary/mail-chat";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -38,6 +40,9 @@ function stamp(value: string) {
 }
 
 export default function CustomerAISecretary({ roomId, standalone = false }: { roomId: string; standalone?: boolean }) {
+  const locale = useRoyalCommandLocale();
+  const mailAbort = useRef<AbortController | null>(null);
+  useEffect(() => () => { mailAbort.current?.abort(); }, [roomId]);
   const [data, setData] = useState<SecretaryData>(() => initialData());
   const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
@@ -68,7 +73,7 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
 
   useEffect(() => {
     if (!loaded || !roomId || roomId.toLowerCase() === "rca") return;
-    window.localStorage.setItem(storageKey(roomId), JSON.stringify(data));
+    try { window.localStorage.setItem(storageKey(roomId), JSON.stringify(data)); } catch { /* Large reports remain visible even when browser storage is full. */ }
   }, [data, loaded, roomId]);
 
   useEffect(() => {
@@ -127,17 +132,33 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
     if (intent) {
       setInput(""); setBusy(true);
       setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "user", text, at: now() }] }));
+      const controller = new AbortController();
+      mailAbort.current = controller;
+      const reportId = crypto.randomUUID();
+      if (intent === "read") setData((current) => ({ ...current, chats: [...current.chats, { id: reportId, role: "assistant", text: katieMailText("partial", locale), at: now() }] }));
       try {
         const result = intent === "read"
-          ? await readMailForChat(roomId, text, (url, init) => fetch(url, { ...init, signal: requestSignal }))
+          ? await readMailForChat(roomId, text, (url, init) => fetch(url, { ...init, signal: AbortSignal.any([controller.signal, init?.signal || AbortSignal.timeout(120000)]) }), {
+            locale, signal: controller.signal,
+            onProgress: (count, answer) => {
+              if (controller.signal.aborted) return;
+              setMailCount(count);
+              setData((current) => ({ ...current, chats: current.chats.map((chat) => chat.id === reportId ? { ...chat, text: `${katieMailText("partial", locale)} ${count}\n\n${answer}` } : chat) }));
+            },
+          })
           : { count: null, answer: "메일 발송·삭제·이동은 실행하지 않았습니다. 메일·전화에서 원문을 확인하고 답장 내용을 검토해 주세요. 발송은 받는 사람과 내용을 확인한 뒤 승인할 수 있습니다." };
+        if (controller.signal.aborted) return "";
         if (result.count !== null) setMailCount(result.count);
-        setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "assistant", text: result.answer, at: now() }] }));
+        setData((current) => ({ ...current, chats: intent === "read" ? current.chats.map((chat) => chat.id === reportId ? { ...chat, text: result.answer } : chat) : [...current.chats, { id: crypto.randomUUID(), role: "assistant", text: result.answer, at: now() }] }));
         return result.answer;
       } catch (error) {
+        if (controller.signal.aborted) {
+          setData((current) => ({ ...current, chats: current.chats.map((chat) => chat.id === reportId ? { ...chat, text: chat.text.replace(katieMailText("partial", locale), katieMailText("cancelled", locale)) } : chat) }));
+          return "";
+        }
         setData((current) => ({ ...current, chats: [...current.chats, { id: crypto.randomUUID(), role: "assistant", text: error instanceof Error ? error.message : "메일 조회에 실패했습니다. 다시 시도해 주세요.", at: now() }] }));
         throw error;
-      } finally { sending.current = false; setBusy(false); }
+      } finally { mailAbort.current = null; sending.current = false; setBusy(false); }
     }
     const at = now();
     const needsApproval = EXTERNAL.test(text);
@@ -206,10 +227,10 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
             {TABS.map((item) => <button key={item} type="button" onClick={() => setTab(item)} className={`h-9 shrink-0 rounded-lg px-3 text-xs font-semibold ${tab === item ? "bg-[#7A0C2E] text-[#ffe18a]" : "text-white/70 hover:bg-white/5"}`}>{item}</button>)}
           </nav>
           <div className="min-h-0 flex-1 overflow-y-auto p-4">
-            {tab === "메일·전화" ? <KatieGmailAssistant roomId={roomId} onMailLoaded={setMailCount}/> : null}
+            <div hidden={tab !== "메일·전화" && tab !== "오늘의 보고"}><KatieGmailAssistant key={roomId} roomId={roomId} onMailLoaded={setMailCount} onReview={() => { if (!sending.current) { setTab("대화"); void submitInstruction(locale.startsWith("ko") ? "받은 메일 전체를 검토하고 중요한 내용과 할 일을 정리해 주세요" : "Review all received email and report important details and action items").catch(() => {}); } }}/></div>
             {tab === "대화" ? <div className="mx-auto flex h-full w-full flex-col">
               <div ref={chatListRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto">{data.chats.map((chat) => <div key={chat.id} className={`max-w-[82%] rounded-xl px-3 py-2 whitespace-pre-wrap text-sm leading-6 ${chat.role === "user" ? "ml-auto bg-[#173663]" : "bg-white/7"}`}>{chat.text}<div className="mt-1 text-[9px] text-white/35">{stamp(chat.at)}</div></div>)}</div>
-              {busy ? <p role="status" className="mt-2 text-sm text-[#f0d36a]">요청을 처리하고 있습니다…</p> : null}
+              {busy ? <div role="status" className="mt-2 text-sm text-[#f0d36a]">요청을 처리하고 있습니다… {mailAbort.current && <button type="button" onClick={() => mailAbort.current?.abort()} className="ml-3 rounded border px-3 py-1">Cancel</button>}</div> : null}
               <form onSubmit={sendInstruction} className="relative mt-3 shrink-0">
                 <textarea disabled={voiceActive} value={input} onChange={(e) => setInput(e.target.value)} aria-label="Katie에게 메시지"
                   className="block min-h-40 max-h-72 w-full resize-y rounded-xl border border-[#d7b64d]/60 bg-black/20 px-4 pt-4 pb-20 text-base leading-7 outline-none focus:border-[#d7b64d]"/>
@@ -217,10 +238,10 @@ export default function CustomerAISecretary({ roomId, standalone = false }: { ro
                 <button aria-label="메시지 전송" disabled={!input.trim() || busy || voiceActive} className="absolute right-3 bottom-3 grid h-12 w-12 place-items-center rounded-xl bg-[#7A0C2E] text-[#ffe18a] disabled:opacity-30"><Send size={20}/></button>
               </form>
             </div> : null}
-            {tab === "오늘의 보고" ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{[
+            {tab === "오늘의 보고" ? <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{([
               ["받은 전화", report.calls, Phone], ["음성메시지", report.voicemail, MessageCircle], ["조회된 이메일", report.email, Mail],
               ["일정", report.schedule, CalendarDays], ["알림·승인", report.reminders, Clock3], ["진행 업무", report.active, ChevronRight],
-            ].map(([label, count, Icon]: any) => <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4"><Icon className="mb-3 text-[#f0d36a]" size={20}/><div className="text-sm text-white/60">{label}</div><div className="mt-1 text-3xl font-bold">{count}</div></div>)}</div> : null}
+            ] as Array<[string, number | string, typeof Phone]>).map(([label, count, Icon]) => <div key={label} className="rounded-xl border border-white/10 bg-white/5 p-4"><Icon className="mb-3 text-[#f0d36a]" size={20}/><div className="text-sm text-white/60">{label}</div><div className="mt-1 text-3xl font-bold">{count}</div></div>)}</div> : null}
             {tab === "업무" ? <div className="grid gap-3 lg:grid-cols-4">{(["todo","in_progress","approval_required","completed"] as TaskStatus[]).map((status) => <div key={status} className="rounded-xl border border-white/10 bg-black/15 p-3"><h3 className="mb-3 font-bold text-[#f0d36a]">{STATUS[status]}</h3>{data.tasks.filter((task) => task.status === status).map((task) => <article key={task.id} className="mb-2 rounded-lg border border-white/10 bg-[#0c1a2d] p-3 text-sm"><div>{task.title}</div><div className="mt-2 text-[9px] text-white/35">{stamp(task.updatedAt)}</div><div className="mt-2 flex gap-1">{status === "todo" ? <button onClick={() => updateTask(task.id,"in_progress")} className="rounded bg-blue-700 px-2 py-1 text-[10px]">시작</button> : null}{status === "approval_required" ? <button onClick={() => updateTask(task.id,"in_progress")} className="rounded bg-amber-600 px-2 py-1 text-[10px]">고객 승인</button> : null}{status === "in_progress" ? <button onClick={() => updateTask(task.id,"completed")} className="rounded bg-emerald-700 px-2 py-1 text-[10px]">완료</button> : null}</div>{task.result ? <div className="mt-2 text-[10px] text-emerald-300">{task.result}</div> : null}</article>)}</div>)}</div> : null}
             {tab === "메일·전화" ? <div className="space-y-3">{callError ? <p role="alert" className="p-3 text-red-200">{callError}</p> : null}{calls.length ? calls.map((call) => <article key={call.call_id ?? call.id} className="rounded-xl border border-white/10 bg-white/5 p-4"><div className="flex items-center gap-2 font-bold text-[#f0d36a]"><Phone size={16}/> {call.from_number || "발신번호 비공개"}</div><div className="mt-1 text-xs text-white/45">{call.created_at ? stamp(call.created_at) : ""}{typeof call.duration_ms === "number" ? ` · ${Math.round(call.duration_ms / 1000)}초` : ""}</div>{call.summary ? <p className="mt-3 text-sm leading-6">{call.summary}</p> : null}{call.message && call.message !== call.summary ? <p className="mt-2 text-sm text-white/70">{call.message}</p> : null}{call.transcript ? <details className="mt-3"><summary className="cursor-pointer text-xs text-[#f0d36a]">고객·Katie 대화 원문</summary><pre className="mt-2 whitespace-pre-wrap text-xs leading-5 text-white/65">{call.transcript}</pre></details> : null}{call.recording_url ? <div className="mt-3"><p className="text-sm font-semibold text-[#f0d36a]">통화 원본 듣기 · 고객과 Katie</p><audio controls preload="none" className="mt-2 w-full" src={call.recording_url} aria-label="고객과 Katie의 통화 원본" onError={() => setCallError("녹음을 재생하지 못했습니다. 녹음 주소가 만료되었거나 접근이 제한되어 있을 수 있습니다.")}/></div> : <p className="mt-3 text-xs text-white/60">이 통화에는 제공된 원본 녹음이 없습니다.</p>}</article>) : <div className="rounded-xl border border-white/10 p-5 text-sm text-white/55">아직 이 방에 저장된 전화 기록이 없습니다. 연결 후 새 통화가 끝나면 여기에 표시됩니다.</div>}<div className="rounded-xl border border-amber-400/30 bg-amber-950/15 p-4"><h3 className="font-bold text-amber-200">외부 실행 안전 잠금</h3><p className="mt-2 text-sm leading-6 text-white/70">전화 회신과 이메일 발송은 고객 승인 전 실행되지 않습니다.</p></div></div> : null}
             {tab === "일정" ? <div className="space-y-2">{data.tasks.filter((task) => /일정|예약|schedule|booking/i.test(task.title)).map((task) => <div key={task.id} className="rounded-lg border border-white/10 p-3 text-sm">{task.title} · {STATUS[task.status]}</div>)}</div> : null}
