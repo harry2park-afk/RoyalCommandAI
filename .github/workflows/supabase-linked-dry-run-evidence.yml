@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - "scripts/supabase-linked-migration-dry-run.sh"
+      - "scripts/supabase-linked-shadow-workdir.mjs"
+      - "scripts/supabase-linked-shadow-workdir.test.ts"
       - "scripts/supabase-linked-project-identity.test.ts"
       - "scripts/supabase-linked-allowlist-provenance.mjs"
       - "scripts/supabase-linked-allowlist-provenance.test.ts"
@@ -43,7 +45,7 @@ jobs:
       SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
       # Diagnostic evidence only. Every entry must be independently classified
       # NEW_CANDIDATE_EXPECTED_APPLY with no Hosted row at the fresh inventory.
-      # Order follows migration timestamps. The seventh candidate is the reviewed
+      # Order follows migration timestamps. The fifth candidate is the reviewed
       # additive Room Factory/Core Room FK-index migration from PR #847.
       # This allow-list grants no apply/repair/deploy/provider-activation or
       # Country/Compliance READY authority.
@@ -88,6 +90,18 @@ jobs:
           node scripts/supabase-linked-allowlist-provenance.mjs \
             scripts/supabase-unresolved-local-migration-classification-20260920.json \
             "${EXPECTED_APPLY_MIGRATIONS}"
+
+      - name: Verify isolated shadow workdir plan before Hosted credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/supabase-linked-dry-run
+          node scripts/supabase-linked-shadow-workdir.mjs \
+            scripts/supabase-hosted-ledger-snapshot-20260908.json \
+            scripts/supabase-unresolved-local-migration-classification-20260920.json \
+            supabase \
+            artifacts/supabase-linked-shadow-preflight \
+            artifacts/supabase-linked-dry-run/shadow-workdir-plan-precredential.json
 
       - name: Setup Supabase CLI
         uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
