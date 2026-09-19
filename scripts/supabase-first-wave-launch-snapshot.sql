@@ -70,10 +70,12 @@ select jsonb_build_object(
         values
           ('scope_matter_staff_access'),
           ('room_factory_atomic_non_encounter'),
-          ('room_factory_manifest_acl_hardening'),
-          ('harden_profile_role_authority'),
           ('country_compliance_evidence_registry'),
-          ('payment_operational_safeguards')
+          ('payment_operational_safeguards'),
+          ('add_room_factory_fk_indexes'),
+          ('harden_profile_role_authority'),
+          ('harden_commercial_review_provenance'),
+          ('room_factory_manifest_acl_hardening')
       ) required(name)
       left join supabase_migrations.schema_migrations applied
         on applied.name = required.name
