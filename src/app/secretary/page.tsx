@@ -3,6 +3,9 @@ import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
+import { DomainRuntimeProvider } from "@/components/DomainRuntimeProvider";
+import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
+import { toPublicDomainRuntimeContext } from "@/config/countryResolver";
 import CustomerAISecretary from "../rooms/[id]/CustomerAISecretary";
 
 export const dynamic = "force-dynamic";
@@ -24,7 +27,9 @@ export default async function SecretaryPage({ searchParams }: {
   if (error) return <main className="p-8"><p role="alert">기존 방을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p><Link href="/secretary">다시 시도</Link></main>;
   const room = roomId ? rooms?.find((item) => item.id === roomId && item.status !== "archived") : undefined;
   if (roomId && !room) notFound();
-  return <main className="min-h-screen bg-[#07111f] text-[#f4f0e7]">
+  const runtime = await getServerDomainRuntimeContext();
+  if (!runtime) notFound();
+  return <DomainRuntimeProvider value={toPublicDomainRuntimeContext(runtime)}><main className="min-h-screen bg-[#07111f] text-[#f4f0e7]">
     <header className="mx-auto flex max-w-[1180px] flex-wrap items-center gap-4 px-5 py-4">
       <Link href="/rooms/rca" className="rounded-lg border border-[#d7b64d]/50 px-4 py-2 text-[#f0d36a]">← Command Room</Link>
       <h1 className="text-xl font-semibold">Katie 비서방{room ? ` · ${room.name}` : ""}</h1>
@@ -39,5 +44,5 @@ export default async function SecretaryPage({ searchParams }: {
       </Link>)}</div>
       {!rooms?.some((item) => item.status !== "archived") ? <p>연결할 기존 방이 없습니다. <Link href="/dashboard" className="underline">내 방 목록 보기</Link></p> : null}
     </section>}
-  </main>;
+  </main></DomainRuntimeProvider>;
 }
