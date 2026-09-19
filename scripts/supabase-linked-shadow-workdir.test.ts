@@ -25,7 +25,7 @@ describe("Supabase linked shadow migration workdir", () => {
   const manifestPath = "scripts/supabase-unresolved-local-migration-classification-20260920.json";
   const canonicalSupabaseDir = "supabase";
 
-  it("mirrors 72 Hosted timestamps and exposes only the seven reviewed candidates", () => {
+  it("mirrors 72 Hosted timestamps and exposes only the eight reviewed candidates", () => {
     const root = tempRoot("rc-shadow-workdir-");
     const shadowRoot = path.join(root, "shadow");
     const snapshot = readJson(snapshotPath);
@@ -38,14 +38,14 @@ describe("Supabase linked shadow migration workdir", () => {
     expect(report.ready_for_linked_dry_run).toBe(true);
     expect(report.ready_for_apply).toBe(false);
     expect(report.counts.hosted_history_markers).toBe(72);
-    expect(report.counts.exact_reviewed_candidates).toBe(7);
-    expect(report.counts.shadow_migrations_total).toBe(79);
-    expect(report.counts.canonical_local_only_by_version).toBe(48);
+    expect(report.counts.exact_reviewed_candidates).toBe(8);
+    expect(report.counts.shadow_migrations_total).toBe(80);
+    expect(report.counts.canonical_local_only_by_version).toBe(49);
     expect(report.counts.canonical_same_name_timestamp_drift).toBe(35);
-    expect(report.counts.canonical_unresolved_local_names).toBe(13);
+    expect(report.counts.canonical_unresolved_local_names).toBe(14);
     expect(report.counts.quarantined_historical_local).toBe(41);
     expect(report.counts.candidates_older_than_hosted_head).toBe(6);
-    expect(files).toHaveLength(79);
+    expect(files).toHaveLength(80);
 
     const candidateSet = new Set(report.expected_apply_migrations);
     for (const marker of report.hosted_marker_files) {
