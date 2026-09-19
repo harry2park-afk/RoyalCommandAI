@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "scripts/supabase-hosted-ledger-snapshot-20260908.json"
+      - "scripts/supabase-hosted-ledger-snapshot-20260920.json"
       - "scripts/supabase-hosted-ledger-reconciliation.mjs"
       - "scripts/supabase-hosted-ledger-reconciliation.test.ts"
       - "scripts/supabase-hosted-source-fingerprints-20260908.json"
@@ -43,7 +44,7 @@ jobs:
     env:
       CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
       EXPECTED_APPLY_MIGRATIONS: >-
-        20260831225500_scope_matter_staff_access.sql,20260901025800_room_factory_atomic_non_encounter.sql,20260903075000_country_compliance_evidence_registry.sql,20260903205500_payment_operational_safeguards.sql,20260904005500_add_room_factory_fk_indexes.sql,20260904105500_harden_profile_role_authority.sql,20260911045100_room_factory_manifest_acl_hardening.sql
+        20260831225500_scope_matter_staff_access.sql,20260901025800_room_factory_atomic_non_encounter.sql,20260903075000_country_compliance_evidence_registry.sql,20260903205500_payment_operational_safeguards.sql,20260904005500_add_room_factory_fk_indexes.sql,20260904105500_harden_profile_role_authority.sql,20260910030000_harden_commercial_review_provenance.sql,20260911045100_room_factory_manifest_acl_hardening.sql
     steps:
       - name: Checkout exact candidate head
         uses: actions/checkout@v5
@@ -98,7 +99,7 @@ jobs:
           done
 
           node scripts/supabase-hosted-ledger-reconciliation.mjs \
-            scripts/supabase-hosted-ledger-snapshot-20260908.json \
+            scripts/supabase-hosted-ledger-snapshot-20260920.json \
             supabase/migrations \
             artifacts/supabase-known-hosted-ledger/reconciliation.json \
             "${expected[@]}"
@@ -129,7 +130,7 @@ jobs:
         run: |
           set -euo pipefail
           node scripts/supabase-linked-shadow-workdir.mjs \
-            scripts/supabase-hosted-ledger-snapshot-20260908.json \
+            scripts/supabase-hosted-ledger-snapshot-20260920.json \
             scripts/supabase-unresolved-local-migration-classification-20260920.json \
             supabase \
             artifacts/supabase-known-hosted-shadow-workdir \
@@ -173,5 +174,5 @@ jobs:
           if [[ "${failed}" -ne 0 ]]; then
             exit 1
           fi
-          echo "VERIFIED: known Hosted source provenance and all canonical LOCAL-only history are classified, and an isolated 72-marker + 7-candidate dry-run plan is reproducible."
+          echo "VERIFIED: known Hosted source provenance and all canonical LOCAL-only history are classified, and an isolated 73-marker + 8-candidate dry-run plan is reproducible."
           echo "HOLD: this does not prove linked CLI credentials/dry-run and does not authorize apply, repair, Hosted mutation, Production deploy, or Country READY."
