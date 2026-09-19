@@ -1,15 +1,18 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Volume2, Square, ChevronDown, ChevronUp } from "lucide-react";
+import { Move, Volume2, Square, ChevronDown, ChevronUp } from "lucide-react";
 import type { Turn } from "@/lib/rcv3/execution";
 import styles from "./room.module.css";
 
 type Provider = { id: string; label: string; logo?: string };
-export default function AnswerCards({ roomId, providers, turns, statuses, onRead }: {
+export default function AnswerCards({ roomId, providers, turns, statuses, onRead, onReorder, reorderDisabled }: {
   roomId: string; providers: Provider[]; turns: Turn[];
   statuses: Record<string, string>; onRead: () => void;
+  onReorder: (id: string, target: string) => void; reorderDisabled: boolean;
 }) {
+  const dragId = useRef<string | null>(null);
+  const [moving, setMoving] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [reading, setReading] = useState<string | null>(null);
   const [notice, setNotice] = useState<Record<string, string>>({});
@@ -72,8 +75,15 @@ export default function AnswerCards({ roomId, providers, turns, statuses, onRead
       const history = turns.filter(turn => turn.provider === provider.id && turn.scope === "chat");
       const answer = history.at(-1)?.answer ?? "";
       const open = expanded === provider.id;
-      return <article key={provider.id} className={`${styles.compactAnswer} ${open ? styles.expandedAnswer : ""}`} aria-label={`${provider.label} answers`} onClick={() => setExpanded(provider.id)}>
+      return <article data-answer-provider={provider.id} style={{opacity:moving===provider.id?.6:1}} key={provider.id} className={`${styles.compactAnswer} ${open ? styles.expandedAnswer : ""}`} aria-label={`${provider.label} answers`} onClick={() => setExpanded(provider.id)}>
         <aside className={styles.answerRail}>
+          <button type="button" className={styles.answerMove} aria-label={`Move ${provider.label} answer`} title="Drag left or right to reorder" disabled={reorderDisabled}
+            onClick={event=>event.stopPropagation()}
+            onPointerDown={event=>{if(event.button!==0)return;event.preventDefault();event.stopPropagation();event.currentTarget.setPointerCapture(event.pointerId);dragId.current=provider.id;setMoving(provider.id);}}
+            onPointerUp={event=>{event.stopPropagation();const id=dragId.current;dragId.current=null;setMoving(null);const target=document.elementFromPoint(event.clientX,event.clientY)?.closest<HTMLElement>("[data-answer-provider]")?.dataset.answerProvider;if(id&&target&&id!==target)onReorder(id,target);}}
+            onPointerCancel={()=>{dragId.current=null;setMoving(null);}}
+            onLostPointerCapture={()=>{dragId.current=null;setMoving(null);}}
+            onKeyDown={event=>{if(!["ArrowLeft","ArrowRight"].includes(event.key))return;event.preventDefault();event.stopPropagation();const index=providers.findIndex(p=>p.id===provider.id);const target=providers[index+(event.key==="ArrowLeft"?-1:1)];if(target)onReorder(provider.id,target.id);}}><Move size={18}/></button>
           {provider.logo ? <img src={provider.logo} alt={provider.label} width={24} height={24}/> : <span>{provider.label.slice(0, 2)}</span>}
           <button type="button" aria-label={reading === provider.id ? `Stop reading ${provider.label}` : `Read ${provider.label} answer`} aria-pressed={reading === provider.id} disabled={!answer.trim()} onClick={event => { event.stopPropagation(); void read(provider, answer); }}>{reading === provider.id ? <Square size={18}/> : <Volume2 size={18}/>}</button>
         </aside>
