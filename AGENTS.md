@@ -43,3 +43,18 @@ If the Owner explicitly grants continuing approval for a defined project phase o
 Read and follow `docs/DAILY_RECOVERY_RULES.md` except where it conflicts with `ROYAL_COMMAND_LAW.md`.
 
 The daily recovery review is persistent and must run at 23:30 Australia/Sydney without requiring a new user order. No-change days verify the latest known-good restore point instead of creating unnecessary duplicate backups; material-change days create and verify a new restore point. Any uncertain, conflicting, destructive, insecure, or unrecoverable state must stop with an ERROR SIGNAL rather than being silently accepted.
+
+
+## Customer interface language — required for new and modified code
+
+Default interface language is English. Every system-owned button, menu, heading, placeholder, tooltip, accessible label, notice, validation message, and error must follow the customer's selected interface language through shared translation keys.
+
+- English (`en` and regional variants): display English only; remove all secondary-language UI text immediately when switching to English.
+- Any other selected language: display English together with that selected language, for example `Save · 저장` for Korean. Do not display unrelated third languages.
+- Read the selected locale from the shared customer language setting; do not infer it from a message, microphone language, or country. If no selection or translation exists, use English; never display raw translation keys.
+- Use shared locale resources and formatting, not hard-coded Korean or per-room language logic. APIs return stable error codes that the UI localizes; do not expose raw provider error text.
+- Add only necessary guidance. Do not add obvious instructions such as “Press the microphone to speak.” Keep essential failure/recovery messages concise and retain accessible control labels.
+- This rule governs system UI, not customer-authored room names, files, conversation history, or AI answer language. Preserve those contents. Keep brand names unchanged.
+- For each affected UI, verify English-only, English + selected language, and switching back to English without stale secondary text. Ensure bilingual labels fit without hiding controls. Keep checks scoped to the change.
+
+This is a coding requirement; recording it does not establish that existing screens have already been migrated.
