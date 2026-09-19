@@ -1,9 +1,9 @@
 {
   "contract_version": 1,
-  "captured_at_utc": "2026-09-19T18:48:37Z",
+  "captured_at_utc": "2026-09-19T20:48:48Z",
   "project_ref": "aygawkavujjmybekswrg",
-  "source": "Fresh Hosted read-only migration ledger fingerprint query via Supabase connector execute_sql inside READ ONLY transaction",
-  "purpose": "Fresh no-drift evidence for PR #696 after the reviewed apply-set expanded to seven candidates. This receipt is not linked CLI dry-run evidence and does not authorize apply, repair, merge, deploy, Country READY, provider/payment activation, or any Hosted mutation.",
+  "source": "Fresh Hosted read-only migration ledger inventory via Supabase connector list_migrations",
+  "purpose": "Fresh no-drift evidence for PR #696 after the reviewed apply-set expanded to eight candidates. This receipt is not linked CLI dry-run evidence and does not authorize apply, repair, merge, deploy, Country READY, provider/payment activation, legal/compliance approval, or any Hosted mutation.",
   "baseline_snapshot": "scripts/supabase-hosted-ledger-snapshot-20260908.json",
   "baseline_snapshot_blob_sha": "7178fdcf65c45146c17c1cd9388817d4bfdb4344",
   "previous_refresh": "scripts/supabase-hosted-ledger-live-refresh-20260916.json",
@@ -23,6 +23,7 @@
     "payment_operational_safeguards",
     "add_room_factory_fk_indexes",
     "harden_profile_role_authority",
+    "harden_commercial_review_provenance",
     "room_factory_manifest_acl_hardening"
   ],
   "hosted_mutation_performed": false,
