@@ -13,6 +13,7 @@ const EXPECTED_CANDIDATE_NAMES = [
   "payment_operational_safeguards",
   "add_room_factory_fk_indexes",
   "harden_profile_role_authority",
+  "harden_commercial_review_provenance",
   "room_factory_manifest_acl_hardening",
 ] as const;
 
@@ -81,7 +82,7 @@ describe("fresh Hosted migration ledger receipt", () => {
     );
   });
 
-  it("proves the reviewed seven migration names are still absent from the Hosted ledger", () => {
+  it("proves the reviewed eight migration names are still absent from the Hosted ledger", () => {
     const refresh = readJson<LiveRefreshReceipt>(refreshPath);
 
     expect(refresh.candidate_names).toEqual(EXPECTED_CANDIDATE_NAMES);
