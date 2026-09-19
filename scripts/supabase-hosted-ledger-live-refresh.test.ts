@@ -3,14 +3,15 @@ import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const baselinePath = "scripts/supabase-hosted-ledger-snapshot-20260908.json";
-const previousRefreshPath = "scripts/supabase-hosted-ledger-live-refresh-20260912.json";
-const refreshPath = "scripts/supabase-hosted-ledger-live-refresh-20260916.json";
+const previousRefreshPath = "scripts/supabase-hosted-ledger-live-refresh-20260916.json";
+const refreshPath = "scripts/supabase-hosted-ledger-live-refresh-20260920.json";
 
 const EXPECTED_CANDIDATE_NAMES = [
   "scope_matter_staff_access",
   "room_factory_atomic_non_encounter",
   "country_compliance_evidence_registry",
   "payment_operational_safeguards",
+  "add_room_factory_fk_indexes",
   "harden_profile_role_authority",
   "room_factory_manifest_acl_hardening",
 ] as const;
@@ -80,7 +81,7 @@ describe("fresh Hosted migration ledger receipt", () => {
     );
   });
 
-  it("proves the reviewed six migration names are still absent from the Hosted ledger", () => {
+  it("proves the reviewed seven migration names are still absent from the Hosted ledger", () => {
     const refresh = readJson<LiveRefreshReceipt>(refreshPath);
 
     expect(refresh.candidate_names).toEqual(EXPECTED_CANDIDATE_NAMES);
