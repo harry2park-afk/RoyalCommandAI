@@ -5,6 +5,7 @@ import {
   type CountryOperationalLaunchGate,
   type OperationalEvidenceStatus,
 } from "./countryOperationalLaunchGate";
+import { evaluateCountryLocalizationStructure } from "./countryLocalizationStructure";
 
 export type CountryCriticalLaunchEvidence = {
   roomFactoryTemplate: OperationalEvidenceStatus;
@@ -31,7 +32,8 @@ export type CountryCriticalLaunchBlockerCode =
   | "COMMERCIAL_TERMS_PRICING_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "QA_SECURITY_REGRESSION_NOT_VERIFIED"
-  | "PROTECTED_DEPLOYMENT_NOT_VERIFIED";
+  | "PROTECTED_DEPLOYMENT_NOT_VERIFIED"
+  | "LOCALIZATION_STRUCTURE_NOT_READY";
 
 export type CountryCriticalLaunchGate = {
   launchable: boolean;
@@ -64,10 +66,12 @@ const CRITICAL_REQUIREMENTS: ReadonlyArray<{
  * from static country configuration alone: Room Factory/template readiness,
  * atomic persistence and hosted schema parity, tenant isolation, auth recovery,
  * reviewed legal/recording evidence, commercial terms/pricing, payment
- * operations, QA/security regression, and a protected deployment path.
+ * operations, QA/security regression, a protected deployment path, and
+ * repository-grounded localization structure.
  *
  * This function does not activate a country, mutate data, or deploy anything.
- * Every critical requirement must be explicitly VERIFIED.
+ * Every critical requirement must be explicitly VERIFIED and the configured
+ * locale must be representable consistently by the Room Factory/Create Room path.
  */
 export function evaluateCountryCriticalLaunch(
   config: CountryConfig,
@@ -75,9 +79,14 @@ export function evaluateCountryCriticalLaunch(
   criticalEvidence: CountryCriticalLaunchEvidence,
 ): CountryCriticalLaunchGate {
   const operationalGate = evaluateCountryOperationalLaunch(config, operationalEvidence);
+  const localizationStructure = evaluateCountryLocalizationStructure(config);
   const criticalBlockers = CRITICAL_REQUIREMENTS
     .filter(({ key }) => criticalEvidence[key] !== "VERIFIED")
     .map(({ blocker }) => blocker);
+
+  if (!localizationStructure.ready) {
+    criticalBlockers.push("LOCALIZATION_STRUCTURE_NOT_READY");
+  }
 
   return {
     launchable: operationalGate.launchable && criticalBlockers.length === 0,
