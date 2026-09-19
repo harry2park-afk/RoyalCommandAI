@@ -8,7 +8,7 @@ const repoRoot = path.resolve(import.meta.dirname, "..");
 const manifestPath = path.join(
   repoRoot,
   "scripts",
-  "supabase-unresolved-local-migration-classification-20260914.json",
+  "supabase-unresolved-local-migration-classification-20260920.json",
 );
 const workflowPath = path.join(
   repoRoot,
@@ -23,6 +23,7 @@ const expectedCandidates = [
   "20260901025800_room_factory_atomic_non_encounter.sql",
   "20260903075000_country_compliance_evidence_registry.sql",
   "20260903205500_payment_operational_safeguards.sql",
+  "20260904005500_add_room_factory_fk_indexes.sql",
   "20260904105500_harden_profile_role_authority.sql",
   "20260911045100_room_factory_manifest_acl_hardening.sql",
 ];
@@ -69,7 +70,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
   it("fails closed if the workflow allow-list is narrower than the provenance manifest", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
-      requestedAllowlist: expectedCandidates.slice(0, 5).join(","),
+      requestedAllowlist: expectedCandidates.slice(0, 6).join(","),
       migrationDir,
     });
 
