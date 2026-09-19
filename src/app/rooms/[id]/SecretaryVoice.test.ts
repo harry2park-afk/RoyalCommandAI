@@ -45,6 +45,24 @@ beforeEach(() => {
 });
 afterEach(() => { sessions.forEach(s => s.stop()); vi.useRealTimers(); vi.unstubAllGlobals(); });
 describe('Katie recorder sessions (simulated microphone/STT)', () => {
+  it('allows automatic language recognition for the recovery path', async () => {
+    const opts = {language:'en-AU', autoDetectLanguage:true, onMessage:vi.fn(async()=> '답변'), onTranscript:vi.fn(), onStatus:vi.fn(), onStop:vi.fn()};
+    const session = new SecretaryVoiceSession(opts); sessions.push(session);
+    await session.start(); await phrase();
+    expect((request.mock.calls[0][1].body as FormData).has('language')).toBe(false);
+    expect(opts.onMessage).toHaveBeenCalledOnce();
+  });
+  it('stops after a stalled answer without resubmitting the order or speaking a late response', async () => {
+    let resolve!: (value:string)=>void;
+    const onMessage = vi.fn(()=>new Promise<string>(r=>{resolve=r;}));
+    const {session,options}=make('ko-KR',onMessage);
+    await session.start(); await phrase();
+    await vi.advanceTimersByTimeAsync(50000);
+    expect(options.onStop).toHaveBeenCalledWith(expect.stringContaining('VOICE_ANSWER_TIMEOUT'));
+    resolve('late'); await vi.advanceTimersByTimeAsync(0);
+    expect(onMessage).toHaveBeenCalledOnce(); expect(spoken).toHaveLength(0);
+    expect(track.stop).toHaveBeenCalledOnce();
+  });
   it('opens no microphone until explicitly started', () => { make(); expect(getUserMedia).not.toHaveBeenCalled(); });
   it('keeps the whole utterance through a short pause and explicitly requests Korean', async () => {
     const {session, options} = make(); await session.start();

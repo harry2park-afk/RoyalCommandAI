@@ -17,7 +17,13 @@ test('durable edit, isolated history, empty clone, restart and lifetime capabili
   assert.throws(()=>store.history(other,room.id,'chat'),/ACCESS_DENIED/);
   assert.throws(()=>store.clone(other,room.id),/ACCESS_DENIED/);
   const copy=store.clone(owner,room.id); assert.notEqual(copy.id,room.id); assert.equal(copy.status,'draft');
-  assert.deepEqual(copy.design,design); assert.deepEqual(store.history(owner,copy.id,'chat'),[]);
+  assert.equal(copy.design.buttons[0].capability,design.buttons[0].capability);
+  assert.equal(copy.design.buttons[0].x,40);
+  assert.equal(copy.design.buttons[0].label,'My AI');
+  assert.notEqual(copy.design.buttons[0].id,design.buttons[0].id);
+  assert.deepEqual(store.appearance(owner,copy.id,'send'),{revision:0,patch:{}});
+  assert.deepEqual(store.history(owner,copy.id,'chat'),[]);
+  assert.deepEqual(store.history(owner,copy.id,'secretary'),[]);
   store.close(); store=openStore(file);
   assert.equal(store.get(owner,room.id).design.buttons[0].label,'개인 비서');
   assert.equal(store.appearance(owner,room.id,'send').patch.width,80);

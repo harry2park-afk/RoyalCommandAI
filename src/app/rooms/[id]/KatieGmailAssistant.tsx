@@ -80,6 +80,17 @@ export default function KatieGmailAssistant({ roomId, onMailLoaded, onReview }: 
     return () => { active = false; controller.abort(); };
   }, [endpoint, roomId, reload]);
 
+  async function enableRoomGmail() {
+    await run(async () => {
+      const response = await fetch(`/api/rcv3/state?room=${encodeURIComponent(roomId)}`, {cache:"no-store",signal:AbortSignal.timeout(15000)});
+      if (!response.ok) throw new Error("GMAIL_READ_FAILED");
+      const {state} = await response.json();
+      const saved = await fetch("/api/rcv3/state", {method:"PUT",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(15000),
+        body:JSON.stringify({roomId,revision:state.revision,state:{...state,revision:state.revision+1,gmailEnabled:true}})});
+      if (!saved.ok) throw new Error("GMAIL_READ_FAILED");
+      setReload(value=>value+1);
+    });
+  }
   async function api(body: Record<string, unknown>) {
     const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const payload = await response.json().catch(() => ({}));
@@ -90,7 +101,7 @@ export default function KatieGmailAssistant({ roomId, onMailLoaded, onReview }: 
     return payload.result;
   }
   async function ai(message: string) {
-    const response = await fetch("/api/ai/helper", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId, selectedLanguage: "ko", history: [], message }) });
+    const response = await fetch("/api/ai/helper", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ roomId, selectedLanguage: locale, history: [], message }) });
     const payload = await response.json().catch(() => ({}));
     if (!response.ok || !payload.answer) throw new Error(payload.error || "Katie가 답하지 못했습니다.");
     return String(payload.answer).trim();
@@ -119,10 +130,10 @@ export default function KatieGmailAssistant({ roomId, onMailLoaded, onReview }: 
     setTranslation(await ai(["다음 이메일 원문을 빠짐없이 자연스러운 한국어로 번역하세요.", "설명이나 행동은 하지 말고 번역문만 반환하세요.", selected.original].join("\n\n")));
   });
   const askKatie = () => selected && question.trim() && run(async () => {
-    setAnswer(await ai(["당신은 Harry의 개인비서 Katie입니다. 아래 이메일을 읽고 Harry의 질문에 한국어로 간결하고 정확하게 답하세요.", "메일을 보내거나 삭제하거나 전달하지 마세요.", `보낸 사람: ${selected.from}`, `제목: ${selected.subject}`, `원문:\n${selected.original}`, `Harry 질문: ${question}`].join("\n\n")));
+    setAnswer(await ai([`You are the current customer’s personal secretary Katie. Answer the question about this email concisely in the selected language (${locale}).`, "메일을 보내거나 삭제하거나 전달하지 마세요.", `보낸 사람: ${selected.from}`, `제목: ${selected.subject}`, `원문:\n${selected.original}`, `고객 질문: ${question}`].join("\n\n")));
   });
   const prepareDraft = () => selected && run(async () => {
-    const body = await ai(["Harry의 개인비서 Katie로서 아래 이메일에 대한 간결하고 정중한 호주식 영어 답장 초안을 작성하세요.", "답장 본문만 반환하고 어떤 외부 행동도 하지 마세요.", answer ? `Harry와 논의한 내용:\n${answer}` : "", `원문:\n${selected.original}`].filter(Boolean).join("\n\n"));
+    const body = await ai([`Draft a concise, polite reply for the current customer in the selected language (${locale}). Do not invent personal details.`, "답장 본문만 반환하고 어떤 외부 행동도 하지 마세요.", answer ? `고객과 논의한 내용:\n${answer}` : "", `원문:\n${selected.original}`].filter(Boolean).join("\n\n"));
     setDraft({ to: emailAddress(selected.from), subject: selected.subject.startsWith("Re:") ? selected.subject : `Re: ${selected.subject}`, body }); setApproved(false);
   });
   const execute = (action: "draft" | "send") => selected && approved && run(async () => {
@@ -141,6 +152,7 @@ export default function KatieGmailAssistant({ roomId, onMailLoaded, onReview }: 
       {connection && <div className="mt-3 flex items-center gap-2 text-sm">{connection.connected ? <CheckCircle2 className="text-emerald-400" size={17} /> : <AlertTriangle className="text-amber-300" size={17} />}<span>{connection.connected ? `${connection.googleEmail || "Gmail"} 연결됨` : "Gmail이 연결되지 않았습니다."}</span>{!connection.connected && connection.oauthConfigured && connection.code === "GMAIL_RECONNECT_REQUIRED" && <a href="/api/tools/google/connect" className="rounded bg-blue-700 px-3 py-1.5 text-xs">{text("reconnect")}</a>}</div>}
       {connection?.connected && <button type="button" onClick={loadMail} disabled={busy || loadingMail} className="mt-3 flex items-center gap-2 rounded-lg bg-[#173663] px-4 py-2 text-sm text-[#ffe18a] disabled:opacity-50">{loadingMail ? <Loader2 className="animate-spin" size={16} /> : <RefreshCw size={16} />}{text("refresh")}</button>}
       <p className="mt-3 text-xs text-white/60">{text("scope")}</p>
+      {connection?.code === "GMAIL_ROOM_NOT_ENABLED" && <button type="button" onClick={() => void enableRoomGmail()} disabled={busy || loadingMail} className="mt-3 rounded bg-blue-700 px-3 py-2 text-sm">{text("enable")}</button>}
       <p className="mt-2 text-xs text-white/60">{text("active")}</p>
       <p role="status" className="mt-3 text-sm">{loadingMail ? text("loading") : mailLoaded ? text("complete") : ""} {messages.length}</p>
       {connection?.connected && onReview && <button type="button" onClick={() => { loadRef.current?.abort(); setLoadingMail(false); onReview(); }} disabled={busy} className="mt-3 rounded bg-[#173663] px-4 py-2 text-sm">{text("review")}</button>}
@@ -153,7 +165,7 @@ export default function KatieGmailAssistant({ roomId, onMailLoaded, onReview }: 
         <div><h5 className="mb-2 text-sm font-bold">Katie와 논의</h5><div className="flex gap-2"><input value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="이 메일의 뜻이나 답장 방향을 물어보세요" className="min-w-0 flex-1 rounded border border-white/15 bg-black/20 p-2 text-sm" /><button type="button" onClick={askKatie} disabled={busy || !question.trim()} className="rounded bg-[#173663] px-3 text-xs">질문</button></div>{answer && <p className="mt-2 whitespace-pre-wrap rounded border border-white/10 p-3 text-sm leading-6">{answer}</p>}</div>
         <button type="button" onClick={prepareDraft} disabled={busy} className="rounded border border-[#d7b64d]/50 px-3 py-2 text-xs text-[#ffe18a]">Katie와 답장 초안 만들기</button>
         {draft.body && <div className="space-y-2"><input aria-label="받는 사람" value={draft.to} onChange={(event) => { setDraft({ ...draft, to: event.target.value }); setApproved(false); }} className="w-full rounded border border-white/15 bg-black/20 p-2 text-sm" /><input aria-label="제목" value={draft.subject} onChange={(event) => { setDraft({ ...draft, subject: event.target.value }); setApproved(false); }} className="w-full rounded border border-white/15 bg-black/20 p-2 text-sm" /><textarea aria-label="답장 내용" value={draft.body} onChange={(event) => { setDraft({ ...draft, body: event.target.value }); setApproved(false); }} className="min-h-40 w-full rounded border border-white/15 bg-black/20 p-2 text-sm" /><label className="flex items-start gap-2 rounded border border-amber-400/30 p-3 text-xs"><input type="checkbox" checked={approved} onChange={(event) => setApproved(event.target.checked)} /><span>받는 사람·제목·내용을 확인했으며, 아래에서 선택한 작업 1회를 승인합니다.</span></label><div className="flex flex-wrap gap-2"><button type="button" onClick={() => execute("draft")} disabled={busy || !approved} className="rounded bg-[#173663] px-4 py-2 text-xs disabled:opacity-40">승인하고 Gmail 초안 저장</button><button type="button" onClick={() => execute("send")} disabled={busy || !approved} className="rounded bg-[#7A0C2E] px-4 py-2 text-xs text-[#ffe18a] disabled:opacity-40">승인하고 지금 발송</button></div></div>}
-        {result && <p className="text-sm text-emerald-300">{result}</p>}<p className="text-xs text-amber-200">자동 발송·삭제·전달은 항상 금지됩니다. 저장과 발송은 매번 Harry의 체크 승인이 필요합니다.</p>
+        {result && <p className="text-sm text-emerald-300">{result}</p>}<p className="text-xs text-amber-200">자동 발송·삭제·전달은 항상 금지됩니다. 저장과 발송은 매번 계정 소유자의 체크 승인이 필요합니다.</p>
       </div>}
     </section>
   );

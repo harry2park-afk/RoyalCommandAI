@@ -2,6 +2,7 @@
 // SpeechRecognition service (which can beep/restart at every short utterance).
 export type VoiceSessionOptions = {
   language: string;
+  autoDetectLanguage?: boolean;
   negotiate?: (sdp: string, signal: AbortSignal) => Promise<Response>;
   speakerLabel?: string;
   answerTimeoutMs?: number;
@@ -129,7 +130,7 @@ export class SecretaryVoiceSession {
     try {
       const form = new FormData();
       form.append("audio", audio, audio.type.includes("mp4") ? "katie-voice.m4a" : "katie-voice.webm");
-      form.append("language", this.options.language.split("-")[0].toLowerCase());
+      if (!this.options.autoDetectLanguage) form.append("language", this.options.language.split("-")[0].toLowerCase());
       const response = await fetch("/api/voice/transcribe", { method: "POST", body: form, signal: this.request.signal });
       const result = await response.json();
       clearTimeout(this.timer);
@@ -154,7 +155,9 @@ export class SecretaryVoiceSession {
       }
       this.options.onPhase?.("thinking");
       this.options.onStatus("Katie가 답변을 준비하고 있습니다…");
+      this.timer = setTimeout(() => this.stop("답변 시간이 초과됐습니다. (VOICE_ANSWER_TIMEOUT)"), this.options.answerTimeoutMs || 50000);
       const answer = await this.options.onMessage(text);
+      clearTimeout(this.timer);
       if (this.stopped) return;
       if (!answer.trim()) { this.stop("답변을 받지 못했습니다. 다시 시작해 주세요."); return; }
       this.speak(answer);

@@ -40,7 +40,7 @@ export function openStore(path) {
     edit:(owner,id,revision,design)=>transaction(()=>save(editDesign(get(owner,id),owner,revision,design))),
     clone:(owner,id)=>transaction(()=>{
       const copy=save(copyDesignToDraft(get(owner,id),owner));
-      db.prepare('INSERT INTO appearances SELECT ?,control,0,body FROM appearances WHERE room=?').run(copy.id,id);
+      // Runtime/personal settings do not travel with a portable draft.
       return copy;
     }),
     saveAppearance(owner,id,control,revision,input){

@@ -1,4 +1,6 @@
 const messages = {
+  enable: { en: "Use my Gmail in this room", ko: "이 방에 내 Gmail 연결" },
+  GMAIL_ROOM_NOT_ENABLED: { en: "This new room has no Gmail connection. Choose to connect your own account.", ko: "새 방에는 Gmail이 연결되지 않았습니다. 본인 계정을 연결할 수 있습니다." },
   all: { en: "All received mail", ko: "받은 메일 전체" },
   refresh: { en: "Refresh all mail", ko: "전체 메일 새로고침" },
   review: { en: "Review all mail", ko: "전체 메일 검토" },
@@ -19,5 +21,5 @@ export function katieMailText(key: KatieMailKey, locale: string) {
   return locale.toLowerCase().split(/[-_]/)[0] === "ko" ? `${text.en} ${text.ko}` : text.en;
 }
 export function katieMailError(code: string, locale: string) {
-  return katieMailText(code === "GMAIL_RECONNECT_REQUIRED" || code === "GMAIL_PAGINATION_FAILED" ? code : "GMAIL_READ_FAILED", locale);
+  return katieMailText(code === "GMAIL_RECONNECT_REQUIRED" || code === "GMAIL_PAGINATION_FAILED" || code === "GMAIL_ROOM_NOT_ENABLED" ? code : "GMAIL_READ_FAILED", locale);
 }

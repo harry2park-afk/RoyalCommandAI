@@ -29,6 +29,7 @@ export const stateSchema = z.object({
   selectedProviders: z.array(z.enum(AI_PROVIDER_IDS)).max(27).default(["openai"]),
   providerOrder: z.array(z.enum(AI_PROVIDER_IDS)).max(27).refine(ids=>new Set(ids).size===ids.length, "DUPLICATE_PROVIDER_ORDER").optional(),
   secretaryRoomId: z.string().uuid().nullable().default(null),
+  gmailEnabled: z.boolean().default(false),
   design: designSchema,
   appearances: z.record(z.string().uuid(), appearanceSchema),
   bindings: z.record(z.string().uuid(), capability),

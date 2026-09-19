@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { evolveState, stateSchema, type CloudState } from "./cloud-state";
 const id = "11111111-1111-4111-8111-111111111111";
-const original: CloudState = { release: "rcv3-1", name: "RCV3", revision: 1, connectedProviders:["openai"], selectedProviders:["openai"], secretaryRoomId:null, design: { backgroundAssetId: null, buttons: [{ id, capability: "chat", label: "대화", x: 5, y: 5, width: 20, height: 10, opacity: 1 }] }, appearances: {}, bindings: { [id]: "chat" } };
+const original: CloudState = { release: "rcv3-1", name: "RCV3", revision: 1, connectedProviders:["openai"], selectedProviders:["openai"], secretaryRoomId:null, gmailEnabled:false, design: { backgroundAssetId: null, buttons: [{ id, capability: "chat", label: "대화", x: 5, y: 5, width: 20, height: 10, opacity: 1 }] }, appearances: {}, bindings: { [id]: "chat" } };
 describe("RCV3 immutable cloud design", () => {
   it("allows appearance changes without changing identity", () => {
     const next = structuredClone(original); next.revision = 2; next.design.buttons[0].label = "내 AI"; next.design.buttons[0].x = 30;

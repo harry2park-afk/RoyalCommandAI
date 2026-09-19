@@ -68,10 +68,24 @@ export function editDesign(room, authenticatedOwnerId, expectedRevision, candida
 
 // Produces an EMPTY draft, not a database insert or an activated room.
 // Deliberate allowlist prevents copying tokens, history, jobs or approvals.
+/** @param {any} source @param {(index: number) => string} newId */
+export function portableDesign(source, newId = () => randomUUID()) {
+  const design = validateDesign(source);
+  const labels = { chat: 'My AI', secretary: 'Katie', files: 'Files' };
+  return validateDesign({
+    // Uploaded images and custom labels can themselves contain personal data.
+    backgroundAssetId: null,
+    buttons: design.buttons.map((button, index) => ({
+      id: newId(index), capability: button.capability, label: labels[button.capability],
+      x: button.x, y: button.y, width: button.width, height: button.height, opacity: button.opacity,
+    })),
+  });
+}
+
 export function copyDesignToDraft(source, authenticatedOwnerId) {
   requireOwner(source, authenticatedOwnerId);
   return freeze({
     id: randomUUID(), ownerId: authenticatedOwnerId, name: 'RCV3',
-    status: 'draft', revision: 0, design: validateDesign(source.design),
+    status: 'draft', revision: 0, design: portableDesign(source.design),
   });
 }

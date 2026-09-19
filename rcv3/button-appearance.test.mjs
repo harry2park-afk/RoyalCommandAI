@@ -18,7 +18,7 @@ test('button appearance edits enforce owner/revision and clone only design',()=>
  assert.throws(()=>store.appearance(randomUUID(),room.id,'microphone'),/ACCESS_DENIED/);
  assert.throws(()=>store.saveAppearance(owner,room.id,'admin',0,{}),/UNKNOWN_CONTROL/);
  const copy=store.clone(owner,room.id);
- assert.equal(store.appearance(owner,copy.id,'microphone').patch.label,'말하기');
+ assert.deepEqual(store.appearance(owner,copy.id,'microphone'),{revision:0,patch:{}});
  store.saveAppearance(owner,copy.id,'microphone',0,{label:'다른 방'});
  assert.equal(store.appearance(owner,room.id,'microphone').patch.label,'말하기');
  }finally{store.close();}

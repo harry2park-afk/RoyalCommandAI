@@ -13,6 +13,20 @@ import SecretaryPage from "./page";
 const room = { id: "owned-room", name: "Command Room", status: "active", created_at: "2026-08-07" };
 beforeEach(() => { state.user = { id: "owner" }; state.rooms = [room]; state.error = null; state.eq.mockClear(); });
 describe("secretary entry", () => {
+  it("returns to the same RC V3 room and preserves context in the room picker", async () => {
+    const id = "c8303f58-cacc-5b07-8b78-b67f9dacaca7";
+    const html = renderToStaticMarkup(await SecretaryPage({ searchParams: Promise.resolve({ room: room.id, from: "rcv3", rcv3Room: id }) }));
+    expect(html).toContain(`/rcv3?room=${id}`);
+    expect(html).toContain(`/secretary?from=rcv3&amp;rcv3Room=${id}`);
+    expect(html).toContain("secretary:owned-room:en-AU");
+    const picker = renderToStaticMarkup(await SecretaryPage({ searchParams: Promise.resolve({ from: "rcv3", rcv3Room: id }) }));
+    expect(picker).toContain(`/secretary?room=owned-room&amp;from=rcv3&amp;rcv3Room=${id}`);
+  });
+  it("does not accept arbitrary return URLs", async () => {
+    const html = renderToStaticMarkup(await SecretaryPage({ searchParams: Promise.resolve({ room: room.id, from: "rcv3", rcv3Room: "https://example.com" }) }));
+    expect(html).toContain('href="/rcv3"');
+    expect(html).not.toContain("example.com");
+  });
   it("redirects anonymous visits back through login without reading rooms", async () => {
     state.user = null;
     await expect(SecretaryPage({ searchParams: Promise.resolve({ room: room.id }) })).rejects.toThrow("redirect:/login?next=");

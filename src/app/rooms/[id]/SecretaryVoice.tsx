@@ -3,7 +3,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Mic } from "lucide-react";
 import { resolveGlobalLocale } from "@/lib/locale/globalLocaleCore";
-import { RealtimeSecretaryVoiceSession as SecretaryVoiceSession } from "@/lib/ai-secretary/realtime-voice-session";
+import { SecretaryVoiceRecovery } from "@/lib/ai-secretary/voice-recovery";
+import { katieVoiceText } from "@/lib/locale/katie-voice";
+import { useRoyalCommandLocale } from "./useRoyalCommandLocale";
 
 export default function SecretaryVoice({ onMessage, busy, onActiveChange, onTranscript, initialText }: {
   onMessage: (text: string) => Promise<string>;
@@ -18,7 +20,9 @@ export default function SecretaryVoice({ onMessage, busy, onActiveChange, onTran
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [language, setLanguage] = useState("");
-  const session = useRef<SecretaryVoiceSession | null>(null);
+  const session = useRef<ReturnType<SecretaryVoiceRecovery["create"]> | null>(null);
+  const recovery = useRef(new SecretaryVoiceRecovery());
+  const locale = useRoyalCommandLocale();
   const alive = useRef(true);
 
   useEffect(() => {
@@ -58,7 +62,7 @@ export default function SecretaryVoice({ onMessage, busy, onActiveChange, onTran
     setError("");
     let prefix = initialText.trim();
     const combined = (text: string) => [prefix, text].filter(Boolean).join(" ");
-    session.current = new SecretaryVoiceSession({
+    session.current = recovery.current.create({
       language, onMessage: text => {
         const message = combined(text);
         prefix = "";
@@ -72,13 +76,13 @@ export default function SecretaryVoice({ onMessage, busy, onActiveChange, onTran
         session.current = null;
         if (alive.current) { setActive(false); setPhase("idle"); setLevel(0); setStatus(text); setError(text === "음성 대화를 종료했습니다." || text.startsWith("화면을 벗어나") ? "" : text); onActiveChange(false); }
       },
-    });
+    }, () => katieVoiceText("recovery", locale));
     void session.current.start();
   }
 
   return <>
-    <button type="button" aria-label={active ? "음성 대화 종료" : "음성 대화 시작"}
-      title={active ? status : "음성 대화 시작"} aria-pressed={active}
+    <button type="button" aria-label={katieVoiceText(active ? "stop" : "start", locale)}
+      title={active ? status : katieVoiceText("start", locale)} aria-pressed={active}
       disabled={!active && (busy || !language)} onClick={() => active ? session.current?.stop() : start()}
       data-voice-phase={phase}
       style={active && phase === "listening" ? { boxShadow: `0 0 0 ${2 + level * 9}px rgba(52, 211, 153, ${0.15 + level * 0.35})` } : undefined}
@@ -86,6 +90,6 @@ export default function SecretaryVoice({ onMessage, busy, onActiveChange, onTran
       <Mic size={24}/>
     </button>
     <span role="status" className="sr-only">{status}</span>
-    {error ? <p role="alert" className="absolute bottom-full left-0 mb-2 w-72 rounded-lg bg-[#07111f] p-2 text-sm text-red-200">{error}</p> : null}
+    {error ? <p role="alert" className="absolute bottom-full left-0 mb-2 w-72 max-w-[calc(100vw-6rem)] break-words rounded-lg bg-[#07111f] p-2 text-sm text-red-200">{error}</p> : null}
   </>;
 }

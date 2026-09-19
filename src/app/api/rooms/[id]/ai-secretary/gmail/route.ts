@@ -4,6 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getGoogleConnection, googleApi, googleWorkspaceConfigured } from "@/lib/google-workspace";
 import { evaluateToolPermission, auditToolGateway } from "@/lib/tool-gateway";
 import { isHarryEmail, isKatieGmailAction, katieGmailNeedsApproval } from "@/lib/ai-secretary/katie-gmail-policy";
+import { access as accessV3Room, RCV3_MARKER } from "@/lib/rcv3/access";
+import { readState } from "@/lib/rcv3/cloud-state";
 
 import { gmailFailureCode, gmailSearchParams } from "@/lib/ai-secretary/mail-reader";
 
@@ -50,18 +52,35 @@ function gmailRaw(to: string, subject: string, body: string, reply?: { messageId
 }
 async function authorize(roomId: string) {
   const user = await getCurrentUser();
-  if (!user || !isHarryEmail(user.email)) return { error: "Forbidden", status: 403 } as const;
+  if (!user) return { error: "Forbidden", status: 403 } as const;
+  let v3: Awaited<ReturnType<typeof accessV3Room>> | undefined;
+  // Existing personal secretary access is unchanged. New customer access is
+  // confined to their authenticated Preview V3 room, never a shared identity.
+  if (!isHarryEmail(user.email)) {
+    try { v3 = await accessV3Room(roomId); if (v3.user.id !== user.id) throw new Error("RCV3_AUTH"); }
+    catch { return { error: "Forbidden", status: 403 } as const; }
+  }
   const db = await createClient();
-  const { data: room } = await db.from("rooms").select("id,room_owner_id").eq("id", roomId).maybeSingle();
+  const { data: room } = await db.from("rooms").select("id,room_owner_id,description").eq("id", roomId).maybeSingle();
   if (!room) return { error: "Room not found", status: 404 } as const;
   if (room.room_owner_id !== user.id) return { error: "Forbidden", status: 403 } as const;
+  if (v3 || room.description === RCV3_MARKER) {
+    try {
+      v3 ??= await accessV3Room(roomId);
+      if (v3.user.id !== user.id) return { error: "Forbidden", status: 403 } as const;
+      const state = await readState(v3.store);
+      if (!state?.gmailEnabled) return { error: "GMAIL_ROOM_NOT_ENABLED", status: 403 } as const;
+    } catch { return { error: "Forbidden", status: 403 } as const; }
+  }
   return { user } as const;
 }
 
 export async function GET(_request: Request, context: { params: Promise<{ id: string }> }) {
   const { id } = await context.params;
   const auth = await authorize(id);
-  if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+  if ("error" in auth) return auth.error === "GMAIL_ROOM_NOT_ENABLED"
+    ? NextResponse.json({connected:false,code:auth.error},{headers:{"Cache-Control":"private, no-store"}})
+    : NextResponse.json({ error: auth.error }, { status: auth.status });
   try {
     const connection = await getGoogleConnection(auth.user.id);
     if (!connection) return NextResponse.json({ ok: true, oauthConfigured: googleWorkspaceConfigured(), connected: false, code: "GMAIL_RECONNECT_REQUIRED" }, { headers: { "Cache-Control": "private, no-store" } });
@@ -78,13 +97,13 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
   try {
     const { id } = await context.params;
     const auth = await authorize(id);
-    if ("error" in auth) return NextResponse.json({ error: auth.error }, { status: auth.status });
+    if ("error" in auth) return NextResponse.json({ error: auth.error, code: auth.error === "GMAIL_ROOM_NOT_ENABLED" ? auth.error : "GMAIL_READ_FAILED" }, { status: auth.status });
     const body = await request.json().catch(() => ({}));
     if (!isKatieGmailAction(body?.action) || body.action === "status") {
       auditToolGateway("katie_gmail_blocked", { userId: auth.user.id, roomId: id, action: String(body?.action || "") });
       return NextResponse.json({ error: "Katie Gmail에서 삭제와 전달은 허용되지 않습니다." }, { status: 403 });
     }
-    if (katieGmailNeedsApproval(body.action) && body.approved !== true) return NextResponse.json({ error: "Harry의 명시적 승인이 필요합니다." }, { status: 409 });
+    if (katieGmailNeedsApproval(body.action) && body.approved !== true) return NextResponse.json({ error: "Account owner approval is required.", code: "APPROVAL_REQUIRED" }, { status: 409 });
     const capability = body.action === "send" ? "email.gmail.send" : body.action === "draft" ? "email.gmail.draft" : "email.gmail.read";
     const decision = evaluateToolPermission(capability, { owner: true, approved: body.approved === true });
     if (decision.decision !== "allow") return NextResponse.json({ error: decision.reason }, { status: decision.decision === "approval_required" ? 409 : 403 });

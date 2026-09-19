@@ -106,7 +106,7 @@ handlers remain attached while labels/styles change. The TS dependency requires
 the app bundler for browser delivery; raw static-module serving is not supported.
 
 Local store now saves appearance with owner checks and atomic revision checks,
-clones appearance without conversations, and supports restore with an empty patch.
+excludes personal appearance patches and conversations from new clones, and supports restore with an empty patch.
 13 tests passed; disk close/reopen verifies size and label persistence. Not yet
 verified: editor UI binding, browser click/drag, production authentication/cloud
 persistence, real AI and voice. These are release blockers, not completed features.
