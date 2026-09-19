@@ -15,6 +15,8 @@ const CANDIDATES = {
     "supabase/migrations/20260904005500_add_room_factory_fk_indexes.sql",
   profileRoleAuthority:
     "supabase/migrations/20260904105500_harden_profile_role_authority.sql",
+  commercialReviewProvenance:
+    "supabase/migrations/20260910030000_harden_commercial_review_provenance.sql",
   manifestAcl:
     "supabase/migrations/20260911045100_room_factory_manifest_acl_hardening.sql",
 } as const;
@@ -27,7 +29,7 @@ function migration(path: string): string {
 }
 
 describe("October launch Supabase candidate blocker coverage", () => {
-  it("keeps the reviewed seven-migration candidate set complete", () => {
+  it("keeps the reviewed eight-migration candidate set complete", () => {
     expect(Object.values(CANDIDATES)).toEqual([
       "supabase/migrations/20260831225500_scope_matter_staff_access.sql",
       "supabase/migrations/20260901025800_room_factory_atomic_non_encounter.sql",
@@ -35,6 +37,7 @@ describe("October launch Supabase candidate blocker coverage", () => {
       "supabase/migrations/20260903205500_payment_operational_safeguards.sql",
       "supabase/migrations/20260904005500_add_room_factory_fk_indexes.sql",
       "supabase/migrations/20260904105500_harden_profile_role_authority.sql",
+      "supabase/migrations/20260910030000_harden_commercial_review_provenance.sql",
       "supabase/migrations/20260911045100_room_factory_manifest_acl_hardening.sql",
     ]);
   });
@@ -46,7 +49,9 @@ describe("October launch Supabase candidate blocker coverage", () => {
     expect(sql).toContain("'room_factory_atomic_non_encounter'");
     expect(sql).toContain("'country_compliance_evidence_registry'");
     expect(sql).toContain("'payment_operational_safeguards'");
+    expect(sql).toContain("'add_room_factory_fk_indexes'");
     expect(sql).toContain("'harden_profile_role_authority'");
+    expect(sql).toContain("'harden_commercial_review_provenance'");
     expect(sql).toContain("'room_factory_manifest_acl_hardening'");
     expect(sql).not.toContain("'room_factory_manifest_atomic_only'");
   });
@@ -188,6 +193,18 @@ describe("October launch Supabase candidate blocker coverage", () => {
     expect(sql).toContain("revoke update on table public.profiles from anon, authenticated;");
     expect(sql).toMatch(/grant update \(full_name, default_language, avatar_url, ui_preferences, updated_at\)[\s\S]*to authenticated;/);
     expect(sql).toContain("'client'");
+  });
+
+  it("covers fail-closed commercial review provenance without seeding approvals", () => {
+    const sql = migration(CANDIDATES.commercialReviewProvenance);
+
+    expect(sql).toContain("add column if not exists review_status text not null default 'needs_review'");
+    expect(sql).toContain("add column if not exists reviewed_by uuid");
+    expect(sql).toContain("add column if not exists reviewed_at timestamptz");
+    expect(sql).toContain("rc_service_country_terms_approval_provenance_check");
+    expect(sql).toContain("rc_service_provider_offers_approval_provenance_check");
+    expect(sql).toMatch(/review_status <> 'approved'[\s\S]*reviewed_by is not null and reviewed_at is not null/);
+    expect(sql).not.toMatch(/insert\s+into\s+public\.(rc_service_country_terms|rc_service_provider_offers)/i);
   });
 
   it("covers Room Factory manifest ACL hardening without restoring client writes", () => {
