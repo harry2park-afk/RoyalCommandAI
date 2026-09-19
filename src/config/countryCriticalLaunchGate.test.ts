@@ -143,7 +143,24 @@ describe("country critical launch gate", () => {
     expect(gate.criticalBlockers).toEqual(["TENANT_ISOLATION_NOT_VERIFIED"]);
   });
 
-  it("only becomes launchable when country, operational, and critical evidence are all verified", () => {
+  it("does not let VERIFIED evidence hide Canada's unsupported French secondary Create Room locale", () => {
+    const base = getCountryConfigByCountryCode("CA");
+    expect(base).not.toBeNull();
+    expect(base?.secondaryLocale).toBe("fr-CA");
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryCriticalLaunch(
+      ready,
+      verifiedOperationalEvidence,
+      verifiedCriticalEvidence,
+    );
+
+    expect(gate.operationalGate.launchable).toBe(true);
+    expect(gate.launchable).toBe(false);
+    expect(gate.criticalBlockers).toContain("LOCALIZATION_STRUCTURE_NOT_READY");
+  });
+
+  it("only becomes launchable when country, operational, critical, and localization structure evidence are all verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const ready = makeCountryGateReady(base!);
