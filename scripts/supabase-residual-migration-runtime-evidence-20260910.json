@@ -1,0 +1,109 @@
+{
+  "contract_version": 1,
+  "captured_date": "2026-09-10",
+  "project_ref": "aygawkavujjmybekswrg",
+  "project_name": "RoyalCommand",
+  "source": "Fresh Hosted Supabase READ-ONLY catalog and migration-history queries executed against the connected project.",
+  "purpose": "Narrow PR #696 residual migration risk by proving current Hosted runtime invariants without claiming migration-ledger identity, authorizing repair, applying migrations, deploying Production, or changing Country READY.",
+  "summary": {
+    "residual_migration_names_checked": 5,
+    "current_runtime_invariants_verified": 5,
+    "historical_ledger_equivalence_verified": 0,
+    "ready_for_linked_apply": false
+  },
+  "entries": [
+    {
+      "name": "add_room_work_records",
+      "remote_version": "20260825044842",
+      "local_version": "20260825044500",
+      "runtime_status": "VERIFIED_CURRENT_RUNTIME_INVARIANTS",
+      "evidence": {
+        "hosted_history_present": true,
+        "table_present": true,
+        "rls_enabled": true,
+        "expected_base_columns_present": true,
+        "room_created_index_present": true,
+        "member_scoped_select_insert_update_policies_present": true
+      },
+      "historical_source_equivalence": "UNRESOLVED",
+      "ledger_equivalence_claimed": false
+    },
+    {
+      "name": "legal_case_file_numbers",
+      "remote_version": "20260829070456",
+      "local_version": "20260829171000",
+      "runtime_status": "VERIFIED_CURRENT_RUNTIME_INVARIANTS",
+      "evidence": {
+        "hosted_history_present": true,
+        "case_number_sequence_present": true,
+        "case_number_bigint_present": true,
+        "case_number_default_uses_sequence": true,
+        "case_number_unique_index_present": true
+      },
+      "historical_source_equivalence": "UNRESOLVED",
+      "ledger_equivalence_claimed": false
+    },
+    {
+      "name": "legal_story_entries",
+      "remote_versions": ["20260829042019", "20260829042153"],
+      "local_version": "20260829142500",
+      "runtime_status": "VERIFIED_COMBINED_SPLIT_HISTORY_EFFECT",
+      "evidence": {
+        "base_and_audio_history_rows_present": true,
+        "audio_document_id_uuid_present": true,
+        "audio_document_fk_delete_set_null_present": true,
+        "room_recorded_index_present": true,
+        "rls_enabled": true,
+        "owner_select_insert_update_policies_present": true,
+        "later_additive_case_id_state_observed": true
+      },
+      "historical_source_equivalence": "HOSTED_SPLIT_HISTORY_EXPLAINS_SOURCE_DRIFT_BUT_LEDGER_IDENTITY_REMAINS_UNRESOLVED",
+      "ledger_equivalence_claimed": false
+    },
+    {
+      "name": "room_factory_evidence_review",
+      "remote_version": "20260828221419",
+      "local_version": "20260829231500",
+      "runtime_status": "VERIFIED_SUPERSEDED_BY_HARDENED_RUNTIME",
+      "evidence": {
+        "hosted_history_present": true,
+        "submit_public_security_invoker_wrapper_present": true,
+        "review_public_security_invoker_wrapper_present": true,
+        "public_authenticated_execute_and_anon_denied": true,
+        "private_security_definer_implementations_present": true,
+        "private_auth_uid_and_room_membership_guards_present": true,
+        "review_writer_self_review_guard_present": true,
+        "review_evidence_required_guard_present": true,
+        "later_hardening_history_observed": [
+          "20260830015153_harden_submit_room_factory_evidence_rpc_wrapper",
+          "20260830025518_harden_review_room_factory_rpc_wrapper"
+        ]
+      },
+      "historical_source_equivalence": "UNRESOLVED_FORMATTING_DRIFT; CURRENT_RUNTIME_IS_LATER_HARDENED",
+      "ledger_equivalence_claimed": false
+    },
+    {
+      "name": "room_factory_start_execution",
+      "remote_version": "20260828222515",
+      "local_version": "20260829234500",
+      "runtime_status": "VERIFIED_SUPERSEDED_BY_HARDENED_RUNTIME",
+      "evidence": {
+        "hosted_history_present": true,
+        "start_public_security_invoker_wrapper_present": true,
+        "fail_public_security_invoker_wrapper_present": true,
+        "public_authenticated_execute_and_anon_denied": true,
+        "private_security_definer_implementations_present": true,
+        "private_auth_uid_and_room_membership_guards_present": true,
+        "dependency_pass_guard_present": true,
+        "complete_lock_token_evidence_guard_present": true,
+        "later_hardening_history_observed": [
+          "20260830005505_harden_fail_room_factory_rpc_wrapper",
+          "20260830035423_harden_start_room_factory_lane_rpc_wrapper"
+        ]
+      },
+      "historical_source_equivalence": "UNRESOLVED_FORMATTING_AND_METADATA_DRIFT; CURRENT_RUNTIME_IS_LATER_HARDENED",
+      "ledger_equivalence_claimed": false
+    }
+  ],
+  "remaining_gate": "Historical migration-ledger reconciliation and exact credentialed supabase migration list --linked plus db push --linked --dry-run evidence are still required before any Hosted migration apply is considered."
+}

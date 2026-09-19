@@ -18,6 +18,10 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   requiredIntegrations: "NEEDS_REVIEW",
   previewSmokeTest: "NEEDS_REVIEW",
   rollbackPath: "NEEDS_REVIEW",
+  roomFactoryTemplates: "NEEDS_REVIEW",
+  tenantIsolation: "NEEDS_REVIEW",
+  paymentOperations: "NEEDS_REVIEW",
+  complianceEvidence: "NEEDS_REVIEW",
 };
 
 const verifiedEvidence: CountryOperationalEvidence = {
@@ -30,6 +34,10 @@ const verifiedEvidence: CountryOperationalEvidence = {
   requiredIntegrations: "VERIFIED",
   previewSmokeTest: "VERIFIED",
   rollbackPath: "VERIFIED",
+  roomFactoryTemplates: "VERIFIED",
+  tenantIsolation: "VERIFIED",
+  paymentOperations: "VERIFIED",
+  complianceEvidence: "VERIFIED",
 };
 
 function makeCountryGateReady(config: CountryConfig): CountryConfig {
@@ -68,6 +76,10 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("AUTH_CALLBACK_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PREVIEW_SMOKE_TEST_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROLLBACK_PATH_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_TEMPLATES_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_EVIDENCE_NOT_VERIFIED");
     }
   });
 
@@ -79,6 +91,33 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.operationalBlockers).toEqual([]);
     expect(gate.countryGate.blockers.length).toBeGreaterThan(0);
+  });
+
+  it("fails closed when older evidence producers omit new launch-critical proof", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const legacyEvidence: CountryOperationalEvidence = {
+      domainBinding: "VERIFIED",
+      authCallback: "VERIFIED",
+      sessionCookies: "VERIFIED",
+      communicationsRules: "VERIFIED",
+      dataResidency: "VERIFIED",
+      localization: "VERIFIED",
+      requiredIntegrations: "VERIFIED",
+      previewSmokeTest: "VERIFIED",
+      rollbackPath: "VERIFIED",
+    };
+
+    const gate = evaluateCountryOperationalLaunch(ready, legacyEvidence);
+    expect(gate.launchable).toBe(false);
+    expect(gate.operationalBlockers).toEqual([
+      "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED",
+      "TENANT_ISOLATION_NOT_VERIFIED",
+      "PAYMENT_OPERATIONS_NOT_VERIFIED",
+      "COMPLIANCE_EVIDENCE_NOT_VERIFIED",
+    ]);
   });
 
   it("fails closed on any missing operational verification even when the country gate is ready", () => {
@@ -96,7 +135,7 @@ describe("country operational launch readiness gate", () => {
     expect(gate.operationalBlockers).toEqual(["DATA_RESIDENCY_NOT_VERIFIED"]);
   });
 
-  it("only becomes launchable when both country and operational evidence are verified", () => {
+  it("only becomes launchable when both country and all operational evidence are verified", () => {
     const base = getCountryConfigByCountryCode("AU");
     expect(base).not.toBeNull();
     const ready = makeCountryGateReady(base!);

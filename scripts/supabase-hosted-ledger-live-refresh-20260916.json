@@ -1,0 +1,31 @@
+{
+  "contract_version": 1,
+  "captured_at_utc": "2026-09-15T16:49:23Z",
+  "project_ref": "aygawkavujjmybekswrg",
+  "source": "Fresh Hosted read-only migration ledger capture via Supabase connector list_migrations plus READ ONLY SQL fingerprint query",
+  "purpose": "Fresh no-drift evidence for PR #696. This receipt is not linked CLI dry-run evidence and does not authorize apply, repair, merge, deploy, Country READY, provider/payment activation, or any Hosted mutation.",
+  "baseline_snapshot": "scripts/supabase-hosted-ledger-snapshot-20260908.json",
+  "baseline_snapshot_blob_sha": "7178fdcf65c45146c17c1cd9388817d4bfdb4344",
+  "previous_refresh": "scripts/supabase-hosted-ledger-live-refresh-20260912.json",
+  "previous_refresh_blob_sha": "69b752e27739bef33f845ee581b30635ed6c6af5",
+  "migration_count": 72,
+  "first_version": "20260809215715",
+  "last_version": "20260905055756",
+  "ordered_ledger_md5": "61da7181eb49c180fc1100b09f32f20e",
+  "ordered_ledger_encoding": "version:name joined by LF, ordered by version then name",
+  "matches_baseline_snapshot": true,
+  "matches_previous_refresh": true,
+  "candidate_name_matches": 0,
+  "candidate_names": [
+    "scope_matter_staff_access",
+    "room_factory_atomic_non_encounter",
+    "country_compliance_evidence_registry",
+    "payment_operational_safeguards",
+    "harden_profile_role_authority",
+    "room_factory_manifest_acl_hardening"
+  ],
+  "hosted_mutation_performed": false,
+  "linked_cli_inventory_proven": false,
+  "linked_db_push_dry_run_proven": false,
+  "ready_for_apply": false
+}
