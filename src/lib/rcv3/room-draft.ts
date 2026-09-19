@@ -16,6 +16,10 @@ export const draftInputSchema = z.object({
   tasks: z.array(z.string().max(120)).max(12),
   providers: z.array(z.enum(AI_PROVIDER_IDS)).max(27),
   secretary: z.boolean(),
+  secretarySetup: z.object({
+    email: z.string().trim().max(254),
+    phone: z.string().trim().max(40),
+  }).strict().default({ email: "", phone: "" }),
   specialAI: z.boolean(),
   plan: z.enum(["free", "paid"]),
   templateId: z.string().refine(id => roomTemplates.some(t => t.id === id)),
@@ -37,6 +41,14 @@ export const draftInputSchema = z.object({
   }
 });
 export type RoomDraftInput = z.infer<typeof draftInputSchema>;
+export function secretarySetupValid(input: RoomDraftInput) {
+  if (!input.secretary) return true;
+  return z.email().safeParse(input.secretarySetup.email.trim()).success &&
+    /^\+[1-9]\d{6,14}$/.test(input.secretarySetup.phone.replace(/[\s().-]/g, ""));
+}
+export function selectSecretary(input: RoomDraftInput, enabled: boolean): RoomDraftInput {
+  return { ...input, secretary: enabled, secretarySetup: enabled ? input.secretarySetup : { email: "", phone: "" } };
+}
 const draftSchema = z.object({
   id: z.string().uuid(), updatedAt: z.string().datetime(), input: draftInputSchema,
 }).strict();
@@ -51,7 +63,7 @@ export const draftUpdateSchema = z.object({
 }).strict();
 export function newRoomDraft(): RoomDraftInput {
   return { name: "", purpose: "custom", answers: {}, tasks: [], providers: [],
-    secretary: false, specialAI: false, plan: "free", templateId: roomTemplates[0].id, step: 0 };
+    secretary: false, secretarySetup: { email: "", phone: "" }, specialAI: false, plan: "free", templateId: roomTemplates[0].id, step: 0 };
 }
 export function changePurpose(input: RoomDraftInput, purpose: string): RoomDraftInput {
   return { ...input, purpose, answers: {}, tasks: [] };
@@ -67,6 +79,8 @@ export async function readDraftRegistry(store: CloudStore): Promise<DraftRegistr
 }
 export async function saveRoomDraft(store: CloudStore, candidate: unknown): Promise<DraftRegistry> {
   const update = draftUpdateSchema.parse(candidate);
+  // A disabled secretary cannot retain hidden contact data in the current draft.
+  if (!update.input.secretary) update.input.secretarySetup = { email: "", phone: "" };
   const current = await readDraftRegistry(store);
   if (current.revision !== update.expectedRevision) throw new Error("RCV3_CONFLICT");
   if (current.drafts.length >= 100 && !current.drafts.some(d => d.id === update.id)) throw new Error("RCV3_LIMIT");

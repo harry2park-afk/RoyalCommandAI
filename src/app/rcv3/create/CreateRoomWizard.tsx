@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { roomPurposes, newRoomDraft, changePurpose, type RoomDraftInput, type DraftRegistry } from "@/lib/rcv3/room-draft";
+import { roomPurposes, newRoomDraft, changePurpose, selectSecretary, secretarySetupValid, type RoomDraftInput, type DraftRegistry } from "@/lib/rcv3/room-draft";
 import { roomTemplates, templateImage } from "@/lib/rcv3/templates";
 import { creationText, type CreationMessage } from "@/lib/locale/rcv3-creation";
 import type { AIProviderId } from "@/lib/ai/types";
@@ -90,6 +90,7 @@ export default function CreateRoomWizard({ language, providers }: {
     if (!input.name.trim() || (input.purpose === "custom" && !input.answers.purpose?.[0]?.trim())) {
       setError("required"); return;
     }
+    if (input.step === 1 && !secretarySetupValid(input)) { setError("secretaryRequired"); return; }
     update({ ...input, step: Math.min(3, input.step + 1) });
   }
   function loadDraft(id: string) {
@@ -128,7 +129,12 @@ export default function CreateRoomWizard({ language, providers }: {
             <h2>Choose what you need</h2>
             <div className={styles.field}><strong>Tasks</strong><div className={styles.choices}>{purpose.suggestedAgents.map(task => <label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={() => update({ ...input, tasks: input.tasks.includes(task) ? input.tasks.filter(t => t !== task) : [...input.tasks, task] })}/>{task}</label>)}</div></div>
             <div className={styles.field}><strong>AI Services</strong><p>{creationText("requested", language)}</p><div className={styles.choices}>{providers.map(p => <label key={p.id}><input type="checkbox" checked={input.providers.includes(p.id)} onChange={() => providerToggle(p.id)}/>{p.label}</label>)}</div></div>
-            <div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e => update({ ...input, secretary: e.target.checked })}/>AI Secretary</label><label><input type="checkbox" checked={input.specialAI} onChange={e => update({ ...input, specialAI: e.target.checked })}/>Specialist AI</label></div>
+            <div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e => update(selectSecretary(input, e.target.checked))}/>AI Secretary</label><label><input type="checkbox" checked={input.specialAI} onChange={e => update({ ...input, specialAI: e.target.checked })}/>Specialist AI</label></div>
+            {input.secretary && <section aria-label="Secretary setup" className={styles.field}>
+              <p>{creationText("secretarySetup", language)}</p>
+              <label>{creationText("secretaryEmail", language)}<input type="email" autoComplete="off" maxLength={254} value={input.secretarySetup.email} onChange={e => update({ ...input, secretarySetup: { ...input.secretarySetup, email: e.target.value } })}/></label>
+              <label>{creationText("secretaryPhone", language)}<input type="tel" autoComplete="off" maxLength={40} value={input.secretarySetup.phone} onChange={e => update({ ...input, secretarySetup: { ...input.secretarySetup, phone: e.target.value } })}/></label>
+            </section>}
           </>}
           {input.step === 2 && <>
             <h2>Choose a design</h2><div className={styles.designs}>{roomTemplates.map(t => <button key={t.id} type="button" aria-pressed={input.templateId === t.id} onClick={() => update({ ...input, templateId: t.id })}><img loading="lazy" src={templateImage(t)} alt={t.name} width={1672} height={941}/><span>{t.name}{input.templateId === t.id ? " ✓" : ""}</span></button>)}</div>
@@ -136,6 +142,7 @@ export default function CreateRoomWizard({ language, providers }: {
           {input.step === 3 && <>
             <h2>{input.name || "Your Room"}</h2><img className={styles.preview} src={templateImage(selectedDesign)} alt={selectedDesign.name} width={1672} height={941}/>
             <dl className={styles.summary}><dt>Purpose</dt><dd>{purpose.name}</dd><dt>Tasks</dt><dd>{input.tasks.join(", ") || "None"}</dd><dt>Design</dt><dd>{selectedDesign.name}</dd></dl>
+            {input.secretary && <section aria-label="Secretary setup review"><h3>AI Secretary</h3><dl className={styles.summary}><dt>{creationText("secretaryEmail", language)}</dt><dd>{input.secretarySetup.email || "—"}</dd><dt>{creationText("secretaryPhone", language)}</dt><dd>{input.secretarySetup.phone || "—"}</dd></dl><p>{creationText("secretaryPending", language)}</p></section>}
             <div className={styles.choices}><label><input type="radio" name="plan" checked={input.plan === "free"} onChange={() => update({ ...input, plan: "free" })}/>Free Room</label><label><input type="radio" name="plan" checked={input.plan === "paid"} onChange={() => update({ ...input, plan: "paid" })}/>Paid Room</label></div>
             <table className={styles.pricing}><caption>Requested Services</caption><thead><tr><th>Service</th><th>Monthly Price</th></tr></thead><tbody><tr><td>Room</td><td>{input.plan === "free" ? "Free" : "Not confirmed"}</td></tr>{input.providers.map(id => <tr key={id}><td>{providers.find(p => p.id === id)?.label}</td><td>Not confirmed</td></tr>)}{input.secretary && <tr><td>AI Secretary</td><td>Not confirmed</td></tr>}{input.specialAI && <tr><td>Specialist AI</td><td>Not confirmed</td></tr>}</tbody></table>
             <p>{creationText(input.plan === "free" ? "free" : paymentMessage, language)}</p>

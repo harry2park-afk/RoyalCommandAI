@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newRoomDraft, changePurpose, draftInputSchema, readDraftRegistry, saveRoomDraft, roomPurposes } from "./room-draft";
+import { newRoomDraft, changePurpose, draftInputSchema, readDraftRegistry, saveRoomDraft, roomPurposes, selectSecretary, secretarySetupValid } from "./room-draft";
 import type { CloudStore } from "./cloud-state";
 const id = "10000000-0000-4000-8000-000000000001";
 function memoryStore(): CloudStore {
@@ -11,6 +11,29 @@ function memoryStore(): CloudStore {
   };
 }
 describe("account room drafts", () => {
+  it("saves and restores the customer's secretary contacts as unverified setup only", async () => {
+    const store=memoryStore();
+    const input={...newRoomDraft(),secretary:true,secretarySetup:{email:"customer@example.test",phone:"+61 2 5550 1234"}};
+    await saveRoomDraft(store,{id,expectedRevision:0,input});
+    expect((await readDraftRegistry(store)).drafts[0].input.secretarySetup).toEqual(input.secretarySetup);
+    expect(secretarySetupValid(input)).toBe(true);
+    expect(draftInputSchema.safeParse({...input,secretarySetup:{...input.secretarySetup,verified:true,oauthToken:"secret"}}).success).toBe(false);
+    expect(draftInputSchema.safeParse({...input,secretarySetup:{...input.secretarySetup,phone:"1".repeat(41)}}).success).toBe(false);
+  });
+  it("starts new drafts empty and clears current contact fields when secretary is deselected",async()=>{
+    const input={...newRoomDraft(),secretary:true,secretarySetup:{email:"customer@example.test",phone:"+61255501234"}};
+    expect(selectSecretary(input,false).secretarySetup).toEqual({email:"",phone:""});
+    expect(newRoomDraft().secretarySetup).toEqual({email:"",phone:""});
+    const store=memoryStore();await saveRoomDraft(store,{id,expectedRevision:0,input:{...input,secretary:false}});
+    expect((await readDraftRegistry(store)).drafts[0].input.secretarySetup).toEqual({email:"",phone:""});
+  });
+  it("restores older saved drafts without contact fields and validates contact entry separately",()=>{
+    const {secretarySetup,...old}=newRoomDraft();
+    expect(draftInputSchema.parse(old).secretarySetup).toEqual({email:"",phone:""});
+    expect(secretarySetupValid({...newRoomDraft(),secretary:true})).toBe(false);
+    expect(secretarySetupValid({...newRoomDraft(),secretary:true,secretarySetup:{email:"invalid",phone:"0255501234"}})).toBe(false);
+    expect(secretarySetupValid(newRoomDraft())).toBe(true);
+  });
   it("retains the existing 40 purposes and removes unnecessary questions", () => {
     expect(roomPurposes).toHaveLength(40);
     expect(roomPurposes.find(p => p.id === "legal")?.fields.map(f => f.id)).toEqual(["practice"]);
