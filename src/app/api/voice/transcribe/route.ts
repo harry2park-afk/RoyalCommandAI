@@ -1,3 +1,4 @@
+import { guardRoomVoice } from "@/lib/rcv3/paid-service-guard";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { logger } from "@/lib/logger";
@@ -21,6 +22,7 @@ export async function POST(request: Request) {
     if (!apiKey) return fail("VOICE_CONFIG", 503, "Voice transcription is not configured");
 
     const incoming = await request.formData();
+    await guardRoomVoice(user.id,incoming.get("roomId"));
     const audio = incoming.get("audio");
     const language = String(incoming.get("language") || "").trim();
     if (!(audio instanceof File) || audio.size === 0) return fail("VOICE_AUDIO", 400, "Audio required");

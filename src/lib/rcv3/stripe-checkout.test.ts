@@ -11,9 +11,9 @@ function client(o = order()) {
     prices: { retrieve: vi.fn().mockResolvedValue({ livemode:false, active:true, currency:"aud", unit_amount:1000, type:"recurring", recurring:{ interval:"month", interval_count:1, usage_type:"licensed" }, billing_scheme:"per_unit", tax_behavior:"inclusive" }) },
     checkout: { sessions: {
       create: vi.fn().mockResolvedValue({ id: "cs_test_fixture", url: "https://checkout.stripe.com/c/pay/cs_test_fixture", livemode:false }),
-      retrieve: vi.fn().mockResolvedValue({ id:"cs_test_fixture", livemode:false, mode:"subscription", client_reference_id:o.id, metadata:{ rcv3_order:o.id, rcv3_owner:o.ownerId, rcv3_draft:o.draftId, rcv3_hash:o.draftHash }, status:"complete", payment_status:"paid", currency:"aud", amount_total:1000, subscription:"sub_fixture" }),
+      retrieve: vi.fn().mockResolvedValue({ id:"cs_test_fixture", livemode:false, mode:"subscription", client_reference_id:o.id, metadata:{ rcv3_order:o.id, rcv3_owner:o.ownerId, rcv3_draft:o.draftId, rcv3_hash:o.draftHash }, status:"complete", payment_status:"paid", currency:"aud", amount_total:1000, customer:"cus_fixture", subscription:"sub_fixture" }),
       listLineItems: vi.fn().mockResolvedValue({ has_more:false, data:[{ price:{ id:"price_fixture" }, quantity:1, amount_total:1000 }] }),
-    } }, subscriptions:{ retrieve:vi.fn().mockResolvedValue({ livemode:false, status:"active", metadata:{rcv3_order:o.id,rcv3_owner:o.ownerId} }) } };
+    } }, subscriptions:{ retrieve:vi.fn().mockResolvedValue({ livemode:false, status:"active", customer:"cus_fixture", metadata:{rcv3_order:o.id,rcv3_owner:o.ownerId,rcv3_draft:o.draftId,rcv3_hash:o.draftHash}, items:{has_more:false,data:[{price:{id:"price_fixture",unit_amount:1000,currency:"aud",livemode:false,recurring:{interval:"month",interval_count:1}},quantity:1,current_period_end:Math.floor(Date.now()/1000)+86400}]}, latest_invoice:{livemode:false,status:"paid",currency:"aud",amount_paid:1000,amount_remaining:0,customer:"cus_fixture"} }) } };
 }
 const asStripe = (c: ReturnType<typeof client>) => c as unknown as Stripe;
 describe("Preview payment boundary", () => {
@@ -54,9 +54,10 @@ describe("Preview payment boundary", () => {
     expect(body.line_items).toEqual([{price:"price_fixture",quantity:1}]);
     expect(body.cancel_url).toContain(`draft=${o.draftId}`);
   });
-  it("rejects expired orders and untrusted checkout redirects", async () => {
+  it("retries persisted expired requests unchanged and rejects untrusted checkout redirects", async () => {
     const o=order(),c=client(o);
-    await expect(createTestCheckout(asStripe(c),{...o,expiresAt:0},"https://preview.example")).rejects.toThrow("RCV3_QUOTE_EXPIRED");
+    await createTestCheckout(asStripe(c),{...o,expiresAt:0},"https://preview.example");
+    expect(c.checkout.sessions.create.mock.calls[0][0].expires_at).toBe(0);
     c.checkout.sessions.create.mockResolvedValueOnce({id:"cs_test_fixture",url:"https://evil.example",livemode:false});
     await expect(createTestCheckout(asStripe(c),o,"https://preview.example")).rejects.toThrow("RCV3_PAYMENT_RESPONSE");
   });
@@ -84,6 +85,15 @@ describe("Preview payment boundary", () => {
     c.checkout.sessions.retrieve.mockResolvedValue({...valid,amount_total:2000});
     const duplicate={price:{id:"price_fixture"},quantity:1,amount_total:1000};
     c.checkout.sessions.listLineItems.mockResolvedValue({has_more:false,data:[duplicate,duplicate]});
+    await expect(verifyTestCheckout(asStripe(c),o,"cs_test_fixture")).rejects.toThrow("RCV3_PAYMENT_MISMATCH");
+  });
+  it("does not grant renewals from an old paid checkout when the current invoice or period is unpaid", async () => {
+    const o=order(),c=client(o),valid=await c.subscriptions.retrieve();
+    for(const patch of [{latest_invoice:{...valid.latest_invoice,status:"open"}}, {latest_invoice:{...valid.latest_invoice,amount_paid:0}}, {items:{...valid.items,data:valid.items.data.map((i:{current_period_end:number})=>({...i,current_period_end:1}))}}]) {
+      c.subscriptions.retrieve.mockResolvedValueOnce({...valid,...patch});
+      expect(await verifyTestCheckout(asStripe(c),o,"cs_test_fixture")).toEqual({paid:false});
+    }
+    c.subscriptions.retrieve.mockResolvedValueOnce({...valid,customer:"cus_other"});
     await expect(verifyTestCheckout(asStripe(c),o,"cs_test_fixture")).rejects.toThrow("RCV3_PAYMENT_MISMATCH");
   });
   it("requires a real valid webhook signature and rejects live events", () => {

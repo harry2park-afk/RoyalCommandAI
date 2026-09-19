@@ -1,9 +1,10 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { roomPurposes, newRoomDraft, changePurpose, selectSecretary, secretarySetupValid, type RoomDraftInput, type DraftRegistry } from "@/lib/rcv3/room-draft";
 import { roomTemplates, templateImage } from "@/lib/rcv3/templates";
 import { creationText, type CreationMessage } from "@/lib/locale/rcv3-creation";
 import type { AIProviderId } from "@/lib/ai/types";
+import CheckoutPanel from "./CheckoutPanel";
 import styles from "./create.module.css";
 
 const steps = ["Room Setup", "AI & Tools", "Design", "Review"];
@@ -19,13 +20,14 @@ async function draftsRequest(body?: unknown): Promise<DraftRegistry> {
 export default function CreateRoomWizard({ language, providers }: {
   language: string; providers: { id: AIProviderId; label: string }[];
 }) {
-  const [input, setInput] = useState<RoomDraftInput>(newRoomDraft);
+  const defaultInput = useCallback((): RoomDraftInput => ({...newRoomDraft(),providers:providers.some(p=>p.id==="openai")?["openai"]:providers[0]?[providers[0].id]:[]}),[providers]);
+  const [input, setInput] = useState<RoomDraftInput>(defaultInput);
   const [registry, setRegistry] = useState<DraftRegistry>({ revision: 0, drafts: [] });
   const [draftId, setDraftId] = useState("");
   const [loaded, setLoaded] = useState(false), [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false), [error, setError] = useState<CreationMessage | "">("");
   const [status, setStatus] = useState<CreationMessage | "">("");
-  const [paymentMessage, setPaymentMessage] = useState<CreationMessage>("payment");
+
   const saving = useRef(false);
   const latestInput = useRef(input);
   useEffect(() => { latestInput.current = input; }, [input]);
@@ -39,20 +41,14 @@ export default function CreateRoomWizard({ language, providers }: {
       setRegistry(result);
       const requestedId = new URLSearchParams(window.location.search).get("draft");
       const resumed = result.drafts.find(d => d.id === requestedId);
-      if (resumed) { setInput(resumed.input); latestInput.current = resumed.input; setDraftId(resumed.id); }
-      else { setDraftId(crypto.randomUUID()); }
+      if (resumed) { setInput({...resumed.input,plan:"paid"}); latestInput.current = {...resumed.input,plan:"paid"}; if(resumed.input.plan!=="paid")setDirty(true); setDraftId(resumed.id); }
+      else { const templateId = new URLSearchParams(window.location.search).get("template");
+        if(roomTemplates.some(t=>t.id===templateId)) {const fresh={...defaultInput(),templateId:templateId!};setInput(fresh);latestInput.current=fresh;}
+        setDraftId(crypto.randomUUID()); }
       setLoaded(true);
     }).catch(() => { if (active) setError("error"); });
     return () => { active = false; };
-  }, []);
-  useEffect(() => {
-    let active = true;
-    fetch("/api/rcv3/checkout/quote", { cache: "no-store", signal: AbortSignal.timeout(20000) })
-      .then(r => r.json()).then(data => {
-        if (active && data.code === "RCV3_CHECKOUT_NOT_CONFIGURED") setPaymentMessage("paymentSetup");
-      }).catch(() => { /* Preserve the generic unavailable message on network failure. */ });
-    return () => { active = false; };
-  }, []);
+  }, [defaultInput]);
   useEffect(() => {
     if (!dirty) return;
     const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ""; };
@@ -96,7 +92,7 @@ export default function CreateRoomWizard({ language, providers }: {
   function loadDraft(id: string) {
     const draft = registry.drafts.find(d => d.id === id);
     if (dirty || !draft) return;
-    latestInput.current = draft.input; setInput(draft.input); setDraftId(id); setStatus(""); setError("");
+    latestInput.current = {...draft.input,plan:"paid"}; setInput({...draft.input,plan:"paid"}); if(draft.input.plan!=="paid")setDirty(true); setDraftId(id); setStatus(""); setError("");
     const url = new URL(window.location.href); url.searchParams.set("draft", id);
     window.history.replaceState(null, "", url);
   }
@@ -110,7 +106,7 @@ export default function CreateRoomWizard({ language, providers }: {
     </header>
     <div className={styles.layout}>
       <aside className={styles.sidebar}>
-        <h2>My Drafts</h2><button disabled={busy || dirty || !loaded} onClick={() => { const fresh = newRoomDraft(); latestInput.current = fresh; setInput(fresh); setDraftId(crypto.randomUUID()); setStatus(""); setError(""); const url = new URL(window.location.href); url.searchParams.delete("draft"); url.searchParams.delete("checkout"); window.history.replaceState(null, "", url); }}>New Draft</button>
+        <h2>My Drafts</h2><button disabled={busy || dirty || !loaded} onClick={() => { const fresh = defaultInput(); latestInput.current = fresh; setInput(fresh); setDraftId(crypto.randomUUID()); setStatus(""); setError(""); const url = new URL(window.location.href); url.searchParams.delete("draft"); url.searchParams.delete("checkout"); window.history.replaceState(null, "", url); }}>New Draft</button>
         {registry.drafts.map(d => <button key={d.id} disabled={busy || dirty} aria-pressed={draftId === d.id} onClick={() => loadDraft(d.id)}>{d.input.name || "Untitled Room"}<small>{roomPurposes.find(p => p.id === d.input.purpose)?.name}</small></button>)}
       </aside>
       <section className={styles.workspace} aria-label="Room creation">
@@ -143,9 +139,8 @@ export default function CreateRoomWizard({ language, providers }: {
             <h2>{input.name || "Your Room"}</h2><img className={styles.preview} src={templateImage(selectedDesign)} alt={selectedDesign.name} width={1672} height={941}/>
             <dl className={styles.summary}><dt>Purpose</dt><dd>{purpose.name}</dd><dt>Tasks</dt><dd>{input.tasks.join(", ") || "None"}</dd><dt>Design</dt><dd>{selectedDesign.name}</dd></dl>
             {input.secretary && <section aria-label="Secretary setup review"><h3>AI Secretary</h3><dl className={styles.summary}><dt>{creationText("secretaryEmail", language)}</dt><dd>{input.secretarySetup.email || "—"}</dd><dt>{creationText("secretaryPhone", language)}</dt><dd>{input.secretarySetup.phone || "—"}</dd></dl><p>{creationText("secretaryPending", language)}</p></section>}
-            <div className={styles.choices}><label><input type="radio" name="plan" checked={input.plan === "free"} onChange={() => update({ ...input, plan: "free" })}/>Free Room</label><label><input type="radio" name="plan" checked={input.plan === "paid"} onChange={() => update({ ...input, plan: "paid" })}/>Paid Room</label></div>
-            <table className={styles.pricing}><caption>Requested Services</caption><thead><tr><th>Service</th><th>Monthly Price</th></tr></thead><tbody><tr><td>Room</td><td>{input.plan === "free" ? "Free" : "Not confirmed"}</td></tr>{input.providers.map(id => <tr key={id}><td>{providers.find(p => p.id === id)?.label}</td><td>Not confirmed</td></tr>)}{input.secretary && <tr><td>AI Secretary</td><td>Not confirmed</td></tr>}{input.specialAI && <tr><td>Specialist AI</td><td>Not confirmed</td></tr>}</tbody></table>
-            <p>{creationText(input.plan === "free" ? "free" : paymentMessage, language)}</p>
+            <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy || dirty || !loaded} language={language}/>
+
           </>}
         </fieldset>
         <footer className={styles.footer}><button disabled={busy || !loaded || input.step === 0} onClick={() => update({ ...input, step: input.step - 1 })}>Back</button><button disabled={busy || !loaded} onClick={() => void save()}>Save Draft</button>{input.step < 3 && <button className={styles.primary} disabled={busy || !loaded} onClick={() => void next()}>Next</button>}</footer>

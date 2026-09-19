@@ -3,7 +3,8 @@ const m = vi.hoisted(() => ({ session:vi.fn(),store:vi.fn(),read:vi.fn(),config:
 vi.mock("@/lib/rcv3/access",()=>({session:m.session,stableId:(o:string,k:string)=>`${o}:${k}`, input:(r:Request)=>r.json(),reply:(b:unknown)=>Response.json(b),failure:(e:Error)=>Response.json({code:e.message},{status:503})}));
 vi.mock("@/lib/rcv3/cloud-state",()=>({cloudStore:m.store}));
 vi.mock("@/lib/rcv3/room-draft",()=>({readDraftRegistry:m.read}));
-vi.mock("@/lib/rcv3/stripe-checkout",()=>({readCheckoutConfiguration:m.config,previewStripe:()=>"stripe",bundleForDraft:m.bundle,validateStripePrices:m.validate,draftFingerprint:()=>"hash",termsFingerprint:()=>"termsHash"}));
+vi.mock("@/lib/rcv3/stripe-checkout",()=>({readCheckoutConfiguration:m.config,previewStripe:()=>"stripe",bundleForDraft:m.bundle,validateStripePrices:m.validate,quoteFingerprint:()=>"quoteHash",draftFingerprint:()=>"hash",termsFingerprint:()=>"termsHash"}));
+vi.mock("@/lib/rcv3/checkout-ledger",()=>({checkoutRuntime:m.config,validateCreationDraft:(d:unknown)=>d}));
 import { GET, POST } from "./route";
 const draftId="10000000-0000-4000-8000-000000000001";
 const req=(body:unknown)=>new Request("https://preview.example/api/rcv3/checkout/quote",{method:"POST",body:JSON.stringify(body)});
@@ -14,7 +15,7 @@ beforeEach(()=>{
 });
 it("uses the signed-in owner's draft namespace and returns a read-only quote",async()=>{
   const response=await POST(req({draftId,expectedRevision:1}));const body=await response.json();
-  expect(response.status).toBe(200);expect(body.checkoutEnabled).toBe(false);expect(body.totalMinor).toBe(1000);
+  expect(response.status).toBe(200);expect(body.checkoutEnabled).toBe(true);expect(body.totalMinor).toBe(1000);
   expect(m.store).toHaveBeenCalledWith("db","owner-a","owner-a:room-creation-drafts");expect(JSON.stringify(body)).not.toContain("not-exposed");
 });
 it("rejects stale or missing drafts before consulting Stripe",async()=>{

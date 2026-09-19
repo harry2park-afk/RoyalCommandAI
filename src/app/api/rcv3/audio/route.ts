@@ -1,3 +1,4 @@
+import { requirePaidService } from "@/lib/rcv3/checkout-ledger";
 import { z } from "zod";
 import { access, reply, failure, input } from "@/lib/rcv3/access";
 import { reserve } from "@/lib/rcv3/execution";
@@ -15,6 +16,7 @@ export async function POST(request: Request) {
     const a = await access(roomId);
     const key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("RCV3_AI_NOT_CONNECTED");
+    requirePaidService(a.entitlement ?? null,"ai:openai");
     await reserve(a, requestId, "transcribe");
     const body = new FormData(); body.set("file", file); body.set("model", "gpt-4o-mini-transcribe");
     const language = a.user.defaultLanguage.split("-")[0];
@@ -30,6 +32,7 @@ export async function PUT(request: Request) {
     const d = z.object({ roomId: z.string().uuid(), requestId: z.string().uuid(), text: z.string().trim().min(1).max(4000) }).strict().parse(await input(request, 20000));
     const a = await access(d.roomId), key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("RCV3_AI_NOT_CONNECTED");
+    requirePaidService(a.entitlement ?? null,"ai:openai");
     await reserve(a, d.requestId, "speech");
     const r = await fetch("https://api.openai.com/v1/audio/speech", { method: "POST", headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: "gpt-4o-mini-tts", voice: "coral", input: d.text }), signal: AbortSignal.timeout(30000) });
     if (!r.ok) throw new Error("RCV3_SPEECH");

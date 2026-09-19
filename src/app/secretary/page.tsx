@@ -1,3 +1,4 @@
+import { guardPaidRoom } from "@/lib/rcv3/paid-service-guard";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
@@ -34,6 +35,7 @@ export default async function SecretaryPage({ searchParams }: {
   if (error) return <main className="p-8"><p role="alert">기존 방을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.</p><Link href="/secretary">다시 시도</Link></main>;
   const room = roomId ? rooms?.find((item) => item.id === roomId && item.status !== "archived") : undefined;
   if (roomId && !room) notFound();
+  if(roomId) {try {await guardPaidRoom(user.id,roomId,"secretary");}catch{notFound();}}
   const runtime = await getServerDomainRuntimeContext();
   if (!runtime) notFound();
   return <DomainRuntimeProvider value={toPublicDomainRuntimeContext(runtime)}><main className="min-h-screen bg-[#07111f] text-[#f4f0e7]">

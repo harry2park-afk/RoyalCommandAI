@@ -2,7 +2,9 @@ import { z } from "zod";
 import { session, stableId, input, reply, failure } from "@/lib/rcv3/access";
 import { cloudStore } from "@/lib/rcv3/cloud-state";
 import { readDraftRegistry } from "@/lib/rcv3/room-draft";
-import { readCheckoutConfiguration, previewStripe, bundleForDraft, validateStripePrices, draftFingerprint, termsFingerprint } from "@/lib/rcv3/stripe-checkout";
+import { previewStripe, bundleForDraft, validateStripePrices, draftFingerprint, termsFingerprint, quoteFingerprint } from "@/lib/rcv3/stripe-checkout";
+
+import { checkoutRuntime, validateCreationDraft } from "@/lib/rcv3/checkout-ledger";
 
 // Read-only quote. This route neither creates a Stripe session nor activates a
 // room. No amount, price ID, owner ID or payment status is accepted from clients.
@@ -14,17 +16,17 @@ export async function POST(request: Request) {
     if (registry.revision !== body.expectedRevision) throw new Error("RCV3_CONFLICT");
     const draft = registry.drafts.find(d => d.id === body.draftId);
     if (!draft) throw new Error("RCV3_NOT_FOUND");
-    const { key, catalog } = readCheckoutConfiguration();
+    validateCreationDraft(draft.input);
+    const { key, catalog } = checkoutRuntime();
     const bundle = bundleForDraft(catalog, draft.input);
     await validateStripePrices(previewStripe(key), catalog, bundle.lines);
     return reply({ draftId: draft.id, draftHash: draftFingerprint(draft.input), catalogVersion: catalog.version,
       currency: catalog.currency, interval: "month", tax: catalog.tax,
       lines: bundle.lines.map(({ serviceId, label, amountMinor }) => ({ serviceId, label, amountMinor })),
       totalMinor: bundle.lines.reduce((sum,line) => sum+line.amountMinor, 0),
+      quoteHash: quoteFingerprint(catalog,draft.input),
       terms: catalog.terms, termsHash: termsFingerprint(catalog.terms),
-      // Read-only integration until server order ledger / entitlement enforcement
-      // and signed event processing are implemented and independently verified.
-      checkoutEnabled: false,
+      checkoutEnabled: true,
     });
   } catch (e) { return failure(e); }
 }
@@ -34,7 +36,7 @@ export async function POST(request: Request) {
 export async function GET() {
   try {
     await session();
-    readCheckoutConfiguration();
-    return reply({ checkoutEnabled: false, code: "RCV3_ACTIVATION_NOT_READY" });
+    checkoutRuntime();
+    return reply({ checkoutEnabled: true });
   } catch (e) { return failure(e); }
 }

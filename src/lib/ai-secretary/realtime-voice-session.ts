@@ -80,7 +80,7 @@ export class RealtimeSecretaryVoiceSession {
       await peer.setLocalDescription(offer);
       if (this.stopped) return;
       const language = this.options.language.toLowerCase().startsWith("zh-") ? this.options.language.toLowerCase() : this.options.language.split("-")[0].toLowerCase();
-      const response = this.options.negotiate ? await this.options.negotiate(offer.sdp || "", this.request.signal) : await fetch(`/api/voice/realtime-session?lang=${encodeURIComponent(language)}`, {
+      const response = this.options.negotiate ? await this.options.negotiate(offer.sdp || "", this.request.signal) : await fetch(`/api/voice/realtime-session?lang=${encodeURIComponent(language)}${this.options.roomId?`&room=${encodeURIComponent(this.options.roomId)}`:""}`, {
         method: "POST", headers: { "Content-Type": "application/sdp" }, body: offer.sdp,
         signal: this.request.signal,
       });

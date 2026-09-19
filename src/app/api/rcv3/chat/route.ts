@@ -1,3 +1,4 @@
+import { requirePaidService } from "@/lib/rcv3/checkout-ledger";
 import { z } from "zod";
 import { access, reply, failure, input } from "@/lib/rcv3/access";
 import { reserve, history, scopeSchema, type Turn } from "@/lib/rcv3/execution";
@@ -15,12 +16,14 @@ export async function POST(request: Request) {
     const start = performance.now();
     const d = z.object({ roomId: z.string().uuid(), requestId: z.string().uuid(), scope: scopeSchema, provider: z.enum(AI_PROVIDER_IDS), prompt: z.string().trim().min(1).max(12000) }).strict().parse(await input(request, 20000));
     const a = await access(d.roomId), turns = await history(a, d.scope);
+    requirePaidService(a.entitlement ?? null,`ai:${d.provider}`);
+    if(d.scope==="secretary")requirePaidService(a.entitlement ?? null,"secretary");
     const previous = turns.find(t => t.requestId === d.requestId);
     if (previous) return reply(previous);
     if (!isProviderConfigured(d.provider)) throw new Error("RCV3_AI_NOT_CONNECTED");
     await reserve(a, d.requestId, "chat");
     const result = await getConnector(d.provider).complete({ messages: [
-      { role: "system", content: `You are ${d.scope === "secretary" ? "Katie, this customer's personal secretary" : "the customer's AI assistant"}. Answer the actual question directly in the user's language. Use supplied conversation only. Do not turn questions into task acknowledgements. You have no external action tools: never claim to send, book, pay or change external systems. Account language fallback: ${a.user.defaultLanguage}.` },
+      { role: "system", content: `You are ${d.scope === "secretary" ? "Katie, this customer's personal secretary" : "the customer's AI assistant"}. Answer the actual question directly in the user's language. Use supplied conversation only. Do not turn questions into task acknowledgements. You have no external action tools: never claim to send, book, pay or change external systems. Account language fallback: ${a.user.defaultLanguage}. Customer room setup: ${a.entitlement ? JSON.stringify({purpose:a.entitlement.purpose,tasks:a.entitlement.tasks,answers:a.entitlement.answers}).slice(0,6000) : "Use the current conversation"}.` },
       ...turns.filter(t => t.provider === d.provider).slice(-10).flatMap(t => [{ role: "user" as const, content: t.prompt }, { role: "assistant" as const, content: t.answer }]),
       { role: "user", content: d.prompt },
     ], maxTokens: 1500 });

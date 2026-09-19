@@ -30,9 +30,8 @@ export default function Room({ providers, secretaryRooms, language }: { provider
   useEffect(()=>{if(!editing){setEditorPosition(null);editorDrag.current=null;}},[editing]);
   const [files,setFiles] = useState<{id:string;name:string;text:string}[]>([]), [showFiles,setShowFiles] = useState(false);
 
-  const [warehouse,setWarehouse]=useState(false), [galleryTab,setGalleryTab]=useState("Rooms"), [roomSearch,setRoomSearch]=useState(""), [creatingTemplate,setCreatingTemplate]=useState<string|null>(null);
+  const [warehouse,setWarehouse]=useState(false), [galleryTab,setGalleryTab]=useState("Rooms"), [roomSearch,setRoomSearch]=useState("");
   const galleryRef=useRef<HTMLElement>(null);
-  const templateRequest=useRef<{id:string;requestId:string}|null>(null);
   const [aiSearch,setAISearch]=useState("");
   const [cardStatus,setCardStatus]=useState<Record<string,string>>({});
   const [batchIds,setBatchIds]=useState<AIProviderId[]>([]);
@@ -45,7 +44,7 @@ export default function Room({ providers, secretaryRooms, language }: { provider
   const dictationBase=useRef(""), draftRef=useRef(""); draftRef.current=text;
   const continuousVoice=useRef(false), playbackDone=useRef<(()=>void)|null>(null);
   const voiceRef = useRef<VoiceElement|null>(null), busyRef = useRef(false), roomRef=useRef("");
-  const createId = useRef<string|null>(null), generation=useRef(0), audioRef=useRef<HTMLAudioElement|null>(null);
+  const generation=useRef(0), audioRef=useRef<HTMLAudioElement|null>(null);
   const mounted = Boolean(state);
   const liveState=useRef<CloudState|null>(state);liveState.current=state;
   const editBaseline=useRef<CloudState|null>(null), editingNow=useRef(editing);editingNow.current=editing;
@@ -77,9 +76,7 @@ export default function Room({ providers, secretaryRooms, language }: { provider
     const listener=(event:Event)=>transcriptHandler.current((event as CustomEvent).detail.text);const toggle=(event:Event)=>{continuousVoice.current=false;if((event as CustomEvent).detail.enabled){dictationBase.current=draftRef.current;audioRef.current?.pause();playbackDone.current?.();messageInput.current?.focus({preventScroll:true});}};el.addEventListener("voice-toggle",toggle);el.addEventListener("transcript",listener);return()=>{el.removeEventListener("transcript",listener);el.removeEventListener("voice-toggle",toggle);};
   },[roomId,voiceLoaded,mounted,language]);
   useEffect(()=>{const hide=()=>{if(document.hidden){continuousVoice.current=false;voiceRef.current?.cancel();audioRef.current?.pause();playbackDone.current?.();}};document.addEventListener("visibilitychange",hide);return()=>{document.removeEventListener("visibilitychange",hide);hide();};},[]);
-  async function create(copy=false){if(busyRef.current)return;busyRef.current=true;setBusy(true);setError("");
-    try{createId.current??=crypto.randomUUID();const name=copy?"RCV3 Copy":"RCV3 · Room6";const r=await api("rooms",{requestId:createId.current,name,...(copy?{sourceRoom:roomId}:{})});createId.current=null;const list=await api("rooms");setRooms(list.rooms);await openRoom(r.roomId);setWarehouse(false);setEditing(true);}
-    catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);}}
+  function create(){if(!busyRef.current&&!dirty)window.location.assign("/rcv3/create");}
   async function send(message=text,spoken=false){
     if(!message.trim()||busyRef.current||!state)return;
     const chosen=[...state.selectedProviders];if(!chosen.length){setError("Select at least one AI in AI List.");return;}
@@ -145,18 +142,7 @@ export default function Room({ providers, secretaryRooms, language }: { provider
   }
   async function linkKatie(id:string){if(!state||busyRef.current)return;busyRef.current=true;setBusy(true);try{await persist({...state,secretaryRoomId:id||null});}catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);}}
   function openKatie(){if(state&&roomId)window.location.assign(`/secretary?room=${encodeURIComponent(state.secretaryRoomId || roomId)}&from=rcv3&rcv3Room=${encodeURIComponent(roomId)}`);}
-  async function chooseTemplate(id:string){
-    if(busyRef.current||dirty)return;
-    const template=roomTemplates.find(t=>t.id===id);if(!template)return;
-    busyRef.current=true;setBusy(true);setError("");setCreatingTemplate(id);voiceRef.current?.cancel();
-    if(templateRequest.current?.id!==id)templateRequest.current={id,requestId:crypto.randomUUID()};
-    try{
-      const r=await api("rooms",{requestId:templateRequest.current.requestId,name:template.name,templateId:id,...(roomId?{sourceRoom:roomId}:{})});
-      const loaded=await api(`state?room=${r.roomId}`);
-      generation.current++;roomRef.current=r.roomId;setRoomId(r.roomId);setState(loaded.state);saved.current=loaded.state;setBackground(loaded.background?.data??"");setTurns([]);setText("");setFiles([]);setShowFiles(false);setBatchIds([]);setCardStatus({});setDirty(false);setSelected(null);
-      window.history.replaceState(null,"",r.url);setWarehouse(false);setEditing(false);setSelected(null);templateRequest.current=null;window.scrollTo({top:0,behavior:"instant"});
-    }catch(e){setError((e as Error).message);}finally{busyRef.current=false;setBusy(false);setCreatingTemplate(null);}
-  }
+  function chooseTemplate(id:string){if(!busyRef.current&&!dirty&&roomTemplates.some(t=>t.id===id))window.location.assign(`/rcv3/create?template=${encodeURIComponent(id)}`);}
   useEffect(()=>{if(!warehouse)return;const old=document.body.style.overflow;document.body.style.overflow="hidden";const previous=document.activeElement as HTMLElement|null;const close=(e:KeyboardEvent)=>{if(e.key==="Escape"&&!busyRef.current)setWarehouse(false);if(e.key==="Tab"){const items=Array.from(galleryRef.current?.querySelectorAll<HTMLElement>('button:not(:disabled),input:not(:disabled),select:not(:disabled)')??[]);const first=items[0],last=items[items.length-1];if(e.shiftKey&&document.activeElement===first){e.preventDefault();last?.focus();}else if(!e.shiftKey&&document.activeElement===last){e.preventDefault();first?.focus();}}};window.addEventListener("keydown",close);return()=>{document.body.style.overflow=old;window.removeEventListener("keydown",close);previous?.focus();};},[warehouse]);
   function placeTemplate(){
     if(!state){void create();return;}
@@ -180,7 +166,7 @@ export default function Room({ providers, secretaryRooms, language }: { provider
       <div className={styles.galleryHeader}><div><small>ROYAL COMMAND</small><h1>{galleryTab==="Rooms"?"Create Room":"AI List"}</h1></div><input autoFocus aria-label={galleryTab==="Rooms"?"Search rooms":"Search AIs"} placeholder={galleryTab==="Rooms"?"Search rooms…":"Search AIs…"} value={galleryTab==="Rooms"?roomSearch:aiSearch} onChange={e=>galleryTab==="Rooms"?setRoomSearch(e.target.value):setAISearch(e.target.value)}/><button disabled={busy} onClick={()=>setWarehouse(false)}>Close</button></div>
       <nav className={styles.galleryTabs} aria-label="Warehouse sections">{["Rooms","Connections"].map(t=><button key={t} aria-pressed={galleryTab===t} onClick={()=>setGalleryTab(t)}>{t==="Connections"?"AI List":"Create Room"}</button>)}</nav>
       {error&&<p role="alert" className={styles.error}>{error}</p>}
-      {galleryTab==="Rooms"?<RoomCatalog search={roomSearch} busy={busy||dirty} creating={creatingTemplate} onChoose={id=>void chooseTemplate(id)}/>
+      {galleryTab==="Rooms"?<RoomCatalog search={roomSearch} busy={busy||dirty} creating={null} onChoose={id=>void chooseTemplate(id)}/>
       :state?<><h2>Select AIs</h2><div className={styles.providerGrid}>{orderedProviders.filter(p=>p.label.toLowerCase().includes(aiSearch.toLowerCase().trim())).map(p=><div key={p.id} data-ai-order={p.id} data-connected={state.connectedProviders.includes(p.id)&&state.selectedProviders.includes(p.id)} className={styles.providerChoice} style={{opacity:movingAI===p.id?.6:1}}><button type="button" className={styles.aiMove} aria-label={`Move ${p.label}`} disabled={busy||dirty} onPointerDown={e=>{if(e.button!==0)return;e.preventDefault();e.currentTarget.setPointerCapture(e.pointerId);movingAIRef.current=p.id;setMovingAI(p.id);setMovePoint({x:e.clientX,y:e.clientY});}} onPointerMove={e=>{if(movingAIRef.current)setMovePoint({x:e.clientX,y:e.clientY});}} onPointerUp={e=>{if(!movingAIRef.current)return;const target=document.elementFromPoint(e.clientX,e.clientY)?.closest<HTMLElement>("[data-ai-order]")?.dataset.aiOrder;movingAIRef.current=null;setMovingAI(null);setMovePoint(null);if(target)void reorderAI(p.id,target as AIProviderId);}} onPointerCancel={()=>{movingAIRef.current=null;setMovingAI(null);setMovePoint(null);}} onLostPointerCapture={()=>{movingAIRef.current=null;setMovingAI(null);setMovePoint(null);}} onKeyDown={e=>{if(!["ArrowLeft","ArrowRight","ArrowUp","ArrowDown"].includes(e.key))return;e.preventDefault();const grid=e.currentTarget.closest("[data-ai-order]")!.parentElement!;const columns=getComputedStyle(grid).gridTemplateColumns.split(" ").length;const delta=e.key==="ArrowLeft"?-1:e.key==="ArrowRight"?1:e.key==="ArrowUp"?-columns:columns;const visible=orderedProviders.filter(p=>p.label.toLowerCase().includes(aiSearch.toLowerCase().trim()));const target=visible[visible.findIndex(x=>x.id===p.id)+delta];if(target)void reorderAI(p.id,target.id);}}><Move size={20}/></button><label className={styles.aiSelect}><input type="checkbox" aria-label={`Select ${p.label}`} checked={state.selectedProviders.includes(p.id)} disabled={busy||dirty||!p.configured} onChange={()=>void selectAI(p.id,!state.connectedProviders.includes(p.id))}/>{brand(p.id)}<small>{state.connectedProviders.includes(p.id)&&state.selectedProviders.includes(p.id)?"Connected":p.configured?"Connect":"Unavailable"}</small></label></div>)}</div><h2>Katie</h2><label>Existing secretary room <select aria-label="Katie room" value={state.secretaryRoomId??""} disabled={busy||dirty} onChange={e=>void linkKatie(e.target.value)}><option value="">This room · New Katie</option>{secretaryRooms.map(r=><option key={r.id} value={r.id}>{r.name} · {r.id.slice(0,8)}</option>)}</select></label></>:<p>Choose a room first.</p>}
     </section>}
     {!state?<section className={styles.empty}><h1>Choose a room from Create Room</h1></section>:<>

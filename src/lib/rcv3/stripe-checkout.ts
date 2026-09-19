@@ -36,6 +36,9 @@ export function draftFingerprint(draft: RoomDraftInput) {
   const canonical = { ...d, step: 0, answers: Object.fromEntries(Object.entries(d.answers).sort(([a], [b]) => a.localeCompare(b)).map(([k,v]) => [k,[...v].sort()])), providers: [...d.providers].sort(), tasks: [...d.tasks].sort() };
   return createHash("sha256").update(JSON.stringify(canonical)).digest("hex");
 }
+export function quoteFingerprint(catalog: CheckoutCatalog, draft: RoomDraftInput) {
+  return createHash("sha256").update(JSON.stringify({draft:draftFingerprint(draft),version:catalog.version,account:catalog.accountId,currency:catalog.currency,terms:termsFingerprint(catalog.terms),lines:bundleForDraft(catalog,draft).lines})).digest("hex");
+}
 export function termsFingerprint(terms: CheckoutCatalog["terms"]) {
   return createHash("sha256").update(`${terms.version}\n${terms.text}`).digest("hex");
 }
@@ -69,7 +72,7 @@ export function prepareOrder(args: { id: string; ownerId: string; draftId: strin
   return { id: args.id, ownerId: args.ownerId, draftId: args.draftId, draftHash: draftFingerprint(draft),
     catalogVersion: catalog.version, termsVersion: catalog.terms.version, termsHash: args.acceptedTermsHash,
     signature, acceptedAt: new Date(now).toISOString(), currency: catalog.currency,
-    lines: bundleForDraft(catalog, draft).lines, expiresAt: Math.floor(now / 1000) + 3600,
+    lines: bundleForDraft(catalog, draft).lines.map(line=>({...line})), expiresAt: Math.floor(now / 1000) + 3600,
     integrationIdentifier: `rcv3-preview-${letters}` };
 }
 export async function validateStripePrices(stripe: Stripe, catalog: CheckoutCatalog, lines: CheckoutLine[]) {
@@ -90,7 +93,8 @@ export async function validateStripePrices(stripe: Stripe, catalog: CheckoutCata
 export async function createTestCheckout(stripe: Stripe, order: CheckoutOrder, trustedOrigin: string) {
   const origin = new URL(trustedOrigin);
   if (origin.protocol !== "https:" || origin.origin !== trustedOrigin) throw new Error("RCV3_ORIGIN");
-  if (order.expiresAt * 1000 <= Date.now() + 31 * 60000) throw new Error("RCV3_QUOTE_EXPIRED");
+  // Reuse the exact persisted request even after expiry: Stripe returns its
+  // idempotent result after a lost response, or rejects an expired new session.
   const metadata = { rcv3_order: order.id, rcv3_owner: order.ownerId, rcv3_draft: order.draftId, rcv3_hash: order.draftHash };
   const result = await stripe.checkout.sessions.create({
     mode: "subscription", line_items: order.lines.map(line => ({ price: line.priceId, quantity: 1 })),
@@ -118,8 +122,16 @@ export async function verifyTestCheckout(stripe: Stripe, order: CheckoutOrder, s
   if (lines.has_more || JSON.stringify(actualLines) !== JSON.stringify(expectedLines)) throw new Error("RCV3_PAYMENT_MISMATCH");
   const subId = typeof s.subscription === "string" ? s.subscription : s.subscription?.id;
   if (!subId) throw new Error("RCV3_PAYMENT_MISMATCH");
-  const sub = await stripe.subscriptions.retrieve(subId);
+  const sub = await stripe.subscriptions.retrieve(subId, { expand: ["latest_invoice"] });
   if (sub.livemode || sub.metadata.rcv3_order !== order.id || sub.metadata.rcv3_owner !== order.ownerId || sub.status !== "active") return { paid: false as const };
+  const customerId = (v: string | {id:string} | null) => typeof v === "string" ? v : v?.id;
+  if (!customerId(s.customer) || customerId(s.customer) !== customerId(sub.customer) || sub.metadata.rcv3_draft !== order.draftId || sub.metadata.rcv3_hash !== order.draftHash) throw new Error("RCV3_PAYMENT_MISMATCH");
+  const currentLines = sub.items.data.map(i => `${i.price.id}:${i.quantity}:${i.price.unit_amount}`).sort();
+  if (sub.items.has_more || JSON.stringify(currentLines) !== JSON.stringify(expectedLines) ||
+    sub.items.data.some(i => i.price.livemode || i.price.currency !== order.currency || i.price.recurring?.interval !== "month" || i.price.recurring.interval_count !== 1 || i.current_period_end * 1000 <= Date.now())) return {paid:false as const};
+  const invoice = typeof sub.latest_invoice === "object" ? sub.latest_invoice : null;
+  if (!invoice || invoice.livemode || invoice.status !== "paid" || invoice.currency !== order.currency ||
+    invoice.amount_paid !== expected || invoice.amount_remaining !== 0 || customerId(invoice.customer) !== customerId(s.customer)) return {paid:false as const};
   return { paid: true as const, subscriptionId: subId, sessionId: s.id };
 }
 export function verifyTestWebhook(stripe: Stripe, raw: string, signature: string, secret: string) {

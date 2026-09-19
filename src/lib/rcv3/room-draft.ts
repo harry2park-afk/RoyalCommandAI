@@ -63,7 +63,7 @@ export const draftUpdateSchema = z.object({
 }).strict();
 export function newRoomDraft(): RoomDraftInput {
   return { name: "", purpose: "custom", answers: {}, tasks: [], providers: [],
-    secretary: false, secretarySetup: { email: "", phone: "" }, specialAI: false, plan: "free", templateId: roomTemplates[0].id, step: 0 };
+    secretary: false, secretarySetup: { email: "", phone: "" }, specialAI: false, plan: "paid", templateId: roomTemplates[0].id, step: 0 };
 }
 export function changePurpose(input: RoomDraftInput, purpose: string): RoomDraftInput {
   return { ...input, purpose, answers: {}, tasks: [] };

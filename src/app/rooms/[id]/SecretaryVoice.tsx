@@ -7,7 +7,8 @@ import { SecretaryVoiceRecovery } from "@/lib/ai-secretary/voice-recovery";
 import { katieVoiceText } from "@/lib/locale/katie-voice";
 import { useRoyalCommandLocale } from "./useRoyalCommandLocale";
 
-export default function SecretaryVoice({ onMessage, busy, onActiveChange, onTranscript, initialText }: {
+export default function SecretaryVoice({ roomId, onMessage, busy, onActiveChange, onTranscript, initialText }: {
+  roomId: string;
   onMessage: (text: string) => Promise<string>;
   busy: boolean;
   initialText: string;
@@ -63,7 +64,7 @@ export default function SecretaryVoice({ onMessage, busy, onActiveChange, onTran
     let prefix = initialText.trim();
     const combined = (text: string) => [prefix, text].filter(Boolean).join(" ");
     session.current = recovery.current.create({
-      language, onMessage: text => {
+      roomId, language, onMessage: text => {
         const message = combined(text);
         prefix = "";
         return onMessage(message);

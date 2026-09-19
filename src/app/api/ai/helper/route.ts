@@ -1,3 +1,4 @@
+import { guardPaidRoom } from "@/lib/rcv3/paid-service-guard";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
@@ -22,7 +23,8 @@ export async function POST(request: Request) {
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const data = schema.parse(await request.json());
-    const available = getAvailableProviderIds();
+    const entitlement = await guardPaidRoom(user.id,data.roomId,"secretary");
+    const available = getAvailableProviderIds().filter(id=>!entitlement||entitlement.providers.includes(id));
     const preferred = (["openai", "anthropic", "google", "xai"] as AIProviderId[])
       .find((id) => available.includes(id)) || available[0];
 

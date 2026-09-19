@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { paidRoomEntitlement } from "./checkout-ledger";
 import { cloudStore } from "./cloud-state";
 export const RCV3_MARKER = "rcv3-private-preview-v1";
 export function stableId(owner: string, kind: string) {
@@ -22,7 +23,8 @@ export async function access(roomId: string) {
     .eq("id", id).eq("room_owner_id", ctx.user.id).eq("description", RCV3_MARKER).eq("status", "draft").maybeSingle();
   if (result.error) throw new Error("RCV3_STORAGE");
   if (!result.data || result.data.household_id !== stableId(ctx.user.id,"household")) throw new Error("RCV3_NOT_FOUND");
-  return { ...ctx, room: result.data, store: cloudStore(ctx.db, ctx.user.id, id) };
+  const entitlement = await paidRoomEntitlement(ctx.user.id,id);
+  return { ...ctx, entitlement, room: result.data, store: cloudStore(ctx.db, ctx.user.id, id) };
 }
 export function reply(body: unknown, status = 200, timing?: number) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store", ...(timing === undefined ? {} : { "Server-Timing": `rcv3;dur=${timing.toFixed(1)}` }) } });

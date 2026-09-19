@@ -1,3 +1,4 @@
+import { requirePaidService } from "@/lib/rcv3/checkout-ledger";
 import { z } from "zod";
 import { access, reply, failure, input } from "@/lib/rcv3/access";
 import { reserve } from "@/lib/rcv3/execution";
@@ -8,6 +9,7 @@ export async function POST(request: Request) {
     const d = z.object({ roomId: z.string().uuid(), requestId: z.string().uuid() }).strict().parse(await input(request,1000));
     const a = await access(d.roomId), key = process.env.OPENAI_API_KEY;
     if (!key) throw new Error("RCV3_AI_NOT_CONNECTED");
+    requirePaidService(a.entitlement ?? null,"ai:openai");
     await reserve(a,d.requestId,"check");
     const started=performance.now();
     const answer=await getConnector("openai").complete({messages:[{role:"user",content:"2 더하기 3의 답을 숫자 한 글자로만 답하세요."}],maxTokens:20});

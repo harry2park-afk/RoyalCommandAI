@@ -1,3 +1,4 @@
+import { guardPaidRoom } from "@/lib/rcv3/paid-service-guard";
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
@@ -53,6 +54,7 @@ function gmailRaw(to: string, subject: string, body: string, reply?: { messageId
 async function authorize(roomId: string) {
   const user = await getCurrentUser();
   if (!user) return { error: "Forbidden", status: 403 } as const;
+  try {await guardPaidRoom(user.id,roomId,"secretary");} catch {return {error:"Forbidden",status:403} as const;}
   let v3: Awaited<ReturnType<typeof accessV3Room>> | undefined;
   // Existing personal secretary access is unchanged. New customer access is
   // confined to their authenticated Preview V3 room, never a shared identity.

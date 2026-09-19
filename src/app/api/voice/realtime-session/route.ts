@@ -1,3 +1,4 @@
+import { guardRoomVoice } from "@/lib/rcv3/paid-service-guard";
 import { getCurrentUser } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 
@@ -46,6 +47,7 @@ export async function POST(request: Request) {
     if (!user) return fail("VOICE_AUTH", 401);
     mark("auth_completed");
 
+    await guardRoomVoice(user.id,new URL(request.url).searchParams.get("room"));
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return fail("VOICE_CONFIG", 503);
 

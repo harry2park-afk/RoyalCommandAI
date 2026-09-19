@@ -16,6 +16,9 @@ export async function PUT(request: Request) {
     const a = await access(d.roomId);
     const { stateSchema } = await import("@/lib/rcv3/cloud-state");
     const state = stateSchema.parse(d.state);
+    if(a.entitlement) {
+      if(state.secretaryRoomId || (state.gmailEnabled&&!a.entitlement.secretary) || state.design.buttons.some(b=>b.capability==="secretary"&&!a.entitlement!.secretary) || state.connectedProviders.some(p=>!a.entitlement!.providers.includes(p)))throw new Error("RCV3_SERVICE_NOT_INCLUDED");
+    }
     if(state.secretaryRoomId){const linked=await a.db.from("rooms").select("id").eq("id",state.secretaryRoomId).eq("room_owner_id",a.user.id).neq("status","archived").maybeSingle();if(linked.error||!linked.data)throw new Error("RCV3_NOT_FOUND");}
     if (state.design.backgroundAssetId) await a.store.read(`assets/${state.design.backgroundAssetId}.txt`);
     return reply({ state: await writeState(a.store, d.revision, state) });
