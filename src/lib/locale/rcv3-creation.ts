@@ -1,4 +1,5 @@
 const messages = {
+  paymentSetup: { en: "Payments are not connected to this room yet. Your saved design is kept in My Drafts.", ko: "이 방의 결제 연결이 아직 준비되지 않았습니다. 저장한 설계는 My Drafts에 보관됩니다." },
   limit: { en: "Draft storage is full. Your changes remain on this screen.", ko: "초안 저장 공간이 가득 찼습니다. 변경 내용은 이 화면에 남아 있습니다." },
   draft: { en: "Your design is saved to your account. No payment has been taken.", ko: "설계가 계정에 저장되었습니다. 결제는 이루어지지 않았습니다." },
   payment: { en: "Paid activation is not available yet. Save your draft and return when pricing and payment are ready.", ko: "유료 활성화는 아직 준비되지 않았습니다. 초안을 저장하고 요금과 결제 준비 후 이어서 진행할 수 있습니다." },

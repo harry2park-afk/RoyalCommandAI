@@ -25,6 +25,7 @@ export default function CreateRoomWizard({ language, providers }: {
   const [loaded, setLoaded] = useState(false), [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false), [error, setError] = useState<CreationMessage | "">("");
   const [status, setStatus] = useState<CreationMessage | "">("");
+  const [paymentMessage, setPaymentMessage] = useState<CreationMessage>("payment");
   const saving = useRef(false);
   const latestInput = useRef(input);
   useEffect(() => { latestInput.current = input; }, [input]);
@@ -42,6 +43,14 @@ export default function CreateRoomWizard({ language, providers }: {
       else { setDraftId(crypto.randomUUID()); }
       setLoaded(true);
     }).catch(() => { if (active) setError("error"); });
+    return () => { active = false; };
+  }, []);
+  useEffect(() => {
+    let active = true;
+    fetch("/api/rcv3/checkout/quote", { cache: "no-store", signal: AbortSignal.timeout(20000) })
+      .then(r => r.json()).then(data => {
+        if (active && data.code === "RCV3_CHECKOUT_NOT_CONFIGURED") setPaymentMessage("paymentSetup");
+      }).catch(() => { /* Preserve the generic unavailable message on network failure. */ });
     return () => { active = false; };
   }, []);
   useEffect(() => {
@@ -129,7 +138,7 @@ export default function CreateRoomWizard({ language, providers }: {
             <dl className={styles.summary}><dt>Purpose</dt><dd>{purpose.name}</dd><dt>Tasks</dt><dd>{input.tasks.join(", ") || "None"}</dd><dt>Design</dt><dd>{selectedDesign.name}</dd></dl>
             <div className={styles.choices}><label><input type="radio" name="plan" checked={input.plan === "free"} onChange={() => update({ ...input, plan: "free" })}/>Free Room</label><label><input type="radio" name="plan" checked={input.plan === "paid"} onChange={() => update({ ...input, plan: "paid" })}/>Paid Room</label></div>
             <table className={styles.pricing}><caption>Requested Services</caption><thead><tr><th>Service</th><th>Monthly Price</th></tr></thead><tbody><tr><td>Room</td><td>{input.plan === "free" ? "Free" : "Not confirmed"}</td></tr>{input.providers.map(id => <tr key={id}><td>{providers.find(p => p.id === id)?.label}</td><td>Not confirmed</td></tr>)}{input.secretary && <tr><td>AI Secretary</td><td>Not confirmed</td></tr>}{input.specialAI && <tr><td>Specialist AI</td><td>Not confirmed</td></tr>}</tbody></table>
-            <p>{creationText(input.plan === "free" ? "free" : "payment", language)}</p>
+            <p>{creationText(input.plan === "free" ? "free" : paymentMessage, language)}</p>
           </>}
         </fieldset>
         <footer className={styles.footer}><button disabled={busy || !loaded || input.step === 0} onClick={() => update({ ...input, step: input.step - 1 })}>Back</button><button disabled={busy || !loaded} onClick={() => void save()}>Save Draft</button>{input.step < 3 && <button className={styles.primary} disabled={busy || !loaded} onClick={() => void next()}>Next</button>}</footer>
