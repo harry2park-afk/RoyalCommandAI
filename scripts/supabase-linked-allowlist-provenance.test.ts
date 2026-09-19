@@ -25,6 +25,7 @@ const expectedCandidates = [
   "20260903205500_payment_operational_safeguards.sql",
   "20260904005500_add_room_factory_fk_indexes.sql",
   "20260904105500_harden_profile_role_authority.sql",
+  "20260910030000_harden_commercial_review_provenance.sql",
   "20260911045100_room_factory_manifest_acl_hardening.sql",
 ];
 
@@ -70,7 +71,7 @@ describe("Supabase linked dry-run allow-list provenance", () => {
   it("fails closed if the workflow allow-list is narrower than the provenance manifest", () => {
     const report = verifyLinkedDryRunAllowlist({
       manifest: loadManifest(),
-      requestedAllowlist: expectedCandidates.slice(0, 6).join(","),
+      requestedAllowlist: expectedCandidates.slice(0, expectedCandidates.length - 1).join(","),
       migrationDir,
     });
 
