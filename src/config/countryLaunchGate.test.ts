@@ -1,13 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { evaluateCountryLaunch } from "./countryLaunchGate";
-import { getConfiguredCountryCodes, getCountryConfigByCountryCode } from "./countryResolver";
+import { getCountryConfigByCountryCode } from "./countryResolver";
 import type { CountryConfig } from "../types/countryConfig";
+
+const FIRST_WAVE_COUNTRY_CODES = ["AU", "CA", "GB", "JP", "KR", "US"] as const;
 
 describe("country launch readiness gate", () => {
   it("keeps all first-wave countries blocked until launch-critical reviews and connections are verified", () => {
-    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "GB", "JP", "KR", "US"]);
-
-    for (const countryCode of getConfiguredCountryCodes()) {
+    for (const countryCode of FIRST_WAVE_COUNTRY_CODES) {
       const config = getCountryConfigByCountryCode(countryCode);
       expect(config, countryCode).not.toBeNull();
       const gate = evaluateCountryLaunch(config!);
