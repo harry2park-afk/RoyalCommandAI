@@ -1,0 +1,172 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-20T01:50:09+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "project_name": "RoyalCommand",
+  "source": "Fresh Hosted Supabase READ-ONLY inventory on 2026-09-20: migration ledger count 72; none of the seven candidate versions are present; the five proposed Room Factory/Core Room FK indexes are absent. Candidate source provenance is bound to exact reviewed Git blobs from the current #696 deployment-evidence lane plus the additive FK-index migration copied byte-identically from reviewed PR #847. No Hosted mutation, migration repair, provider activation, legal/compliance approval, or Country READY transition is authorized by this manifest.",
+  "purpose": "Extend the fail-closed linked dry-run evidence set from six to seven independently reviewed launch candidates: Matter isolation, non-encounter Room Factory, country compliance evidence registry, payment operational safeguards, additive Room Factory/Core Room FK indexes, profile-role authority, and Room Factory manifest ACL hardening. Historical equivalent/diverged migrations remain quarantined. Every expected-apply candidate is bound to an exact Git source-blob SHA. Passing this provenance gate authorizes dry-run evidence capture only and never migration apply, repair, deploy, provider activation, legal/compliance approval, or Country READY.",
+  "normalization": "CRLF to LF, trim whole source, drop blank lines and full-line -- comments, preserve remaining line bytes, SHA-256",
+  "expected_apply_migrations": [
+    "20260831225500_scope_matter_staff_access.sql",
+    "20260901025800_room_factory_atomic_non_encounter.sql",
+    "20260903075000_country_compliance_evidence_registry.sql",
+    "20260903205500_payment_operational_safeguards.sql",
+    "20260904005500_add_room_factory_fk_indexes.sql",
+    "20260904105500_harden_profile_role_authority.sql",
+    "20260911045100_room_factory_manifest_acl_hardening.sql"
+  ],
+  "entries": [
+    {
+      "local_basename": "20260810065600_passkeys.sql",
+      "local_name": "passkeys",
+      "classification": "REMOTE_EQUIVALENT_AFTER_COMMENT_BLANK_NORMALIZATION",
+      "remote": [
+        {
+          "version": "20260809215715",
+          "name": "passkey_credentials",
+          "diagnostic_sha256": "e393ae4a9147a1365a17e827746bf5e57cd0dd4e649b880369e556cd25c46c5c"
+        }
+      ]
+    },
+    {
+      "local_basename": "20260825041500_fix_room_member_insert_rls.sql",
+      "local_name": "fix_room_member_insert_rls",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260825042819",
+          "name": "harden_room_membership_owner_only",
+          "diagnostic_sha256": "d3809760234af7edfdb3a20bea7b0ea98aee0b166b80f468437daf4c406d2a5f"
+        }
+      ],
+      "reason": "Hosted replacement source is not byte-equivalent after comment/blank normalization; keep the older local migration quarantined from any inferred apply set."
+    },
+    {
+      "local_basename": "20260829190000_global_service_commercial_terms.sql",
+      "local_name": "global_service_commercial_terms",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260829123104",
+          "name": "add_global_service_commercial_terms",
+          "diagnostic_sha256": "bad912cc9b846d00eb3a81f21799d1e1779c8040fd8aeba019d7039562b86bf3"
+        }
+      ],
+      "reason": "Hosted and local policy-creation source differ; historical replay must not be inferred from name similarity."
+    },
+    {
+      "local_basename": "20260829224000_service_provider_registry.sql",
+      "local_name": "service_provider_registry",
+      "classification": "REMOTE_EQUIVALENT_AFTER_COMMENT_BLANK_NORMALIZATION",
+      "remote": [
+        {
+          "version": "20260829125149",
+          "name": "add_service_provider_registry",
+          "diagnostic_sha256": "6745027401dfaceb86fa851287d6928ea4b651a4e82be4721e0bed801ea15f9d"
+        }
+      ]
+    },
+    {
+      "local_basename": "20260830013500_allow_shared_service_scope.sql",
+      "local_name": "allow_shared_service_scope",
+      "classification": "REMOTE_EQUIVALENT_TO_ORDERED_REMOTE_SEQUENCE",
+      "remote": [
+        {
+          "version": "20260829152721",
+          "name": "allow_service_connection_scope_both",
+          "diagnostic_sha256": "45dc6e348a5079d84163d794921853c4a19a5e040eee447f3c4b7134d64069ea"
+        },
+        {
+          "version": "20260829152826",
+          "name": "seed_shared_service_scopes",
+          "diagnostic_sha256": "5d0569f6434198048f5f59ce4cf0470d4075cfd80ff0d09db59092593e303127"
+        }
+      ],
+      "expected_combined_diagnostic_sha256": "b6ff4456cf691a633c5d45a146fc12c359fe99f566c5ee3e4ed446de770449a6"
+    },
+    {
+      "local_basename": "20260830020500_harden_room_household_insert.sql",
+      "local_name": "harden_room_household_insert",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260829165635",
+          "name": "harden_room_household_insert_rls",
+          "diagnostic_sha256": "e436422dca3ea2cc36ea15c65294acd01441bf7e636f1f94961e177112988488"
+        }
+      ],
+      "reason": "Hosted replacement source uses a different role/predicate shape; the older local migration must remain quarantined."
+    },
+    {
+      "local_basename": "20260831225500_scope_matter_staff_access.sql",
+      "local_name": "scope_matter_staff_access",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #696 Matter isolation candidate plus reviewed ACL hardening and syntax fixes",
+      "source_blob_sha": "e518dcb10cb4eafad8311922bf801e75d0ce38fb",
+      "reason": "Fresh Hosted read-back still shows direct sensitive-column/control-plane privileges that this candidate is intended to harden. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260901025800_room_factory_atomic_non_encounter.sql",
+      "local_name": "room_factory_atomic_non_encounter",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #696 reviewed non-encounter Room Factory candidate with manifest ACL and identity/localization binding",
+      "source_blob_sha": "4a4a9c14c9b659fbdfc811b92c5788f358025a68",
+      "reason": "Fresh Hosted inventory has no 20260901025800 row and existing manifests remain on the legacy null-encounter boundary. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260903075000_country_compliance_evidence_registry.sql",
+      "local_name": "country_compliance_evidence_registry",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #657 exact candidate plus PR #696 reviewer-provenance hardening",
+      "source_blob_sha": "ba1c10c6858a9990c4eb17de31b007c3c9c0810c",
+      "reason": "Fresh Hosted inventory has no 20260903075000 row and public.country_compliance_evidence is absent. This entry authorizes linked dry-run evidence capture only; it does not authorize apply, legal approval, Compliance READY, or Country READY."
+    },
+    {
+      "local_basename": "20260903205500_payment_operational_safeguards.sql",
+      "local_name": "payment_operational_safeguards",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #658 exact candidate plus PR #696 fail-closed payment operational hardening",
+      "source_blob_sha": "9f29a75e06a044cc5c14d7cc10d1aa1a8fcbfc10",
+      "reason": "Fresh Hosted inventory has no 20260903205500 row; payment provider registry/event ledger remain absent and service-order idempotency is not present. This entry authorizes linked dry-run evidence capture only; it does not authorize apply, provider activation, or Country READY."
+    },
+    {
+      "local_basename": "20260904005500_add_room_factory_fk_indexes.sql",
+      "local_name": "add_room_factory_fk_indexes",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "Reviewed PR #847 exact migration copied byte-identically from Git blob b9bfcc7db66cea217a6de6d17b80660ff05b7341",
+      "source_blob_sha": "b9bfcc7db66cea217a6de6d17b80660ff05b7341",
+      "reason": "Fresh Hosted read-only inventory has no 20260904005500 migration row and none of the five proposed FK indexes exists. The migration is additive CREATE INDEX IF NOT EXISTS only and changes no RLS, grants, data semantics, Auth, payments, compliance state, or Country READY. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260904105500_harden_profile_role_authority.sql",
+      "local_name": "harden_profile_role_authority",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #691 exact head 4ac81c5914bb2e0133706e9cc9c8bc4c92353ba0",
+      "source_blob_sha": "b97a1834111d5ec6c4b089314e7552f5f2073fa7",
+      "reason": "Fresh Hosted migration inventory has no 20260904105500 row and direct profile-role update authority remains broader than the reviewed least-privilege contract. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260911045100_room_factory_manifest_acl_hardening.sql",
+      "local_name": "room_factory_manifest_acl_hardening",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #661 exact head b1859541f33940124c6dee36dde26e6bfb68f52c",
+      "source_blob_sha": "637f759884f099e37257c021c9dbb09badc9e799",
+      "reason": "Fresh Hosted migration inventory has no 20260911045100 row and anon/authenticated direct Room Factory manifest writes remain broader than the reviewed ACL boundary. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    }
+  ],
+  "ready_for_apply": false
+}
