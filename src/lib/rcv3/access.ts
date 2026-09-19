@@ -30,7 +30,7 @@ export function reply(body: unknown, status = 200, timing?: number) {
 export function failure(error: unknown) {
   const code = error instanceof Error && /^RCV3_[A-Z_]+$/.test(error.message) ? error.message : "RCV3_ERROR";
   const status = error instanceof z.ZodError || error instanceof SyntaxError ? 400 : code === "RCV3_AUTH" ? 401 : code === "RCV3_NOT_FOUND" ? 404 : code === "RCV3_CONFLICT" ? 409 : code === "RCV3_LIMIT" ? 429 : 503;
-  return reply({ error: status === 401 ? "로그인이 필요합니다." : status === 409 ? "다른 작업과 겹쳤습니다. 저장된 상태를 다시 불러오세요." : "요청을 완료하지 못했습니다. 입력 내용은 유지됩니다.", code }, status);
+  return reply({ error: status === 401 ? "Please sign in." : status === 409 ? "Another change was saved. Reload the saved version." : "Request failed. Your input is preserved.", code }, status);
 }
 export async function input(request: Request, max = 1500000) {
   const origin = request.headers.get("origin");

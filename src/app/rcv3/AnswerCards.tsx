@@ -92,7 +92,6 @@ export default function AnswerCards({ roomId, providers, turns, statuses, onRead
           <div className={styles.answerText} tabIndex={0} aria-label={`${provider.label} response text`}>
             {history.map(turn => <div key={turn.requestId}><p className={styles.user}>{turn.prompt}</p><p className={styles.answer}>{turn.answer}</p></div>)}
             {statuses[provider.id] && <p role="status">{statuses[provider.id]}</p>}
-            {!history.length && !statuses[provider.id] && <p className={styles.answerEmpty}>Your answer appears here.</p>}
           </div>
           {notice[provider.id] && (reading === provider.id || /failed|retry/i.test(notice[provider.id])) && <small role="status">{notice[provider.id]}</small>}
         </div>

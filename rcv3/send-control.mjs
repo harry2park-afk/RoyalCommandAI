@@ -6,7 +6,7 @@ export class RCSendControl extends HTMLElement {
  #send; #busy=false;
  constructor(){
   super();this.attachShadow({mode:'open'}).innerHTML=`<style>
-  :host{display:inline-block}button{box-sizing:border-box;width:var(--rc-control-width,50px);height:var(--rc-control-height,30px);border:1px solid #bdd5e02e;border-radius:8px;background:#15253755;color:#a6d8e9;display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer}button:focus-visible{outline:2px solid #a6d8e9;outline-offset:3px}button:disabled{opacity:.4;cursor:default}svg{pointer-events:none;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}</style><button type="button" aria-label="전송" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L3 10l7 3 3 8 8-18ZM10 13L21 3"/></svg><span class="custom-label"></span></button>`;
+  :host{display:inline-block}button{box-sizing:border-box;width:var(--rc-control-width,50px);height:var(--rc-control-height,30px);border:1px solid #bdd5e02e;border-radius:8px;background:#15253755;color:#a6d8e9;display:flex;align-items:center;justify-content:center;gap:4px;cursor:pointer}button:focus-visible{outline:2px solid #a6d8e9;outline-offset:3px}button:disabled{opacity:.4;cursor:default}svg{pointer-events:none;width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linejoin:round}</style><button type="button" aria-label="Send" disabled><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 3L3 10l7 3 3 8 8-18ZM10 13L21 3"/></svg><span class="custom-label"></span></button>`;
   this.button=this.shadowRoot.querySelector('button');
   this.button.addEventListener('click',async()=>{
    if(this.#busy||!this.#send)return;

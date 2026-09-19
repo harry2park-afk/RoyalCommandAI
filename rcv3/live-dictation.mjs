@@ -1,6 +1,6 @@
 // Interim results replace the current utterance; they are never sent as orders.
 export function createDictation(Recognition, {language, onText, onEnd, onError}) {
- if (!Recognition) throw new Error('이 브라우저는 실시간 받아쓰기를 지원하지 않습니다. Chrome에서 열어주세요.');
+ if (!Recognition) throw new Error('Live dictation is unavailable in this browser. Try Chrome.');
  const recognition = new Recognition();
  recognition.lang = language || 'ko-KR';
  recognition.continuous = true;
@@ -15,7 +15,7 @@ export function createDictation(Recognition, {language, onText, onEnd, onError})
  recognition.onerror = event => {
   if (closed) return;
   closed = true;
-  onError(event.error === 'not-allowed' ? '브라우저에서 마이크 사용을 허용해 주세요.' : event.error === 'audio-capture' ? '연결된 마이크를 찾을 수 없습니다.' : event.error === 'no-speech' ? '음성이 감지되지 않았습니다. 입력된 글은 유지됩니다.' : '실시간 받아쓰기 연결이 끊겼습니다. 입력된 글은 유지됩니다. 다시 눌러주세요.');
+  onError(event.error === 'not-allowed' ? 'Allow microphone access in your browser.' : event.error === 'audio-capture' ? 'No microphone found.' : event.error === 'no-speech' ? 'No speech detected. Your draft is preserved.' : 'Dictation disconnected. Your draft is preserved. Try again.');
   recognition.abort();
  };
  recognition.onend = () => { if (!closed) {closed=true;onEnd();} };
