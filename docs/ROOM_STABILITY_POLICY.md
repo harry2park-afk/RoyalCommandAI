@@ -2,19 +2,11 @@
 
 The Command Room must remain stable while execution capabilities evolve.
 
-## Runtime invariants
+## Sources of authority
+- Provider routing, execution isolation, branches and master restrictions: `AI_EXECUTION_ISOLATION_RULES.md`.
+- Shared UI ownership and locked surfaces: `COMMAND_ROOM_UI_SYSTEM.md`.
+- Risk classification, evidence, Preview-first and rollback: `../ROYAL_COMMAND_LAW.md`.
 
-- `/api/ai/chat/stream` is the one Room AI routing authority.
-- Compatibility chat endpoints must delegate instead of duplicating routing logic.
-- ChatGPT, Claude, Gemini, and Grok use `/api/dev/agent` for executable GitHub development.
-- Each executor uses a provider-isolated `rc-work` branch with host Work ID and Revision.
-- No AI or Tool Gateway path may write directly to `master`.
-- Provider-specific legacy endpoints may not contain independent GitHub writers.
-- Codex specialist analysis may not silently replace the selected provider.
-- Production merge/deploy remains approval-gated.
+Do not duplicate those rules here. When behavior regresses, compare the affected path with its canonical source before adding provider-, country- or component-specific workarounds.
 
-## Regression rule
-
-If a future change causes one AI to execute while another selected AI only reports that it lacks tools, first compare the routing path against these invariants instead of adding provider-specific workaround code.
-
-Any change to these invariants requires an explicit owner-approved execution-control change and full Quality Gate, Conflict Guard, Change Control, and Preview validation.
+Changes to a protected invariant require explicit scope and the risk-appropriate validation defined by the Law. Full gates are required only when the change is HIGH-RISK/REGULATED or promoted to Production.

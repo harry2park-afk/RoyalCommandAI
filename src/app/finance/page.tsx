@@ -126,6 +126,8 @@ export default function FinancePage() {
     if (!saved) return;
     try {
       const parsed = JSON.parse(saved) as { completed?: string[]; targetAmount?: string; purpose?: string };
+      // Browser-only persisted form hydration is intentionally performed once after mount.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCompleted(parsed.completed || []);
       setTargetAmount(parsed.targetAmount || "");
       setPurpose(parsed.purpose || "");

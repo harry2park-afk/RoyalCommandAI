@@ -19,6 +19,7 @@ import LegalRoomLayoutBridge from "./LegalRoomLayoutBridge";
 import AISelectionAccountRestore from "./AISelectionAccountRestore";
 import RCFileDestinationBridge from "./RCFileDestinationBridge";
 import RoomConnectorPanel from "./RoomConnectorPanel";
+import CustomerAISecretary from "./CustomerAISecretary";
 
 type Conversation = {
   id: string;
@@ -201,6 +202,7 @@ export default function StableRoomV3() {
       <RCFileDestinationBridge />
       <SavedConversationInspector />
       <AIHelperChat />
+      <CustomerAISecretary roomId={roomId} />
       <RoomConnectorPanel />
       <LegalHelperOpenBridge />
       <LegalCaseSelectorBridge />

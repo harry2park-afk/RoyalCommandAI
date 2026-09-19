@@ -42,6 +42,10 @@
   }
 
   async function restorePreference() {
+    // Wait for the Room component to identify its selection authority.
+    const scope = document.querySelector('[data-warehouse-scope]')?.dataset.warehouseScope;
+    if (scope === "pending" || (!scope && window.location.pathname !== "/rooms/rca")) { setTimeout(restorePreference, 100); return; }
+    if (scope === "studio") { preferencesReady = true; schedule(); return; }
     const local = readVisible();
     try {
       const res = await fetch("/api/user/preferences", { cache: "no-store" });
@@ -89,7 +93,10 @@
     const dock = topDock();
     if (!(dock instanceof HTMLElement)) return [];
     const warehouse = warehouseButton(dock);
-    return Array.from(dock.querySelectorAll(":scope > button")).filter((button) => button !== warehouse && button.id !== COUNCIL_ID);
+    const studio = dock.closest('[data-warehouse-scope="studio"]');
+    return Array.from(dock.querySelectorAll(":scope > button")).filter((button) =>
+      button !== warehouse && button.id !== COUNCIL_ID && (!studio || button.hasAttribute("data-warehouse-provider")),
+    );
   }
 
   function saveReferenceButton() {
@@ -214,10 +221,12 @@
     // Header and row geometry are owned by the Room layout. Do not rewrite
     // shared bar/top-row/dock heights here; repeated geometry writes can make
     // Warehouse/AI/Connect controls visibly shift while observers are active.
-    seedVisible(buttons);
-    let visibleNames = readVisible();
+    const scope = dock.closest('[data-warehouse-scope]')?.dataset.warehouseScope;
+    if (scope === "pending") return;
+    if (scope !== "studio") seedVisible(buttons);
+    let visibleNames = scope === "studio" ? buttons.map(shortName) : readVisible();
 
-    if (pendingWarehouseName) {
+    if (scope !== "studio" && pendingWarehouseName) {
       const match = buttons.find((button) => shortName(button) === pendingWarehouseName);
       if (match && !visibleNames.includes(pendingWarehouseName)) {
         visibleNames = [...visibleNames, pendingWarehouseName];
@@ -310,7 +319,7 @@
     childList: true,
     subtree: true,
     attributes: true,
-    attributeFilter: ["class", "disabled"],
+    attributeFilter: ["class", "disabled", "data-warehouse-scope"],
   });
   window.addEventListener("resize", schedule);
   void restorePreference();

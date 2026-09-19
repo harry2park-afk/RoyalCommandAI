@@ -43,3 +43,19 @@ If the Owner explicitly grants continuing approval for a defined project phase o
 Read and follow `docs/DAILY_RECOVERY_RULES.md` except where it conflicts with `ROYAL_COMMAND_LAW.md`.
 
 The daily recovery review is persistent and must run at 23:30 Australia/Sydney without requiring a new user order. No-change days verify the latest known-good restore point instead of creating unnecessary duplicate backups; material-change days create and verify a new restore point. Any uncertain, conflicting, destructive, insecure, or unrecoverable state must stop with an ERROR SIGNAL rather than being silently accepted.
+
+
+## Customer interface language — required for new and modified code
+
+Default interface language is English. Keep most UI in simple English. Use shared translation keys to add the selected language only where needed for understanding.
+
+- English (`en` and regional variants): display English only; remove all secondary-language UI text immediately when switching to English.
+- Simple, familiar labels remain English-only regardless of selected language: Save, Cancel, Close, Edit, Send, Files, My Rooms, Create Room, AI List. Do not automatically add translations to every button or menu.
+- For non-English selections, add English + the selected language only to necessary explanations, errors, permissions, or unfamiliar actions whose meaning would otherwise be unclear. Do not add unrelated third languages or extra guidance merely to provide a translation.
+- Read the selected locale from the shared customer language setting; do not infer it from a message, microphone language, or country. If no selection or translation exists, use English; never display raw translation keys.
+- Use shared locale resources and formatting, not hard-coded Korean or per-room language logic. APIs return stable error codes that the UI localizes; do not expose raw provider error text.
+- Add only necessary guidance. Do not add obvious instructions such as “Press the microphone to speak.” Keep essential failure/recovery messages concise and retain accessible control labels.
+- This rule governs system UI, not customer-authored room names, files, conversation history, or AI answer language. Preserve those contents. Keep brand names unchanged.
+- For each affected UI, verify that simple labels remain English-only, necessary explanatory messages follow the selected language, and switching back to English removes secondary text. Ensure any bilingual text fits without hiding controls. Keep checks scoped to the change.
+
+This is a coding requirement; recording it does not establish that existing screens have already been migrated.
