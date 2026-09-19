@@ -1,10 +1,10 @@
 {
   "contract_version": 1,
-  "captured_at": "2026-09-20T01:50:09+10:00",
+  "captured_at": "2026-09-20T06:48:48+10:00",
   "project_ref": "aygawkavujjmybekswrg",
   "project_name": "RoyalCommand",
-  "source": "Fresh Hosted Supabase READ-ONLY inventory on 2026-09-20: migration ledger count 72; none of the seven candidate versions are present; the five proposed Room Factory/Core Room FK indexes are absent. Candidate source provenance is bound to exact reviewed Git blobs from the current #696 deployment-evidence lane plus the additive FK-index migration copied byte-identically from reviewed PR #847. No Hosted mutation, migration repair, provider activation, legal/compliance approval, or Country READY transition is authorized by this manifest.",
-  "purpose": "Extend the fail-closed linked dry-run evidence set from six to seven independently reviewed launch candidates: Matter isolation, non-encounter Room Factory, country compliance evidence registry, payment operational safeguards, additive Room Factory/Core Room FK indexes, profile-role authority, and Room Factory manifest ACL hardening. Historical equivalent/diverged migrations remain quarantined. Every expected-apply candidate is bound to an exact Git source-blob SHA. Passing this provenance gate authorizes dry-run evidence capture only and never migration apply, repair, deploy, provider activation, legal/compliance approval, or Country READY.",
+  "source": "Fresh Hosted Supabase READ-ONLY inventory on 2026-09-20: migration ledger count 72; none of the eight candidate versions are present; the five proposed Room Factory/Core Room FK indexes are absent. Candidate source provenance is bound to exact reviewed Git blobs from the current #696 deployment-evidence lane, the additive FK-index migration copied byte-identically from reviewed PR #847, and the commercial-review provenance migration copied byte-identically from reviewed PR #817. No Hosted mutation, migration repair, provider activation, legal/compliance approval, or Country READY transition is authorized by this manifest.",
+  "purpose": "Extend the fail-closed linked dry-run evidence set to eight independently reviewed launch candidates: Matter isolation, non-encounter Room Factory, country compliance evidence registry, payment operational safeguards, additive Room Factory/Core Room FK indexes, profile-role authority, commercial-review provenance, and Room Factory manifest ACL hardening. Historical equivalent/diverged migrations remain quarantined. Every expected-apply candidate is bound to an exact Git source-blob SHA. Passing this provenance gate authorizes dry-run evidence capture only and never migration apply, repair, deploy, provider activation, legal/compliance approval, or Country READY.",
   "normalization": "CRLF to LF, trim whole source, drop blank lines and full-line -- comments, preserve remaining line bytes, SHA-256",
   "expected_apply_migrations": [
     "20260831225500_scope_matter_staff_access.sql",
@@ -13,6 +13,7 @@
     "20260903205500_payment_operational_safeguards.sql",
     "20260904005500_add_room_factory_fk_indexes.sql",
     "20260904105500_harden_profile_role_authority.sql",
+    "20260910030000_harden_commercial_review_provenance.sql",
     "20260911045100_room_factory_manifest_acl_hardening.sql"
   ],
   "entries": [
@@ -156,6 +157,16 @@
       "source_candidate": "PR #691 exact head 4ac81c5914bb2e0133706e9cc9c8bc4c92353ba0",
       "source_blob_sha": "b97a1834111d5ec6c4b089314e7552f5f2073fa7",
       "reason": "Fresh Hosted migration inventory has no 20260904105500 row and direct profile-role update authority remains broader than the reviewed least-privilege contract. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260910030000_harden_commercial_review_provenance.sql",
+      "local_name": "harden_commercial_review_provenance",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "Reviewed PR #817 exact head 3cb23e21b8b15261787d861afad8dcecc22f8866",
+      "source_blob_sha": "e1a92266acbab68ea3f841b2d18d8b541dfbf109",
+      "reason": "Fresh Hosted migration inventory has no 20260910030000 row. The migration is fail-closed and seeds no terms, offers, providers, prices, reviewers, approvals or Country READY state; it only requires human reviewer provenance for approved commercial rows. This entry authorizes linked dry-run evidence capture only; it does not authorize apply or approval."
     },
     {
       "local_basename": "20260911045100_room_factory_manifest_acl_hardening.sql",
