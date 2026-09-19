@@ -22,6 +22,8 @@ on:
       - "scripts/supabase-unresolved-local-migration-classification-20260920.json"
       - "scripts/supabase-unresolved-local-migration-classification.mjs"
       - "scripts/supabase-unresolved-local-migration-classification.test.ts"
+      - "scripts/supabase-linked-shadow-workdir.mjs"
+      - "scripts/supabase-linked-shadow-workdir.test.ts"
       - "supabase/migrations/**"
       - ".github/workflows/supabase-known-hosted-ledger-preflight.yml"
   workflow_dispatch:
@@ -77,7 +79,7 @@ jobs:
           echo "status=${status}" >> "${GITHUB_OUTPUT}"
           echo "HOSTED_SOURCE_PROVENANCE_EXIT ${status}"
 
-      - name: Reconcile captured Hosted ledger before credential-dependent linked CLI
+      - name: Reconcile canonical migration tree against captured Hosted ledger
         id: ledger_reconciliation
         continue-on-error: true
         shell: bash
@@ -101,7 +103,7 @@ jobs:
             artifacts/supabase-known-hosted-ledger/reconciliation.json \
             "${expected[@]}"
 
-      - name: Classify unresolved LOCAL-only migration provenance
+      - name: Classify every unresolved LOCAL-only migration
         id: unresolved_classification
         if: always()
         continue-on-error: true
@@ -119,6 +121,20 @@ jobs:
             supabase/migrations \
             artifacts/supabase-known-hosted-ledger/unresolved-local-classification.json
 
+      - name: Build isolated known-ledger shadow plan
+        id: shadow_plan
+        if: always()
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/supabase-linked-shadow-workdir.mjs \
+            scripts/supabase-hosted-ledger-snapshot-20260908.json \
+            scripts/supabase-unresolved-local-migration-classification-20260920.json \
+            supabase \
+            artifacts/supabase-known-hosted-shadow-workdir \
+            artifacts/supabase-known-hosted-ledger/shadow-workdir-plan.json
+
       - name: Upload known-ledger evidence
         if: always()
         uses: actions/upload-artifact@v4
@@ -128,13 +144,14 @@ jobs:
           if-no-files-found: warn
           retention-days: 7
 
-      - name: Enforce provenance and ledger gates
+      - name: Enforce provenance, classification, and isolated-history gates
         if: always()
         shell: bash
         env:
           SOURCE_PROVENANCE_STATUS: ${{ steps.source_provenance.outputs.status }}
           LEDGER_RECONCILIATION_OUTCOME: ${{ steps.ledger_reconciliation.outcome }}
           UNRESOLVED_CLASSIFICATION_OUTCOME: ${{ steps.unresolved_classification.outcome }}
+          SHADOW_PLAN_OUTCOME: ${{ steps.shadow_plan.outcome }}
         run: |
           set -euo pipefail
           failed=0
@@ -142,15 +159,19 @@ jobs:
             echo "BLOCKED: Hosted same-name migration source provenance is unresolved."
             failed=1
           fi
-          if [[ "${LEDGER_RECONCILIATION_OUTCOME:-missing}" != "success" ]]; then
-            echo "BLOCKED: Hosted migration ledger reconciliation is unresolved."
-            failed=1
-          fi
           if [[ "${UNRESOLVED_CLASSIFICATION_OUTCOME:-missing}" != "success" ]]; then
             echo "BLOCKED: unresolved LOCAL-only migration provenance classification is incomplete or stale."
             failed=1
           fi
+          if [[ "${SHADOW_PLAN_OUTCOME:-missing}" != "success" ]]; then
+            echo "BLOCKED: isolated Hosted-history shadow plan could not be proven."
+            failed=1
+          fi
+          if [[ "${LEDGER_RECONCILIATION_OUTCOME:-missing}" != "success" ]]; then
+            echo "INFO: canonical timestamp parity remains intentionally unresolved; direct canonical db push stays prohibited."
+          fi
           if [[ "${failed}" -ne 0 ]]; then
             exit 1
           fi
-          echo "VERIFIED: Hosted source provenance, known-ledger reconciliation, and unresolved LOCAL-only classification are clean."
+          echo "VERIFIED: known Hosted source provenance and all canonical LOCAL-only history are classified, and an isolated 72-marker + 7-candidate dry-run plan is reproducible."
+          echo "HOLD: this does not prove linked CLI credentials/dry-run and does not authorize apply, repair, Hosted mutation, Production deploy, or Country READY."
