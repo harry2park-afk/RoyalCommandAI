@@ -10,6 +10,7 @@ on:
       - "scripts/supabase-linked-project-identity.test.ts"
       - "scripts/supabase-linked-allowlist-provenance.mjs"
       - "scripts/supabase-linked-allowlist-provenance.test.ts"
+      - "scripts/supabase-hosted-ledger-snapshot-20260920.json"
       - "scripts/supabase-hosted-source-fingerprints-20260908.json"
       - "scripts/supabase-hosted-source-provenance.mjs"
       - "scripts/supabase-hosted-source-provenance-gate.mjs"
@@ -98,7 +99,7 @@ jobs:
           set -euo pipefail
           mkdir -p artifacts/supabase-linked-dry-run
           node scripts/supabase-linked-shadow-workdir.mjs \
-            scripts/supabase-hosted-ledger-snapshot-20260908.json \
+            scripts/supabase-hosted-ledger-snapshot-20260920.json \
             scripts/supabase-unresolved-local-migration-classification-20260920.json \
             supabase \
             artifacts/supabase-linked-shadow-preflight \
