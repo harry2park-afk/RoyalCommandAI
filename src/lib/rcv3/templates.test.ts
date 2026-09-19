@@ -1,8 +1,10 @@
 import {describe,it,expect} from 'vitest';
+import {existsSync} from 'node:fs';
 import {roomTemplates,templateImage} from './templates';
-describe('room gallery visual presets',()=>{
- it('has unique selectable identities and bounded self-contained illustrations',()=>{
-  expect(new Set(roomTemplates.map(t=>t.id)).size).toBe(roomTemplates.length);
-  for(const t of roomTemplates){const image=templateImage(t);if(t.id==='blank'){expect(image).toBe('');continue;}expect(image.length).toBeLessThan(1300000);const svg=decodeURIComponent(image.split(',')[1]);expect(svg).toContain('<svg');expect(svg).not.toMatch(/<script|onload|href=|foreignObject/i);}
+describe('published room artwork',()=>{
+ it('has six distinct local assets with no executable or remote URLs',()=>{
+  expect(roomTemplates).toHaveLength(6);
+  expect(new Set(roomTemplates.map(t=>t.id)).size).toBe(6);
+  for(const t of roomTemplates){const image=templateImage(t);expect(image).toMatch(/^\/room-designs\/[a-z0-9-]+\.webp$/);expect(existsSync(`public${image}`)).toBe(true);}
  });
 });
