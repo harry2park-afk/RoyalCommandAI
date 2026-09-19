@@ -1,0 +1,57 @@
+{
+  "countryCode": "TW",
+  "locale": "zh-TW",
+  "secondaryLocale": "en-TW",
+  "currency": "TWD",
+  "phoneCountryCode": "+886",
+  "dateFormat": "YYYY/MM/DD",
+  "timeFormat": "24h",
+  "addressFormat": [
+    "postal_code",
+    "region",
+    "district",
+    "street_name",
+    "building_number",
+    "floor",
+    "unit_number"
+  ],
+  "timezone": {
+    "storage": "UTC",
+    "display": "IANA",
+    "supportedExamples": [
+      "Asia/Taipei"
+    ]
+  },
+  "business": {
+    "company_name": "optional",
+    "business_registration_number": "optional"
+  },
+  "compliance": {
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  },
+  "payments": {
+    "primary": "stripe",
+    "status": "NOT_CONNECTED",
+    "future": ["Credit/Debit", "Apple Pay", "Google Pay", "Local payment methods after review"]
+  },
+  "tax": {
+    "provider": null,
+    "status": "NOT_CONNECTED",
+    "futureProviders": ["Stripe Tax", "Avalara", "Local tax provider after review"]
+  },
+  "taxStructure": {
+    "system": "Taiwan tax regime",
+    "status": "NEEDS_REVIEW"
+  },
+  "integrations": {
+    "twPhone": { "status": "NOT_CONNECTED" },
+    "taxEngine": { "status": "NOT_CONNECTED" },
+    "twLegalProvider": { "status": "NOT_CONNECTED" },
+    "twPrivacyProvider": { "status": "NOT_CONNECTED" },
+    "twInvestmentComplianceProvider": { "status": "NOT_CONNECTED" }
+  }
+}
