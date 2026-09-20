@@ -2,11 +2,12 @@ import { z } from "zod";
 import { ROOM_TEMPLATES } from "@/lib/rooms/templates";
 import { AI_PROVIDER_IDS } from "@/lib/ai/types";
 import { roomTemplates } from "./templates";
+import { RCV3_EXTRA_ROOM_PURPOSES } from "./extra-room-purposes";
 import type { CloudStore } from "./cloud-state";
 
 // Reuse the existing catalogue. Headcount, atmosphere and customer type do not
 // affect this flow and must not become mandatory onboarding questions.
-export const roomPurposes = ROOM_TEMPLATES.map(p => ({ ...p,
+export const roomPurposes = [...ROOM_TEMPLATES, ...RCV3_EXTRA_ROOM_PURPOSES].map(p => ({ ...p,
   fields: p.fields.filter(f => !["team", "customer", "scope"].includes(f.id)),
 }));
 export const draftInputSchema = z.object({
