@@ -10,7 +10,8 @@ set -euo pipefail
 EXPECTED_PROJECT_REF="aygawkavujjmybekswrg"
 EVIDENCE_DIR="${1:-artifacts/supabase-linked-dry-run}"
 EXPECTED_APPLY_MIGRATIONS="${EXPECTED_APPLY_MIGRATIONS:-}"
-HOSTED_LEDGER_SNAPSHOT="scripts/supabase-hosted-ledger-snapshot-20260908.json"
+HOSTED_LEDGER_SNAPSHOT="scripts/supabase-hosted-ledger-snapshot-20260920.json"
+HOSTED_DRIFT_EVIDENCE="scripts/supabase-hosted-drift-evidence-20260921.json"
 CLASSIFICATION_MANIFEST="scripts/supabase-unresolved-local-migration-classification-20260920.json"
 
 fail() {
@@ -43,6 +44,15 @@ if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
   fail "tracked files are dirty; use an exact clean candidate checkout"
 fi
 
+# A linked dry-run must never be built from a known-stale Hosted history. The
+# observed 76th migration remains provenance-unresolved, so this guard currently
+# blocks before any Supabase link or credentialed Hosted read. It can pass only
+# after reviewed evidence advances the trusted snapshot to the exact observed
+# count/head and marks provenance RESOLVED.
+node scripts/supabase-hosted-drift-guard.mjs \
+  "$HOSTED_DRIFT_EVIDENCE" \
+  "$HOSTED_LEDGER_SNAPSHOT"
+
 mkdir -p "$EVIDENCE_DIR"
 
 head_sha="$(git rev-parse HEAD)"
@@ -55,6 +65,8 @@ cli_version="$(supabase --version)"
   printf 'expected_project_ref=%s\n' "$EXPECTED_PROJECT_REF"
   printf 'configured_project_ref=%s\n' "$configured_project_ref"
   printf 'expected_apply_migrations=%s\n' "$EXPECTED_APPLY_MIGRATIONS"
+  printf 'trusted_hosted_ledger_snapshot=%s\n' "$HOSTED_LEDGER_SNAPSHOT"
+  printf 'hosted_drift_evidence=%s\n' "$HOSTED_DRIFT_EVIDENCE"
   printf 'supabase_cli=%s\n' "$cli_version"
   printf 'generated_at_utc=%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 } | tee "$EVIDENCE_DIR/metadata.txt"
@@ -64,7 +76,7 @@ find supabase/migrations -maxdepth 1 -type f -name '*.sql' -print0 \
   | xargs -0 sha256sum \
   > "$EVIDENCE_DIR/canonical-local-migration-sha256.txt"
 
-# Re-prove that the environment allow-list exactly matches the seven reviewed
+# Re-prove that the environment allow-list exactly matches the reviewed
 # NEW_CANDIDATE_EXPECTED_APPLY entries before constructing any CLI workdir.
 node scripts/supabase-linked-allowlist-provenance.mjs \
   "$CLASSIFICATION_MANIFEST" \
@@ -72,8 +84,8 @@ node scripts/supabase-linked-allowlist-provenance.mjs \
   > "$EVIDENCE_DIR/allowlist-provenance.txt"
 
 # Build a disposable CLI history view. It contains one comment-only marker for
-# each already-recorded Hosted timestamp plus byte-identical SQL for only the
-# reviewed candidate migrations. Historical local-only files are deliberately
+# each trusted Hosted timestamp plus byte-identical SQL for only the reviewed
+# candidate migrations. Historical local-only files are deliberately
 # quarantined and never exposed to db push.
 shadow_root="$repo_root/artifacts/supabase-linked-shadow-workdir-${head_sha}"
 node scripts/supabase-linked-shadow-workdir.mjs \
@@ -118,12 +130,13 @@ reconciliation_status=${PIPESTATUS[0]}
 set -e
 [[ $reconciliation_status -eq 0 ]] || fail "migration-list reconciliation could not be proven from exact CLI output"
 
-# Six reviewed candidates predate the current Hosted migration head. Supabase CLI
-# explicitly requires --include-all to show such missing-remote migrations. This
-# flag is safe here only because the disposable workdir contains 72 no-op Hosted
-# history markers plus exactly seven reviewed candidates. The canonical local
-# history is not in SUPABASE_WORKDIR, --dry-run is mandatory, and the output is
-# independently checked against the exact allow-list before evidence can pass.
+# Some reviewed candidates predate the current Hosted migration head. Supabase
+# CLI explicitly requires --include-all to show such missing-remote migrations.
+# This flag is safe here only because the disposable workdir contains trusted
+# Hosted history markers plus exactly the explicit reviewed allow-list. The
+# canonical local history is not in SUPABASE_WORKDIR, --dry-run is mandatory,
+# and the output is independently checked against the allow-list before evidence
+# can pass.
 set +e
 supabase db push --linked --dry-run --include-all 2>&1 | tee "$EVIDENCE_DIR/db-push-dry-run.txt"
 dry_run_status=${PIPESTATUS[0]}
