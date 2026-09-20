@@ -1,3 +1,4 @@
+import { accountAnswerLanguage, answerLanguageInstruction } from "@/lib/rcv3/answer-language";
 import { requirePaidService } from "@/lib/rcv3/checkout-ledger";
 import { z } from "zod";
 import { access, reply, failure, input } from "@/lib/rcv3/access";
@@ -21,9 +22,10 @@ export async function POST(request: Request) {
     const previous = turns.find(t => t.requestId === d.requestId);
     if (previous) return reply(previous);
     if (!isProviderConfigured(d.provider)) throw new Error("RCV3_AI_NOT_CONNECTED");
+    const language = await accountAnswerLanguage(a);
     await reserve(a, d.requestId, "chat");
     const result = await getConnector(d.provider).complete({ messages: [
-      { role: "system", content: `You are ${d.scope === "secretary" ? "Katie, this customer's personal secretary" : "the customer's AI assistant"}. Answer the actual question directly in the user's language. Use supplied conversation only. Do not turn questions into task acknowledgements. You have no external action tools: never claim to send, book, pay or change external systems. Account language fallback: ${a.user.defaultLanguage}. Customer room setup: ${a.entitlement ? JSON.stringify({purpose:a.entitlement.purpose,tasks:a.entitlement.tasks,answers:a.entitlement.answers}).slice(0,6000) : "Use the current conversation"}.` },
+      { role: "system", content: `You are ${d.scope === "secretary" ? "Katie, this customer's personal secretary" : "the customer's AI assistant"}. Answer the actual question directly. ${answerLanguageInstruction(language)} Use supplied conversation only. Do not turn questions into task acknowledgements. You have no external action tools: never claim to send, book, pay or change external systems. Customer room setup: ${a.entitlement ? JSON.stringify({purpose:a.entitlement.purpose,tasks:a.entitlement.tasks,answers:a.entitlement.answers}).slice(0,6000) : "Use the current conversation"}.` },
       ...turns.filter(t => t.provider === d.provider).slice(-10).flatMap(t => [{ role: "user" as const, content: t.prompt }, { role: "assistant" as const, content: t.answer }]),
       { role: "user", content: d.prompt },
     ], maxTokens: 1500 });

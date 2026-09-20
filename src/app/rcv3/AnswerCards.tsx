@@ -43,7 +43,9 @@ export default function AnswerCards({ roomId, providers, turns, liveTurns, langu
     document.addEventListener("visibilitychange", hide);
     const pause = () => instance.stop();
     window.addEventListener("rc:pause-answer-audio", pause);
-    return () => { document.removeEventListener("visibilitychange", hide); window.removeEventListener("rc:pause-answer-audio", pause); instance.stop(); player.current = null; };
+    window.addEventListener("royalcommand:language-change", pause);
+    window.addEventListener("royalcommand:language-saved", pause);
+    return () => { document.removeEventListener("visibilitychange", hide); window.removeEventListener("rc:pause-answer-audio", pause); window.removeEventListener("royalcommand:language-change", pause); window.removeEventListener("royalcommand:language-saved", pause); instance.stop(); player.current = null; };
   }, [roomId]);
   const providerKey = providers.map(provider => provider.id).join(",");
   useEffect(() => {
