@@ -16,9 +16,9 @@ export async function POST(request:Request) {
   const help=findHelp(key);if(!help)return reply({code:"HELP_NOT_FOUND"},404);
   let selected=user.defaultLanguage;
   if(user.mode==="supabase"){
-   const db=await createClient();const r=await db.from("profiles").select("default_language,ui_preferences").eq("id",user.id).maybeSingle();
+   const db=await createClient();const r=await db.from("profiles").select("default_language").eq("id",user.id).maybeSingle();
    if(r.error)return reply({code:"HELP_PROFILE"},503);
-   selected=r.data?.ui_preferences?.uiLocale||r.data?.default_language||selected;
+   selected=r.data?.default_language||selected;
   }
   const language=accountHelpLanguage(selected),base=language.split("-")[0];
   if(base==="en")return reply({text:help.en,language});
