@@ -1,73 +1,79 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Move, Volume2, Square, ChevronDown, ChevronUp } from "lucide-react";
+import { Move, Volume2, VolumeX, ChevronDown, ChevronUp } from "lucide-react";
 import type { Turn } from "@/lib/rcv3/execution";
 import styles from "./room.module.css";
 
+import { AnswerSpeaker, readSpeakerPreference, saveSpeakerPreference } from "@/lib/client/answer-speaker";
+import { speakerNotice } from "@/lib/locale/speaker";
+
 type Provider = { id: string; label: string; logo?: string };
-export default function AnswerCards({ roomId, providers, turns, statuses, onRead, onReorder, reorderDisabled }: {
-  roomId: string; providers: Provider[]; turns: Turn[];
+export default function AnswerCards({ roomId, providers, turns, liveTurns, language, statuses, onRead, onReorder, reorderDisabled }: {
+  roomId: string; providers: Provider[]; turns: Turn[]; liveTurns: Turn[]; language: string;
   statuses: Record<string, string>; onRead: () => void;
   onReorder: (id: string, target: string) => void; reorderDisabled: boolean;
 }) {
   const dragId = useRef<string | null>(null);
   const [moving, setMoving] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
-  const [reading, setReading] = useState<string | null>(null);
+  const [enabled, setEnabled] = useState<Record<string, boolean>>({});
+  const armed = useRef<Record<string, boolean>>({});
   const [notice, setNotice] = useState<Record<string, string>>({});
-  const playback = useRef<{ controller: AbortController; audio?: HTMLAudioElement; url?: string; finish?: () => void } | null>(null);
+  const player = useRef<AnswerSpeaker | null>(null);
+  const seen = useRef(new Set<string>());
+  const readCallback = useRef(onRead);
+  useEffect(() => { readCallback.current = onRead; }, [onRead]);
+  const preferenceKey = (id: string) => `rc:answer-speaker:${roomId}:${id}`;
 
-  function stop() {
-    const current = playback.current;
-    playback.current = null;
-    current?.controller.abort();
-    current?.audio?.pause();
-    current?.finish?.();
-    if (current?.url) URL.revokeObjectURL(current.url);
-  }
   useEffect(() => {
-    const hide = () => { if (document.hidden) { stop(); setReading(null); } };
-    document.addEventListener("visibilitychange", hide);
-    return () => { document.removeEventListener("visibilitychange", hide); stop(); };
-  }, []);
-
-  async function read(provider: Provider, answer: string) {
-    const wasReading = reading === provider.id;
-    stop(); setReading(null);
-    if (wasReading) return;
-    onRead();
-    const current = { controller: new AbortController() } as NonNullable<typeof playback.current>;
-    playback.current = current; setReading(provider.id);
-    setNotice(old => ({ ...old, [provider.id]: "Preparing audio…" }));
-    try {
-      // Preserve the whole answer while respecting the existing speech endpoint limit.
-      for (let offset = 0; offset < answer.length; offset += 3500) {
+    const instance = new AnswerSpeaker({
+      load: async (job, text, signal) => {
         const response = await fetch("/api/rcv3/audio", {
           method: "PUT", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ roomId, requestId: crypto.randomUUID(), text: answer.slice(offset, offset + 3500) }),
-          signal: AbortSignal.any([current.controller.signal, AbortSignal.timeout(35000)]),
+          body: JSON.stringify({roomId, requestId: crypto.randomUUID(), text}), signal,
         });
-        if (!response.ok) throw new Error("Audio could not be loaded. Please retry.");
-        const blob = await response.blob();
-        if (playback.current !== current) return;
-        current.url = URL.createObjectURL(blob); current.audio = new Audio(current.url);
-        await new Promise<void>((resolve, reject) => {
-          current.finish = resolve;
-          current.audio!.onended = () => resolve();
-          current.audio!.onerror = () => reject(new Error("Audio playback failed. Please retry."));
-          void current.audio!.play().then(() => {
-            if (playback.current === current) setNotice(old => ({ ...old, [provider.id]: "Reading…" }));
-          }).catch(reject);
-        });
-        if (playback.current !== current) return;
-        URL.revokeObjectURL(current.url); current.url = undefined;
+        if (!response.ok) throw new Error("ANSWER_SPEECH");
+        return response.blob();
+      },
+      status: (id, status) => setNotice(old => ({...old, [id]: status})),
+    });
+    player.current = instance;
+    const hide = () => { if (document.hidden) instance.stop(); };
+    document.addEventListener("visibilitychange", hide);
+    const pause = () => instance.stop();
+    window.addEventListener("rc:pause-answer-audio", pause);
+    return () => { document.removeEventListener("visibilitychange", hide); window.removeEventListener("rc:pause-answer-audio", pause); instance.stop(); player.current = null; };
+  }, [roomId]);
+  const providerKey = providers.map(provider => provider.id).join(",");
+  useEffect(() => {
+    const next = Object.fromEntries(providerKey.split(",").filter(Boolean).map(id => [id, armed.current[id] ?? readSpeakerPreference(`rc:answer-speaker:${roomId}:${id}`)]));
+    for (const id of Object.keys(armed.current)) if (!(id in next)) player.current?.stop(id);
+    armed.current = next; setEnabled(next);
+  }, [providerKey, roomId]);
+  useEffect(() => {
+    for (const turn of liveTurns) {
+      if (seen.current.has(turn.requestId)) continue;
+      seen.current.add(turn.requestId);
+      if (armed.current[turn.provider] && !document.hidden) {
+        readCallback.current();
+        player.current?.enqueue({id: turn.provider, text: turn.answer});
       }
-    } catch (error) {
-      if (playback.current === current) setNotice(old => ({ ...old, [provider.id]: (error as Error).message }));
-    } finally {
-      if (playback.current === current) { stop(); setReading(null); }
     }
+  }, [liveTurns]);
+  function read(id: string, answer: string) {
+    if (!answer.trim()) return;
+    readCallback.current();
+    player.current?.stop(id);
+    player.current?.enqueue({id, text: answer});
+  }
+  function toggle(provider: Provider, answer: string) {
+    const next = !armed.current[provider.id];
+    armed.current = {...armed.current, [provider.id]: next};
+    setEnabled(armed.current); saveSpeakerPreference(preferenceKey(provider.id), next);
+    setNotice(old => ({...old, [provider.id]: ""}));
+    if (next) { player.current?.prime(); read(provider.id, answer); }
+    else player.current?.stop(provider.id);
   }
 
   return <div className={styles.answerGrid} style={{ gridTemplateColumns: `repeat(${Math.max(1, providers.length)}, minmax(0, 1fr))` }}>
@@ -85,7 +91,7 @@ export default function AnswerCards({ roomId, providers, turns, statuses, onRead
             onLostPointerCapture={()=>{dragId.current=null;setMoving(null);}}
             onKeyDown={event=>{if(!["ArrowLeft","ArrowRight"].includes(event.key))return;event.preventDefault();event.stopPropagation();const index=providers.findIndex(p=>p.id===provider.id);const target=providers[index+(event.key==="ArrowLeft"?-1:1)];if(target)onReorder(provider.id,target.id);}}><Move size={18}/></button>
           {provider.logo ? <img src={provider.logo} alt={provider.label} width={24} height={24}/> : <span>{provider.label.slice(0, 2)}</span>}
-          <button type="button" aria-label={reading === provider.id ? `Stop reading ${provider.label}` : `Read ${provider.label} answer`} aria-pressed={reading === provider.id} disabled={!answer.trim()} onClick={event => { event.stopPropagation(); void read(provider, answer); }}>{reading === provider.id ? <Square size={18}/> : <Volume2 size={18}/>}</button>
+          <button type="button" title={enabled[provider.id] ? "Speaker on" : "Speaker off"} aria-label={`${provider.label} speaker ${enabled[provider.id] ? "on" : "off"}`} aria-pressed={Boolean(enabled[provider.id])} onClick={event => { event.stopPropagation(); toggle(provider, answer); }}>{enabled[provider.id] ? <Volume2 size={18}/> : <VolumeX size={18}/>}</button>
         </aside>
         <div className={styles.answerBody}>
           <button type="button" className={styles.answerHeading} aria-label={`${open ? "Collapse" : "Expand"} ${provider.label} answer`} aria-expanded={open} onClick={event => { event.stopPropagation(); setExpanded(open ? null : provider.id); }}><span>{provider.label}</span>{open ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</button>
@@ -93,7 +99,7 @@ export default function AnswerCards({ roomId, providers, turns, statuses, onRead
             {history.map(turn => <div key={turn.requestId}><p className={styles.user}>{turn.prompt}</p><p className={styles.answer}>{turn.answer}</p></div>)}
             {statuses[provider.id] && <p role="status">{statuses[provider.id]}</p>}
           </div>
-          {notice[provider.id] && (reading === provider.id || /failed|retry/i.test(notice[provider.id])) && <small role="status">{notice[provider.id]}</small>}
+          {notice[provider.id] && notice[provider.id] !== "idle" && <small role="status">{speakerNotice(notice[provider.id], language)}{notice[provider.id] === "error" && enabled[provider.id] && <button type="button" onClick={event => {event.stopPropagation(); player.current?.prime(); read(provider.id, answer);}}>Retry audio</button>}</small>}
         </div>
       </article>;
     })}

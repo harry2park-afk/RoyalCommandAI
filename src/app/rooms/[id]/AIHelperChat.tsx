@@ -4,6 +4,9 @@ import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "next/navigation";
 import { ArrowUp, Bot, Mic, Volume2, VolumeX, X } from "lucide-react";
 
+import { AnswerSpeaker, readSpeakerPreference, saveSpeakerPreference } from "@/lib/client/answer-speaker";
+import { speakerNotice } from "@/lib/locale/speaker";
+
 type Lang = "en" | "ko" | "zh" | "ja" | "es" | "fr" | "de" | "vi" | "th" | "id";
 type Message = { role: "user" | "assistant"; content: string };
 type HelperPosition = { left: number; top: number };
@@ -94,6 +97,10 @@ export default function AIHelperChat() {
   const [speaking, setSpeaking] = useState(false);
   const [micEnabled, setMicEnabled] = useState(false);
   const [speakerEnabled, setSpeakerEnabled] = useState(true);
+  const [speechStatus, setSpeechStatus] = useState("");
+  const player = useRef<AnswerSpeaker | null>(null);
+  const helperSession = useRef(0);
+  const speakerKey = `rc:helper-speaker:${roomId}`;
   const [micStatus, setMicStatus] = useState("");
   const [micIssue, setMicIssue] = useState("");
   const [helperPosition, setHelperPosition] = useState<HelperPosition | null>(null);
@@ -172,11 +179,37 @@ export default function AIHelperChat() {
     };
   }, [open, lang]);
 
-  useEffect(() => () => {
-    micEnabledRef.current = false;
-    stopRecognition();
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
-  }, []);
+  useEffect(() => {
+    const enabled = readSpeakerPreference(speakerKey, true);
+    speakerEnabledRef.current = enabled;
+    // Hydrate browser-only persisted preference after SSR; this runs only on room change.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSpeakerEnabled(enabled);
+    const instance = new AnswerSpeaker({
+      load: async (job, text, signal) => {
+        const response = await fetch("/api/ai/helper/speech", {
+          method: "POST", headers: { "Content-Type": "application/json" }, signal,
+          body: JSON.stringify({ text, language: job.language, ...(roomId && roomId !== "rca" ? {roomId} : {}), greeting: false }),
+        });
+        if (!response.ok) throw new Error("HELPER_SPEECH");
+        return response.blob();
+      },
+      status: (_id, status) => {
+        if (!openRef.current) return;
+        setSpeechStatus(status);
+        const active = status === "preparing" || status === "reading";
+        speakingRef.current = active; setSpeaking(active);
+        if (!active && micEnabledRef.current) scheduleListening(100);
+      },
+    });
+    player.current = instance;
+    return () => {
+      openRef.current = false; helperSession.current++;
+      micEnabledRef.current = false; stopRecognition(); instance.stop(); player.current = null;
+    };
+    // The player is owned by this room, not by transient panel or microphone state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speakerKey, roomId]);
 
   function stopRecognition() {
     const recognition = recognitionRef.current;
@@ -313,34 +346,13 @@ export default function AIHelperChat() {
   }
 
   function speak(text: string, resumeListening = true) {
-    if (!speakerEnabledRef.current) {
-      speakingRef.current = false;
-      setSpeaking(false);
-      if (resumeListening && micEnabledRef.current) scheduleListening(80);
+    if (!openRef.current || !speakerEnabledRef.current || !text.trim()) {
+      if (openRef.current && resumeListening && micEnabledRef.current) scheduleListening(80);
       return;
     }
-    if (!("speechSynthesis" in window) || !text.trim()) {
-      if (resumeListening) scheduleListening(80);
-      return;
-    }
-    speakingRef.current = true;
-    setSpeaking(true);
     stopRecognition();
-    const speech = window.speechSynthesis;
-    speech.cancel();
-    const utterance = new SpeechSynthesisUtterance(text.slice(0, 3000));
-    utterance.lang = speechLocale(text, langRef.current);
-    utterance.onend = () => {
-      speakingRef.current = false;
-      setSpeaking(false);
-      if (resumeListening && micEnabledRef.current) scheduleListening(100);
-    };
-    utterance.onerror = () => {
-      speakingRef.current = false;
-      setSpeaking(false);
-      if (resumeListening && micEnabledRef.current) scheduleListening(100);
-    };
-    speech.speak(utterance);
+    player.current?.stop();
+    player.current?.enqueue({ id: "helper", text, language: speechLocale(text, langRef.current) });
   }
 
   function openHelper() {
@@ -348,23 +360,21 @@ export default function AIHelperChat() {
     setOpen(true);
     setMicIssue("");
     setMicStatus("");
-    speakerEnabledRef.current = true;
-    setSpeakerEnabled(true);
     micEnabledRef.current = false;
     setMicEnabled(false);
 
-    speak(COPY[langRef.current].greeting, true);
+    helperSession.current++;
+    if (speakerEnabledRef.current) player.current?.prime();
     void prepareMicrophone().then((ok) => {
       if (!openRef.current || !ok) return;
       micEnabledRef.current = true;
       setMicEnabled(true);
-      speakerEnabledRef.current = true;
-      setSpeakerEnabled(true);
       if (!speakingRef.current && !loadingRef.current) scheduleListening(80);
     });
   }
 
   function closeHelper() {
+    helperSession.current++;
     openRef.current = false;
     micEnabledRef.current = false;
     setOpen(false);
@@ -374,7 +384,8 @@ export default function AIHelperChat() {
     stopRecognition();
     speakingRef.current = false;
     setSpeaking(false);
-    if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+    player.current?.stop();
+    setSpeechStatus("");
   }
 
   function toggleMicrophone() {
@@ -385,8 +396,6 @@ export default function AIHelperChat() {
       stopRecognition();
       return;
     }
-    speakerEnabledRef.current = true;
-    setSpeakerEnabled(true);
     void prepareMicrophone().then((ok) => {
       if (!ok || !openRef.current) return;
       micEnabledRef.current = true;
@@ -397,20 +406,30 @@ export default function AIHelperChat() {
 
   function toggleSpeaker() {
     const next = !speakerEnabledRef.current;
-    speakerEnabledRef.current = next;
-    setSpeakerEnabled(next);
-    if (!next && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-      speakingRef.current = false;
-      setSpeaking(false);
+    speakerEnabledRef.current = next; setSpeakerEnabled(next);
+    saveSpeakerPreference(speakerKey, next);
+    if (next) {
+      player.current?.prime();
+      const answer = [...messagesRef.current].reverse().find(message => message.role === "assistant");
+      if (answer) speak(answer.content);
+    } else {
+      player.current?.stop(); setSpeechStatus("");
+      speakingRef.current = false; setSpeaking(false);
       if (micEnabledRef.current) scheduleListening(80);
     }
+  }
+  function retrySpeech() {
+    if (!speakerEnabledRef.current) return;
+    player.current?.prime();
+    const answer = [...messagesRef.current].reverse().find(message => message.role === "assistant");
+    if (answer) speak(answer.content);
   }
 
   async function sendMessage(rawMessage: string) {
     const message = rawMessage.trim();
     if (!message || loadingRef.current) return;
     stopRecognition();
+    const session = helperSession.current;
     const history = messagesRef.current.slice(-12);
     const nextUser: Message = { role: "user", content: message };
     messagesRef.current = [...messagesRef.current, nextUser];
@@ -434,7 +453,7 @@ export default function AIHelperChat() {
       setMessages(messagesRef.current);
       loadingRef.current = false;
       setLoading(false);
-      speak(answer, true);
+      if (session === helperSession.current) speak(answer, true);
     } catch {
       const errorText = COPY[langRef.current].error;
       const nextAssistant: Message = { role: "assistant", content: errorText };
@@ -442,7 +461,7 @@ export default function AIHelperChat() {
       setMessages(messagesRef.current);
       loadingRef.current = false;
       setLoading(false);
-      speak(errorText, true);
+      if (session === helperSession.current) speak(errorText, true);
     }
   }
 
@@ -473,7 +492,8 @@ export default function AIHelperChat() {
 
           <div className="px-5">
             <div className="flex items-center gap-2 text-[#d7b64d]">
-              <button type="button" onClick={toggleSpeaker} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${speakerEnabled ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-300" : "border-[#d7b64d]/70 text-[#d7b64d]"}`} title={speakerEnabled ? "AI Help speaker on" : "AI Help speaker off"}>{speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
+              {speechStatus && speechStatus !== "idle" && <span role="status" className="text-xs">{speakerNotice(speechStatus, lang)}{speechStatus === "error" && <button type="button" onClick={retrySpeech}>Retry audio</button>}</span>}
+              <button type="button" aria-pressed={speakerEnabled} aria-label={speakerEnabled ? "AI Help speaker on" : "AI Help speaker off"} onClick={toggleSpeaker} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${speakerEnabled ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-300" : "border-[#d7b64d]/70 text-[#d7b64d]"}`} title={speakerEnabled ? "AI Help speaker on" : "AI Help speaker off"}>{speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
               <div className="flex h-8 flex-1 items-center gap-[3px] overflow-hidden">
                 {Array.from({ length: 24 }).map((_, index) => (
                   <span key={index} className={`w-[2px] rounded-full bg-[#d7b64d] ${speaking || listening ? "animate-pulse" : "opacity-45"}`} style={{ height: `${8 + ((index * 7) % 20)}px`, animationDelay: `${index * 45}ms` }} />

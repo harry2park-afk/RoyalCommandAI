@@ -9,7 +9,6 @@ import SavedConversationInspector from "./SavedConversationInspector";
 import FirstRoomWelcome from "./FirstRoomWelcome";
 import AIHelperChat from "./AIHelperChat";
 import LiveAvatarLayer from "./LiveAvatarLayer";
-import AIHelperVoiceBridge from "./AIHelperVoiceBridge";
 import MainChatMicBridge from "./MainChatMicBridge";
 import IntegratedAnswerInlineStatus from "./IntegratedAnswerInlineStatus";
 import LegalRoomStarter from "./LegalRoomStarter";
@@ -207,7 +206,6 @@ export default function StableRoomV3() {
       <LegalHelperOpenBridge />
       <LegalCaseSelectorBridge />
       <LegalRoomLayoutBridge />
-      <AIHelperVoiceBridge />
       <MainChatMicBridge />
       <LiveAvatarLayer />
       <IntegratedAnswerInlineStatus />
