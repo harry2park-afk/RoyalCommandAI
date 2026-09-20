@@ -1,18 +1,20 @@
 {
   "contract_version": 1,
-  "captured_at": "2026-09-19T23:49:16.224011Z",
+  "captured_at": "2026-09-20T02:57:02.027130Z",
   "project_ref": "aygawkavujjmybekswrg",
   "project_name": "RoyalCommand",
   "source": "Fresh Supabase connector read-only migration ledger inventory",
-  "purpose": "Fresh Hosted migration ledger snapshot for fail-closed repository reconciliation after unexpected Hosted ledger advance. This is evidence only and does not authorize apply, repair, merge, deploy, provider/payment activation, legal/compliance approval, Country READY, or any Hosted mutation.",
+  "purpose": "Fresh Hosted migration ledger snapshot for fail-closed repository reconciliation after unexpected Hosted ledger advances. This is evidence only and does not authorize apply, repair, merge, deploy, provider/payment activation, legal/compliance approval, Country READY, or any Hosted mutation.",
   "previous_snapshot": "scripts/supabase-hosted-ledger-snapshot-20260908.json",
-  "migration_count": 73,
+  "migration_count": 75,
   "first_version": "20260809215715",
-  "last_version": "20260919231400",
-  "ordered_ledger_md5": "e1b7462f50e997e48e8f6ef0ec39d0de",
+  "last_version": "20260920015655",
+  "ordered_ledger_md5": "5b5be1b6fd59c725f8bd534ddcf1b801",
   "drift_detected": true,
   "new_since_previous_snapshot": [
-    {"version":"20260919231400","name":"rcv3_preview_checkout_orders"}
+    {"version":"20260919231400","name":"rcv3_preview_checkout_orders"},
+    {"version":"20260920015635","name":"rcv3_customer_ai_credentials"},
+    {"version":"20260920015655","name":"rcv3_customer_phone_accounts"}
   ],
   "hosted_mutation_performed": false,
   "ready_for_apply": false,
@@ -89,6 +91,8 @@
     {"version":"20260901023602","name":"harden_room_factory_atomic_invoker"},
     {"version":"20260904100008","name":"layout_editor_trusted_devices_v1"},
     {"version":"20260905055756","name":"customer_room_designer_v1"},
-    {"version":"20260919231400","name":"rcv3_preview_checkout_orders"}
+    {"version":"20260919231400","name":"rcv3_preview_checkout_orders"},
+    {"version":"20260920015635","name":"rcv3_customer_ai_credentials"},
+    {"version":"20260920015655","name":"rcv3_customer_phone_accounts"}
   ]
 }
