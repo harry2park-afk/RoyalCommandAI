@@ -10,6 +10,15 @@ Before Royal Command planning or executable development, read and follow `ROYAL_
 
 The Law is the highest Royal Command repository governance rule. If an older document, workflow, prompt or instruction conflicts with it, the Law controls and the lower-level rule must be updated.
 
+## RC project continuity — resume before rebuilding
+
+For every Royal Command task, read `RC_MEMORY.md` first after the Law, then only the relevant entry in `docs/continuity/FEATURE_MAP.md`. The Owner's phrases “RC 기억하고 시작해요”, “RC 기억”, and “RC 이어서” mean resume this project from these records. This applies even if a new conversation does not contain the old transcript.
+
+- Check the actual branch, worktree, remote HEAD and relevant existing code/history before changing anything. Reuse or repair existing modules; do not rebuild because previous chat context is missing. Follow the existing RC-CORE registry/clone policy.
+- Keep implementation, live verification, historical reports and unresolved dependencies distinct. Current evidence and current Owner instructions override stale summaries. Memory does not grant new permissions or change Production restrictions.
+- After material work, update the compact current state, affected feature-map entry and session checkpoint, and save them on the authorized branch. Preserve prior decisions; mark superseded ones with their replacement. Do not create recursive documentation commits merely to record their own SHA.
+- Store project decisions and evidence references only, never credentials or customer mail/call/document contents. If the repository or a referenced source is unavailable, disclose that limitation rather than inventing remembered work.
+
 ## Risk-proportional execution — speed is a requirement
 
 Classify work as `FAST`, `STANDARD`, or `HIGH-RISK` before choosing process depth.
