@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import HelpText from "@/components/help/HelpText";
 import { creationText, type CreationMessage } from "@/lib/locale/rcv3-creation";
 type Quote = {quoteHash:string;termsHash:string;terms:{version:string;text:string};currency:string;totalMinor:number;lines:{serviceId:string;label:string;amountMinor:number}[];checkoutEnabled:boolean};
 async function post(path:string,body:unknown) {
@@ -33,20 +34,20 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
  },[draftId]);
  const money=(minor:number)=>new Intl.NumberFormat(language||"en",{style:"currency",currency:quote?.currency||"AUD"}).format(minor/100);
  return <section aria-label="Monthly subscription">
-  <p>{creationText("paymentFlow",language)}</p>
-  <p>{creationText("sandbox",language)}</p>
+  <p>{<HelpText helpKey="creation.paymentFlow"/>}</p>
+  <p>{<HelpText helpKey="creation.sandbox"/>}</p>
   {!checking&&!roomUrl&&<button disabled={busy||disabled} onClick={()=>{setChecking(true);void check();}}>Check Existing Payment</button>}
-  {message&&<p role="status">{creationText(message,language)}</p>}
+  {message&&<p role="status">{<HelpText helpKey={`creation.${message}`}/>}</p>}
   {message==="orderLocked"&&<button disabled={busy||disabled} onClick={onFork}>Save as New Draft</button>}
   {roomUrl?<a href={roomUrl}>Open Room</a>:checking?<><button disabled={busy} onClick={()=>void check()}>{busy?"Checking…":"Check Payment"}</button><button disabled={busy} onClick={()=>{setChecking(false);setMessage("");}}>Back</button></>:<>
    <button disabled={disabled||busy} onClick={()=>void run(async()=>{setQuote(null);setAccepted(false);const q=await post("quote",{draftId,expectedRevision:revision});setQuote(q);})}>{busy?"Please wait…":"Review Monthly Price"}</button>
    {quote&&<>
-    <table><caption>{creationText("monthlyTotal",language)}: {money(quote.totalMinor)}</caption><tbody>{quote.lines.map(l=><tr key={l.serviceId}><td>{l.label}</td><td>{money(l.amountMinor)}</td></tr>)}</tbody></table>
-    <p>{creationText("taxIncluded",language)}</p>
-    <h3>{creationText("termsTitle",language)} · {quote.terms.version}</h3>
+    <table><caption>{creationText("monthlyTotal","en")}: {money(quote.totalMinor)}</caption><tbody>{quote.lines.map(l=><tr key={l.serviceId}><td>{l.label}</td><td>{money(l.amountMinor)}</td></tr>)}</tbody></table>
+    <p>{<HelpText helpKey="creation.taxIncluded"/>}</p>
+    <h3>{creationText("termsTitle","en")} · {quote.terms.version}</h3>
     <div style={{whiteSpace:"pre-wrap",maxHeight:320,overflowY:"auto",border:"1px solid #596273",padding:16}} tabIndex={0}>{quote.terms.text}</div>
-    <label><input type="checkbox" checked={accepted} disabled={busy} onChange={e=>setAccepted(e.target.checked)}/>{creationText("recurringConsent",language)}</label>
-    <label>{creationText("signature",language)}<input maxLength={160} autoComplete="name" value={signature} disabled={busy} onChange={e=>setSignature(e.target.value)}/></label>
+    <label><input type="checkbox" checked={accepted} disabled={busy} onChange={e=>setAccepted(e.target.checked)}/>{creationText("recurringConsent","en")}</label><p><HelpText helpKey="creation.recurringConsent"/></p>
+    <label>{creationText("signature","en")}<input maxLength={160} autoComplete="name" value={signature} disabled={busy} onChange={e=>setSignature(e.target.value)}/></label>
     <button disabled={disabled||busy||!accepted||signature.trim().length<2||!quote.checkoutEnabled} onClick={()=>void run(async()=>{
      const result=await post("start",{draftId,expectedRevision:revision,quoteHash:quote.quoteHash,termsHash:quote.termsHash,signature,recurringConsent:accepted});
      if(result.url&&new URL(result.url).origin==="https://checkout.stripe.com")window.location.assign(result.url);

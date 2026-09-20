@@ -1,4 +1,4 @@
-const messages = {
+export const creationMessages = {
   serviceNotReady: { en: "One of the selected services is not ready for activation. Your selections remain saved in this draft.", ko: "선택한 서비스 중 아직 활성화할 수 없는 항목이 있습니다. 선택 사항은 초안에 보관됩니다." },
   paymentFlow: { en: "Complete the form, review the monthly price and terms, then pay. Your room is created only after the server confirms payment.", ko: "폼 작성 후 월 요금과 약관을 확인하고 결제하세요. 서버가 결제를 확인한 뒤 방이 생성됩니다." },
   sandbox: { en: "Preview uses test payments only. No real subscription is purchased here.", ko: "현재 Preview는 시험 결제 전용입니다. 실제 유료 구독을 구매하지 않습니다." },
@@ -26,9 +26,9 @@ const messages = {
   free: { en: "Keep paid options in your draft. A free room must not activate paid AI or secretary services.", ko: "유료 옵션은 초안에 보관합니다. 무료방에서 유료 AI나 비서 서비스를 자동 활성화하지 않습니다." },
   required: { en: "Enter a room name and select your purpose before continuing.", ko: "다음 단계 전에 방 이름과 용도를 입력해 주세요." },
 } as const;
-export type CreationMessage = keyof typeof messages;
+export type CreationMessage = keyof typeof creationMessages;
 export function creationText(key: CreationMessage, locale: string) {
-  const text = messages[key];
+  const text = creationMessages[key];
   const lang = locale.toLowerCase().split(/[-_]/)[0];
   return lang === "ko" ? `${text.en} ${text.ko}` : text.en;
 }

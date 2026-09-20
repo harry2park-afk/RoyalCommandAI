@@ -124,7 +124,9 @@ export default function RoomPreferenceAuthority() {
           keepalive: true,
         });
         if (res.ok) {
+          const priorLocale = lastSent.current ? JSON.parse(lastSent.current).uiLocale : undefined;
           lastSent.current = serial;
+          if (data.uiLocale !== priorLocale) window.dispatchEvent(new Event("royalcommand:language-saved"));
           if (data.selectedAi) localStorage.setItem(selectedKey(id), JSON.stringify(data.selectedAi));
           if (data.aiSlots) localStorage.setItem(slotsKey(id), JSON.stringify(data.aiSlots));
         }
