@@ -29,7 +29,7 @@ export function canActivatePaidRoom(e: ActivationEvidence, now = Date.now()): bo
     e.signature.trim().length > 1 && e.paymentVerifiedByServer === true && e.paidQuoteId === quote.data.id;
 }
 export function requestedServices(d: RoomDraftInput) {
-  return ["room", ...d.providers.map(id => `ai:${id}`), ...(d.secretary ? ["secretary"] : []), ...(d.specialAI ? ["special-ai"] : [])];
+  return ["room", ...d.providers.map(id => `${d.onboarding?.aiSources[id] === "personal" ? "ai-personal" : "ai"}:${id}`), ...(d.secretary ? ["secretary"] : []), ...(d.specialAI ? ["special-ai"] : [])];
 }
 // No live catalog/terms/payment evidence has been verified for this Preview.
 // Keep the new paid activation flow closed until all three are configured.

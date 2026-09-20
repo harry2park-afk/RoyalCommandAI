@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reportConfig, sendOwnerReport } from "@/lib/integrations/retellOwnerReport";
+import { resolveCustomerRetellCall } from "@/lib/rcv3/customer-phone-account";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const EVENTS = new Set(["call_ended", "call_analyzed"]);
@@ -60,7 +61,10 @@ export async function POST(request:NextRequest){
  const started=Date.now();let event="unknown",callId="unknown";
  try{
   const raw=await request.text(),key=process.env.RETELL_API_KEY_PREVIEW||process.env.RETELL_API_KEY;
-  if(!key||!verifyRetellWebhook(raw,request.headers.get("x-retell-signature"),key)){
+  const customerKey=process.env.RCV3_CUSTOMER_RETELL_API_KEY;
+  const legacySignature=Boolean(key&&verifyRetellWebhook(raw,request.headers.get("x-retell-signature"),key));
+  const customerSignature=Boolean(customerKey&&customerKey.trim()!==key?.trim()&&verifyRetellWebhook(raw,request.headers.get("x-retell-signature"),customerKey));
+  if(!legacySignature&&!customerSignature){
    console.warn(JSON.stringify({level:"warn",msg:"retell_webhook_rejected",reason:key?"invalid_signature":"missing_key"}));
    return NextResponse.json({error:"Unauthorized"},{status:401});
   }
@@ -68,12 +72,16 @@ export async function POST(request:NextRequest){
   if(!EVENTS.has(event))return NextResponse.json({received:true,ignored:true});
   const call=obj(body.call);callId=str(call.call_id)??"";
   if(!callId)return NextResponse.json({error:"Missing call id"},{status:400});
-  const roomId=await roomFor(call);
+  // Customer carrier calls are matched to a server-created call claim. Their
+  // metadata can never select Harry's room or another customer's room.
+  const customerCall=customerSignature&&(!legacySignature||str(call.agent_id)===process.env.RCV3_CUSTOMER_RETELL_AGENT_ID||obj(call.metadata).rcv3_customer_call===true);
+  if(!customerCall&&(str(call.agent_id)===process.env.RCV3_CUSTOMER_RETELL_AGENT_ID||obj(call.metadata).rcv3_customer_call===true))return NextResponse.json({error:"Unauthorized"},{status:401});
+  const roomId=customerCall?(await resolveCustomerRetellCall(callId,str(call.agent_id)||""))?.roomId:await roomFor(call);
   if(!roomId){console.error(JSON.stringify({level:"error",msg:"retell_webhook_room_unresolved",event,callId}));return NextResponse.json({error:"Room mapping not found"},{status:422});}
   const db=createAdminClient(),dedupKey=`${callId}:${event}`;
   const {data:prior,error:lookupError}=await db.from("activity_events").select("id").eq("room_id",roomId).eq("event_type","ai_secretary.retell_post_call").contains("payload",{dedup_key:dedupKey}).limit(1);
   if(lookupError)throw lookupError;
-  if(prior?.length){await reportOwner(event,call,roomId);return NextResponse.json({received:true,duplicate:true});}
+  if(prior?.length){if(!customerCall)await reportOwner(event,call,roomId);return NextResponse.json({received:true,duplicate:true});}
   const analysis=obj(call.call_analysis);
   const {error}=await db.from("activity_events").insert({room_id:roomId,event_type:"ai_secretary.retell_post_call",payload:{
    provider:"retell",dedup_key:dedupKey,event,call_id:callId,from_number:str(call.from_number),to_number:str(call.to_number),
@@ -82,7 +90,7 @@ export async function POST(request:NextRequest){
    transcript:str(call.transcript),summary:str(analysis.call_summary),successful:analysis.call_successful??null,received_at:new Date().toISOString()
   }});
   if(error)throw error;
-  await reportOwner(event,call,roomId);
+  if(!customerCall)await reportOwner(event,call,roomId);
   console.log(JSON.stringify({level:"info",msg:"retell_webhook_saved",event,callId,roomId,ms:Date.now()-started}));
   return NextResponse.json({received:true});
  }catch(error){

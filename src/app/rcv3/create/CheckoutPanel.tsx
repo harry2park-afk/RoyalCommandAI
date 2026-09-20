@@ -14,7 +14,7 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
  const flight=useRef(false);
  async function run(action:()=>Promise<void>) {
   if(flight.current)return;flight.current=true;setBusy(true);setMessage("");
-  try{await action();}catch(e){const code=e instanceof Error?e.message:"";setMessage(["RCV3_CHECKOUT_NOT_CONFIGURED","RCV3_PRICE_NOT_CONFIGURED","RCV3_ACTIVATION_NOT_READY"].includes(code)?"paymentSetup":code==="RCV3_SERVICE_NOT_READY"?"serviceNotReady":code==="RCV3_ORDER_LOCKED"||code==="RCV3_QUOTE_EXPIRED"?"orderLocked":"checkoutError");}
+  try{await action();}catch(e){const code=e instanceof Error?e.message:"";setMessage(code==="RCV3_COUNTRY_NOT_SUPPORTED"?"countryUnavailable":/RCV3_(?:AI_|PERSONAL_AI_|EMAIL_|PHONE_)/.test(code)?"setupConnection":["RCV3_CHECKOUT_NOT_CONFIGURED","RCV3_PRICE_NOT_CONFIGURED","RCV3_ACTIVATION_NOT_READY"].includes(code)?"paymentSetup":code==="RCV3_SERVICE_NOT_READY"?"serviceNotReady":code==="RCV3_ORDER_LOCKED"||code==="RCV3_QUOTE_EXPIRED"?"orderLocked":"checkoutError");}
   finally{flight.current=false;setBusy(false);}
  }
  async function check() {await run(async()=>{const result=await post("status",{draftId});if(result.status==="active"&&/^\/rcv3\?room=[a-f0-9-]+$/.test(result.url)){setRoomUrl(result.url);setMessage("roomReady");}else setMessage("paymentPending");});}

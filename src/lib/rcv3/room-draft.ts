@@ -15,6 +15,17 @@ export const draftInputSchema = z.object({
   answers: z.record(z.string().max(80), z.array(z.string().trim().min(1).max(300)).max(12)),
   tasks: z.array(z.string().max(120)).max(12),
   providers: z.array(z.enum(AI_PROVIDER_IDS)).max(27),
+  // Optional for compatibility with already signed orders. Never add defaults
+  // while parsing old snapshots: that would change their payment fingerprint.
+  onboarding: z.object({
+    country: z.string().regex(/^(?:[A-Z]{2})?$/),
+    aiSources: z.partialRecord(z.enum(AI_PROVIDER_IDS), z.enum(["platform", "personal"])),
+    emailEnabled: z.boolean(),
+    phoneRequested: z.boolean().optional(),
+    phoneNumberId: z.string().regex(/^(?:PN[a-fA-F0-9]{32})?$/).optional(),
+    phoneConsent: z.boolean().optional(),
+    phoneOfferId: z.union([z.literal(""), z.string().uuid()]),
+  }).strict().optional(),
   secretary: z.boolean(),
   secretarySetup: z.object({
     email: z.string().trim().max(254),
@@ -35,6 +46,8 @@ export const draftInputSchema = z.object({
       : values.length > 1);
   });
   if (invalidAnswers || Object.keys(d.answers).some(key => !allowed.has(key)) ||
+      Object.keys(d.onboarding?.aiSources || {}).some(id => !d.providers.includes(id as typeof d.providers[number])) ||
+      (!d.secretary && (d.onboarding?.emailEnabled || d.onboarding?.phoneOfferId || d.onboarding?.phoneRequested || d.onboarding?.phoneNumberId || d.onboarding?.phoneConsent)) ||
       d.tasks.some(t => !purpose.suggestedAgents.includes(t)) ||
       new Set(d.providers).size !== d.providers.length || new Set(d.tasks).size !== d.tasks.length) {
     ctx.addIssue({ code: "custom", message: "INVALID_ROOM_SELECTION" });
@@ -43,11 +56,14 @@ export const draftInputSchema = z.object({
 export type RoomDraftInput = z.infer<typeof draftInputSchema>;
 export function secretarySetupValid(input: RoomDraftInput) {
   if (!input.secretary) return true;
+  if (input.onboarding) return z.email().safeParse(input.secretarySetup.email.trim()).success &&
+    (!input.secretarySetup.phone.trim() || /^\+[1-9]\d{6,14}$/.test(input.secretarySetup.phone.replace(/[\s().-]/g, "")));
   return z.email().safeParse(input.secretarySetup.email.trim()).success &&
     /^\+[1-9]\d{6,14}$/.test(input.secretarySetup.phone.replace(/[\s().-]/g, ""));
 }
 export function selectSecretary(input: RoomDraftInput, enabled: boolean): RoomDraftInput {
-  return { ...input, secretary: enabled, secretarySetup: enabled ? input.secretarySetup : { email: "", phone: "" } };
+  return { ...input, secretary: enabled, secretarySetup: enabled ? input.secretarySetup : { email: "", phone: "" },
+    ...(input.onboarding ? {onboarding: {...input.onboarding, emailEnabled: enabled && input.onboarding.emailEnabled, phoneRequested: enabled && input.onboarding.phoneRequested, phoneOfferId: enabled ? input.onboarding.phoneOfferId : "", phoneNumberId: enabled ? input.onboarding.phoneNumberId : "", phoneConsent: enabled && input.onboarding.phoneConsent}} : {}) };
 }
 const draftSchema = z.object({
   id: z.string().uuid(), updatedAt: z.string().datetime(), input: draftInputSchema,

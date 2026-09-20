@@ -5,6 +5,7 @@ import { cloudStore } from "@/lib/rcv3/cloud-state";
 import { readDraftRegistry } from "@/lib/rcv3/room-draft";
 import { checkoutRuntime, validateCreationDraft, orderLedger, checkoutForOrder } from "@/lib/rcv3/checkout-ledger";
 import { prepareOrder, quoteFingerprint, bundleForDraft, validateStripePrices } from "@/lib/rcv3/stripe-checkout";
+import { verifyCustomerSetup } from "@/lib/rcv3/customer-setup";
 export const maxDuration = 60;
 export async function POST(request:Request) {
  try {
@@ -17,6 +18,7 @@ export async function POST(request:Request) {
   if(!saved)throw new Error("RCV3_NOT_FOUND");
   const draft = validateCreationDraft(saved.input);
   if(quoteFingerprint(catalog,draft)!==d.quoteHash)throw new Error("RCV3_PRICE_CHANGED");
+  await verifyCustomerSetup(user.id,d.draftId,draft);
   const ledger = orderLedger();
   let row = await ledger.one("draft_id",d.draftId,user.id);
   const order = prepareOrder({id:row?.id || randomUUID(),ownerId:user.id,draftId:d.draftId,draft,catalog,signature:d.signature,acceptedTermsHash:d.termsHash});

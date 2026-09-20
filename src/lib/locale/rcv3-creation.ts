@@ -1,4 +1,7 @@
 export const creationMessages = {
+  setupRequired: {en:"Choose your country and at least one AI before continuing.",ko:"계속하려면 국가와 AI를 하나 이상 선택하세요."},
+  setupConnection: {en:"A selected connection needs attention. Return to AI & Tools and connect your own account or choose an available service. No payment has been taken.",ko:"선택한 연결을 확인해야 합니다. AI & Tools에서 본인 계정을 연결하거나 사용 가능한 서비스를 선택하세요. 결제되지 않았습니다."},
+  countryUnavailable: {en:"Pricing and services are not ready for your country yet. Your form is saved; no payment has been taken.",ko:"선택한 국가의 요금과 서비스가 아직 준비되지 않았습니다. 폼은 저장되며 결제되지 않았습니다."},
   serviceNotReady: { en: "One of the selected services is not ready for activation. Your selections remain saved in this draft.", ko: "선택한 서비스 중 아직 활성화할 수 없는 항목이 있습니다. 선택 사항은 초안에 보관됩니다." },
   paymentFlow: { en: "Complete the form, review the monthly price and terms, then pay. Your room is created only after the server confirms payment.", ko: "폼 작성 후 월 요금과 약관을 확인하고 결제하세요. 서버가 결제를 확인한 뒤 방이 생성됩니다." },
   sandbox: { en: "Preview uses test payments only. No real subscription is purchased here.", ko: "현재 Preview는 시험 결제 전용입니다. 실제 유료 구독을 구매하지 않습니다." },
@@ -14,7 +17,7 @@ export const creationMessages = {
   secretaryEmail: { en: "Email account for your secretary", ko: "비서가 사용할 본인 이메일 계정" },
   secretaryPhone: { en: "Phone number for incoming calls", ko: "비서가 전화를 받을 번호" },
   secretarySetup: { en: "Enter your own email and phone number, including the country code. After room activation, connect the email account and verify the phone service. Entering these details does not connect them yet.", ko: "본인 이메일과 국가번호를 포함한 전화번호를 입력하세요. 방 활성화 후 이메일 계정 연결과 전화 서비스 확인이 필요합니다. 입력만으로 연결되지는 않습니다." },
-  secretaryRequired: { en: "Enter a valid email and an international phone number starting with + before continuing.", ko: "다음 단계 전에 올바른 이메일과 +로 시작하는 국제 전화번호를 입력해 주세요." },
+  secretaryRequired: { en: "Enter a valid email. If you add a contact phone, include its country code starting with +.", ko: "올바른 이메일을 입력하세요. 연락처를 입력하는 경우 +로 시작하는 국가번호를 포함하세요." },
   secretaryPending: { en: "Secretary setup · connection verification pending", ko: "비서 설정 · 연결 확인 대기" },
   paymentSetup: { en: "Payments are not connected to this room yet. Your saved design is kept in My Drafts.", ko: "이 방의 결제 연결이 아직 준비되지 않았습니다. 저장한 설계는 My Drafts에 보관됩니다." },
   limit: { en: "Draft storage is full. Your changes remain on this screen.", ko: "초안 저장 공간이 가득 찼습니다. 변경 내용은 이 화면에 남아 있습니다." },

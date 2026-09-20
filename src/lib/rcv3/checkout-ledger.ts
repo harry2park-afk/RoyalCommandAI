@@ -5,6 +5,8 @@ import { stableId } from "./access";
 import { cloudStore, readState, revisionFile, stateSchema } from "./cloud-state";
 import { roomTemplates, templateImage } from "./templates";
 import { createTestCheckout, previewStripe, readCheckoutConfiguration, verifyTestCheckout, type CheckoutOrder } from "./stripe-checkout";
+import { verifyCustomerMail } from "./customer-mail";
+import { bindCustomerPhoneForPaidOrder } from "./customer-phone-account";
 
 export type OrderSnapshot = {
  order: CheckoutOrder; draft: RoomDraftInput; termsText: string;
@@ -26,6 +28,7 @@ export function validateCreationDraft(candidate: unknown) {
  const draft = draftInputSchema.parse(candidate);
  if(draft.specialAI)throw new Error("RCV3_SERVICE_NOT_READY");
  if(draft.secretary&&!draft.providers.length)throw new Error("RCV3_FORM_REQUIRED");
+ if(draft.onboarding&&(!draft.onboarding.country||!draft.providers.length))throw new Error("RCV3_FORM_REQUIRED");
  if (!draft.name || draft.plan !== "paid" || !secretarySetupValid(draft) ||
    (draft.purpose === "custom" && !draft.answers.purpose?.[0]?.trim())) throw new Error("RCV3_FORM_REQUIRED");
  return draft;
@@ -95,12 +98,19 @@ export async function fulfillOrder(row: LedgerOrder, ledger = orderLedger()) {
  const store = cloudStore(db,owner,roomId);
  if(!await readState(store)) {
   const state = initialPaidState(draft,roomId);
+  if(draft.onboarding?.emailEnabled) {
+   await verifyCustomerMail(owner,draft.secretarySetup.email,true);
+   state.gmailEnabled = true;
+  }
   const template = roomTemplates.find(t=>t.id===draft.templateId)!;
   const insert = async (key:string,value:unknown) => { try {await store.insert(key,value);} catch(e){if(!(e instanceof Error)||e.message!=="RCV3_CONFLICT")throw e;} };
   if(state.design.backgroundAssetId) await insert(`assets/${state.design.backgroundAssetId}.txt`,{data:templateImage(template)});
   await insert(revisionFile(1),state);
  }
  if(!await readState(store)) throw new Error("RCV3_STORAGE");
+ if(draft.onboarding?.phoneRequested) {
+  await bindCustomerPhoneForPaidOrder(owner,roomId,draft.onboarding.phoneNumberId || "",draft.onboarding.phoneConsent === true,row.id);
+ }
  const activated = await db.from("rcv3_preview_orders").update({subscription_id:paid.subscriptionId,activated_at:row.activated_at || new Date().toISOString()}).eq("id",row.id).eq("session_id",paid.sessionId);
  if(activated.error) throw new Error("RCV3_STORAGE");
  return {status:"active" as const,roomId,url:`/rcv3?room=${roomId}`};

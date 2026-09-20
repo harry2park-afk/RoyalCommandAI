@@ -7,7 +7,7 @@ import { isDomainFeatureReady } from "@/config/countryResolver";
 export const scopeSchema = z.enum(["chat", "secretary"]);
 export const turnSchema = z.object({ requestId: z.string().uuid(), scope: scopeSchema, provider: z.string(), prompt: z.string().max(12000), answer: z.string().max(50000), at: z.string(), durationMs: z.number().nonnegative() }).strict();
 export type Turn = z.infer<typeof turnSchema>;
-export async function reserve(a: Awaited<ReturnType<typeof access>>, requestId: string, kind: string) {
+export async function reserve(a: {db: Awaited<ReturnType<typeof access>>["db"];user:{id:string}}, requestId: string, kind: string) {
   const runtime = await getServerDomainRuntimeContext();
   if (!runtime || !isDomainFeatureReady(runtime, "ai")) throw new Error("RCV3_UNAVAILABLE");
   const budget = cloudStore(a.db, a.user.id, stableId(a.user.id, "account-budget"));

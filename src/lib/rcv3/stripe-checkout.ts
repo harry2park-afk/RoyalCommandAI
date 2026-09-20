@@ -21,6 +21,7 @@ export const checkoutCatalogSchema = z.object({
   version: z.string().min(1), accountId: z.string().regex(/^acct_[a-zA-Z0-9]+$/),
   currency: z.literal("aud"), tax: z.literal("included"), terms: termsSchema,
   bundles: z.array(bundleSchema).min(1).max(200),
+  countries: z.array(z.string().regex(/^[A-Z]{2}$/)).min(1).max(249).optional(),
 }).strict();
 export type CheckoutCatalog = z.infer<typeof checkoutCatalogSchema>;
 export type CheckoutLine = CheckoutCatalog["bundles"][number]["lines"][number];
@@ -43,6 +44,7 @@ export function termsFingerprint(terms: CheckoutCatalog["terms"]) {
   return createHash("sha256").update(`${terms.version}\n${terms.text}`).digest("hex");
 }
 export function bundleForDraft(catalog: CheckoutCatalog, draft: RoomDraftInput) {
+  if (draft.onboarding && (!draft.onboarding.country || !catalog.countries?.includes(draft.onboarding.country))) throw new Error("RCV3_COUNTRY_NOT_SUPPORTED");
   const wanted = requestedServices(draft).sort().join("|");
   const matches = catalog.bundles.filter(b => b.purpose === draft.purpose && [...b.services].sort().join("|") === wanted);
   if (draft.plan !== "paid" || matches.length !== 1) throw new Error("RCV3_PRICE_NOT_CONFIGURED");

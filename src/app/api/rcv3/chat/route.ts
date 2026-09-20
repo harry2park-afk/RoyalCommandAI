@@ -4,7 +4,7 @@ import { z } from "zod";
 import { access, reply, failure, input } from "@/lib/rcv3/access";
 import { reserve, history, scopeSchema, type Turn } from "@/lib/rcv3/execution";
 import { AI_PROVIDER_IDS } from "@/lib/ai/types";
-import { getConnector, isProviderConfigured } from "@/lib/ai/connectors";
+import { resolveCustomerAI } from "@/lib/rcv3/customer-ai";
 export const maxDuration = 120;
 export async function GET(request: Request) {
   try {
@@ -21,10 +21,10 @@ export async function POST(request: Request) {
     if(d.scope==="secretary")requirePaidService(a.entitlement ?? null,"secretary");
     const previous = turns.find(t => t.requestId === d.requestId);
     if (previous) return reply(previous);
-    if (!isProviderConfigured(d.provider)) throw new Error("RCV3_AI_NOT_CONNECTED");
+    const connector = await resolveCustomerAI(a.user.id,d.provider,a.entitlement?.onboarding?.aiSources[d.provider] || "platform");
     const language = await accountAnswerLanguage(a);
     await reserve(a, d.requestId, "chat");
-    const result = await getConnector(d.provider).complete({ messages: [
+    const result = await connector.complete({ messages: [
       { role: "system", content: `You are ${d.scope === "secretary" ? "Katie, this customer's personal secretary" : "the customer's AI assistant"}. Answer the actual question directly. ${answerLanguageInstruction(language)} Use supplied conversation only. Do not turn questions into task acknowledgements. You have no external action tools: never claim to send, book, pay or change external systems. Customer room setup: ${a.entitlement ? JSON.stringify({purpose:a.entitlement.purpose,tasks:a.entitlement.tasks,answers:a.entitlement.answers}).slice(0,6000) : "Use the current conversation"}.` },
       ...turns.filter(t => t.provider === d.provider).slice(-10).flatMap(t => [{ role: "user" as const, content: t.prompt }, { role: "assistant" as const, content: t.answer }]),
       { role: "user", content: d.prompt },
