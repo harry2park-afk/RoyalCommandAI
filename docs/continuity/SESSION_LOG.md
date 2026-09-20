@@ -46,3 +46,10 @@
 - 미완료 운영 설정: 암호화 전용 키, 고객용 독립 Retell 키/게시된 공용 비서 에이전트/수신 주소, 승인 국가별 요금표·약관·결제 활성화. Vercel 설정 화면은 로그인 필요. Stripe 연결은 Royal Command Pty Ltd sandbox만 확인; 시험용 월 AUD10 가격 하나는 세금 설정 미지정이고 고객 요금표 승인을 의미하지 않음.
 - 국가별 통신사 안내는 확인된 Twilio 문서에 근거한 AU/GB/US/CA/JP부터 표시. 다른 국가나 모든 통신사·개인 AI 구독을 지원한다고 주장하지 않음. 개인 ChatGPT 구독과 API 요금은 별도.
 - 실제 고객 결제·전화번호 구매·전화 수신 경로 변경·외부 발송은 실행하지 않음. 실개통/고객 전체 이용 완료로 표시하지 말 것. 이 기록은 작업 이력이며 새 규칙이나 승인 절차가 아님.
+
+## 2026-09-20 — RC V3 mobile install (Preview)
+- Owner approved mobile reuse of existing RC V3. STANDARD; writer main agent, independent read-only PWA reviewer. Scope RC V3 layout, manifest/icon routes, installation help and mobile CSS only.
+- Added scoped standalone manifest with generic /rcv3 launch (no owner/room identifiers), generated RC PNG icons, deferred browser install action with manual Android/iPhone help via shared translation.
+- No service worker, private offline caching, new account or customer data copy. Same authenticated server rooms. No promise of background calls, push or offline AI.
+- Mobile input font 16px, 44px send/header controls; preserve saved artwork coordinates. Removed viewport-fit cover after review to retain OS safe top inset when installed.
+- Build/lint passed; Preview browser/OS installation verification tracked separately. Actual Android/iPhone launcher installation still requires a real device. Production/master unchanged.

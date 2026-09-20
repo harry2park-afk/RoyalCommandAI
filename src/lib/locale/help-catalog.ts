@@ -4,6 +4,9 @@ export type HelpEntry = {en:string;ko?:string};
 // Public product guidance only. Never register customer text, messages, files,
 // contacts or contract bodies here. The translation API accepts these IDs only.
 export const helpCatalog: Record<string,HelpEntry> = {
+ mobileInstall:{en:"Android: open RC in Chrome and choose Install RC when available, or use Add to Home screen in the browser menu. iPhone: open RC in Safari, then Share → Add to Home Screen. Sign in with your existing RC account.",ko:"안드로이드: Chrome에서 RC를 열고 Install RC를 누르거나 브라우저 메뉴의 홈 화면에 추가를 선택하세요. 아이폰: Safari에서 RC를 열고 공유 → 홈 화면에 추가를 선택하세요. 기존 RC 계정으로 로그인하세요."},
+ mobileOnline:{en:"Your rooms and history stay in your RC account. An internet connection is needed for AI, email and calls. Installing RC does not enable background phone answering.",ko:"룸과 대화 기록은 기존 RC 계정에 유지됩니다. AI·이메일·전화에는 인터넷 연결이 필요합니다. RC를 설치하는 것만으로 백그라운드 전화 수신이 활성화되지는 않습니다."},
+ mobileInstallFailed:{en:"Installation did not finish. Use Add to Home screen in your browser menu, or keep using RC in the browser.",ko:"설치를 완료하지 못했습니다. 브라우저 메뉴의 홈 화면에 추가를 사용하거나 브라우저에서 RC를 계속 사용하세요."},
  setupAI:{en:"ChatGPT is selected to start. Use RC AI, or connect your own supported API account.",ko:"처음에는 ChatGPT가 선택됩니다. RC AI를 사용하거나 지원되는 본인 API 계정을 연결하세요."},
  setupPersonalAI:{en:"Use an API key from your own AI account. ChatGPT subscriptions and API billing are separate. Never enter your password here.",ko:"본인 AI 계정의 API 키를 사용하세요. ChatGPT 구독과 API 요금은 별도입니다. 로그인 비밀번호는 입력하지 마세요."},
  setupPersonalConnected:{en:"Your API connection was verified. We check it again before payment.",ko:"본인 API 연결을 확인했습니다. 결제 전에 다시 확인합니다."},

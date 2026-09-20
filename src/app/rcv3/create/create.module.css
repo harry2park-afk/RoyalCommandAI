@@ -5,3 +5,4 @@
 @media(max-width:760px){.page{padding:16px!important}.header{gap:8px}.header h1{font-size:23px}.layout{margin-top:18px;gap:20px}.form h2{font-size:20px}.choices{gap:8px}.choices label{padding:10px 12px}.footer button{flex:1;min-height:44px}.sidebar{padding:12px}}
 
 .page .header h1{position:static!important;inset:auto!important;transform:none!important;width:auto!important;height:auto!important;max-width:none!important;margin:0!important;text-align:left!important;line-height:1.25!important;justify-self:start!important}
+@media(max-width:760px){.page{padding-bottom:max(16px,env(safe-area-inset-bottom))!important}.page input:not([type=checkbox]):not([type=radio]),.page select,.page textarea{font-size:16px}.page button{min-height:44px}}
