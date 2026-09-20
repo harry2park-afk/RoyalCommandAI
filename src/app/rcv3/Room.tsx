@@ -69,7 +69,7 @@ export default function Room({ providers, secretaryRooms, language }: { provider
       window.history.replaceState(null,"",`/rcv3?room=${id}`);
     } catch(e){if(token===generation.current)setError((e as Error).message);}
   },[]);
-  useEffect(()=>{let active=true; api("rooms").then(result=>{if(!active)return;setRooms(result.rooms); const id=new URLSearchParams(window.location.search).get("room")||result.rooms[0]?.id;if(id)void openRoom(id);}).catch(e=>setError(e.message));return()=>{active=false;};},[openRoom]);
+  useEffect(()=>{let active=true; api("rooms").then(result=>{if(!active)return;setRooms(result.rooms); const requested=new URLSearchParams(window.location.search).get("room"); const id=result.rooms.some((r:{id:string})=>r.id===requested)?requested:result.rooms[0]?.id;if(id)void openRoom(id);}).catch(e=>setError(e.message));return()=>{active=false;};},[openRoom]);
   useEffect(()=>{if(!roomId)return;let active=true;setTurns([]);api(`chat?room=${roomId}&scope=${scope}`).then(r=>{if(active)setTurns(current=>[...new Map([...r.turns,...current].map((t:Turn)=>[t.requestId,t])).values()].sort((a,b)=>a.at.localeCompare(b.at)));}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[roomId,scope]);
   useEffect(()=>{import("../../../rcv3/voice-control.mjs").then(()=>setVoiceLoaded(true)).catch(()=>setError("Could not load microphone."));return()=>{audioRef.current?.pause();};},[]);
   useEffect(()=>{const el=voiceRef.current;if(!el||!roomId||!voiceLoaded)return;
