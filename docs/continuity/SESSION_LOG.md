@@ -53,3 +53,15 @@
 - No service worker, private offline caching, new account or customer data copy. Same authenticated server rooms. No promise of background calls, push or offline AI.
 - Mobile input font 16px, 44px send/header controls; preserve saved artwork coordinates. Removed viewport-fit cover after review to retain OS safe top inset when installed.
 - Build/lint passed; Preview browser/OS installation verification tracked separately. Actual Android/iPhone launcher installation still requires a real device. Production/master unchanged.
+
+
+## 2026-09-20 — Mobile continuity + customer account numbering
+
+- Mobile RC V3 remains the same authenticated cloud Room, not a device-local copy. Existing customer Rooms are loaded from the server on phone/laptop/desktop; commit `33bdfc1316fcc9862a2e9aa4b3453cb8ea8fdb63` additionally rejects a stale/foreign `?room=` and falls back to the signed-in customer's newest valid Room. Preview deployment verified READY. Production/master unchanged.
+- Customer isolation rechecked: RC V3 access requires signed-in owner ID, RC V3 marker, draft status and the owner's household; storage root is owner UUID + room UUID. Chat history is stored under that owner/Room scope. No shared seed/test conversation is copied into a new customer Room.
+- Product direction confirmed for next Create Room simplification: ask only Room name and what the customer wants to do, then derive five relevant Room value choices. Do not ask unrelated onboarding questions. Charge/support only selected services.
+- Phone application is separate from Room creation and can be opened later. Signup should collect only the minimum reusable customer details needed to prefill the phone application; customer reviews, signs and pays through the payment provider. Do not store raw card data in RC.
+- Customer master-data direction: Supabase is the account/customer system of record; internal UUID remains the security identity. Human-readable RC customer number links account, Rooms, phone applications, agreements/signatures, invoices/payment references and support records. Secrets/API credentials remain separately protected.
+- Database migration `add_secure_rc_customer_numbers` applied to the RoyalCommand Supabase project: new `public.rc_customer_accounts` has RLS enabled, anon access revoked, authenticated users can SELECT only their own row. Customer number format is `RC 0000000`; the number itself grants no access.
+- Harry Park account was assigned the explicitly requested customer number `RC 0357060`. Automatic new-customer numbering is reserved to begin at `RC 0357071`. Internal UUID is not replaced by the display customer number.
+- No raw card number was stored. No other customer's profile data was changed. The gap between 0357060 and 0357071 is intentional per owner instruction.
