@@ -1,7 +1,7 @@
 "use client";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { roomPurposes, newRoomDraft, changePurpose, selectSecretary, secretarySetupValid, type RoomDraftInput, type DraftRegistry } from "@/lib/rcv3/room-draft";
-import { roomTemplates, templateImage } from "@/lib/rcv3/templates";
+import { DESIGN_CATEGORY_GROUPS, roomTemplates, templateImage } from "@/lib/rcv3/templates";
 import { creationText, type CreationMessage } from "@/lib/locale/rcv3-creation";
 import type { AIProviderId } from "@/lib/ai/types";
 import HelpText from "@/components/help/HelpText";
@@ -31,6 +31,9 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
   const [loaded, setLoaded] = useState(false), [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false), [error, setError] = useState<CreationMessage | "">("");
   const [status, setStatus] = useState<CreationMessage | "">("");
+  const [designCategory, setDesignCategory] = useState("all");
+  const [designSearch, setDesignSearch] = useState("");
+  const [designPage, setDesignPage] = useState(1);
 
   const saving = useRef(false);
   const latestInput = useRef(input);
@@ -38,6 +41,16 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
   const setup = input.onboarding || {country:COUNTRY_ROOM_PRESETS.some(c=>c.id===country)?country:"",aiSources:{},emailEnabled:false,phoneRequested:false,phoneOfferId:""};
   const purpose = roomPurposes.find(p => p.id === input.purpose)!;
   const selectedDesign = roomTemplates.find(t => t.id === input.templateId)!;
+  const filteredDesigns = useMemo(() => {
+    const q = designSearch.trim().toLowerCase();
+    return roomTemplates.filter(t => {
+      const categoryMatch = designCategory === "all" || t.groups.includes("all") || t.groups.includes(designCategory);
+      const searchMatch = !q || `${t.name} ${t.category} ${t.keywords}`.toLowerCase().includes(q);
+      return categoryMatch && searchMatch;
+    });
+  }, [designCategory, designSearch]);
+  const designPageCount = Math.max(1, Math.ceil(filteredDesigns.length / 25));
+  const visibleDesigns = filteredDesigns.slice((designPage - 1) * 25, designPage * 25);
 
   useEffect(() => {
     let active = true;
@@ -154,10 +167,29 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
             <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} disabled={busy||!loaded}/>
           </>}
           {input.step === 2 && <>
-            <h2>Choose a design</h2><p><HelpText helpKey="design"/></p><div className={styles.designs}>{roomTemplates.map(t => <button key={t.id} type="button" aria-pressed={input.templateId === t.id} onClick={() => update({ ...input, templateId: t.id })}><img loading="lazy" src={templateImage(t)} alt={t.name} width={1672} height={941}/><span>{t.name}{input.templateId === t.id ? " ✓" : ""}</span></button>)}</div>
+            <h2>Choose a design</h2><p><HelpText helpKey="design"/></p>
+            <div className={styles.designSearch}><label>Find a design<input value={designSearch} onChange={e => { setDesignSearch(e.target.value); setDesignPage(1); }} placeholder="Search image, video or style"/></label></div>
+            <div className={styles.designBrowser}>
+              <aside className={styles.designCategoryList} aria-label="Design categories">
+                <button type="button" aria-pressed={designCategory === "all"} onClick={() => { setDesignCategory("all"); setDesignPage(1); }}>All Designs</button>
+                {DESIGN_CATEGORY_GROUPS.map(group => <button key={group.key} type="button" aria-pressed={designCategory === group.key} onClick={() => { setDesignCategory(group.key); setDesignPage(1); }}>{group.label}</button>)}
+              </aside>
+              <section className={styles.designResults} aria-label="Design results">
+                <div className={styles.designs}>{visibleDesigns.map(t => <button key={t.id} type="button" aria-pressed={input.templateId === t.id} onClick={() => update({ ...input, templateId: t.id })}>
+                  {t.kind === "video" && t.video ? <video preload="metadata" muted playsInline poster={t.thumbnail}><source src={t.video}/></video> : <img loading="lazy" src={t.thumbnail} alt={t.name} width={1672} height={941}/>}
+                  <span>{t.name}{t.kind === "video" ? " · Video" : ""}{input.templateId === t.id ? " ✓" : ""}</span>
+                </button>)}</div>
+                {!visibleDesigns.length && <p>No designs found in this category yet.</p>}
+                <div className={styles.designPager}>
+                  <button type="button" disabled={designPage <= 1} onClick={() => setDesignPage(p => Math.max(1, p - 1))}>Previous 25</button>
+                  <span>Page {designPage} of {designPageCount}</span>
+                  <button type="button" disabled={designPage >= designPageCount} onClick={() => setDesignPage(p => Math.min(designPageCount, p + 1))}>Next 25</button>
+                </div>
+              </section>
+            </div>
           </>}
           {input.step === 3 && <>
-            <h2>{input.name || "Your Room"}</h2><img className={styles.preview} src={templateImage(selectedDesign)} alt={selectedDesign.name} width={1672} height={941}/>
+            <h2>{input.name || "Your Room"}</h2>{selectedDesign.kind === "video" && selectedDesign.video ? <video className={styles.preview} controls preload="metadata" playsInline poster={selectedDesign.thumbnail}><source src={selectedDesign.video}/></video> : <img className={styles.preview} src={templateImage(selectedDesign)} alt={selectedDesign.name} width={1672} height={941}/>}
             <dl className={styles.summary}><dt>Country</dt><dd>{COUNTRY_ROOM_PRESETS.find(c=>c.id===setup.country)?.label || "—"}</dd><dt>Purpose</dt><dd>{purpose.name}</dd><dt>Tasks</dt><dd>{input.tasks.join(", ") || "None"}</dd><dt>Design</dt><dd>{selectedDesign.name}</dd></dl>
             {input.secretary && <section aria-label="Secretary setup review"><h3>AI Secretary</h3><dl className={styles.summary}><dt>{creationText("secretaryEmail", "en")}</dt><dd>{input.secretarySetup.email || "—"}</dd><dt>{creationText("secretaryPhone", "en")}</dt><dd>{input.secretarySetup.phone || "—"}</dd></dl><p><HelpText helpKey="creation.secretaryPending"/></p></section>}
             <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy || dirty || !loaded} language={language}/>
