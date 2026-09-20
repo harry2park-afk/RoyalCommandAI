@@ -25,7 +25,7 @@ describe("Supabase linked shadow migration workdir", () => {
   const manifestPath = "scripts/supabase-unresolved-local-migration-classification-20260920.json";
   const canonicalSupabaseDir = "supabase";
 
-  it("mirrors 73 Hosted timestamps and exposes only the eight reviewed candidates", () => {
+  it("mirrors 75 Hosted timestamps and exposes only the eight reviewed candidates", () => {
     const root = tempRoot("rc-shadow-workdir-");
     const shadowRoot = path.join(root, "shadow");
     const snapshot = readJson(snapshotPath);
@@ -37,15 +37,15 @@ describe("Supabase linked shadow migration workdir", () => {
 
     expect(report.ready_for_linked_dry_run).toBe(true);
     expect(report.ready_for_apply).toBe(false);
-    expect(report.counts.hosted_history_markers).toBe(73);
+    expect(report.counts.hosted_history_markers).toBe(75);
     expect(report.counts.exact_reviewed_candidates).toBe(8);
-    expect(report.counts.shadow_migrations_total).toBe(81);
+    expect(report.counts.shadow_migrations_total).toBe(83);
     expect(report.counts.canonical_local_only_by_version).toBe(49);
     expect(report.counts.canonical_same_name_timestamp_drift).toBe(35);
     expect(report.counts.canonical_unresolved_local_names).toBe(14);
     expect(report.counts.quarantined_historical_local).toBe(41);
     expect(report.counts.candidates_older_than_hosted_head).toBe(8);
-    expect(files).toHaveLength(81);
+    expect(files).toHaveLength(83);
 
     const candidateSet = new Set(report.expected_apply_migrations);
     for (const marker of report.hosted_marker_files) {
