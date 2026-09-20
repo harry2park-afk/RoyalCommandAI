@@ -1,4 +1,5 @@
 export type CreateRoomProfileLocale = "en" | "fr" | "ko" | "ja";
+export type CreateRoomWizardLocale = "en" | "fr" | "ko" | "ja" | "zh" | "vi" | "id" | "th" | "hi";
 
 type CreateRoomProfileCopy = {
   eyebrow: string;
@@ -94,15 +95,27 @@ const COPY: Record<CreateRoomProfileLocale, CreateRoomProfileCopy> = {
   },
 };
 
-export function normalizeCreateRoomProfileLocale(value?: string): CreateRoomProfileLocale {
+export function normalizeCreateRoomWizardLocale(value?: string): CreateRoomWizardLocale {
   const locale = (value || "en").trim().toLowerCase();
   if (locale.startsWith("fr")) return "fr";
   if (locale.startsWith("ko")) return "ko";
   if (locale.startsWith("ja")) return "ja";
+  if (locale.startsWith("zh")) return "zh";
+  if (locale.startsWith("vi")) return "vi";
+  if (locale.startsWith("id")) return "id";
+  if (locale.startsWith("th")) return "th";
+  if (locale.startsWith("hi")) return "hi";
+  return "en";
+}
+
+export function normalizeCreateRoomProfileLocale(value?: string): CreateRoomProfileLocale {
+  const locale = normalizeCreateRoomWizardLocale(value);
+  if (locale === "fr" || locale === "ko" || locale === "ja") return locale;
   return "en";
 }
 
 export function createRoomProfileCopy(value?: string) {
-  const locale = normalizeCreateRoomProfileLocale(value);
-  return { locale, ...COPY[locale] };
+  const locale = normalizeCreateRoomWizardLocale(value);
+  const profileLocale = normalizeCreateRoomProfileLocale(value);
+  return { locale, profileLocale, ...COPY[profileLocale] };
 }
