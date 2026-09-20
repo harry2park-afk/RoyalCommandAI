@@ -174,5 +174,5 @@ jobs:
           if [[ "${failed}" -ne 0 ]]; then
             exit 1
           fi
-          echo "VERIFIED: known Hosted source provenance and all canonical LOCAL-only history are classified, and an isolated 73-marker + 8-candidate dry-run plan is reproducible."
+          echo "VERIFIED: known Hosted source provenance and all canonical LOCAL-only history are classified, and an isolated 75-marker + 8-candidate dry-run plan is reproducible."
           echo "HOLD: this does not prove linked CLI credentials/dry-run and does not authorize apply, repair, Hosted mutation, Production deploy, or Country READY."
