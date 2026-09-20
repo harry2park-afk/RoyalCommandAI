@@ -1,0 +1,106 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-20T19:50:28Z",
+  "project_ref": "aygawkavujjmybekswrg",
+  "project_name": "RoyalCommand",
+  "source": "Fresh read-only Supabase + GitHub connector evidence",
+  "purpose": "Record the observed 76th Hosted migration and sanitized schema/operations evidence without accepting it as a trusted deployment baseline, replaying/repairing migrations, or exposing customer-specific row values.",
+  "safety": {
+    "hosted_mutation_performed": false,
+    "production_master_changed": false,
+    "migration_repair_or_replay_performed": false,
+    "customer_row_values_recorded": false,
+    "ready_for_apply": false,
+    "country_ready": false
+  },
+  "stable_restore": {
+    "production_master": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+    "pr696_pre_change_head": "e5e9be264cbd7ac0c4ae53b3889ae71e61b9b5d0",
+    "restore_ref": "restore/2026-09-21-0550-pr696-pre-76-observed-drift-evidence"
+  },
+  "hosted_migration_ledger": {
+    "observed_count": 76,
+    "observed_head_version": "20260920091809",
+    "observed_head_name": "add_secure_rc_customer_numbers",
+    "previous_repository_snapshot": "scripts/supabase-hosted-ledger-snapshot-20260920.json",
+    "previous_snapshot_count": 75,
+    "previous_snapshot_head_version": "20260920015655",
+    "drift_detected": true,
+    "trusted_baseline_advanced": false
+  },
+  "head_migration_sanitized_fingerprint": {
+    "version": "20260920091809",
+    "name": "add_secure_rc_customer_numbers",
+    "statement_count": 1,
+    "statements_md5": "9b70e55a43515314977d1f12de9149e1",
+    "statements_bytes": 1310,
+    "exact_sql_copied_to_repository": false,
+    "reason_exact_sql_not_copied": "Hosted statement contains customer-specific data; repository is public. Preserve provenance evidence without publishing row values."
+  },
+  "git_provenance": {
+    "pr748_exact_head": "f4a61d2e76adf481d5869a9501119bbf423f83f5",
+    "exact_migration_path": "supabase/migrations/20260920091809_add_secure_rc_customer_numbers.sql",
+    "exact_path_present_on_pr748_head": false,
+    "migration_name_commit_search_match_found": false,
+    "status": "UNRESOLVED",
+    "required_closure": "Locate an approved private deployment artifact/change record or reconstruct a schema-only, non-PII source artifact for review. Do not use migration repair/replay as provenance."
+  },
+  "rc_customer_accounts_schema": {
+    "row_count": 1,
+    "columns": [
+      {"name":"owner_id","type":"uuid","nullable":false,"default":null},
+      {"name":"customer_number","type":"text","nullable":false,"default":null},
+      {"name":"customer_sequence","type":"bigint","nullable":false,"default":null},
+      {"name":"created_at","type":"timestamptz","nullable":false,"default":"now()"},
+      {"name":"updated_at","type":"timestamptz","nullable":false,"default":"now()"}
+    ],
+    "constraints": [
+      "PRIMARY KEY (owner_id)",
+      "FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "UNIQUE (customer_number)",
+      "UNIQUE (customer_sequence)",
+      "CHECK customer_number format RC + 7 digits",
+      "CHECK customer_sequence >= configured floor"
+    ],
+    "non_internal_triggers": 0,
+    "customer_number_default_present": false,
+    "customer_sequence_default_present": false,
+    "read_policy": {
+      "name": "rc_customer_accounts_read_own",
+      "command": "SELECT",
+      "role": "authenticated",
+      "predicate": "owner_id = auth.uid()"
+    },
+    "authenticated_table_privileges": ["DELETE","INSERT","REFERENCES","SELECT","TRIGGER","TRUNCATE","UPDATE"],
+    "sequence_usage_roles": ["postgres","service_role"],
+    "launch_assessment": "FAIL_CLOSED: no trigger/default allocator is present and authenticated has broader table ACL than least-privilege launch target. RLS currently supplies only own-row SELECT policy."
+  },
+  "fresh_operational_readback": {
+    "profiles": 10,
+    "matters": 3,
+    "assigned_matters": 0,
+    "room_factory_manifests": 7,
+    "room_factory_null_encounter": 7,
+    "room_factory_nonnull_encounter": 0,
+    "service_catalog": 43,
+    "service_country_terms": 0,
+    "service_providers": 0,
+    "service_provider_offers": 0,
+    "service_connection_orders": 0,
+    "first_wave_recording_policies": 6,
+    "reviewer_proven_approvals": 0
+  },
+  "first_wave_country_state": {
+    "AU": "HOLD",
+    "US": "HOLD",
+    "CA": "HOLD",
+    "KR": "HOLD",
+    "JP": "HOLD",
+    "GB": "HOLD"
+  },
+  "notes": [
+    "AU recording policy is marked approved but has no reviewed_by provenance; it is not counted as reviewer-proven approval.",
+    "All seven existing Room Factory manifests still have NULL encounter_session_id; controlled non-NULL encounter staging remains unproven.",
+    "This evidence artifact intentionally does not alter the existing 75-row snapshot used by the current fail-closed harness. The harness must not treat 76 as trusted until provenance is closed and linked dry-run evidence is regenerated."
+  ]
+}
