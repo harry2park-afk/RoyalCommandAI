@@ -65,3 +65,7 @@ This is a coding requirement; recording it does not establish that existing scre
 ## Self-service tool rooms — approved product design
 
 For Room creation, tool catalog, tool installation, entitlement or removal work, follow [Self-service Tool Room Design](docs/rcv3/SELF_SERVICE_TOOL_ROOM_DESIGN.md). Customers assemble shared tools themselves; unpaid/expired tools remain in place and disabled until explicitly removed. Reuse existing components and enforce activation server-side. Installation, subscription cancellation and data deletion are separate. This is a scoped product requirement, not an extra approval gate; do not treat the design as implementation evidence.
+
+## RC V3 customer platform and AI education
+
+For V3 room, access, shortcut or education work, follow [RC V3 Platform and Learning Rules](docs/rcv3/PLATFORM_AND_AI_EDUCATION_RULES.md). Reuse the common frame; customers configure their own rooms. Education is free, 100 numbered topics over a recommended 30 days, increasingly practical after topic 050. Distinguish approved targets from implemented, verified features.

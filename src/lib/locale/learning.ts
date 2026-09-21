@@ -1,0 +1,24 @@
+const labels = {
+ m0:{en:'Could not load your progress. Retry.',ko:'학습 기록을 불러오지 못했습니다. Retry를 눌러 주세요.'},
+ m1:{en:'Daily allowance reached. Try again tomorrow (UTC).',ko:'오늘의 무료 이용 한도에 도달했습니다. 내일(UTC 기준) 다시 이용하세요.'},
+ m2:{en:'This exam expired. Start a new exam.',ko:'시험 유효기간이 지났습니다. 새 시험을 시작하세요.'},
+ m3:{en:'Could not complete this request. Your input is kept; please retry.',ko:'처리하지 못했습니다. 입력은 유지됩니다. 다시 시도하세요.'},
+ m4:{en:'lessons completed',ko:'수업 완료'},
+ m5:{en:'Completed',ko:'완료'},
+ m6:{en:'Your question or practice answer',ko:'질문 또는 실습 답변'},
+ m7:{en:'Please wait…',ko:'처리 중…'},
+ m8:{en:'Check your understanding',ko:'배운 내용 확인'},
+ m9:{en:'Correct. This lesson is saved as completed.',ko:'정답입니다. 이 수업을 완료로 저장했습니다.'},
+ m10:{en:'Not yet. Review the lesson and try again.',ko:'아직 정답이 아닙니다. 수업을 다시 읽고 도전하세요.'},
+ m11:{en:'Check answer',ko:'답 확인'},
+ m12:{en:'Complete all 100 lessons and assignments to unlock the final exam.',ko:'100개 과목의 확인 문제와 실습 과제를 마치면 최종시험이 열립니다.'},
+ m13:{en:'Submit exam',ko:'시험 제출'},
+ m14:{en:'Passed',ko:'합격'},
+ m15:{en:'Review the lessons and try again.',ko:'수업을 복습한 후 다시 도전하세요.'},
+ m16:{en:'Your completion certificate is ready',ko:'수료증이 준비되었습니다'},
+ m17:{en:'Open certificate',ko:'수료증 보기'},
+ resumeExam:{en:'Resume / restart exam',ko:'시험 다시 열기'},
+ startExam:{en:'Start exam',ko:'시험 시작'},
+} as const;
+export type LearningLabel=keyof typeof labels;
+export function learningLabel(key:LearningLabel,language:string){const item=labels[key];return language.split('-')[0]==='ko'?item.ko:item.en;}

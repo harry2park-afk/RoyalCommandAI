@@ -46,3 +46,7 @@ Harry는 RC 웹사이트 제작과 이후 고객 업그레이드에 집중한다
 - [기능·코드·증거 지도](docs/continuity/FEATURE_MAP.md)
 - [압축된 결정사항과 이전 요구](docs/continuity/DECISIONS.md)
 - [작업 기록·인수인계](docs/continuity/SESSION_LOG.md)
+
+## 무료 AI 교육방 — 2026-09-21
+
+[플랫폼·교육 규정](docs/rcv3/PLATFORM_AND_AI_EDUCATION_RULES.md), [구현·검증 기록](docs/rcv3/AI_EDUCATION_IMPLEMENTATION.md). `/rcv3/learn`: 100개 번호 과목·권장30일, 전반 확인문제/후반 AI 평가 실습, 최종30문항·30분·70점 수료. AI역사·이론·현재·미래와 회사보고서·웹/자동화·종합프로젝트 포함. RC 수료증은 비공인·비감독 과정 이수기록. 준비상태와 검증 제한은 구현 기록 확인. 방 방문허가/RC채팅 등 광범위 목표 전체가 이번에 구현된 것은 아님.
