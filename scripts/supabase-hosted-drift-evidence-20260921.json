@@ -1,10 +1,10 @@
 {
-  "contract_version": 1,
-  "captured_at": "2026-09-20T19:50:28Z",
+  "contract_version": 2,
+  "captured_at": "2026-09-21T01:52:00Z",
   "project_ref": "aygawkavujjmybekswrg",
   "project_name": "RoyalCommand",
   "source": "Fresh read-only Supabase + GitHub connector evidence",
-  "purpose": "Record the observed 76th Hosted migration and sanitized schema/operations evidence without accepting it as a trusted deployment baseline, replaying/repairing migrations, or exposing customer-specific row values.",
+  "purpose": "Record the observed 76th Hosted migration and sanitized provenance/schema evidence without accepting it as a trusted deployment baseline, replaying/repairing migrations, or exposing customer-specific row values.",
   "safety": {
     "hosted_mutation_performed": false,
     "production_master_changed": false,
@@ -15,8 +15,8 @@
   },
   "stable_restore": {
     "production_master": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
-    "pr696_pre_change_head": "e5e9be264cbd7ac0c4ae53b3889ae71e61b9b5d0",
-    "restore_ref": "restore/2026-09-21-0550-pr696-pre-76-observed-drift-evidence"
+    "pr696_pre_change_head": "14c4480c881d762430eac4f175a3bfbe227073d0",
+    "restore_ref": "restore/2026-09-21-1151-pr696-pre-provenance-closure-contract"
   },
   "hosted_migration_ledger": {
     "observed_count": 76,
@@ -37,13 +37,26 @@
     "exact_sql_copied_to_repository": false,
     "reason_exact_sql_not_copied": "Hosted statement contains customer-specific data; repository is public. Preserve provenance evidence without publishing row values."
   },
+  "migration_record_metadata": {
+    "created_by_present": true,
+    "created_by_md5": "c8efde1a5aa05a47ac842b1e29ae9b29",
+    "idempotency_key_present": false,
+    "rollback_statement_count": 0,
+    "created_by_value_recorded": false,
+    "customer_row_values_recorded": false
+  },
   "git_provenance": {
-    "pr748_exact_head": "f4a61d2e76adf481d5869a9501119bbf423f83f5",
+    "pr748_exact_head": "c67f9befe5b0c0ac17a86deaa66b03c932deee9b",
     "exact_migration_path": "supabase/migrations/20260920091809_add_secure_rc_customer_numbers.sql",
     "exact_path_present_on_pr748_head": false,
     "migration_name_commit_search_match_found": false,
+    "fingerprint_version_name_verified": true,
     "status": "UNRESOLVED",
-    "required_closure": "Locate an approved private deployment artifact/change record or reconstruct a schema-only, non-PII source artifact for review. Do not use migration repair/replay as provenance."
+    "resolution_method": null,
+    "resolution_evidence_ref": null,
+    "reviewed_by": null,
+    "reviewed_at": null,
+    "required_closure": "Locate an approved private deployment artifact/change record or reconstruct a schema-only non-PII source artifact plus separately reviewed private backfill evidence. Record a reviewer identity, review timestamp, resolution method and evidence reference. Do not use migration repair/replay as provenance."
   },
   "rc_customer_accounts_schema": {
     "row_count": 1,
@@ -99,6 +112,8 @@
     "GB": "HOLD"
   },
   "notes": [
+    "The Hosted migration record exposes created_by, idempotency_key and rollback metadata columns. For this migration, created_by is present, idempotency_key is absent and rollback has zero statements; only a one-way hash of created_by is retained here.",
+    "The exact migration path remains absent from fresh PR #748 head c67f9befe5b0c0ac17a86deaa66b03c932deee9b, and repository commit search still finds no exact migration-name match.",
     "AU recording policy is marked approved but has no reviewed_by provenance; it is not counted as reviewer-proven approval.",
     "All seven existing Room Factory manifests still have NULL encounter_session_id; controlled non-NULL encounter staging remains unproven.",
     "This evidence artifact intentionally does not alter the existing 75-row snapshot used by the current fail-closed harness. The harness must not treat 76 as trusted until provenance is closed and linked dry-run evidence is regenerated."
