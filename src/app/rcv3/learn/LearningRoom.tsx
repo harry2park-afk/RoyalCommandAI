@@ -43,9 +43,9 @@ export default function LearningRoom({language}:{language:string}){
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>Retry</button>}</div>}
   <p>{t("topicHelp")}</p>
   <div className={styles.layout}>
-   <label>Study day<select value={day} disabled={busy} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>l.day===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>Day {i+1} · {lessons.filter(l=>l.day===i+1&&state.completed.includes(l.id)).length}/{lessons.filter(l=>l.day===i+1).length}</option>)}</select></label>
+   <label>Study day<select value={day} disabled={!loaded||busy} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>l.day===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>Day {i+1} · {lessons.filter(l=>l.day===i+1&&state.completed.includes(l.id)).length}/{lessons.filter(l=>l.day===i+1).length}</option>)}</select></label>
    {lessons.map((l,i)=>l.day===day&&<section className={styles.unit} key={l.id}>
-    <button type="button" className={styles.unitButton} disabled={busy} aria-expanded={unit===i} aria-controls={`lesson-${l.id}`} onClick={()=>selectUnit(i)}><span>{l.id}</span><strong>{l.title}</strong>{ko&&<small>{l.koTitle}</small>}{state.completed.includes(l.id)&&<small>✓ {t("m5")}</small>}</button>
+    <button type="button" className={styles.unitButton} disabled={!loaded||busy} aria-expanded={unit===i} aria-controls={`lesson-${l.id}`} onClick={()=>selectUnit(i)}><span>{l.id}</span><strong>{l.title}</strong>{ko&&<small>{l.koTitle}</small>}{state.completed.includes(l.id)&&<small>✓ {t("m5")}</small>}</button>
     {unit===i&&<article id={`lesson-${l.id}`} aria-label={l.title}>
 
     <h2>{lesson.id}. {lesson.title}</h2><p className={styles.lesson}><HelpText helpKey={`learn.${lesson.id}`}/></p>
