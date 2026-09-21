@@ -21,6 +21,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   roomFactoryTemplates: "NEEDS_REVIEW",
   roomFactoryWriteAuthority: "NEEDS_REVIEW",
   tenantIsolation: "NEEDS_REVIEW",
+  customerAccountAuthority: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
   complianceEvidence: "NEEDS_REVIEW",
 };
@@ -38,6 +39,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   roomFactoryTemplates: "VERIFIED",
   roomFactoryWriteAuthority: "VERIFIED",
   tenantIsolation: "VERIFIED",
+  customerAccountAuthority: "VERIFIED",
   paymentOperations: "VERIFIED",
   complianceEvidence: "VERIFIED",
 };
@@ -81,6 +83,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_TEMPLATES_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_EVIDENCE_NOT_VERIFIED");
     }
@@ -119,6 +122,7 @@ describe("country operational launch readiness gate", () => {
       "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED",
       "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED",
       "TENANT_ISOLATION_NOT_VERIFIED",
+      "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
       "COMPLIANCE_EVIDENCE_NOT_VERIFIED",
     ]);
@@ -137,6 +141,21 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED"]);
+  });
+
+  it("fails closed if customer-account authority has not been independently verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      customerAccountAuthority: "BLOCKED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"]);
   });
 
   it("fails closed on any missing operational verification even when the country gate is ready", () => {
