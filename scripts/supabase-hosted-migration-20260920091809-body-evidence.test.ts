@@ -19,8 +19,21 @@ const evidence = JSON.parse(raw) as {
     hosted_mutation_performed: boolean;
   };
   verified_structural_facts: Record<string, boolean>;
+  hosted_acl_root_cause: {
+    table_owner_role: string;
+    postgres_public_table_default_acl_grants_authenticated_all: boolean;
+    postgres_public_table_default_acl_grants_anon_all: boolean;
+    migration_explicitly_revokes_anon: boolean;
+    migration_explicitly_revokes_authenticated: boolean;
+    current_authenticated_privileges: string[];
+    current_anon_table_privileges: number;
+    root_cause_verified: boolean;
+    root_cause: string;
+  };
   deployment_trust: {
     hosted_statement_body_recovered: boolean;
+    ledger_created_by_present: boolean;
+    ledger_created_by_value_published: boolean;
     original_git_source_provenance_verified: boolean;
     reviewer_provenance_verified: boolean;
     safe_for_replay: boolean;
@@ -29,6 +42,7 @@ const evidence = JSON.parse(raw) as {
   };
   launch_implication: {
     previous_body_unknown_blocker_narrowed: boolean;
+    customer_account_acl_root_cause_verified: boolean;
     customer_account_authority_verified: boolean;
     allocator_verified: boolean;
     country_ready: boolean;
@@ -47,6 +61,7 @@ describe("Hosted migration 20260920091809 redacted body evidence", () => {
       /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i,
     );
     expect(raw).not.toMatch(/\bRC\s+[0-9]{7}\b/);
+    expect(raw).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   });
 
   it("captures the authority and allocator defects observed in the exact Hosted statement", () => {
@@ -64,19 +79,37 @@ describe("Hosted migration 20260920091809 redacted body evidence", () => {
     expect(evidence.verified_structural_facts.creates_allocator_default).toBe(false);
   });
 
-  it("narrows the body-unknown blocker without pretending deployment provenance is closed", () => {
+  it("pins the current broad authenticated grants to the public-schema default ACL plus missing authenticated revoke", () => {
+    const acl = evidence.hosted_acl_root_cause;
+
+    expect(acl.table_owner_role).toBe("postgres");
+    expect(acl.postgres_public_table_default_acl_grants_authenticated_all).toBe(true);
+    expect(acl.postgres_public_table_default_acl_grants_anon_all).toBe(true);
+    expect(acl.migration_explicitly_revokes_anon).toBe(true);
+    expect(acl.migration_explicitly_revokes_authenticated).toBe(false);
+    expect(acl.current_authenticated_privileges.sort()).toEqual(
+      ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"].sort(),
+    );
+    expect(acl.current_anon_table_privileges).toBe(0);
+    expect(acl.root_cause_verified).toBe(true);
+    expect(evidence.launch_implication.customer_account_acl_root_cause_verified).toBe(true);
+    expect(evidence.launch_implication.customer_account_authority_verified).toBe(false);
+  });
+
+  it("narrows the blocker without pretending deployment provenance is closed", () => {
     expect(evidence.source.query_mode).toBe("READ_ONLY");
     expect(evidence.source.hosted_mutation_performed).toBe(false);
     expect(evidence.deployment_trust.hosted_statement_body_recovered).toBe(true);
+    expect(evidence.deployment_trust.ledger_created_by_present).toBe(true);
+    expect(evidence.deployment_trust.ledger_created_by_value_published).toBe(false);
     expect(evidence.deployment_trust.original_git_source_provenance_verified).toBe(false);
     expect(evidence.deployment_trust.reviewer_provenance_verified).toBe(false);
     expect(evidence.deployment_trust.safe_for_replay).toBe(false);
     expect(evidence.deployment_trust.trusted_baseline_may_advance).toBe(false);
     expect(evidence.deployment_trust.status).toBe(
-      "BODY_RECOVERED_GIT_AND_REVIEW_PROVENANCE_UNRESOLVED",
+      "BODY_AND_ACL_ROOT_CAUSE_RECOVERED_GIT_AND_REVIEW_PROVENANCE_UNRESOLVED",
     );
     expect(evidence.launch_implication.previous_body_unknown_blocker_narrowed).toBe(true);
-    expect(evidence.launch_implication.customer_account_authority_verified).toBe(false);
     expect(evidence.launch_implication.allocator_verified).toBe(false);
     expect(evidence.launch_implication.country_ready).toBe(false);
   });
