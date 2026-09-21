@@ -8,7 +8,7 @@ export default function RoomCatalog({search,busy,creating,onChoose}:{search:stri
  const query=search.toLowerCase().trim();
  const rooms=roomCatalog.filter(t=>(category==='All'||t.category===category)&&`${t.name} ${t.keywords}`.toLowerCase().includes(query));
  return <div className={styles.catalogLayout}>
-  <aside className={styles.catalogSidebar} aria-label="Room designs"><strong>DESIGNS</strong><button aria-pressed={category==='All'} onClick={()=>setCategory('All')}>All Designs <span>{roomCatalog.length}</span></button>{roomCategories.map(c=><button key={c} aria-pressed={category===c} onClick={()=>setCategory(c)}>{c}</button>)}</aside>
+  <aside className={styles.catalogSidebar} aria-label="Room designs"><strong>DESIGNS</strong><button aria-pressed={category==='All'} onClick={()=>setCategory('All')}>All Designs <span>{roomCatalog.length}</span></button>{roomCategories.map(c=><button key={c} aria-pressed={category===c} onClick={()=>setCategory(c)}>{c}</button>)}<button onClick={()=>window.location.assign('/rcv3/meetings')}>Meeting Rooms <span>10</span></button></aside>
   <div className={styles.catalogContent}>
    <div className={styles.catalogHeading}><h2>Choose Your Room</h2><span>{rooms.length} designs</span>{creating&&<p role="status">Creating…</p>}</div>
    <div className={styles.artworkGrid}>
