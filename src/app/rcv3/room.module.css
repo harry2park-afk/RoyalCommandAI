@@ -65,3 +65,8 @@ main.root{width:100%!important;max-width:100%!important;padding:0;box-sizing:bor
  .chat .composerBox textarea,.root input,.root select{font-size:16px}
  .root .answerRail button{min-height:44px}
 }
+
+/* Only new flower backgrounds move; all interactive overlays stay fixed. */
+.flowerMotion{animation:flowerOfficePan 28s ease-in-out infinite alternate}
+@keyframes flowerOfficePan{from{background-size:103.5% auto;background-position:40% 50%}to{background-size:106.5% auto;background-position:60% 50%}}
+@media(prefers-reduced-motion:reduce){.flowerMotion{animation:none}}

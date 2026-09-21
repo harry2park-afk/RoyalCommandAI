@@ -2,9 +2,9 @@ import {describe,it,expect} from 'vitest';
 import {existsSync} from 'node:fs';
 import {roomTemplates,templateImage} from './templates';
 describe('published room artwork',()=>{
- it('has sixteen distinct local assets with no executable or remote URLs',()=>{
-  expect(roomTemplates).toHaveLength(16);
-  expect(new Set(roomTemplates.map(t=>t.id)).size).toBe(16);
+ it('has twenty-six distinct local assets with no executable or remote URLs',()=>{
+  expect(roomTemplates).toHaveLength(26);
+  expect(new Set(roomTemplates.map(t=>t.id)).size).toBe(26);
   for(const t of roomTemplates){const image=templateImage(t);expect(image).toMatch(/^\/room-designs\/[a-z0-9-]+\.webp$/);expect(existsSync(`public${image}`)).toBe(true);}
  });
 });

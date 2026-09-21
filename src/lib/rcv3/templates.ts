@@ -16,6 +16,16 @@ export const roomTemplates = [
  {id:'office-collection-20260921-08',name:'Future Tech Office',category:'Office',keywords:'future tech office',image:'/room-designs/office-collection-20260921-08.webp'},
  {id:'office-collection-20260921-09',name:'Nature Lounge Office',category:'Office',keywords:'nature lounge office',image:'/room-designs/office-collection-20260921-09.webp'},
  {id:'office-collection-20260921-10',name:'Skyline Collaborative Office',category:'Office',keywords:'skyline collaborative office',image:'/room-designs/office-collection-20260921-10.webp'},
+ {id:'flower-office-20260921-01',name:'Rose Courtyard Office',category:'Flower Offices',keywords:'flowers plants blooming happy rose courtyard office',image:'/room-designs/flower-office-20260921-01.webp'},
+ {id:'flower-office-20260921-02',name:'Orchid Conservatory Office',category:'Flower Offices',keywords:'flowers plants blooming happy orchid conservatory office',image:'/room-designs/flower-office-20260921-02.webp'},
+ {id:'flower-office-20260921-03',name:'Tulip Canal Office',category:'Flower Offices',keywords:'flowers plants blooming happy tulip canal office',image:'/room-designs/flower-office-20260921-03.webp'},
+ {id:'flower-office-20260921-04',name:'Sunflower Workshop Office',category:'Flower Offices',keywords:'flowers plants blooming happy sunflower workshop office',image:'/room-designs/flower-office-20260921-04.webp'},
+ {id:'flower-office-20260921-05',name:'Hydrangea Rain Garden Office',category:'Flower Offices',keywords:'flowers plants blooming happy hydrangea rain garden office',image:'/room-designs/flower-office-20260921-05.webp'},
+ {id:'flower-office-20260921-06',name:'Bougainvillea Terrace Office',category:'Flower Offices',keywords:'flowers plants blooming happy bougainvillea terrace office',image:'/room-designs/flower-office-20260921-06.webp'},
+ {id:'flower-office-20260921-07',name:'Camellia Brick Studio',category:'Flower Offices',keywords:'flowers plants blooming happy camellia brick studio',image:'/room-designs/flower-office-20260921-07.webp'},
+ {id:'flower-office-20260921-08',name:'Lavender Alpine Office',category:'Flower Offices',keywords:'flowers plants blooming happy lavender alpine office',image:'/room-designs/flower-office-20260921-08.webp'},
+ {id:'flower-office-20260921-09',name:'Lotus Pavilion Office',category:'Flower Offices',keywords:'flowers plants blooming happy lotus pavilion office',image:'/room-designs/flower-office-20260921-09.webp'},
+ {id:'flower-office-20260921-10',name:'Dahlia Art Deco Office',category:'Flower Offices',keywords:'flowers plants blooming happy dahlia art deco office',image:'/room-designs/flower-office-20260921-10.webp'},
 ] as const;
 export type RoomTemplate = typeof roomTemplates[number];
 export function templateImage(t:RoomTemplate){return t.image;}
