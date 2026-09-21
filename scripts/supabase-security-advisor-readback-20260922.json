@@ -1,5 +1,9 @@
 {
-  "source": "Supabase Security Advisor read-only evidence",
+  "source": {
+    "provider": "Supabase Security Advisor",
+    "queryMode": "READ_ONLY",
+    "hostedMutationPerformed": false
+  },
   "observedAt": "2026-09-21T19:50:26.403Z",
   "securityRegression": {
     "status": "NEEDS_REVIEW",
