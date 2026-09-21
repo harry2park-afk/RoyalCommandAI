@@ -30,10 +30,27 @@ const evidence = JSON.parse(raw) as {
     root_cause_verified: boolean;
     root_cause: string;
   };
+  deployment_checkpoint: {
+    repository: string;
+    commit_sha: string;
+    commit_timestamp_utc: string;
+    commit_message: string;
+    file: string;
+    branch_observed: string;
+    migration_version_timestamp_utc: string;
+    checkpoint_seconds_after_migration_version: number;
+    states_named_migration_was_applied_to_royalcommand_supabase: boolean;
+    states_internal_uuid_remains_security_identity: boolean;
+    states_customer_number_is_not_access_authority: boolean;
+    copies_customer_specific_value_into_this_evidence: boolean;
+    checkpoint_is_original_sql_artifact: boolean;
+    checkpoint_is_independent_reviewer_approval: boolean;
+  };
   deployment_trust: {
     hosted_statement_body_recovered: boolean;
     ledger_created_by_present: boolean;
     ledger_created_by_value_published: boolean;
+    deployment_checkpoint_provenance_verified: boolean;
     original_git_source_provenance_verified: boolean;
     reviewer_provenance_verified: boolean;
     safe_for_replay: boolean;
@@ -42,6 +59,7 @@ const evidence = JSON.parse(raw) as {
   };
   launch_implication: {
     previous_body_unknown_blocker_narrowed: boolean;
+    deployment_checkpoint_blocker_narrowed: boolean;
     customer_account_acl_root_cause_verified: boolean;
     customer_account_authority_verified: boolean;
     allocator_verified: boolean;
@@ -96,18 +114,37 @@ describe("Hosted migration 20260920091809 redacted body evidence", () => {
     expect(evidence.launch_implication.customer_account_authority_verified).toBe(false);
   });
 
-  it("narrows the blocker without pretending deployment provenance is closed", () => {
+  it("binds the contemporaneous GitHub checkpoint without misclassifying it as source or review approval", () => {
+    const checkpoint = evidence.deployment_checkpoint;
+
+    expect(checkpoint.repository).toBe("harry2park-afk/RoyalCommandAI");
+    expect(checkpoint.commit_sha).toBe("f4a61d2e76adf481d5869a9501119bbf423f83f5");
+    expect(checkpoint.commit_timestamp_utc).toBe("2026-09-20T09:20:20Z");
+    expect(checkpoint.file).toBe("docs/continuity/SESSION_LOG.md");
+    expect(checkpoint.migration_version_timestamp_utc).toBe("2026-09-20T09:18:09Z");
+    expect(checkpoint.checkpoint_seconds_after_migration_version).toBe(131);
+    expect(checkpoint.states_named_migration_was_applied_to_royalcommand_supabase).toBe(true);
+    expect(checkpoint.states_internal_uuid_remains_security_identity).toBe(true);
+    expect(checkpoint.states_customer_number_is_not_access_authority).toBe(true);
+    expect(checkpoint.copies_customer_specific_value_into_this_evidence).toBe(false);
+    expect(checkpoint.checkpoint_is_original_sql_artifact).toBe(false);
+    expect(checkpoint.checkpoint_is_independent_reviewer_approval).toBe(false);
+    expect(evidence.launch_implication.deployment_checkpoint_blocker_narrowed).toBe(true);
+  });
+
+  it("narrows deployment provenance without pretending source or reviewer provenance is closed", () => {
     expect(evidence.source.query_mode).toBe("READ_ONLY");
     expect(evidence.source.hosted_mutation_performed).toBe(false);
     expect(evidence.deployment_trust.hosted_statement_body_recovered).toBe(true);
     expect(evidence.deployment_trust.ledger_created_by_present).toBe(true);
     expect(evidence.deployment_trust.ledger_created_by_value_published).toBe(false);
+    expect(evidence.deployment_trust.deployment_checkpoint_provenance_verified).toBe(true);
     expect(evidence.deployment_trust.original_git_source_provenance_verified).toBe(false);
     expect(evidence.deployment_trust.reviewer_provenance_verified).toBe(false);
     expect(evidence.deployment_trust.safe_for_replay).toBe(false);
     expect(evidence.deployment_trust.trusted_baseline_may_advance).toBe(false);
     expect(evidence.deployment_trust.status).toBe(
-      "BODY_AND_ACL_ROOT_CAUSE_RECOVERED_GIT_AND_REVIEW_PROVENANCE_UNRESOLVED",
+      "BODY_ACL_AND_DEPLOYMENT_CHECKPOINT_RECOVERED_SOURCE_AND_REVIEW_PROVENANCE_UNRESOLVED",
     );
     expect(evidence.launch_implication.previous_body_unknown_blocker_narrowed).toBe(true);
     expect(evidence.launch_implication.allocator_verified).toBe(false);
