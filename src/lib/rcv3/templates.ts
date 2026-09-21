@@ -6,6 +6,16 @@ export const roomTemplates = [
  {id:'forest-office',name:'Forest Office',category:'Office',keywords:'forest nature wood',image:'/room-designs/forest-office-v1.webp'},
  {id:'illustrated-office',name:'Illustrated Office',category:'Illustration',keywords:'illustrated bright city',image:'/room-designs/illustrated-office-v1.webp'},
  {id:'classic-office',name:'Classic Office',category:'Office',keywords:'classic warm wood',image:'/room-designs/classic-office-v1.webp'},
+ {id:'office-collection-20260921-01',name:'Harbour Team Office',category:'Office',keywords:'harbour team office',image:'/room-designs/office-collection-20260921-01.webp'},
+ {id:'office-collection-20260921-02',name:'Airport Executive Office',category:'Office',keywords:'airport executive office',image:'/room-designs/office-collection-20260921-02.webp'},
+ {id:'office-collection-20260921-03',name:'Heritage Library Office',category:'Office',keywords:'heritage library office',image:'/room-designs/office-collection-20260921-03.webp'},
+ {id:'office-collection-20260921-04',name:'Garden Studio Office',category:'Office',keywords:'garden studio office',image:'/room-designs/office-collection-20260921-04.webp'},
+ {id:'office-collection-20260921-05',name:'Creative Loft Office',category:'Office',keywords:'creative loft office',image:'/room-designs/office-collection-20260921-05.webp'},
+ {id:'office-collection-20260921-06',name:'City Finance Office',category:'Office',keywords:'city finance office',image:'/room-designs/office-collection-20260921-06.webp'},
+ {id:'office-collection-20260921-07',name:'Coastal Team Office',category:'Office',keywords:'coastal team office',image:'/room-designs/office-collection-20260921-07.webp'},
+ {id:'office-collection-20260921-08',name:'Future Tech Office',category:'Office',keywords:'future tech office',image:'/room-designs/office-collection-20260921-08.webp'},
+ {id:'office-collection-20260921-09',name:'Nature Lounge Office',category:'Office',keywords:'nature lounge office',image:'/room-designs/office-collection-20260921-09.webp'},
+ {id:'office-collection-20260921-10',name:'Skyline Collaborative Office',category:'Office',keywords:'skyline collaborative office',image:'/room-designs/office-collection-20260921-10.webp'},
 ] as const;
 export type RoomTemplate = typeof roomTemplates[number];
 export function templateImage(t:RoomTemplate){return t.image;}
