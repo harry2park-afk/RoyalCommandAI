@@ -16,6 +16,7 @@ export type CountryOperationalEvidence = {
   roomFactoryTemplates?: OperationalEvidenceStatus;
   roomFactoryWriteAuthority?: OperationalEvidenceStatus;
   tenantIsolation?: OperationalEvidenceStatus;
+  customerAccountAuthority?: OperationalEvidenceStatus;
   paymentOperations?: OperationalEvidenceStatus;
   complianceEvidence?: OperationalEvidenceStatus;
 };
@@ -33,6 +34,7 @@ export type CountryOperationalBlockerCode =
   | "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED"
   | "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED"
   | "TENANT_ISOLATION_NOT_VERIFIED"
+  | "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "COMPLIANCE_EVIDENCE_NOT_VERIFIED";
 
@@ -58,6 +60,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "roomFactoryTemplates", blocker: "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED" },
   { key: "roomFactoryWriteAuthority", blocker: "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED" },
   { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
+  { key: "customerAccountAuthority", blocker: "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "complianceEvidence", blocker: "COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
 ] as const;
@@ -75,7 +78,10 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * Room Factory template/runtime proof and Room Factory write-authority proof
  * are deliberately separate. A country must not become launchable merely
  * because templates exist while direct client writes to the manifest surface
- * remain possible.
+ * remain possible. Customer account authority is also independent from broad
+ * tenant-isolation evidence so a country cannot launch while authenticated
+ * clients retain unsafe direct writes or customer-number allocation is not
+ * verified through the controlled account path.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
