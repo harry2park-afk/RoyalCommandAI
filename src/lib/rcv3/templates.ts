@@ -33,6 +33,12 @@ export const roomTemplates = [
  {id:'uploaded-office-20260921-05',name:'Royal Command Community Office',category:'Royal Command',keywords:'royal command community office',image:'/room-designs/uploaded-office-20260921-05.webp'},
  {id:'uploaded-office-20260921-06',name:'RC Hobby Workshop Collage',category:'Workshop',keywords:'rc hobby workshop collage',image:'/room-designs/uploaded-office-20260921-06.webp'},
  {id:'uploaded-office-20260921-07',name:'Collaboration Design Studio',category:'Studio',keywords:'collaboration design studio',image:'/room-designs/uploaded-office-20260921-07.webp'},
+ {id:'illustrated-office-20260921-01',name:'Illustrated Open Plan Office',category:'Illustration',keywords:'illustrated open plan office',image:'/room-designs/illustrated-office-20260921-01.webp'},
+ {id:'illustrated-office-20260921-02',name:'Illustrated Executive Collaboration',category:'Illustration',keywords:'illustrated executive collaboration',image:'/room-designs/illustrated-office-20260921-02.webp'},
+ {id:'illustrated-office-20260921-03',name:'Illustrated Advisory Office',category:'Illustration',keywords:'illustrated advisory office',image:'/room-designs/illustrated-office-20260921-03.webp'},
+ {id:'illustrated-office-20260921-04',name:'Illustrated Analytics Office',category:'Illustration',keywords:'illustrated analytics office',image:'/room-designs/illustrated-office-20260921-04.webp'},
+ {id:'illustrated-office-20260921-05',name:'Illustrated Cafe Team Office',category:'Illustration',keywords:'illustrated cafe team office',image:'/room-designs/illustrated-office-20260921-05.webp'},
+ {id:'illustrated-office-20260921-06',name:'Five Office Illustration Collage',category:'Illustration',keywords:'five office illustration collage',image:'/room-designs/illustrated-office-20260921-06.webp'},
 ] as const;
 export type RoomTemplate = typeof roomTemplates[number];
 export function templateImage(t:RoomTemplate){return t.image;}
