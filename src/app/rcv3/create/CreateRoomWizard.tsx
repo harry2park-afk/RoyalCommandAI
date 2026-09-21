@@ -32,6 +32,26 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
   const [dirty, setDirty] = useState(false), [error, setError] = useState<CreationMessage | "">("");
   const [status, setStatus] = useState<CreationMessage | "">("");
 
+  const formRef = useRef<HTMLFieldSetElement>(null);
+  const stepHeading = useRef<HTMLElement>(null);
+  const previousStep = useRef(input.step);
+  useEffect(() => {
+    if(previousStep.current===input.step)return;
+    previousStep.current=input.step;
+    stepHeading.current?.scrollIntoView({block:'start'});
+    stepHeading.current?.focus({preventScroll:true});
+  },[input.step]);
+  function moveAfter(id:string){
+    requestAnimationFrame(()=>{
+      const groups=Array.from(formRef.current?.querySelectorAll<HTMLElement>('[data-question]')??[]);
+      const index=groups.findIndex(g=>g.dataset.question===id);
+      const target=groups[index+1];
+      if(index<0)return;
+      if(target){target.scrollIntoView({block:'center',behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});Array.from(target.querySelectorAll<HTMLElement>('input:not(:disabled),select:not(:disabled),button:not(:disabled),summary')).find(el=>el.getClientRects().length>0)?.focus({preventScroll:true});}
+      else void next();
+    });
+  }
+  function fieldNext(id:string){return <button type="button" className={styles.fieldNext} disabled={!loaded||busy} aria-label={`Next after ${id}`} onClick={()=>moveAfter(id)}>Next →</button>;}
   const saving = useRef(false);
   const latestInput = useRef(input);
   useEffect(() => { latestInput.current = input; }, [input]);
@@ -116,42 +136,42 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
     </header>
     <div className={styles.layout}>
       <section className={styles.workspace} aria-label="Room creation">
-        <nav className={styles.steps} aria-label="Creation steps"><span aria-current="step">Step {input.step + 1} of 4 · {steps[input.step]}</span></nav>
+        <nav ref={stepHeading} tabIndex={-1} className={styles.steps} aria-label="Creation steps"><span aria-current="step">Step {input.step + 1} of 4 · {steps[input.step]}</span></nav>
         {error && <div role="alert" className={styles.error}>{<HelpText helpKey={`creation.${error}`}/>}{error === "conflict" ? <button disabled={busy || !loaded} onClick={() => void save(true)}>Save as New Draft</button> : loaded && <button disabled={busy} onClick={() => void save()}>Retry</button>}{!loaded && <button onClick={() => window.location.reload()}>Retry</button>}</div>}
         {status && <p role="status" className={styles.success}>{<HelpText helpKey={`creation.${status}`}/>}</p>}
-        <fieldset disabled={!loaded} className={styles.form}>
+        <fieldset ref={formRef} disabled={!loaded} className={styles.form}>
           {input.step === 0 && <>
             <h2>Room details</h2>
-            <label>Room Name<input autoComplete="off" maxLength={80} value={input.name} onChange={e => update({ ...input, name: e.target.value })}/></label>
-            <p><HelpText helpKey="roomName"/></p>
-            <label>Purpose<select value={purposeChosen?input.purpose:""} onChange={e => {setPurposeChosen(true);update(changePurpose(input, e.target.value));}}>
+            <div data-question="Room Name" className={styles.question}><label>Room Name<input onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing&&input.name.trim()){e.preventDefault();moveAfter("Room Name");}}} onBlur={e=>{if(!e.relatedTarget&&input.name.trim())moveAfter("Room Name");}} autoComplete="off" maxLength={80} value={input.name} onChange={e => update({ ...input, name: e.target.value })}/></label>
+            <p><HelpText helpKey="roomName"/></p>{fieldNext("Room Name")}</div>
+            <div data-question="Purpose" className={styles.question}><label>Purpose<select value={purposeChosen?input.purpose:""} onChange={e => {setPurposeChosen(true);update(changePurpose(input, e.target.value));moveAfter("Purpose");}}>
               <option value="" disabled>Choose a purpose</option>
               {[...roomPurposes].sort((a,b)=>{const common=["custom","legal","accounting","business"];const rank=(id:string)=>common.includes(id)?common.indexOf(id):100;return rank(a.id)-rank(b.id);}).map(p => <option key={p.id} value={p.id}>{p.id==="custom"?"Personal / Other":p.name}</option>)}
             </select></label>
-            <p><HelpText helpKey="purpose"/></p>
-            <label>Country<select value={setup.country} onChange={e=>update({...input,onboarding:{...setup,country:e.target.value,phoneOfferId:"",phoneNumberId:"",phoneConsent:false}})}><option value="" disabled>Choose your country</option>{COUNTRY_ROOM_PRESETS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label><p><HelpText helpKey="country"/></p>
+            <p><HelpText helpKey="purpose"/></p>{fieldNext("Purpose")}</div>
+            <div data-question="Country" className={styles.question}><label>Country<select value={setup.country} onChange={e=>{update({...input,onboarding:{...setup,country:e.target.value,phoneOfferId:"",phoneNumberId:"",phoneConsent:false}});moveAfter("Country");}}><option value="" disabled>Choose your country</option>{COUNTRY_ROOM_PRESETS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label><p><HelpText helpKey="country"/></p>{fieldNext("Country")}</div>
             {purposeChosen && <>
             <p><HelpText helpKey={`purpose.${purpose.id}`}/></p>
-            {purpose.fields.map(field => <div key={field.id} className={styles.field}><strong>{field.label}</strong>
+            {purpose.fields.map(field => <div key={field.id} data-question={field.label} className={styles.question}><strong>{field.label}</strong>
               <p><HelpText helpKey={field.options?"chooseOptions":"customPurpose"}/></p>
-              {field.options ? <div className={styles.choices}>{field.options.map(option => <label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option) || false} onChange={() => { const old = input.answers[field.id] || []; update({ ...input, answers: { ...input.answers, [field.id]: old.includes(option) ? old.filter(x => x !== option) : [...old, option] } }); }}/>{option}</label>)}</div> : <input aria-label={field.label} maxLength={300} placeholder="For example: organise my email and appointments" value={input.answers[field.id]?.[0] || ""} onChange={e => update({ ...input, answers: { ...input.answers, [field.id]: e.target.value.trim() ? [e.target.value] : [] } })}/>}</div>)}
+              {field.options ? <div className={styles.choices}>{field.options.map(option => <label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option) || false} onChange={() => { const old = input.answers[field.id] || []; update({ ...input, answers: { ...input.answers, [field.id]: old.includes(option) ? old.filter(x => x !== option) : [...old, option] } }); }}/>{option}</label>)}</div> : <input onKeyDown={e=>{if(e.key==="Enter"&&!e.nativeEvent.isComposing){e.preventDefault();moveAfter(field.label);}}} onBlur={e=>{if(!e.relatedTarget&&e.target.value.trim())moveAfter(field.label);}} aria-label={field.label} maxLength={300} placeholder="For example: organise my email and appointments" value={input.answers[field.id]?.[0] || ""} onChange={e => update({ ...input, answers: { ...input.answers, [field.id]: e.target.value.trim() ? [e.target.value] : [] } })}/> }{fieldNext(field.label)}</div>)}
             </>}
 
           </>}
           {input.step === 1 && <>
             <h2>Choose what you need</h2>
-            <div className={styles.field}><strong>Tasks</strong><p><HelpText helpKey="tasks"/></p><div className={styles.choices}>{purpose.suggestedAgents.map(task => <label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={() => update({ ...input, tasks: input.tasks.includes(task) ? input.tasks.filter(t => t !== task) : [...input.tasks, task] })}/>{task}</label>)}</div></div>
-            <div className={styles.field}><strong>Your AI</strong><p>{input.providers.map(id=>providers.find(p=>p.id===id)?.label).join(", ") || "No AI selected"}</p><p><HelpText helpKey="ai"/></p>
-              <details><summary>More AI options</summary><div className={styles.choices}>{providers.map(p => <label key={p.id}><input type="checkbox" checked={input.providers.includes(p.id)} onChange={() => providerToggle(p.id)}/>{p.label}</label>)}</div></details>
+            <div data-question="Tasks" className={styles.question}><strong>Tasks</strong><p><HelpText helpKey="tasks"/></p><div className={styles.choices}>{purpose.suggestedAgents.map(task => <label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={() => update({ ...input, tasks: input.tasks.includes(task) ? input.tasks.filter(t => t !== task) : [...input.tasks, task] })}/>{task}</label>)}</div>{fieldNext("Tasks")}</div>
+            <div data-question="Your AI" className={styles.question}><strong>Your AI</strong><p>{input.providers.map(id=>providers.find(p=>p.id===id)?.label).join(", ") || "No AI selected"}</p><p><HelpText helpKey="ai"/></p>
+              <details><summary>More AI options</summary><div className={styles.choices}>{providers.map(p => <label key={p.id}><input type="checkbox" checked={input.providers.includes(p.id)} onChange={() => providerToggle(p.id)}/>{p.label}</label>)}</div></details>{fieldNext("Your AI")}
             </div>
-            <div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e => {const next=selectSecretary({...input,onboarding:setup},e.target.checked);if(e.target.checked&&!next.secretarySetup.email)next.secretarySetup.email=accountEmail;update(next);}}/>AI Secretary</label><label><input type="checkbox" checked={input.specialAI} onChange={e => update({ ...input, specialAI: e.target.checked })}/>Specialist AI</label></div>
+            <div data-question="AI Secretary" className={styles.question}><div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e => {const next=selectSecretary({...input,onboarding:setup},e.target.checked);if(e.target.checked&&!next.secretarySetup.email)next.secretarySetup.email=accountEmail;update(next);}}/>AI Secretary</label><label><input type="checkbox" checked={input.specialAI} onChange={e => update({ ...input, specialAI: e.target.checked })}/>Specialist AI</label></div>
             <p><HelpText helpKey="secretary"/></p>
             {input.secretary && <section aria-label="Secretary setup" className={styles.field}>
 
               <label>{creationText("secretaryEmail", "en")}<input type="email" autoComplete="off" maxLength={254} value={input.secretarySetup.email} onChange={e => update({ ...input, secretarySetup: { ...input.secretarySetup, email: e.target.value } })}/></label><p><HelpText helpKey="email"/></p>
               <label>Contact phone (optional)<input type="tel" autoComplete="off" maxLength={40} value={input.secretarySetup.phone} onChange={e => update({ ...input, secretarySetup: { ...input.secretarySetup, phone: e.target.value } })}/></label><p><HelpText helpKey="setupContactPhone"/></p>
             </section>}
-            <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} disabled={busy||!loaded}/>
+            <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} disabled={busy||!loaded}/>{fieldNext("AI Secretary")}</div>
           </>}
           {input.step === 2 && <>
             <h2>Choose a design</h2><p><HelpText helpKey="design"/></p><div className={styles.designs}>{roomTemplates.map(t => <button key={t.id} type="button" aria-pressed={input.templateId === t.id} onClick={() => update({ ...input, templateId: t.id })}><img loading="lazy" src={templateImage(t)} alt={t.name} width={1672} height={941}/><span>{t.name}{input.templateId === t.id ? " ✓" : ""}</span></button>)}</div>

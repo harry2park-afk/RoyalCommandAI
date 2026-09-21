@@ -6,3 +6,6 @@
 
 .page .header h1{position:static!important;inset:auto!important;transform:none!important;width:auto!important;height:auto!important;max-width:none!important;margin:0!important;text-align:left!important;line-height:1.25!important;justify-self:start!important}
 @media(max-width:760px){.page{padding-bottom:max(16px,env(safe-area-inset-bottom))!important}.page input:not([type=checkbox]):not([type=radio]),.page select,.page textarea{font-size:16px}.page button{min-height:44px}}
+
+/* Keep the next action beside the question and saving within reach. */
+.question{margin:18px 0;padding:18px;border:1px solid #344555;border-radius:12px;scroll-margin:24px}.question>label{display:grid;gap:8px}.question p{margin:8px 0}.question:focus-within{border-color:#77edca}.page .fieldNext{display:block;margin:14px 0 0 auto;min-width:110px;color:#062722;background:#77edca}.page .footer{position:fixed;bottom:0;left:0;right:0;z-index:80;margin:0;padding:12px max(24px,calc((100vw - 780px)/2));padding-bottom:max(12px,env(safe-area-inset-bottom));background:#0a1521f5;box-shadow:0 -4px 18px #0004;flex-wrap:nowrap}.page .footer button{min-height:48px;white-space:nowrap}.page{padding-bottom:110px!important}.steps{scroll-margin-top:24px}@media(max-width:760px){.page .footer{padding-left:12px;padding-right:12px;gap:8px}.question{padding:14px}.page .footer button{padding:10px}}
