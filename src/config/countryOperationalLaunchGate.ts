@@ -13,6 +13,7 @@ export type CountryOperationalEvidence = {
   requiredIntegrations: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
+  securityRegression?: OperationalEvidenceStatus;
   deploymentProvenance?: OperationalEvidenceStatus;
   roomFactoryTemplates?: OperationalEvidenceStatus;
   roomFactoryRuntime?: OperationalEvidenceStatus;
@@ -37,6 +38,7 @@ export type CountryOperationalBlockerCode =
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
   | "ROLLBACK_PATH_NOT_VERIFIED"
+  | "SECURITY_REGRESSION_NOT_VERIFIED"
   | "DEPLOYMENT_PROVENANCE_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED"
   | "ROOM_FACTORY_RUNTIME_NOT_VERIFIED"
@@ -69,6 +71,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
+  { key: "securityRegression", blocker: "SECURITY_REGRESSION_NOT_VERIFIED" },
   { key: "deploymentProvenance", blocker: "DEPLOYMENT_PROVENANCE_NOT_VERIFIED" },
   { key: "roomFactoryTemplates", blocker: "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED" },
   { key: "roomFactoryRuntime", blocker: "ROOM_FACTORY_RUNTIME_NOT_VERIFIED" },
@@ -93,27 +96,31 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * older evidence producers still compile, but missing values fail closed.
  * Every item must be explicitly VERIFIED before a country can be launchable.
  *
- * Deployment provenance is independent from preview smoke/rollback proof: a
- * country must not become launchable while the Hosted migration ledger contains
- * an unresolved or unreviewed deployment whose exact source cannot be tied to
- * the approved repository history. Room Factory template proof, runtime creation
- * proof, and write-authority proof are deliberately separate. Static templates
- * are not enough: the country must also prove a real non-null encounter-backed
- * manifest with its exact runtime locale through the controlled Room Factory
- * path, and direct client manifest writes must be blocked. Customer account
- * authority is also independent from broad tenant-isolation evidence so a
- * country cannot launch while authenticated clients retain unsafe direct writes
- * or customer-number allocation is not verified through the controlled account
- * path. Country commercial catalog proof is independent from commercial-review
- * authority: a country must have reviewed, available positive-priced terms and
- * provider offers, and the authority/provenance of the human commercial reviewer
- * must itself be independently verified before launch. Payment commercial
- * authority is independent from payment operations so launch cannot proceed
- * while a client can author amount/currency/terms snapshots even if checkout/
- * webhook mechanics are otherwise operational. Compliance evidence and the
- * authority/provenance of the human compliance reviewer are also independent: a
- * country cannot launch solely because a compliance row says VERIFIED when
- * reviewer identity and review chronology have not themselves been verified.
+ * Security/regression proof is independent from preview smoke and rollback
+ * proof: a country must not become launchable while the exact release candidate
+ * lacks verified QA/security regression evidence or while known Hosted security
+ * findings remain unreviewed. Deployment provenance is also independent from
+ * preview smoke/rollback proof: a country must not become launchable while the
+ * Hosted migration ledger contains an unresolved or unreviewed deployment whose
+ * exact source cannot be tied to the approved repository history. Room Factory
+ * template proof, runtime creation proof, and write-authority proof are
+ * deliberately separate. Static templates are not enough: the country must also
+ * prove a real non-null encounter-backed manifest with its exact runtime locale
+ * through the controlled Room Factory path, and direct client manifest writes
+ * must be blocked. Customer account authority is also independent from broad
+ * tenant-isolation evidence so a country cannot launch while authenticated
+ * clients retain unsafe direct writes or customer-number allocation is not
+ * verified through the controlled account path. Country commercial catalog
+ * proof is independent from commercial-review authority: a country must have
+ * reviewed, available positive-priced terms and provider offers, and the
+ * authority/provenance of the human commercial reviewer must itself be
+ * independently verified before launch. Payment commercial authority is
+ * independent from payment operations so launch cannot proceed while a client
+ * can author amount/currency/terms snapshots even if checkout/webhook mechanics
+ * are otherwise operational. Compliance evidence and the authority/provenance
+ * of the human compliance reviewer are also independent: a country cannot
+ * launch solely because a compliance row says VERIFIED when reviewer identity
+ * and review chronology have not themselves been verified.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
