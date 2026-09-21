@@ -23,6 +23,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   tenantIsolation: "NEEDS_REVIEW",
   customerAccountAuthority: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
+  complianceReviewAuthority: "NEEDS_REVIEW",
   complianceEvidence: "NEEDS_REVIEW",
 };
 
@@ -41,6 +42,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   tenantIsolation: "VERIFIED",
   customerAccountAuthority: "VERIFIED",
   paymentOperations: "VERIFIED",
+  complianceReviewAuthority: "VERIFIED",
   complianceEvidence: "VERIFIED",
 };
 
@@ -85,6 +87,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_EVIDENCE_NOT_VERIFIED");
     }
   });
@@ -124,6 +127,7 @@ describe("country operational launch readiness gate", () => {
       "TENANT_ISOLATION_NOT_VERIFIED",
       "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
+      "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED",
       "COMPLIANCE_EVIDENCE_NOT_VERIFIED",
     ]);
   });
@@ -156,6 +160,21 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"]);
+  });
+
+  it("fails closed if compliance reviewer authority has not been independently verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      complianceReviewAuthority: "BLOCKED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED"]);
   });
 
   it("fails closed on any missing operational verification even when the country gate is ready", () => {
