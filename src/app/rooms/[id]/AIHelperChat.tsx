@@ -85,9 +85,9 @@ function micText(lang: Lang, key: "checking" | "ready" | "listening" | "hearing"
   }[key];
 }
 
-export default function AIHelperChat() {
+export default function AIHelperChat({ formLanguage }: { formLanguage?: string } = {}) {
   const params = useParams<{ id: string }>();
-  const roomId = params.id;
+  const roomId = formLanguage !== undefined ? "rca" : params.id;
   const [open, setOpen] = useState(false);
   const [lang, setLang] = useState<Lang>("en");
   const [messages, setMessages] = useState<Message[]>([]);
@@ -128,7 +128,7 @@ export default function AIHelperChat() {
   useEffect(() => { messagesRef.current = messages; }, [messages]);
 
   useEffect(() => {
-    const sync = () => setLang(detectSelectedLanguage());
+    const sync = () => setLang(formLanguage !== undefined ? ((formLanguage.split("-")[0] in COPY ? formLanguage.split("-")[0] : "en") as Lang) : detectSelectedLanguage());
     sync();
     document.addEventListener("change", sync, true);
     window.addEventListener("rc:language-change", sync as EventListener);
@@ -139,7 +139,7 @@ export default function AIHelperChat() {
       window.removeEventListener("rc:language-change", sync as EventListener);
       observer.disconnect();
     };
-  }, []);
+  }, [formLanguage]);
 
   useEffect(() => {
     if (!open) return;
@@ -470,7 +470,7 @@ export default function AIHelperChat() {
     await sendMessage(input);
   }
 
-  const closedStyle = !open && helperPosition
+  const closedStyle = formLanguage !== undefined ? { right: "20px", bottom: "90px" } : !open && helperPosition
     ? { left: `${helperPosition.left}px`, top: `${helperPosition.top}px` }
     : undefined;
 
@@ -490,7 +490,7 @@ export default function AIHelperChat() {
             <img src="/ai-helper-woman.svg" alt="Royal Command AI Helper" className={`relative h-full w-full object-contain object-bottom transition-all duration-500 ${speaking ? "scale-[1.02] brightness-110" : "scale-100"}`} />
           </div>
 
-          <div className="px-5">
+          <div className={formLanguage !== undefined ? "px-5 pb-4 flex-1 min-h-0 overflow-y-auto" : "px-5"}>
             <div className="flex items-center gap-2 text-[#d7b64d]">
               {speechStatus && speechStatus !== "idle" && <span role="status" className="text-xs">{speakerNotice(speechStatus, lang)}{speechStatus === "error" && <button type="button" onClick={retrySpeech}>Retry audio</button>}</span>}
               <button type="button" aria-pressed={speakerEnabled} aria-label={speakerEnabled ? "AI Help speaker on" : "AI Help speaker off"} onClick={toggleSpeaker} className={`grid h-8 w-8 shrink-0 place-items-center rounded-full border ${speakerEnabled ? "border-emerald-400/70 bg-emerald-500/15 text-emerald-300" : "border-[#d7b64d]/70 text-[#d7b64d]"}`} title={speakerEnabled ? "AI Help speaker on" : "AI Help speaker off"}>{speakerEnabled ? <Volume2 size={15} /> : <VolumeX size={15} />}</button>
@@ -523,7 +523,7 @@ export default function AIHelperChat() {
         </div>
       ) : (
         <button ref={helperButtonRef} type="button" onClick={openHelper} className="flex h-10 items-center gap-2 whitespace-nowrap rounded-xl border border-[#d7b64d] bg-[#7A0C2E] px-4 text-[13px] font-semibold leading-none text-[#ffe18a] shadow-[0_6px_22px_rgba(0,0,0,.45)] hover:bg-[#94113a]" title={copy.title}>
-          <Bot size={15} />{copy.button}
+          {formLanguage !== undefined ? <img src="/ai-helper-woman.svg" alt="" width={36} height={36}/> : <Bot size={15} />}{copy.button}
         </button>
       )}
     </div>

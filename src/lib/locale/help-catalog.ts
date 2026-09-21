@@ -4,7 +4,8 @@ export type HelpEntry = {en:string;ko?:string};
 // Public product guidance only. Never register customer text, messages, files,
 // contacts or contract bodies here. The translation API accepts these IDs only.
 export const helpCatalog: Record<string,HelpEntry> = {
- createOverview:{en:"Use the buttons to choose room details, AI and tools, or a design in any order. Skip optional features you do not need. Save Draft keeps your choices for later. When ready, open Review & Payment to check the price and finish.",ko:"버튼을 눌러 방 정보, AI와 업무 기능, 디자인을 원하는 순서로 선택하세요. 필요 없는 선택 기능은 지나가셔도 됩니다. Save Draft로 저장하고, 준비되면 Review & Payment에서 요금 확인과 결제를 진행하세요."},
+ createOverview:{en:"Work down this page: room details, AI and tools, design, then review and payment. Select the optional features you need and pass over the rest. Save Draft keeps your choices for later.",ko:"이 페이지를 위에서 아래로 작성하세요. 방 정보 → AI와 업무 기능 → 디자인 → 확인 및 결제 순서입니다. 필요한 선택 기능만 고르고, 필요 없는 항목은 지나가세요. Save Draft로 저장하고 나중에 이어서 작성할 수 있습니다."},
+ createDesignOptional:{en:"Keep the current design and pass over this section, or open Choose a design to select another background.",ko:"현재 디자인을 그대로 쓰려면 이 항목을 지나가세요. 바꾸려면 Choose a design을 눌러 다른 배경을 선택하세요."},
  createRequired:{en:"Before reviewing the price, enter a room name, purpose and country, select an AI, and complete any secretary details you chose to add.",ko:"요금을 확인하려면 방 이름·목적·국가와 AI를 선택하세요. 비서를 추가했다면 비서 정보도 작성하세요."},
  createStep1:{en:"Name your room and choose its purpose and country. The questions change to match your purpose.",ko:"방 이름, 사용 목적, 국가를 선택하세요. 목적에 맞는 질문이 표시됩니다."},
  createStep2:{en:"Choose the tasks your AI will help with and which AI to use. You can also add a secretary or specialist AI and set up available email and phone connections. Choose only what you need.",ko:"AI에게 맡길 업무와 사용할 AI를 선택하세요. 비서나 전문 AI를 추가하고, 이용 가능한 이메일·전화 연결을 설정할 수 있습니다. 필요한 기능만 선택하세요."},

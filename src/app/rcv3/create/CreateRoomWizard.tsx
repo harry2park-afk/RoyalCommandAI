@@ -5,12 +5,12 @@ import { roomTemplates, templateImage } from "@/lib/rcv3/templates";
 import { creationText, type CreationMessage } from "@/lib/locale/rcv3-creation";
 import type { AIProviderId } from "@/lib/ai/types";
 import HelpText from "@/components/help/HelpText";
+import AIHelperChat from "@/app/rooms/[id]/AIHelperChat";
 import CheckoutPanel from "./CheckoutPanel";
 import CustomerConnections from "./CustomerConnections";
 import { COUNTRY_ROOM_PRESETS } from "@/lib/rooms/countryPresets";
 import styles from "./create.module.css";
 
-const steps = ["Room Setup", "AI & Tools", "Design", "Review"];
 async function draftsRequest(body?: unknown): Promise<DraftRegistry> {
   const response = await fetch("/api/rcv3/drafts", {
     method: body ? "PUT" : "GET", cache: "no-store", signal: AbortSignal.timeout(20000),
@@ -20,8 +20,8 @@ async function draftsRequest(body?: unknown): Promise<DraftRegistry> {
   if (!response.ok) throw new Error(data.code || "RCV3_STORAGE");
   return data;
 }
-export default function CreateRoomWizard({ language, providers, accountEmail, country }: {
-  accountEmail: string; country: string; language: string; providers: { id: AIProviderId; label: string }[];
+export default function CreateRoomWizard({ helperAvailable, language, providers, accountEmail, country }: {
+  helperAvailable: boolean; accountEmail: string; country: string; language: string; providers: { id: AIProviderId; label: string }[];
 }) {
   const defaultInput = useCallback((): RoomDraftInput => ({...newRoomDraft(),onboarding:{country:COUNTRY_ROOM_PRESETS.some(c=>c.id===country)?country:"",aiSources:{},emailEnabled:false,phoneRequested:false,phoneOfferId:""},providers:providers.some(p=>p.id==="openai")?["openai"]:providers[0]?[providers[0].id]:[]}),[providers,country]);
   const [input, setInput] = useState<RoomDraftInput>(defaultInput);
@@ -101,7 +101,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
     const aiSources = Object.fromEntries(Object.entries(setup.aiSources).filter(([key])=>selected.includes(key as AIProviderId)));
     update({...input, providers:selected,onboarding:{...setup,aiSources}});
   };
-  return <main className={styles.page}>
+  return <><main className={styles.page}>
     <header className={styles.header}><a href="/rcv3">← My Room</a><h1>Create Room</h1>
       <span className={styles.saveState} role="status">{busy ? "Saving…" : dirty ? "Unsaved changes" : loaded ? "Saved forms available below" : "Loading…"}</span>
       <button disabled={!loaded || busy} onClick={() => void save()}>Save Draft</button>
@@ -109,15 +109,11 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
     <div className={styles.layout}>
       <section className={styles.workspace} aria-label="Room creation">
         <div className={styles.overview}><HelpText helpKey="createOverview"/></div>
-        <nav className={styles.sectionButtons} aria-label="Room settings">
-          {steps.map((label,index)=><button type="button" key={label} aria-pressed={input.step===index} disabled={!loaded||busy} onClick={()=>update({...input,step:index})}>{index===3?"Review & Payment":label}</button>)}
-        </nav>
-        <p className={styles.stepHelp}><HelpText helpKey={`createStep${input.step+1}`}/></p>
         {error && <div role="alert" className={styles.error}>{<HelpText helpKey={`creation.${error}`}/>}{error === "conflict" ? <button disabled={busy || !loaded} onClick={() => void save(true)}>Save as New Draft</button> : loaded && <button disabled={busy} onClick={() => void save()}>Retry</button>}{!loaded && <button onClick={() => window.location.reload()}>Retry</button>}</div>}
         {status && <p role="status" className={styles.success}>{<HelpText helpKey={`creation.${status}`}/>}</p>}
         <fieldset disabled={!loaded} className={styles.form}>
-          {input.step === 0 && <>
-            <h2>Room details</h2>
+          <section className={styles.verticalSection} aria-label="Room Setup">
+            <h2>1. Room Setup</h2><p><HelpText helpKey="createStep1"/></p>
             <div data-question="Room Name" className={styles.question}><label>Room Name<input autoComplete="off" maxLength={80} value={input.name} onChange={e => update({ ...input, name: e.target.value })}/></label>
             <p><HelpText helpKey="roomName"/></p></div>
             <div data-question="Purpose" className={styles.question}><label>Purpose<select value={purposeChosen?input.purpose:""} onChange={e => {setPurposeChosen(true);update(changePurpose(input, e.target.value));}}>
@@ -133,9 +129,9 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
               {field.options ? <div className={styles.choices}>{field.options.map(option => <label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option) || false} onChange={() => { const old = input.answers[field.id] || []; update({ ...input, answers: { ...input.answers, [field.id]: old.includes(option) ? old.filter(x => x !== option) : [...old, option] } }); }}/>{option}</label>)}</div> : <input aria-label={field.label} maxLength={300} placeholder="For example: organise my email and appointments" value={input.answers[field.id]?.[0] || ""} onChange={e => update({ ...input, answers: { ...input.answers, [field.id]: e.target.value.trim() ? [e.target.value] : [] } })}/> }</div>)}
             </>}
 
-          </>}
-          {input.step === 1 && <>
-            <h2>Choose what you need</h2>
+          </section>
+          <section className={styles.verticalSection} aria-label="AI & Tools">
+            <h2>2. AI &amp; Tools</h2><p><HelpText helpKey="createStep2"/></p>
             <div data-question="Tasks" className={styles.question}><strong>Tasks</strong><p><HelpText helpKey="tasks"/></p><div className={styles.choices}>{purpose.suggestedAgents.map(task => <label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={() => update({ ...input, tasks: input.tasks.includes(task) ? input.tasks.filter(t => t !== task) : [...input.tasks, task] })}/>{task}</label>)}</div></div>
             <div data-question="Your AI" className={styles.question}><strong>Your AI</strong><p>{input.providers.map(id=>providers.find(p=>p.id===id)?.label).join(", ") || "No AI selected"}</p><p><HelpText helpKey="ai"/></p>
               <details><summary>More AI options</summary><div className={styles.choices}>{providers.map(p => <label key={p.id}><input type="checkbox" checked={input.providers.includes(p.id)} onChange={() => providerToggle(p.id)}/>{p.label}</label>)}</div></details>
@@ -148,18 +144,18 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
               <label>Contact phone (optional)<input type="tel" autoComplete="off" maxLength={40} value={input.secretarySetup.phone} onChange={e => update({ ...input, secretarySetup: { ...input.secretarySetup, phone: e.target.value } })}/></label><p><HelpText helpKey="setupContactPhone"/></p>
             </section>}
             <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} disabled={busy||!loaded}/></div>
-          </>}
-          {input.step === 2 && <>
-            <h2>Choose a design</h2><p><HelpText helpKey="design"/></p><div className={styles.designs}>{roomTemplates.map(t => <button key={t.id} type="button" aria-pressed={input.templateId === t.id} onClick={() => update({ ...input, templateId: t.id })}><img loading="lazy" src={templateImage(t)} alt={t.name} width={1672} height={941}/><span>{t.name}{input.templateId === t.id ? " ✓" : ""}</span></button>)}</div>
-          </>}
-          {input.step === 3 && <>
-            <h2>{input.name || "Your Room"}</h2><img className={styles.preview} src={templateImage(selectedDesign)} alt={selectedDesign.name} width={1672} height={941}/>
+          </section>
+          <section className={styles.verticalSection} aria-label="Design">
+            <h2>3. Design</h2><p><HelpText helpKey="createDesignOptional"/></p><p>{selectedDesign.name}</p><details><summary>Choose a design</summary><div className={styles.designs}>{roomTemplates.map(t => <button key={t.id} type="button" aria-pressed={input.templateId === t.id} onClick={() => update({ ...input, templateId: t.id })}><img loading="lazy" src={templateImage(t)} alt={t.name} width={1672} height={941}/><span>{t.name}{input.templateId === t.id ? " ✓" : ""}</span></button>)}</div></details>
+          </section>
+          <section className={styles.verticalSection} aria-label="Review & Payment">
+            <h2>4. Review &amp; Payment</h2><p><HelpText helpKey="createStep4"/></p><h3>{input.name || "Your Room"}</h3><img className={styles.preview} src={templateImage(selectedDesign)} alt={selectedDesign.name} width={1672} height={941}/>
             <dl className={styles.summary}><dt>Country</dt><dd>{COUNTRY_ROOM_PRESETS.find(c=>c.id===setup.country)?.label || "—"}</dd><dt>Purpose</dt><dd>{purpose.name}</dd><dt>Tasks</dt><dd>{input.tasks.join(", ") || "None"}</dd><dt>Design</dt><dd>{selectedDesign.name}</dd></dl>
             {input.secretary && <section aria-label="Secretary setup review"><h3>AI Secretary</h3><dl className={styles.summary}><dt>{creationText("secretaryEmail", "en")}</dt><dd>{input.secretarySetup.email || "—"}</dd><dt>{creationText("secretaryPhone", "en")}</dt><dd>{input.secretarySetup.phone || "—"}</dd></dl><p><HelpText helpKey="creation.secretaryPending"/></p></section>}
             {(!purposeChosen || !input.name.trim() || (input.purpose==="custom"&&!input.answers.purpose?.[0]?.trim()) || !setup.country || !input.providers.length || !secretarySetupValid(input)) && <p role="status"><HelpText helpKey="createRequired"/></p>}
             <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy || dirty || !loaded || !purposeChosen || !input.name.trim() || (input.purpose==="custom"&&!input.answers.purpose?.[0]?.trim()) || !setup.country || !input.providers.length || !secretarySetupValid(input)} language={language}/>
 
-          </>}
+          </section>
         </fieldset>
         <footer className={styles.footer}><button disabled={busy || !loaded} onClick={() => void save()}>Save Draft</button></footer>
       </section>
@@ -168,5 +164,5 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
         {registry.drafts.map(d => <button key={d.id} disabled={busy || dirty} aria-pressed={draftId === d.id} onClick={() => loadDraft(d.id)}>{d.input.name || "Untitled Room"}<small>{roomPurposes.find(p => p.id === d.input.purpose)?.name}</small></button>)}
       </details>
     </div>
-  </main>;
+  </main>{helperAvailable && <AIHelperChat formLanguage={language}/>}</>;
 }
