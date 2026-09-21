@@ -1,0 +1,24 @@
+{
+  "source": "Supabase Security Advisor read-only evidence",
+  "observedAt": "2026-09-21T19:50:26.403Z",
+  "securityRegression": {
+    "status": "NEEDS_REVIEW",
+    "externalFindingFamilies": 1,
+    "findingCount": 19,
+    "findings": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "facing": "EXTERNAL",
+        "count": 19,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy"
+      }
+    ],
+    "launchCriticalTablesObserved": [
+      "communication_recording_policies",
+      "rc_service_provider_offers",
+      "rc_service_providers"
+    ],
+    "disposition": "Do not mark SECURITY_REGRESSION VERIFIED until each externally facing finding is remediated or explicitly reviewed and documented as intentional for the launch path."
+  }
+}
