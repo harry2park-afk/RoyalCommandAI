@@ -136,7 +136,12 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
     </header>
     <div className={styles.layout}>
       <section className={styles.workspace} aria-label="Room creation">
-        <nav ref={stepHeading} tabIndex={-1} className={styles.steps} aria-label="Creation steps"><span aria-current="step">Step {input.step + 1} of 4 · {steps[input.step]}</span></nav>
+        <div className={styles.overview}><HelpText helpKey="createOverview"/></div>
+        <nav ref={stepHeading} tabIndex={-1} className={styles.progress} aria-label="Creation steps">
+          <p className={styles.progressTitle}>Step {input.step + 1} of 4 · {steps[input.step]}</p>
+          <ol>{steps.map((label,index)=><li key={label} aria-current={index===input.step?"step":undefined} data-complete={index<input.step}><b>{index<input.step?"✓":index+1}</b><span>{label}</span></li>)}</ol>
+        </nav>
+        <p className={styles.stepHelp}><HelpText helpKey={`createStep${input.step+1}`}/></p>
         {error && <div role="alert" className={styles.error}>{<HelpText helpKey={`creation.${error}`}/>}{error === "conflict" ? <button disabled={busy || !loaded} onClick={() => void save(true)}>Save as New Draft</button> : loaded && <button disabled={busy} onClick={() => void save()}>Retry</button>}{!loaded && <button onClick={() => window.location.reload()}>Retry</button>}</div>}
         {status && <p role="status" className={styles.success}>{<HelpText helpKey={`creation.${status}`}/>}</p>}
         <fieldset ref={formRef} disabled={!loaded} className={styles.form}>

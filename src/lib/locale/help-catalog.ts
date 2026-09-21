@@ -4,6 +4,11 @@ export type HelpEntry = {en:string;ko?:string};
 // Public product guidance only. Never register customer text, messages, files,
 // contacts or contract bodies here. The translation API accepts these IDs only.
 export const helpCatalog: Record<string,HelpEntry> = {
+ createOverview:{en:"Create your room in 4 steps: room details, AI and tools, design, then review and payment. Save Draft lets you finish later.",ko:"4단계로 방을 만듭니다. 방 정보 → AI와 업무 기능 → 디자인 → 확인 및 결제 순서입니다. Save Draft로 저장한 뒤 나중에 이어서 작성할 수 있습니다."},
+ createStep1:{en:"Name your room and choose its purpose and country. The questions change to match your purpose.",ko:"방 이름, 사용 목적, 국가를 선택하세요. 목적에 맞는 질문이 표시됩니다."},
+ createStep2:{en:"Choose the tasks your AI will help with and which AI to use. You can also add a secretary or specialist AI and set up available email and phone connections. Choose only what you need.",ko:"AI에게 맡길 업무와 사용할 AI를 선택하세요. 비서나 전문 AI를 추가하고, 이용 가능한 이메일·전화 연결을 설정할 수 있습니다. 필요한 기능만 선택하세요."},
+ createStep3:{en:"Choose your room background. The design does not change your selected services.",ko:"방의 배경 디자인을 선택하세요. 디자인을 바꾸어도 선택한 서비스는 바뀌지 않습니다."},
+ createStep4:{en:"Check your room, selected services and price. Review the terms before continuing to payment.",ko:"방 정보, 선택한 서비스와 요금을 확인하세요. 약관을 확인한 뒤 결제로 진행합니다."},
  mobileInstall:{en:"Android: open RC in Chrome and choose Install RC when available, or use Add to Home screen in the browser menu. iPhone: open RC in Safari, then Share → Add to Home Screen. Sign in with your existing RC account.",ko:"안드로이드: Chrome에서 RC를 열고 Install RC를 누르거나 브라우저 메뉴의 홈 화면에 추가를 선택하세요. 아이폰: Safari에서 RC를 열고 공유 → 홈 화면에 추가를 선택하세요. 기존 RC 계정으로 로그인하세요."},
  mobileOnline:{en:"Your rooms and history stay in your RC account. An internet connection is needed for AI, email and calls. Installing RC does not enable background phone answering.",ko:"룸과 대화 기록은 기존 RC 계정에 유지됩니다. AI·이메일·전화에는 인터넷 연결이 필요합니다. RC를 설치하는 것만으로 백그라운드 전화 수신이 활성화되지는 않습니다."},
  mobileInstallFailed:{en:"Installation did not finish. Use Add to Home screen in your browser menu, or keep using RC in the browser.",ko:"설치를 완료하지 못했습니다. 브라우저 메뉴의 홈 화면에 추가를 사용하거나 브라우저에서 RC를 계속 사용하세요."},
