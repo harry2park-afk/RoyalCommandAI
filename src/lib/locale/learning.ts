@@ -1,4 +1,5 @@
 const labels = {
+ topicHelp:{en:"Select a topic to read the lesson directly below it. Ask a question in the same section for AI help.",ko:"과목 버튼을 누르면 바로 아래에 수업이 펼쳐집니다. 같은 과목 안에서 질문하면 AI가 답합니다."},
  startLesson:{en:'Start Lesson',ko:'Start Lesson · 수업 시작'},
  startLessonHelp:{en:'Select a topic, then Start Lesson. The AI will explain it and give you a practice task; no typed question is needed.',ko:'과목을 선택한 뒤 Start Lesson을 누르세요. 질문을 쓰지 않아도 AI가 설명하고 실습을 안내합니다.'},
  loadingProgress:{en:'Loading your learning progress…',ko:'학습 기록을 불러오는 중입니다…'},

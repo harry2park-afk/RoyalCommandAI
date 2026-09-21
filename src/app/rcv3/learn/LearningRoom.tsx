@@ -41,6 +41,7 @@ export default function LearningRoom({language}:{language:string}){
   {!loaded&&!error&&<p role="status">{t("loadingProgress")}</p>}
   <div className={styles.progress}><strong>{state.completed.length} / {lessons.length} {t("m4")}</strong><progress max={100} value={state.completed.length}/></div>
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>Retry</button>}</div>}
+  <p>{t("topicHelp")}</p>
   <div className={styles.layout}>
    <label>Study day<select value={day} disabled={busy} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>l.day===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>Day {i+1} · {lessons.filter(l=>l.day===i+1&&state.completed.includes(l.id)).length}/{lessons.filter(l=>l.day===i+1).length}</option>)}</select></label>
    {lessons.map((l,i)=>l.day===day&&<section className={styles.unit} key={l.id}>
@@ -49,11 +50,6 @@ export default function LearningRoom({language}:{language:string}){
 
     <h2>{lesson.id}. {lesson.title}</h2><p className={styles.lesson}><HelpText helpKey={`learn.${lesson.id}`}/></p>
     <section className={styles.tutor} aria-label="AI tutor"><h3>Learn with AI</h3><p><HelpText helpKey="learnTutor"/></p>
-     <p>{t("startLessonHelp")}</p>
-     <button type="button" disabled={!loaded||busy} onClick={()=>{
-      const request='Please begin this lesson. Explain the key ideas step by step, give a concrete example and a common mistake, then ask me one practice question. Teach the actual subject from the lesson text, not a generic explanation of why it matters. For a history lesson include the dated milestones and connect each change to a practical use today. For an advanced lesson, guide me through creating the required deliverable. Use my selected language.';
-      void run({action:'chat',lesson:lesson.id,message:request,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>setMessages([...messages,{role:'user',content:t("startLesson")},{role:'assistant',content:String(d.answer)}]));
-     }}>{busy?t("m7"):t("startLesson")}</button>
      <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?'You':'AI Tutor'}</strong><br/>{m.content}</p>)}</div>
      <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>setMessage(e.target.value)} disabled={busy}/></label>
      <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{setMessages([...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}]);setMessage('');})}>{busy?t("m7"):'Send'}</button>
