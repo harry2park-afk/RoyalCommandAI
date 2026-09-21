@@ -20,7 +20,7 @@ function makeReviewedResolvedEvidence() {
   resolvedEvidence.git_provenance.resolution_method = "APPROVED_PRIVATE_DEPLOYMENT_ARTIFACT";
   resolvedEvidence.git_provenance.resolution_evidence_ref = "private-change-record:example-reviewed-artifact";
   resolvedEvidence.git_provenance.reviewed_by = "launch-reviewer";
-  resolvedEvidence.git_provenance.reviewed_at = "2026-09-21T01:52:00Z";
+  resolvedEvidence.git_provenance.reviewed_at = "2026-09-21T05:50:37Z";
   return resolvedEvidence;
 }
 
@@ -32,7 +32,7 @@ function makeReconciledSnapshot(resolvedEvidence) {
 }
 
 describe("Hosted ledger drift guard", () => {
-  it("fails closed while the observed 76th migration is not a trusted baseline", () => {
+  it("fails closed while the 76th provenance blocker remains unresolved even when later Hosted migrations are source-equivalent", () => {
     expect(() => verifyHostedLedgerTrustBoundary({ driftEvidence, trustedSnapshot })).toThrow(
       /unresolved Hosted ledger drift/,
     );
@@ -50,7 +50,16 @@ describe("Hosted ledger drift guard", () => {
     ).toThrow(/resolution method is not approved/);
   });
 
-  it("accepts only a reviewed provenance closure whose trusted snapshot exactly matches the observed ledger", () => {
+  it("rejects a later Hosted migration whose repository digest no longer matches the Hosted statement", () => {
+    const tamperedEvidence = structuredClone(driftEvidence);
+    tamperedEvidence.post_blocking_migrations[1].repository_statement_md5 = "00000000000000000000000000000000";
+
+    expect(() => verifyHostedLedgerTrustBoundary({ driftEvidence: tamperedEvidence, trustedSnapshot })).toThrow(
+      /repository\/Hosted digest mismatch/,
+    );
+  });
+
+  it("accepts only a reviewed blocker closure whose trusted snapshot exactly reaches the observed Hosted head", () => {
     const resolvedEvidence = makeReviewedResolvedEvidence();
     const reconciledSnapshot = makeReconciledSnapshot(resolvedEvidence);
 
@@ -61,8 +70,10 @@ describe("Hosted ledger drift guard", () => {
       }),
     ).toMatchObject({
       ready_for_linked_dry_run: true,
-      trusted_migration_count: 76,
-      trusted_head_version: "20260920091809",
+      trusted_migration_count: 79,
+      trusted_head_version: "20260921052125",
+      provenance_blocker_version: "20260920091809",
+      post_blocking_migrations_verified: 3,
       provenance_status: "RESOLVED",
       provenance_resolution_method: "APPROVED_PRIVATE_DEPLOYMENT_ARTIFACT",
     });
