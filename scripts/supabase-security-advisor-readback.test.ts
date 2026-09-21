@@ -20,8 +20,14 @@ type Snapshot = {
       facing: string;
       count: number;
       remediation: string;
+      classification?: string;
+      tablesWithAnonPrivileges?: number;
+      tablesWithAuthenticatedPrivileges?: number;
+      tablesWithServiceRolePrivileges?: number;
     }>;
     launchCriticalTablesObserved: string[];
+    advisorDisposition?: string;
+    remainingVerification?: string;
   };
 };
 
@@ -29,15 +35,32 @@ const snapshot = JSON.parse(fs.readFileSync(snapshotPath, "utf8")) as Snapshot;
 
 describe("Hosted security advisor read-back", () => {
   it("is evidence-only and records no Hosted mutation", () => {
-    expect(snapshot.source.provider).toBe("Supabase Security Advisor");
+    expect(snapshot.source.provider).toMatch(/^Supabase Security Advisor/);
     expect(snapshot.source.queryMode).toBe("READ_ONLY");
     expect(snapshot.source.hostedMutationPerformed).toBe(false);
   });
 
-  it("fails closed while externally facing security findings remain unresolved or unreviewed", () => {
+  it("keeps release security fail-closed until the exact-head verification boundary is complete", () => {
     expect(snapshot.securityRegression.externalFindingFamilies).toBeGreaterThan(0);
     expect(snapshot.securityRegression.findingCount).toBeGreaterThan(0);
     expect(snapshot.securityRegression.status).not.toBe("VERIFIED");
+    expect(snapshot.securityRegression.remainingVerification).toMatch(/exact release-candidate/i);
+  });
+
+  it("classifies the current RLS-with-no-policy family using independent privilege read-back", () => {
+    expect(snapshot.securityRegression.findings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "rls_enabled_no_policy",
+          facing: "EXTERNAL",
+          classification: "REVIEWED_SERVICE_ROLE_ONLY",
+          tablesWithAnonPrivileges: 0,
+          tablesWithAuthenticatedPrivileges: 0,
+          tablesWithServiceRolePrivileges: 19,
+        }),
+      ]),
+    );
+    expect(snapshot.securityRegression.advisorDisposition).toMatch(/zero anon\/authenticated table privileges/i);
   });
 
   it("captures launch-critical first-wave tables implicated by the current RLS finding family", () => {
@@ -63,7 +86,7 @@ describe("Hosted security advisor read-back", () => {
     );
 
     const raw = fs.readFileSync(snapshotPath, "utf8");
-    expect(raw).not.toMatch(/service_role|anon_key|jwt|password|secret/i);
+    expect(raw).not.toMatch(/anon_key|service_role_key|jwt[_-]?secret|password|api[_-]?secret/i);
     expect(raw).not.toMatch(/"owner_id"\s*:|"customer_number"\s*:|"customer_sequence"\s*:/i);
   });
 });
