@@ -48,17 +48,6 @@ begin
     select 1
     from pg_constraint
     where conrelid = 'public.rc_service_country_terms'::regclass
-      and conname = 'rc_service_country_terms_reviewed_by_fkey'
-  ) then
-    alter table public.rc_service_country_terms
-      add constraint rc_service_country_terms_reviewed_by_fkey
-      foreign key (reviewed_by) references auth.users(id);
-  end if;
-
-  if not exists (
-    select 1
-    from pg_constraint
-    where conrelid = 'public.rc_service_country_terms'::regclass
       and conname = 'rc_service_country_terms_approval_provenance_check'
   ) then
     alter table public.rc_service_country_terms
@@ -66,20 +55,6 @@ begin
       check (
         review_status <> 'approved'
         or (reviewed_by is not null and reviewed_at is not null)
-      );
-  end if;
-
-  if not exists (
-    select 1
-    from pg_constraint
-    where conrelid = 'public.rc_service_country_terms'::regclass
-      and conname = 'rc_service_country_terms_review_chronology_check'
-  ) then
-    alter table public.rc_service_country_terms
-      add constraint rc_service_country_terms_review_chronology_check
-      check (
-        reviewed_at is null
-        or reviewed_at >= created_at
       );
   end if;
 
@@ -98,17 +73,6 @@ begin
     select 1
     from pg_constraint
     where conrelid = 'public.rc_service_provider_offers'::regclass
-      and conname = 'rc_service_provider_offers_reviewed_by_fkey'
-  ) then
-    alter table public.rc_service_provider_offers
-      add constraint rc_service_provider_offers_reviewed_by_fkey
-      foreign key (reviewed_by) references auth.users(id);
-  end if;
-
-  if not exists (
-    select 1
-    from pg_constraint
-    where conrelid = 'public.rc_service_provider_offers'::regclass
       and conname = 'rc_service_provider_offers_approval_provenance_check'
   ) then
     alter table public.rc_service_provider_offers
@@ -118,20 +82,6 @@ begin
         or (reviewed_by is not null and reviewed_at is not null)
       );
   end if;
-
-  if not exists (
-    select 1
-    from pg_constraint
-    where conrelid = 'public.rc_service_provider_offers'::regclass
-      and conname = 'rc_service_provider_offers_review_chronology_check'
-  ) then
-    alter table public.rc_service_provider_offers
-      add constraint rc_service_provider_offers_review_chronology_check
-      check (
-        reviewed_at is null
-        or reviewed_at >= created_at
-      );
-  end if;
 end
 $$;
 
@@ -139,16 +89,16 @@ comment on column public.rc_service_country_terms.review_status is
 'Human commercial/legal review state. Presence of a terms row is not approval.';
 
 comment on column public.rc_service_country_terms.reviewed_by is
-'Human reviewer identifier bound to auth.users and recorded only by a trusted server/admin workflow.';
+'Human reviewer identifier recorded only by a trusted server/admin workflow.';
 
 comment on column public.rc_service_country_terms.reviewed_at is
-'UTC review timestamp. APPROVED requires reviewed_by and reviewed_at, and review time cannot predate row creation.';
+'UTC review timestamp. APPROVED requires reviewed_by and reviewed_at.';
 
 comment on column public.rc_service_provider_offers.review_status is
 'Human provider/commercial review state. Presence of an offer is not approval.';
 
 comment on column public.rc_service_provider_offers.reviewed_by is
-'Human reviewer identifier bound to auth.users and recorded only by a trusted server/admin workflow.';
+'Human reviewer identifier recorded only by a trusted server/admin workflow.';
 
 comment on column public.rc_service_provider_offers.reviewed_at is
-'UTC review timestamp. APPROVED requires reviewed_by and reviewed_at, and review time cannot predate row creation.';
+'UTC review timestamp. APPROVED requires reviewed_by and reviewed_at.';
