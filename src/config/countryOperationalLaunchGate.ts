@@ -14,6 +14,7 @@ export type CountryOperationalEvidence = {
   previewSmokeTest: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
   roomFactoryTemplates?: OperationalEvidenceStatus;
+  roomFactoryWriteAuthority?: OperationalEvidenceStatus;
   tenantIsolation?: OperationalEvidenceStatus;
   paymentOperations?: OperationalEvidenceStatus;
   complianceEvidence?: OperationalEvidenceStatus;
@@ -30,6 +31,7 @@ export type CountryOperationalBlockerCode =
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
   | "ROLLBACK_PATH_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED"
+  | "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED"
   | "TENANT_ISOLATION_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "COMPLIANCE_EVIDENCE_NOT_VERIFIED";
@@ -54,6 +56,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
   { key: "roomFactoryTemplates", blocker: "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED" },
+  { key: "roomFactoryWriteAuthority", blocker: "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED" },
   { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "complianceEvidence", blocker: "COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
@@ -68,6 +71,11 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * activation. Newly added evidence keys are optional at the type boundary so
  * older evidence producers still compile, but missing values fail closed.
  * Every item must be explicitly VERIFIED before a country can be launchable.
+ *
+ * Room Factory template/runtime proof and Room Factory write-authority proof
+ * are deliberately separate. A country must not become launchable merely
+ * because templates exist while direct client writes to the manifest surface
+ * remain possible.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
