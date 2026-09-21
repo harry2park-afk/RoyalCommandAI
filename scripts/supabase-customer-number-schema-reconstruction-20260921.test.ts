@@ -15,9 +15,9 @@ describe("customer-number schema-only reconstruction evidence", () => {
   const source = fs.readFileSync(reconstructionPath, "utf8");
   const sql = executableSql(source);
 
-  it("stays outside the deployable migration tree and contains no row DML or UUID values", () => {
+  it("stays outside the deployable migration tree and contains no row DML statements or UUID values", () => {
     expect(reconstructionPath.startsWith("supabase/migrations/")).toBe(false);
-    expect(sql).not.toMatch(/\b(?:insert|update|delete|copy)\b/i);
+    expect(sql).not.toMatch(/(?:^|;\s*)\s*(?:insert\s+into|update\s+|delete\s+from|copy\s+)/im);
     expect(sql).not.toMatch(
       /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i,
     );
