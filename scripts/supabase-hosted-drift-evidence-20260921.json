@@ -1,10 +1,10 @@
 {
-  "contract_version": 2,
-  "captured_at": "2026-09-21T01:52:00Z",
+  "contract_version": 3,
+  "captured_at": "2026-09-21T05:50:37Z",
   "project_ref": "aygawkavujjmybekswrg",
   "project_name": "RoyalCommand",
   "source": "Fresh read-only Supabase + GitHub connector evidence",
-  "purpose": "Record the observed 76th Hosted migration and sanitized provenance/schema evidence without accepting it as a trusted deployment baseline, replaying/repairing migrations, or exposing customer-specific row values.",
+  "purpose": "Record the current 79-row Hosted migration ledger while preserving the unresolved 76th-migration provenance blocker, proving exact repository source equivalence for later Hosted migrations 77-79, and avoiding any customer-specific row values or migration repair/replay.",
   "safety": {
     "hosted_mutation_performed": false,
     "production_master_changed": false,
@@ -15,20 +15,20 @@
   },
   "stable_restore": {
     "production_master": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
-    "pr696_pre_change_head": "14c4480c881d762430eac4f175a3bfbe227073d0",
-    "restore_ref": "restore/2026-09-21-1151-pr696-pre-provenance-closure-contract"
+    "pr696_pre_change_head": "658b8a184d58fe659542e5e3f69144503427d60b",
+    "restore_ref": "restore/2026-09-21-1550-pr696-pre-79-ledger-refresh"
   },
   "hosted_migration_ledger": {
-    "observed_count": 76,
-    "observed_head_version": "20260920091809",
-    "observed_head_name": "add_secure_rc_customer_numbers",
+    "observed_count": 79,
+    "observed_head_version": "20260921052125",
+    "observed_head_name": "rcv3_learning_atomic_project_completion",
     "previous_repository_snapshot": "scripts/supabase-hosted-ledger-snapshot-20260920.json",
     "previous_snapshot_count": 75,
     "previous_snapshot_head_version": "20260920015655",
     "drift_detected": true,
     "trusted_baseline_advanced": false
   },
-  "head_migration_sanitized_fingerprint": {
+  "blocking_migration_sanitized_fingerprint": {
     "version": "20260920091809",
     "name": "add_secure_rc_customer_numbers",
     "statement_count": 1,
@@ -38,6 +38,7 @@
     "reason_exact_sql_not_copied": "Hosted statement contains customer-specific data; repository is public. Preserve provenance evidence without publishing row values."
   },
   "migration_record_metadata": {
+    "version": "20260920091809",
     "created_by_present": true,
     "created_by_md5": "c8efde1a5aa05a47ac842b1e29ae9b29",
     "idempotency_key_present": false,
@@ -46,7 +47,9 @@
     "customer_row_values_recorded": false
   },
   "git_provenance": {
-    "pr748_exact_head": "c67f9befe5b0c0ac17a86deaa66b03c932deee9b",
+    "blocking_migration_version": "20260920091809",
+    "blocking_migration_name": "add_secure_rc_customer_numbers",
+    "pr748_exact_head": "fc684e9cdce36c796fa80c1d7e1a40a55bec6763",
     "exact_migration_path": "supabase/migrations/20260920091809_add_secure_rc_customer_numbers.sql",
     "exact_path_present_on_pr748_head": false,
     "migration_name_commit_search_match_found": false,
@@ -66,8 +69,55 @@
     "resolution_evidence_ref": null,
     "reviewed_by": null,
     "reviewed_at": null,
-    "required_closure": "The contemporaneous Git change record proves the named migration was intentionally applied, but it does not contain the source SQL or a reversible/idempotent deployment artifact. Locate an approved private deployment artifact/change record or reconstruct a schema-only non-PII source artifact plus separately reviewed private backfill evidence. Record a reviewer identity, review timestamp, resolution method and evidence reference. Do not use migration repair/replay as provenance."
+    "required_closure": "The contemporaneous Git change record proves the named 76th migration was intentionally applied, but it does not contain the source SQL or a reversible/idempotent deployment artifact. Locate an approved private deployment artifact/change record or reconstruct a schema-only non-PII source artifact plus separately reviewed private backfill evidence. Record reviewer identity, review timestamp, resolution method and evidence reference. Do not use migration repair/replay as provenance."
   },
+  "post_blocking_migrations": [
+    {
+      "version": "20260921050212",
+      "name": "rcv3_preview_learning_room",
+      "source_pr": 748,
+      "source_head": "fc684e9cdce36c796fa80c1d7e1a40a55bec6763",
+      "path": "supabase/migrations/20260921050212_rcv3_preview_learning_room.sql",
+      "exact_path_present_on_source_head": true,
+      "hosted_statement_md5": "1f30fb31e429f67e190cdad4f0e5c0b2",
+      "hosted_statement_bytes": 1752,
+      "repository_statement_md5": "1f30fb31e429f67e190cdad4f0e5c0b2",
+      "repository_statement_bytes": 1752,
+      "source_file_terminal_newline_stripped": false,
+      "exact_source_equivalent": true,
+      "customer_specific_row_values_present": false
+    },
+    {
+      "version": "20260921051948",
+      "name": "rcv3_learning_100_assignments",
+      "source_pr": 748,
+      "source_head": "fc684e9cdce36c796fa80c1d7e1a40a55bec6763",
+      "path": "supabase/migrations/20260921051948_rcv3_learning_100_assignments.sql",
+      "exact_path_present_on_source_head": true,
+      "hosted_statement_md5": "d26c77a589b19ecd9add8f25426cafac",
+      "hosted_statement_bytes": 870,
+      "repository_statement_md5": "d26c77a589b19ecd9add8f25426cafac",
+      "repository_statement_bytes": 870,
+      "source_file_terminal_newline_stripped": false,
+      "exact_source_equivalent": true,
+      "customer_specific_row_values_present": false
+    },
+    {
+      "version": "20260921052125",
+      "name": "rcv3_learning_atomic_project_completion",
+      "source_pr": 748,
+      "source_head": "fc684e9cdce36c796fa80c1d7e1a40a55bec6763",
+      "path": "supabase/migrations/20260921052125_rcv3_learning_atomic_project_completion.sql",
+      "exact_path_present_on_source_head": true,
+      "hosted_statement_md5": "e2937b6b8c11daeefe30d02afb39a50a",
+      "hosted_statement_bytes": 1201,
+      "repository_statement_md5": "e2937b6b8c11daeefe30d02afb39a50a",
+      "repository_statement_bytes": 1201,
+      "source_file_terminal_newline_stripped": true,
+      "exact_source_equivalent": true,
+      "customer_specific_row_values_present": false
+    }
+  ],
   "rc_customer_accounts_schema": {
     "row_count": 1,
     "columns": [
@@ -122,11 +172,11 @@
     "GB": "HOLD"
   },
   "notes": [
-    "The Hosted migration record exposes created_by, idempotency_key and rollback metadata columns. For this migration, created_by is present, idempotency_key is absent and rollback has zero statements; only a one-way hash of created_by is retained here.",
-    "PR #748 contains a contemporaneous documentation commit 131 seconds after the migration-version timestamp that names the migration and records that it was applied. This materially narrows provenance but is not the missing migration source artifact.",
-    "The exact migration path remains absent from fresh PR #748 head c67f9befe5b0c0ac17a86deaa66b03c932deee9b, and repository commit-message search still finds no exact migration-name match.",
-    "AU recording policy is marked approved but has no reviewed_by provenance; it is not counted as reviewer-proven approval.",
+    "Hosted has advanced from 76 to 79 migration rows. The 76th migration remains the deployment-provenance blocker; later migrations do not erase or bypass that blocker.",
+    "Hosted migrations 77 and 78 are byte-identical to the migration files present on PR #748 exact head fc684e9cdce36c796fa80c1d7e1a40a55bec6763. Migration 79 is byte-identical after stripping the repository file's single terminal newline. Their version/name/path/digest/byte-count evidence is recorded above without customer row values.",
+    "The exact 76th migration path remains absent from fresh PR #748 head fc684e9cdce36c796fa80c1d7e1a40a55bec6763 (404).",
+    "AU recording policy may have an approved status value, but no first-wave policy currently has both reviewer identity and review timestamp; reviewer-proven approvals remain 0/6.",
     "All seven existing Room Factory manifests still have NULL encounter_session_id; controlled non-NULL encounter staging remains unproven.",
-    "This evidence artifact intentionally does not alter the existing 75-row snapshot used by the current fail-closed harness. The harness must not treat 76 as trusted until provenance is closed and linked dry-run evidence is regenerated."
+    "This evidence artifact intentionally does not alter the existing 75-row trusted snapshot. The linked dry-run must remain fail-closed until the 76th provenance blocker is reviewed and the trusted snapshot is explicitly reconciled through the current 79-row Hosted head."
   ]
 }
