@@ -1,6 +1,6 @@
 {
-  "contract_version": 1,
-  "captured_at": "2026-09-21T13:47:42Z",
+  "contract_version": 2,
+  "captured_at": "2026-09-22T06:50:59+10:00",
   "project_ref": "aygawkavujjmybekswrg",
   "migration": {
     "version": "20260920091809",
@@ -12,7 +12,7 @@
     "redaction_reason": "The Hosted migration statement contains customer-specific backfill data. Preserve structural and fingerprint evidence without publishing customer identifiers or row values."
   },
   "source": {
-    "authority": "supabase_migrations.schema_migrations.statements",
+    "authority": "supabase_migrations.schema_migrations.statements + pg_catalog/role privilege read-back",
     "query_mode": "READ_ONLY",
     "hosted_mutation_performed": false
   },
@@ -31,23 +31,46 @@
     "creates_allocator_trigger": false,
     "creates_allocator_default": false
   },
+  "hosted_acl_root_cause": {
+    "table_owner_role": "postgres",
+    "postgres_public_table_default_acl_grants_authenticated_all": true,
+    "postgres_public_table_default_acl_grants_anon_all": true,
+    "migration_explicitly_revokes_anon": true,
+    "migration_explicitly_revokes_authenticated": false,
+    "current_authenticated_privileges": [
+      "DELETE",
+      "INSERT",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "current_anon_table_privileges": 0,
+    "root_cause_verified": true,
+    "root_cause": "The table was created under a public-schema default ACL that grants authenticated broad table privileges. The migration explicitly revoked anon but did not revoke authenticated, so the inherited authenticated privileges remained while SELECT was additionally granted."
+  },
   "deployment_trust": {
     "hosted_statement_body_recovered": true,
+    "ledger_created_by_present": true,
+    "ledger_created_by_value_published": false,
     "original_git_source_provenance_verified": false,
     "reviewer_provenance_verified": false,
     "safe_for_replay": false,
     "trusted_baseline_may_advance": false,
-    "status": "BODY_RECOVERED_GIT_AND_REVIEW_PROVENANCE_UNRESOLVED"
+    "status": "BODY_AND_ACL_ROOT_CAUSE_RECOVERED_GIT_AND_REVIEW_PROVENANCE_UNRESOLVED"
   },
   "launch_implication": {
     "previous_body_unknown_blocker_narrowed": true,
+    "customer_account_acl_root_cause_verified": true,
     "customer_account_authority_verified": false,
     "allocator_verified": false,
     "country_ready": false,
     "required_next_evidence": [
       "Locate or independently approve the original private deployment/change artifact for migration 20260920091809.",
-      "Record reviewer identity, review timestamp, resolution method and evidence reference without publishing customer-specific values.",
-      "Stage least-privilege rc_customer_accounts authority and trusted idempotent allocation separately; do not replay this historical migration as a remediation."
+      "Record reviewer identity, review timestamp, resolution method and evidence reference without publishing customer-specific values or the raw ledger created_by value.",
+      "Prepare and disposable-test a separate least-privilege remediation that revokes authenticated direct control-plane writes while preserving owner read-back and trusted server allocation; do not replay this historical migration as the remediation.",
+      "Prove a trusted idempotent customer-number allocator and cross-tenant negative behavior before any Hosted staging."
     ]
   }
 }
