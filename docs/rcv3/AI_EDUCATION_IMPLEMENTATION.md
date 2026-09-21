@@ -21,7 +21,11 @@ Date: 2026-09-21. Scope: PR #748 Preview branch only. Risk: HIGH-RISK because ac
 
 ## Deployment verification
 
-Preview build and browser checks pending at initial commit; append measured outcomes after deployment. Do not interpret this document as proof that a real student completed100lessons or earned a certificate.
+Application commit `3de1a698a0d24e245a3e115a3535e4f2afe0b587`; Vercel deployment `dpl_6MQgQa1CgQzpbC4Y8qwmkeHdBANt` READY, Preview alias assigned. Production/master unchanged.
+
+Authenticated browser verified: 100-topic/30day display, selected-day lesson navigation including098–100, explanation Translate to Korean and English return, live Korean tutor answer, wrong-answer rejection and correct-answer saved completion, locked final exam before100completions. Lesson061 fictional company report scored90/100 with Korean AI feedback; completion and report/feedback persisted in a new browser tab. Unsubmitted report survived switching061→062→061. Passing submission control disabled. Test-created001/061completion and fictional report removed afterward; no real certificate issued.
+
+The final exam/certificate engine is verified by route tests and transactional database checks; no claim that a real student completed100lessons or that a live learner certificate was earned. Curriculum instructional depth is AI-guided and remains subject to educational review. Print control uses the browser print dialog.
 
 ## Broader platform limits
 
