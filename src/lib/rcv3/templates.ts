@@ -39,6 +39,11 @@ export const roomTemplates = [
  {id:'illustrated-office-20260921-04',name:'Illustrated Analytics Office',category:'Illustration',keywords:'illustrated analytics office',image:'/room-designs/illustrated-office-20260921-04.webp'},
  {id:'illustrated-office-20260921-05',name:'Illustrated Cafe Team Office',category:'Illustration',keywords:'illustrated cafe team office',image:'/room-designs/illustrated-office-20260921-05.webp'},
  {id:'illustrated-office-20260921-06',name:'Five Office Illustration Collage',category:'Illustration',keywords:'five office illustration collage',image:'/room-designs/illustrated-office-20260921-06.webp'},
+ {id:'uploaded-office-set-three-20260921-01',name:'Modern Open Office Illustration',category:'Illustration',keywords:'modern open office illustration',image:'/room-designs/uploaded-office-set-three-20260921-01.webp'},
+ {id:'uploaded-office-set-three-20260921-02',name:'Creative Team Studio Illustration',category:'Illustration',keywords:'creative team studio illustration',image:'/room-designs/uploaded-office-set-three-20260921-02.webp'},
+ {id:'uploaded-office-set-three-20260921-03',name:'Executive Library Illustration',category:'Illustration',keywords:'executive library illustration',image:'/room-designs/uploaded-office-set-three-20260921-03.webp'},
+ {id:'uploaded-office-set-three-20260921-04',name:'Legal Library Team Illustration',category:'Illustration',keywords:'legal library team illustration',image:'/room-designs/uploaded-office-set-three-20260921-04.webp'},
+ {id:'uploaded-office-set-three-20260921-05',name:'Craft and Technology Workshop Collage',category:'Workshop',keywords:'craft and technology workshop collage',image:'/room-designs/uploaded-office-set-three-20260921-05.webp'},
 ] as const;
 export type RoomTemplate = typeof roomTemplates[number];
 export function templateImage(t:RoomTemplate){return t.image;}
