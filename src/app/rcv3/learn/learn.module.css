@@ -5,3 +5,15 @@
 /* Keep the lesson heading in normal flow despite the shared legacy header rule. */
 .page>header>h1{position:static!important;left:auto!important;top:auto!important;transform:none!important;white-space:normal;margin:16px 0 8px!important;font-size:36px!important}
 @media(max-width:760px){.page>header>h1{font-size:29px!important}}
+
+/* One full-width topic at a time; its teaching and answers stay below its button. */
+.layout{display:flex;flex-direction:column;gap:18px}
+.layout>label{max-width:420px}
+.unit{min-width:0;width:100%}
+.page .unitButton{width:100%;text-align:left;display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px 12px;padding:18px 22px}
+.unitButton small{grid-column:2}
+.page .unitButton[aria-expanded=true]{border-color:#9ce4cb;background:#24483f;border-radius:12px 12px 0 0}
+.unit>article{padding:22px;border:1px solid #385060;border-top:0;border-radius:0 0 12px 12px}
+.lesson{white-space:pre-line}
+.messages{max-height:none;overflow:visible}
+@media(max-width:760px){.unit>article{padding:14px}.page .unitButton{padding:14px}}

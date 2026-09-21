@@ -6,34 +6,34 @@ export const lessons = [
  {
   "id": "001",
   "day": 1,
-  "title": "Why study AI history?",
-  "koTitle": "AI 역사를 배우는 이유",
-  "body": "AI developed through several approaches, not one sudden invention. Compare what each approach could do and what limited it. Practice: explain this in your own words. Ask the AI tutor for an example and a counterexample, then apply the idea to a fictional situation.",
-  "ko": "AI는 한 번의 발명이 아니라 여러 접근법을 거쳐 발전했습니다. 각 방법의 성과와 한계를 비교하세요. 실습: 본인의 말로 설명하세요. AI 선생님에게 예시와 반례를 요청한 뒤 가상 상황에 적용하세요."
+  "title": "AI history: from rules to today’s assistants",
+  "koTitle": "AI 역사: 규칙 기반에서 오늘의 AI까지",
+  "body": "1. The beginning: a research goal, not a finished machine\nIn 1950 Alan Turing proposed an imitation game to discuss machine intelligence. The 1956 Dartmouth research project helped establish AI as a field. These events did not mean that computers had acquired human understanding.\n\n2. Rules and specialist knowledge\nEarly symbolic approaches represented knowledge using explicit rules. Later expert systems applied specialist rules in limited domains. For example, a fictional office can route an invoice above a set amount to a manager using a rule. The system will not infer every exception unless someone supplies it.\n\n3. Learning patterns from data\nMachine learning shifted many tasks toward fitting patterns from examples. A spam filter can learn from labelled messages rather than requiring a separate rule for every phrase. Deep learning uses multi-layer neural networks; more capable hardware and larger datasets helped expand its use. Bad or unrepresentative data can still produce bad results.\n\n4. The Transformer and generative assistants\nThe 2017 Transformer paper introduced an attention-based architecture, initially demonstrated on translation. Transformer-based language models subsequently became an important foundation for conversational assistants. Generating a plausible sentence is different from retrieving a verified fact.\n\n5. What this means for work today\nThe 2026 AI Index describes continuing progress alongside uneven reliability. In a fictional monthly-report workflow, use a spreadsheet to calculate totals, an AI assistant to draft explanations from the supplied figures, and a person to check the sources and approve the report. Some systems also handle images, code and tools; available features and reliability differ by product and task. Older methods still have uses: a precise approval rule can be more suitable than an open-ended generated answer.\n\nPractice: For your own report workflow, name one step suited to a fixed rule, one suited to AI drafting, and one requiring your verification. Explain why. The goal is to connect each historical change to a useful decision today.",
+  "ko": "1. 시작: 완성된 기계가 아니라 연구 목표였습니다\n1950년 앨런 튜링은 기계 지능을 논의하기 위해 모방 게임을 제안했습니다. 1956년 다트머스 연구 모임은 AI가 하나의 연구 분야로 자리 잡는 계기가 되었습니다. 이때 컴퓨터가 인간처럼 이해하는 능력을 완성한 것은 아닙니다.\n\n2. 사람이 규칙을 넣던 방식\n초기 기호주의 AI는 지식과 판단 절차를 명시적인 규칙으로 표현했습니다. 이후 전문가 시스템은 특정 분야의 전문 규칙을 활용했습니다. 가령 사무실에서 ‘일정 금액 이상인 청구서는 관리자에게 보낸다’는 규칙을 사용할 수 있습니다. 사람이 넣지 않은 예외까지 모두 알아내지는 못합니다.\n\n3. 자료에서 패턴을 배우는 방식\n머신러닝은 사례를 통해 패턴을 학습합니다. 스팸 메일 판별은 모든 문장을 규칙으로 적는 대신 정상·스팸으로 표시한 메일에서 특징을 배울 수 있습니다. 딥러닝은 여러 층의 신경망을 사용하며, 연산 장비와 데이터의 발전으로 활용 범위가 넓어졌습니다. 다만 잘못되거나 치우친 자료로 배우면 결과도 틀릴 수 있습니다.\n\n4. Transformer와 생성형 AI\n2017년 Transformer 논문은 attention을 중심으로 한 구조를 제안하고 번역 과제에서 성능을 보였습니다. 이후 이 구조를 활용한 언어 모델은 대화형 AI의 중요한 기반이 되었습니다. 자연스러운 문장을 만들어 내는 능력과 사실을 정확하게 확인하는 능력은 구분해야 합니다.\n\n5. 오늘 회사 업무에 적용하는 방법\n2026 AI Index는 기술 발전과 함께 과제별 신뢰성 차이도 다룹니다. 가상의 월간 보고서를 만든다면 합계 계산은 스프레드시트로, 제공한 수치의 설명 초안은 AI로, 출처 확인과 최종 승인은 사람이 맡을 수 있습니다. 이미지·코드·도구를 다루는 기능도 있지만 제품과 과제마다 제공 범위와 정확도가 다릅니다. 새로운 AI가 나왔다고 기존 규칙이 모두 쓸모없어지는 것은 아닙니다.\n\n실습: 본인의 보고서 업무에서 ‘정해진 규칙으로 처리할 일’, ‘AI에게 초안을 맡길 일’, ‘직접 검증할 일’을 하나씩 골라 이유를 쓰세요. 연도를 외우는 데 그치지 않고 발전 과정이 오늘의 업무 선택과 어떻게 연결되는지 배우는 수업입니다."
  },
  {
   "id": "002",
   "day": 1,
   "title": "Turing and machine intelligence",
   "koTitle": "튜링과 기계 지능",
-  "body": "Alan Turing's 1950 paper proposed an imitation game as a way to discuss machine intelligence. Conversational imitation is not the same as proof of consciousness. Practice: explain this in your own words. Ask the AI tutor for an example and a counterexample, then apply the idea to a fictional situation.",
-  "ko": "앨런 튜링은 1950년 논문에서 기계 지능을 논의하는 모방 게임을 제안했습니다. 대화 모방은 의식의 증명과 다릅니다. 실습: 본인의 말로 설명하세요. AI 선생님에게 예시와 반례를 요청한 뒤 가상 상황에 적용하세요."
+  "body": "Turing’s 1950 imitation game considers whether a person can distinguish a machine from a human through conversation. It changed how a question about intelligence could be examined, but conversational performance alone does not establish consciousness or factual accuracy.\n\nToday’s connection: a polished AI-written company report can sound convincing while containing a wrong total or an invented reference. Judge it using the source figures, verifiable claims and the task requirements, not its human-like tone.\n\nExercise: Write two checks you would perform before sending an AI-drafted report. Explain why sounding professional is insufficient.",
+  "ko": "튜링은 1950년 모방 게임을 통해 사람이 대화만으로 기계와 인간을 구별할 수 있는지 살펴보는 방식을 제안했습니다. 지능을 논의하는 방법에 영향을 주었지만, 대화를 잘한다고 의식이나 사실의 정확성이 증명되는 것은 아닙니다.\n\n오늘의 연결: AI가 쓴 회사 보고서는 매우 자연스럽고 전문적으로 보여도 합계가 틀리거나 존재하지 않는 출처를 제시할 수 있습니다. 말투보다 원자료·확인 가능한 주장·업무 요구를 기준으로 평가해야 합니다.\n\n실습: AI 보고서를 보내기 전에 확인할 항목 두 가지를 쓰고, 전문적인 말투만으로 충분하지 않은 이유를 설명하세요."
  },
  {
   "id": "003",
   "day": 1,
   "title": "Dartmouth in 1956",
   "koTitle": "1956년 다트머스",
-  "body": "The 1956 Dartmouth project helped establish artificial intelligence as a research field. Its ambitions were research proposals, not proof that human intelligence had been reproduced. Practice: explain this in your own words. Ask the AI tutor for an example and a counterexample, then apply the idea to a fictional situation.",
-  "ko": "1956년 다트머스 연구 모임은 인공지능 분야 형성에 기여했습니다. 당시 목표는 연구 제안이지 인간 지능 재현의 완성 증거가 아닙니다. 실습: 본인의 말로 설명하세요. AI 선생님에게 예시와 반례를 요청한 뒤 가상 상황에 적용하세요."
+  "body": "The Dartmouth Summer Research Project took place in 1956. Its research proposal was written in 1955 and used the term artificial intelligence. Separate the proposal date from the meeting date: the term was already in the proposal, not suddenly invented during a 1956 conversation.\n\nThe participants aimed to study how aspects of learning and intelligence could be described for machines. An ambitious proposal is a starting point, not proof that a working system can do everything promised.\n\nToday’s connection: distinguish an AI company’s announced goal from a released feature and from a result you have tested yourself. Exercise: give one example of each category for a fictional report-writing tool.",
+  "ko": "다트머스 여름 연구 모임은 1956년에 열렸습니다. 이 모임의 연구 제안서는 1955년에 작성되었고 artificial intelligence라는 표현을 사용했습니다. 제안서 작성 연도와 모임 개최 연도를 구분해야 합니다. 1956년 모임 도중에 이 말이 갑자기 처음 생긴 것으로 설명하면 부정확합니다.\n\n연구자들은 학습과 지능의 일부를 기계가 처리할 수 있도록 기술하는 방법을 연구하려 했습니다. 큰 목표를 제안했다는 사실이 모든 기능을 완성했다는 증거는 아닙니다.\n\n오늘의 연결: AI 회사가 발표한 목표, 실제 출시한 기능, 직접 시험해 확인한 결과를 구분하세요. 실습: 가상의 보고서 작성 도구를 예로 세 가지를 하나씩 써보세요."
  },
  {
   "id": "004",
   "day": 1,
   "title": "Symbolic AI",
   "koTitle": "기호주의 AI",
-  "body": "Symbolic systems represent knowledge with symbols and explicit rules. They can be clear to inspect but depend on the rules supplied. Practice: explain this in your own words. Ask the AI tutor for an example and a counterexample, then apply the idea to a fictional situation.",
-  "ko": "기호주의 시스템은 기호와 명시적인 규칙으로 지식을 표현합니다. 규칙을 살펴보기 쉽지만 제공된 규칙에 의존합니다. 실습: 본인의 말로 설명하세요. AI 선생님에게 예시와 반례를 요청한 뒤 가상 상황에 적용하세요."
+  "body": "Symbolic AI represents concepts and relationships explicitly and reasons with rules. A simple illustration is: if an invoice exceeds an approval limit, route it to a manager. This rule is easy to inspect and test, but real cases may contain missing information or exceptions.\n\nA rule-based component can work alongside a language model: the model extracts invoice fields, validation checks them, and a fixed rule selects the approval route. The language model should not invent the missing amount or bypass approval.\n\nExercise: write a routing rule and two test cases, including one with a missing amount. State what the system should do when it cannot safely decide.",
+  "ko": "기호주의 AI는 개념·관계·규칙을 명시적으로 표현하고 이를 이용해 판단합니다. 간단한 예로 ‘청구 금액이 승인 한도를 넘으면 관리자에게 보낸다’는 규칙이 있습니다. 내용을 살펴보고 시험하기 쉽지만, 실제 자료에는 누락이나 예외가 있을 수 있습니다.\n\n오늘날에는 언어 모델이 청구서 항목을 추출하고, 검증 절차가 값을 확인한 뒤, 정해진 규칙이 승인 경로를 고르는 식으로 함께 사용할 수 있습니다. AI가 누락 금액을 지어내거나 승인 절차를 건너뛰면 안 됩니다.\n\n실습: 승인 경로 규칙 하나와 시험 사례 두 개를 쓰세요. 한 사례에는 금액을 누락하고, 안전하게 판단할 수 없을 때 어떻게 처리할지도 적으세요."
  },
  {
   "id": "005",

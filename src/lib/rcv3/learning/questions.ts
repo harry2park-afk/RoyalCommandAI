@@ -4,8 +4,8 @@ const items: (Question & {answer:number})[] = [
  {
   "id": "q001",
   "lesson": "001",
-  "text": "For “Why study AI history?”, which statement or practice is correct?",
-  "ko": "“AI 역사를 배우는 이유”에 대한 올바른 설명 또는 실천은 무엇인가요?",
+  "text": "What best explains how AI methods evolved and how we should use them today?",
+  "ko": "AI 방법의 발전과 오늘의 활용을 가장 잘 설명한 것은 무엇인가요?",
   "options": [
    "Treat early AI as smaller versions of today's language models",
    "Rank historical methods only by release date",
