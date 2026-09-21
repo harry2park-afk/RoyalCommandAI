@@ -1,4 +1,7 @@
 const labels = {
+ startLesson:{en:'Start Lesson',ko:'Start Lesson · 수업 시작'},
+ startLessonHelp:{en:'Select a topic, then Start Lesson. The AI will explain it and give you a practice task; no typed question is needed.',ko:'과목을 선택한 뒤 Start Lesson을 누르세요. 질문을 쓰지 않아도 AI가 설명하고 실습을 안내합니다.'},
+ loadingProgress:{en:'Loading your learning progress…',ko:'학습 기록을 불러오는 중입니다…'},
  m0:{en:'Could not load your progress. Retry.',ko:'학습 기록을 불러오지 못했습니다. Retry를 눌러 주세요.'},
  m1:{en:'Daily allowance reached. Try again tomorrow (UTC).',ko:'오늘의 무료 이용 한도에 도달했습니다. 내일(UTC 기준) 다시 이용하세요.'},
  m2:{en:'This exam expired. Start a new exam.',ko:'시험 유효기간이 지났습니다. 새 시험을 시작하세요.'},

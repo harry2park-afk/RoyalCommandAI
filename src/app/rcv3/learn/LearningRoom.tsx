@@ -30,6 +30,7 @@ export default function LearningRoom({language}:{language:string}){
  const finish=state.completed.length===lessons.length;
  return <main className={styles.page}>
   <header><a href="/rcv3">← My Rooms</a><span className={styles.free}>FREE · 100 LESSONS · 30 DAYS</span><h1>AI Learning Room</h1><p><HelpText helpKey="learnOverview"/></p></header>
+  {!loaded&&!error&&<p role="status">{t("loadingProgress")}</p>}
   <div className={styles.progress}><strong>{state.completed.length} / {lessons.length} {t("m4")}</strong><progress max={100} value={state.completed.length}/></div>
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>Retry</button>}</div>}
   {notice&&<p role="status">{notice}</p>}
@@ -38,6 +39,11 @@ export default function LearningRoom({language}:{language:string}){
    <article>
     <h2>{lesson.id}. {lesson.title}</h2><p className={styles.lesson}><HelpText helpKey={`learn.${lesson.id}`}/></p>
     <section className={styles.tutor} aria-label="AI tutor"><h3>Learn with AI</h3><p><HelpText helpKey="learnTutor"/></p>
+     <p>{t("startLessonHelp")}</p>
+     <button type="button" disabled={!loaded||busy} onClick={()=>{
+      const request='Please begin this lesson. Explain the key ideas step by step, give a concrete example and a common mistake, then ask me one practice question. For an advanced lesson, guide me through creating the required deliverable. Use my selected language.';
+      void run({action:'chat',lesson:lesson.id,message:request,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>setMessages([...messages,{role:'user',content:t("startLesson")},{role:'assistant',content:String(d.answer)}]));
+     }}>{busy?t("m7"):t("startLesson")}</button>
      <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?'You':'AI Tutor'}</strong><br/>{m.content}</p>)}</div>
      <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>setMessage(e.target.value)} disabled={busy}/></label>
      <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{setMessages([...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}]);setMessage('');})}>{busy?t("m7"):'Send'}</button>
