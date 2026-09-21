@@ -26,6 +26,13 @@ export const roomTemplates = [
  {id:'flower-office-20260921-08',name:'Lavender Alpine Office',category:'Flower Offices',keywords:'flowers plants blooming happy lavender alpine office',image:'/room-designs/flower-office-20260921-08.webp'},
  {id:'flower-office-20260921-09',name:'Lotus Pavilion Office',category:'Flower Offices',keywords:'flowers plants blooming happy lotus pavilion office',image:'/room-designs/flower-office-20260921-09.webp'},
  {id:'flower-office-20260921-10',name:'Dahlia Art Deco Office',category:'Flower Offices',keywords:'flowers plants blooming happy dahlia art deco office',image:'/room-designs/flower-office-20260921-10.webp'},
+ {id:'uploaded-office-20260921-01',name:'Royal Command Bright Office',category:'Royal Command',keywords:'royal command bright office',image:'/room-designs/uploaded-office-20260921-01.webp'},
+ {id:'uploaded-office-20260921-02',name:'Royal Command Executive Meeting',category:'Royal Command',keywords:'royal command executive meeting',image:'/room-designs/uploaded-office-20260921-02.webp'},
+ {id:'uploaded-office-20260921-03',name:'Royal Command Advisory Office',category:'Royal Command',keywords:'royal command advisory office',image:'/room-designs/uploaded-office-20260921-03.webp'},
+ {id:'uploaded-office-20260921-04',name:'Royal Command Business Operations',category:'Royal Command',keywords:'royal command business operations',image:'/room-designs/uploaded-office-20260921-04.webp'},
+ {id:'uploaded-office-20260921-05',name:'Royal Command Community Office',category:'Royal Command',keywords:'royal command community office',image:'/room-designs/uploaded-office-20260921-05.webp'},
+ {id:'uploaded-office-20260921-06',name:'RC Hobby Workshop Collage',category:'Workshop',keywords:'rc hobby workshop collage',image:'/room-designs/uploaded-office-20260921-06.webp'},
+ {id:'uploaded-office-20260921-07',name:'Collaboration Design Studio',category:'Studio',keywords:'collaboration design studio',image:'/room-designs/uploaded-office-20260921-07.webp'},
 ] as const;
 export type RoomTemplate = typeof roomTemplates[number];
 export function templateImage(t:RoomTemplate){return t.image;}
