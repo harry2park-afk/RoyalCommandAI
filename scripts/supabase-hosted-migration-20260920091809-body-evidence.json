@@ -1,0 +1,53 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-21T13:47:42Z",
+  "project_ref": "aygawkavujjmybekswrg",
+  "migration": {
+    "version": "20260920091809",
+    "name": "add_secure_rc_customer_numbers",
+    "statement_count": 1,
+    "statement_md5": "9b70e55a43515314977d1f12de9149e1",
+    "exact_statement_recovered_from_hosted_ledger": true,
+    "exact_statement_copied_to_public_repository": false,
+    "redaction_reason": "The Hosted migration statement contains customer-specific backfill data. Preserve structural and fingerprint evidence without publishing customer identifiers or row values."
+  },
+  "source": {
+    "authority": "supabase_migrations.schema_migrations.statements",
+    "query_mode": "READ_ONLY",
+    "hosted_mutation_performed": false
+  },
+  "verified_structural_facts": {
+    "creates_rc_customer_accounts": true,
+    "enables_rls": true,
+    "creates_authenticated_own_row_select_policy": true,
+    "grants_authenticated_select": true,
+    "revokes_anon_table_privileges": true,
+    "revokes_authenticated_table_privileges": false,
+    "creates_customer_number_sequence": true,
+    "restarts_customer_number_sequence": true,
+    "revokes_anon_and_authenticated_sequence_privileges": true,
+    "contains_customer_specific_backfill": true,
+    "creates_allocator_function": false,
+    "creates_allocator_trigger": false,
+    "creates_allocator_default": false
+  },
+  "deployment_trust": {
+    "hosted_statement_body_recovered": true,
+    "original_git_source_provenance_verified": false,
+    "reviewer_provenance_verified": false,
+    "safe_for_replay": false,
+    "trusted_baseline_may_advance": false,
+    "status": "BODY_RECOVERED_GIT_AND_REVIEW_PROVENANCE_UNRESOLVED"
+  },
+  "launch_implication": {
+    "previous_body_unknown_blocker_narrowed": true,
+    "customer_account_authority_verified": false,
+    "allocator_verified": false,
+    "country_ready": false,
+    "required_next_evidence": [
+      "Locate or independently approve the original private deployment/change artifact for migration 20260920091809.",
+      "Record reviewer identity, review timestamp, resolution method and evidence reference without publishing customer-specific values.",
+      "Stage least-privilege rc_customer_accounts authority and trusted idempotent allocation separately; do not replay this historical migration as a remediation."
+    ]
+  }
+}
