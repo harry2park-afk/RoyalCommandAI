@@ -17,6 +17,7 @@ export type CountryOperationalEvidence = {
   roomFactoryWriteAuthority?: OperationalEvidenceStatus;
   tenantIsolation?: OperationalEvidenceStatus;
   customerAccountAuthority?: OperationalEvidenceStatus;
+  paymentCommercialAuthority?: OperationalEvidenceStatus;
   paymentOperations?: OperationalEvidenceStatus;
   complianceReviewAuthority?: OperationalEvidenceStatus;
   complianceEvidence?: OperationalEvidenceStatus;
@@ -36,6 +37,7 @@ export type CountryOperationalBlockerCode =
   | "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED"
   | "TENANT_ISOLATION_NOT_VERIFIED"
   | "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"
+  | "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED"
   | "COMPLIANCE_EVIDENCE_NOT_VERIFIED";
@@ -63,6 +65,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "roomFactoryWriteAuthority", blocker: "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED" },
   { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
   { key: "customerAccountAuthority", blocker: "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED" },
+  { key: "paymentCommercialAuthority", blocker: "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "complianceReviewAuthority", blocker: "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED" },
   { key: "complianceEvidence", blocker: "COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
@@ -84,7 +87,10 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * remain possible. Customer account authority is also independent from broad
  * tenant-isolation evidence so a country cannot launch while authenticated
  * clients retain unsafe direct writes or customer-number allocation is not
- * verified through the controlled account path. Compliance evidence and the
+ * verified through the controlled account path. Payment commercial authority
+ * is independent from payment operations so launch cannot proceed while a
+ * client can author amount/currency/terms snapshots even if checkout/webhook
+ * mechanics are otherwise operational. Compliance evidence and the
  * authority/provenance of the human reviewer are also independent: a country
  * cannot launch solely because a compliance row says VERIFIED when reviewer
  * identity and review chronology have not themselves been verified.
