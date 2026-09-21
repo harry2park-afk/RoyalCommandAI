@@ -1,5 +1,5 @@
 {
-  "captured_at": "2026-09-22T00:48:38+10:00",
+  "captured_at": "2026-09-22T04:50:20+10:00",
   "source": {
     "query_mode": "READ_ONLY",
     "hosted_mutation_performed": false,
@@ -79,6 +79,9 @@
     "authenticated_update": true,
     "authenticated_delete": true,
     "authenticated_truncate": true,
+    "allocator_noninternal_triggers": 0,
+    "allocator_functions": 0,
+    "trusted_allocator_verified": false,
     "verified": false
   },
   "commercial_runtime": {
