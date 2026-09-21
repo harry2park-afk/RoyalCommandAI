@@ -44,6 +44,11 @@ export const roomTemplates = [
  {id:'uploaded-office-set-three-20260921-03',name:'Executive Library Illustration',category:'Illustration',keywords:'executive library illustration',image:'/room-designs/uploaded-office-set-three-20260921-03.webp'},
  {id:'uploaded-office-set-three-20260921-04',name:'Legal Library Team Illustration',category:'Illustration',keywords:'legal library team illustration',image:'/room-designs/uploaded-office-set-three-20260921-04.webp'},
  {id:'uploaded-office-set-three-20260921-05',name:'Craft and Technology Workshop Collage',category:'Workshop',keywords:'craft and technology workshop collage',image:'/room-designs/uploaded-office-set-three-20260921-05.webp'},
+ {id:'illustrated-office-set-four-20260921-01',name:'Botanical Atrium Illustration',category:'Illustration',keywords:'botanical atrium illustration',image:'/room-designs/illustrated-office-set-four-20260921-01.webp'},
+ {id:'illustrated-office-set-four-20260921-02',name:'Brick Loft Team Illustration',category:'Illustration',keywords:'brick loft team illustration',image:'/room-designs/illustrated-office-set-four-20260921-02.webp'},
+ {id:'illustrated-office-set-four-20260921-03',name:'Seaside Team Illustration',category:'Illustration',keywords:'seaside team illustration',image:'/room-designs/illustrated-office-set-four-20260921-03.webp'},
+ {id:'illustrated-office-set-four-20260921-04',name:'Grand Reading Room Illustration',category:'Illustration',keywords:'grand reading room illustration',image:'/room-designs/illustrated-office-set-four-20260921-04.webp'},
+ {id:'illustrated-office-set-four-20260921-05',name:'Lavender Future Office Illustration',category:'Illustration',keywords:'lavender future office illustration',image:'/room-designs/illustrated-office-set-four-20260921-05.webp'},
 ] as const;
 export type RoomTemplate = typeof roomTemplates[number];
 export function templateImage(t:RoomTemplate){return t.image;}
