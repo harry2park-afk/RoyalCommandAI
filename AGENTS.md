@@ -61,3 +61,7 @@ Default interface language is English. Keep most UI in simple English. Use share
 - For each affected UI, verify that simple labels remain English-only, necessary explanatory messages follow the selected language, and switching back to English removes secondary text. Ensure any bilingual text fits without hiding controls. Keep checks scoped to the change.
 
 This is a coding requirement; recording it does not establish that existing screens have already been migrated.
+
+## Self-service tool rooms — approved product design
+
+For Room creation, tool catalog, tool installation, entitlement or removal work, follow [Self-service Tool Room Design](docs/rcv3/SELF_SERVICE_TOOL_ROOM_DESIGN.md). Customers assemble shared tools themselves; unpaid/expired tools remain in place and disabled until explicitly removed. Reuse existing components and enforce activation server-side. Installation, subscription cancellation and data deletion are separate. This is a scoped product requirement, not an extra approval gate; do not treat the design as implementation evidence.
