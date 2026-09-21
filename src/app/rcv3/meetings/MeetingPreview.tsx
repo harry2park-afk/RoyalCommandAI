@@ -3,8 +3,9 @@ import {useEffect,useRef,useState} from 'react';
 import {meetingBackgrounds} from '@/lib/rcv3/meeting-backgrounds';
 import {MeetingCamera} from '@/lib/rcv3/meeting-camera';
 import {meetingPreviewText} from '@/lib/locale/meeting-preview';
+import MeetingTranslation from './MeetingTranslation';
 import styles from './meeting.module.css';
-export default function MeetingPreview({language}:{language:string}){
+export default function MeetingPreview({language,rooms}:{language:string;rooms:{id:string;name:string}[]}){
  const [selected,setSelected]=useState<string>(meetingBackgrounds[0].id),[active,setActive]=useState(false),[starting,setStarting]=useState(false),[error,setError]=useState<'failed'|'unavailable'|null>(null);
  const [zoom,setZoom]=useState(0.85),[offset,setOffset]=useState(0),[brightness,setBrightness]=useState(1),[loadedImage,setLoadedImage]=useState('');
  const video=useRef<HTMLVideoElement>(null),canvas=useRef<HTMLCanvasElement>(null),camera=useRef<MeetingCamera|null>(null),background=useRef<HTMLImageElement|null>(null),run=useRef(0);
@@ -52,6 +53,7 @@ export default function MeetingPreview({language}:{language:string}){
     <p className={styles.small}>{meetingPreviewText('privacy',language)}</p>{chosen.staff&&<p className={styles.small}>{meetingPreviewText('staff',language)}</p>}
    </aside>
   </section>
+  <MeetingTranslation language={language} rooms={rooms}/>
   <section aria-label="Meeting background designs" className={styles.grid}>{meetingBackgrounds.map((b,i)=><button key={b.id} aria-pressed={b.id===chosen.id} onClick={()=>choose(b.id)}><img src={b.image} alt={b.name} width={1672} height={941}/><span><small>{String(i+1).padStart(2,'0')}</small>{b.name}</span></button>)}</section>
  </main>;
 }
