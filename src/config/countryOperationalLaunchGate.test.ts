@@ -20,6 +20,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   rollbackPath: "NEEDS_REVIEW",
   deploymentProvenance: "NEEDS_REVIEW",
   roomFactoryTemplates: "NEEDS_REVIEW",
+  roomFactoryRuntime: "NEEDS_REVIEW",
   roomFactoryWriteAuthority: "NEEDS_REVIEW",
   tenantIsolation: "NEEDS_REVIEW",
   customerAccountAuthority: "NEEDS_REVIEW",
@@ -42,6 +43,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   rollbackPath: "VERIFIED",
   deploymentProvenance: "VERIFIED",
   roomFactoryTemplates: "VERIFIED",
+  roomFactoryRuntime: "VERIFIED",
   roomFactoryWriteAuthority: "VERIFIED",
   tenantIsolation: "VERIFIED",
   customerAccountAuthority: "VERIFIED",
@@ -90,6 +92,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("ROLLBACK_PATH_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("DEPLOYMENT_PROVENANCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_TEMPLATES_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_RUNTIME_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED");
@@ -133,6 +136,7 @@ describe("country operational launch readiness gate", () => {
     expect(gate.operationalBlockers).toEqual([
       "DEPLOYMENT_PROVENANCE_NOT_VERIFIED",
       "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED",
+      "ROOM_FACTORY_RUNTIME_NOT_VERIFIED",
       "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED",
       "TENANT_ISOLATION_NOT_VERIFIED",
       "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED",
@@ -157,6 +161,21 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["DEPLOYMENT_PROVENANCE_NOT_VERIFIED"]);
+  });
+
+  it("fails closed if Room Factory runtime creation has not been independently verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      roomFactoryRuntime: "BLOCKED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["ROOM_FACTORY_RUNTIME_NOT_VERIFIED"]);
   });
 
   it("fails closed if Room Factory client write authority has not been independently verified", () => {
