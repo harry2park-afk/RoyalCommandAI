@@ -21,3 +21,9 @@ Assets: public/room-designs/meeting-ocean-01.webp through meeting-ocean-10.webp.
 
 ## Verification
 Focused lifecycle tests cover explicit camera start/no microphone, cancelled late grant cleanup, denied permission, processing timeout, pending-send shutdown and locale English fallback. Independent review found no remaining blocker for a clearly labelled local preview. Live browser gallery/camera checks are reported separately; do not infer remote call success from preview rendering.
+
+## Seat layout revision
+STANDARD: single writer, independent review_meeting reviewer. Replaced seven gallery entries with two solo, two duo, two trio and one six-seat wide table. Retained original ocean01/05/09 artwork with three AI characters and one real-camera slot. New versioned assets preserve originals. My Seat selects local compositing position and resets to first seat when changing designs. Narrow seats scale the camera image before clipping. Solo desk masks calibrated to generated artwork.
+Camera lifecycle tests pass; actual physical-camera appearance remains unverified. This does not implement remote conferencing, unlimited capacity, microphone transmission or translation. No configured conferencing service was available in this implementation; connecting a real multi-user session remains outstanding.
+
+Owner color correction: mix colors, do not standardize all brown. Final gallery uses ivory solo, cognac brown garden solo and library duo, and green remaining layouts. Brown variants not selected are not published.

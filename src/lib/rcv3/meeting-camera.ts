@@ -18,7 +18,7 @@ function model(){
 function deadline<T>(work:Promise<T>):Promise<T>{return new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(new Error('TIMEOUT')),20000);work.then(v=>{clearTimeout(timer);resolve(v);},e=>{clearTimeout(timer);reject(e);});});}
 export class MeetingCamera {
  private generation=0;private stream:MediaStream|null=null;private segmenter:Segmenter|null=null;private frame=0;private pending:Promise<void>|null=null;
- constructor(private video:HTMLVideoElement,private canvas:HTMLCanvasElement,private settings:()=>{background:HTMLImageElement|null;deskTop:number;zoom:number;offset:number;brightness:number},private failure:()=>void){}
+ constructor(private video:HTMLVideoElement,private canvas:HTMLCanvasElement,private settings:()=>{background:HTMLImageElement|null;deskTop:number;zoom:number;offset:number;brightness:number;seatX?:number;seatWidth?:number},private failure:()=>void){}
  stop(){
   ++this.generation;cancelAnimationFrame(this.frame);this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;this.video.pause();this.video.srcObject=null;
   const segmenter=this.segmenter;this.segmenter=null;
@@ -48,9 +48,9 @@ export class MeetingCamera {
   }catch(e){if(token===this.generation)this.stop();throw e;}
  }
  private draw(result:Result){
-  const {background,deskTop,zoom,offset,brightness}=this.settings();const ctx=this.canvas.getContext('2d');if(!ctx||!background?.complete||!background.naturalWidth)return;
-  const w=this.canvas.width,h=this.canvas.height;const dw=w*zoom,dh=h*zoom,x=w*0.41-dw/2,y=(h-dh)/2+offset*h;
-  ctx.save();ctx.clearRect(0,0,w,h);ctx.save();ctx.beginPath();ctx.rect(w*0.26,0,w*0.29,h);ctx.clip();ctx.drawImage(result.segmentationMask,x,y,dw,dh);ctx.globalCompositeOperation='source-in';ctx.filter=`brightness(${brightness})`;ctx.drawImage(result.image,x,y,dw,dh);ctx.restore();ctx.filter='none';ctx.globalCompositeOperation='destination-over';ctx.drawImage(background,0,0,w,h);ctx.globalCompositeOperation='source-over';
+  const {background,deskTop,zoom,offset,brightness,seatX=0.41,seatWidth=0.29}=this.settings();const ctx=this.canvas.getContext('2d');if(!ctx||!background?.complete||!background.naturalWidth)return;
+  const w=this.canvas.width,h=this.canvas.height;const fittedZoom=zoom*Math.min(1,seatWidth/0.29);const dw=w*fittedZoom,dh=h*fittedZoom,x=w*seatX-dw/2,y=(h-dh)/2+offset*h;
+  ctx.save();ctx.clearRect(0,0,w,h);ctx.save();ctx.beginPath();ctx.rect(w*(seatX-seatWidth/2),0,w*seatWidth,h);ctx.clip();ctx.drawImage(result.segmentationMask,x,y,dw,dh);ctx.globalCompositeOperation='source-in';ctx.filter=`brightness(${brightness})`;ctx.drawImage(result.image,x,y,dw,dh);ctx.restore();ctx.filter='none';ctx.globalCompositeOperation='destination-over';ctx.drawImage(background,0,0,w,h);ctx.globalCompositeOperation='source-over';
   // Restore foreground desk above the participant, giving a seated-behind-desk view.
   const top=Math.round(h*deskTop);const sourceTop=Math.round(background.naturalHeight*deskTop);
   ctx.drawImage(background,0,sourceTop,background.naturalWidth,background.naturalHeight-sourceTop,0,top,w,h-top);ctx.restore();

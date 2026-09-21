@@ -1,4 +1,5 @@
 const messages = {
+ seats: {en:'Seats describe the background layout. My Seat moves your local camera preview; other seats are not connected participants.',ko:'좌석 수는 배경 구성을 뜻합니다. My Seat는 내 카메라 위치를 바꾸며, 다른 좌석에 실제 참석자가 연결되는 기능은 아직 없습니다.'},
  intro: {en:'Choose how you will look to other participants. This is a local preview; no meeting is connected yet.',ko:'상대방에게 보일 모습을 선택하세요. 현재는 내 기기 미리보기이며, 실제 회의는 아직 연결되지 않았습니다.'},
  privacy: {en:'Camera preview stays on this device. Microphone and recording are off.',ko:'카메라 미리보기는 이 기기에서만 처리됩니다. 마이크와 녹화는 꺼져 있습니다.'},
  pose: {en:'Sit facing the camera at eye level. Centre your face above the desk.',ko:'카메라를 눈높이에 두고 정면으로 앉아 얼굴을 책상 위 중앙에 맞추세요.'},
