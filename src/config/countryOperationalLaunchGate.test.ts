@@ -22,6 +22,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   roomFactoryWriteAuthority: "NEEDS_REVIEW",
   tenantIsolation: "NEEDS_REVIEW",
   customerAccountAuthority: "NEEDS_REVIEW",
+  countryCommercialCatalog: "NEEDS_REVIEW",
   paymentCommercialAuthority: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
   complianceReviewAuthority: "NEEDS_REVIEW",
@@ -42,6 +43,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   roomFactoryWriteAuthority: "VERIFIED",
   tenantIsolation: "VERIFIED",
   customerAccountAuthority: "VERIFIED",
+  countryCommercialCatalog: "VERIFIED",
   paymentCommercialAuthority: "VERIFIED",
   paymentOperations: "VERIFIED",
   complianceReviewAuthority: "VERIFIED",
@@ -88,6 +90,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED");
@@ -129,6 +132,7 @@ describe("country operational launch readiness gate", () => {
       "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED",
       "TENANT_ISOLATION_NOT_VERIFIED",
       "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED",
+      "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED",
       "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
       "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED",
@@ -164,6 +168,21 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"]);
+  });
+
+  it("fails closed if country commercial catalog readiness has not been independently verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      countryCommercialCatalog: "BLOCKED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED"]);
   });
 
   it("fails closed if payment commercial authority has not been independently verified", () => {
