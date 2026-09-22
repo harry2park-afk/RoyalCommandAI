@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { hasReviewerProvenCountryApproval } from "./service-country-commercial-readiness";
+import {
+  hasReviewerProvenCountryApproval,
+  type CountryServiceCommercialTerm,
+} from "./service-country-commercial-readiness";
 
 const now = new Date("2026-09-22T12:00:00.000Z");
 
-function approvedTerm(overrides: Record<string, unknown> = {}) {
+function approvedTerm(overrides: Partial<CountryServiceCommercialTerm> = {}): CountryServiceCommercialTerm {
   return {
     availability_status: "available",
     review_status: "approved",
