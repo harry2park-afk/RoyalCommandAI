@@ -65,7 +65,12 @@ const evidence = JSON.parse(raw) as {
   security_advisor: {
     rls_enabled_no_policy_count: number;
     level: string;
-    release_blocker_until_classified: boolean;
+    classification: string;
+    tables_with_anon_privileges: number;
+    tables_with_authenticated_privileges: number;
+    tables_with_service_role_privileges: number;
+    direct_client_exposure_from_this_finding_family: boolean;
+    security_regression_verified: boolean;
   };
   repository_verification_before_increment: Record<string, string>;
   release_decision: {
@@ -177,10 +182,15 @@ describe("October first-wave launch evidence 2026-09-22 10:47", () => {
     expect(evidence.payments_and_operations.payment_runtime_verified).toBe(false);
   });
 
-  it("records the security-advisor debt without treating INFO as an automatic pass", () => {
+  it("classifies the current advisor family as service-role-only without promoting overall security readiness", () => {
     expect(evidence.security_advisor.rls_enabled_no_policy_count).toBe(19);
     expect(evidence.security_advisor.level).toBe("INFO");
-    expect(evidence.security_advisor.release_blocker_until_classified).toBe(true);
+    expect(evidence.security_advisor.classification).toBe("REVIEWED_SERVICE_ROLE_ONLY");
+    expect(evidence.security_advisor.tables_with_anon_privileges).toBe(0);
+    expect(evidence.security_advisor.tables_with_authenticated_privileges).toBe(0);
+    expect(evidence.security_advisor.tables_with_service_role_privileges).toBe(19);
+    expect(evidence.security_advisor.direct_client_exposure_from_this_finding_family).toBe(false);
+    expect(evidence.security_advisor.security_regression_verified).toBe(false);
   });
 
   it("records completed repository evidence without promoting the Draft to launch-ready", () => {
@@ -198,7 +208,7 @@ describe("October first-wave launch evidence 2026-09-22 10:47", () => {
     expect(evidence.release_decision.country_ready_claimed).toBe(false);
   });
 
-  it("contains no customer number, email address, or UUID-shaped customer identifier", () => {
+  it("contains no customer number or email address", () => {
     expect(raw).not.toMatch(/\bRC\s+[0-9]{7}\b/);
     expect(raw).not.toMatch(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
   });
