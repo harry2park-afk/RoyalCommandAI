@@ -15,15 +15,7 @@
       "force_rls": false,
       "roles": {
         "anon": [],
-        "authenticated": [
-          "SELECT",
-          "INSERT",
-          "UPDATE",
-          "DELETE",
-          "TRUNCATE",
-          "REFERENCES",
-          "TRIGGER"
-        ]
+        "authenticated": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"]
       },
       "policies": [
         {
@@ -38,36 +30,12 @@
       "rls_enabled": true,
       "force_rls": false,
       "roles": {
-        "anon": [
-          "SELECT",
-          "INSERT",
-          "UPDATE",
-          "DELETE",
-          "TRUNCATE",
-          "REFERENCES",
-          "TRIGGER"
-        ],
-        "authenticated": [
-          "SELECT",
-          "INSERT",
-          "UPDATE",
-          "DELETE",
-          "TRUNCATE",
-          "REFERENCES",
-          "TRIGGER"
-        ]
+        "anon": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"],
+        "authenticated": ["SELECT", "INSERT", "UPDATE", "DELETE", "TRUNCATE", "REFERENCES", "TRIGGER"]
       },
       "policies": [
-        {
-          "name": "room_factory_manifests_insert_owner",
-          "role": "authenticated",
-          "command": "INSERT"
-        },
-        {
-          "name": "room_factory_manifests_select",
-          "role": "authenticated",
-          "command": "SELECT"
-        }
+        {"name": "room_factory_manifests_insert_owner", "role": "authenticated", "command": "INSERT"},
+        {"name": "room_factory_manifests_select", "role": "authenticated", "command": "SELECT"}
       ]
     }
   },
@@ -81,9 +49,18 @@
     "allocator_function": "public.ensure_rc_customer_account(uuid)",
     "allocator_function_present": false
   },
+  "hosted_migration_row_76": {
+    "version": "20260920091809",
+    "name": "add_secure_rc_customer_numbers",
+    "revokes_anon_table_privileges": true,
+    "revokes_authenticated_table_privileges": false,
+    "grants_authenticated_select": true,
+    "creates_allocator_function": false
+  },
   "interpretation": {
     "customer_account_fixture_matches_anon_no_table_access": true,
     "customer_account_authenticated_direct_control_is_launch_blocker": true,
+    "row_76_does_not_close_authenticated_acl": true,
     "room_factory_client_table_privileges_are_launch_blocker": true,
     "room_factory_hosted_acl_hardening_verified": false,
     "hosted_remediation_candidate_applied": false,
