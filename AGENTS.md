@@ -38,7 +38,7 @@ No AI self-report proves execution. File changes, tests, commits and deployments
 
 ## Owner approval continuity
 
-If the Owner explicitly grants continuing approval for a defined project phase or sequence, do not repeatedly ask for approval inside that scope unless the action becomes destructive, materially expands scope, exposes a new high-severity unknown, requires a credential/value only the Owner can supply, or binding external rules require separate confirmation.
+Follow Article 14 of `ROYAL_COMMAND_LAW.md`: one approval for a task title and its defined scope remains valid through completion, including necessary fixes, tests, commits, approved remote reflection and verification. Do not ask again because a tool changes, a step retries, a handoff occurs or a conversation resumes. Consume existing authorization at final gates. Ask only for a genuinely new boundary or binding external confirmation described in Article 14, explain the exact reason, and first prefer an authorized alternative. Do not extend the approved destination to Production or grant new account access implicitly.
 
 ## Royal Command daily recovery
 

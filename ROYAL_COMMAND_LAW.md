@@ -47,8 +47,10 @@ Provider AIs propose or review; an approved Host Executor controls infrastructur
 ## Article 13 — Rollback and Recovery
 Production-affecting changes require a verified known-good rollback point proportionate to risk. Rollback and recovery must preserve customer data and unrelated working features. Recovery evidence is maintained under the Daily Recovery rules.
 
-## Article 14 — Production Approval
-The Owner may approve a defined sequence or phase. Do not repeat approval requests inside that scope unless it becomes destructive, materially expands, requires separate external confirmation, reveals a new high-severity risk, or needs an Owner-supplied secret/value.
+## Article 14 — One Approval per Defined Task
+One Owner approval for a task title and its defined goal, writable scope and destination remains valid until that task is complete or the Owner changes or withdraws it. Necessary investigation, implementation, correction, review, tests, commits, remote reflection and verification within that approved scope do not require repeat approval. Tool changes, retries, handoffs and resumed conversations do not reset approval. A final approval stage consumes existing authorization when it already covers the action; it is not an automatic new request.
+
+Ask only for the affected action if it becomes destructive, materially expands scope, reveals a new high-severity risk, requires a secret/value only the Owner can supply, or binding external rules require separate confirmation. State the exact new boundary and the rule requiring confirmation. First use an authorized alternative that avoids the additional grant when practical. A task title alone never authorizes unrelated work, new account permissions or Production promotion outside the approved destination. Preserve the approved scope and completion evidence in the task record; do not create extra approval paperwork.
 
 ## Article 15 — Cost, Reliability and Efficient Communication
 Use multiple models only when they materially reduce risk or time. Apply suitable timeouts, failure isolation, retry and cost limits. Answers and work orders must be short and accurate without omitting meaning, conditions or safety. Suggest a materially better or safer method briefly before execution. Avoid repetition and verbosity; these rules must not impair sound judgment or execution speed.
