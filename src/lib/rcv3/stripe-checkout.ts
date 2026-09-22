@@ -92,13 +92,14 @@ export async function validateStripePrices(stripe: Stripe, catalog: CheckoutCata
 // Caller must first atomically persist this immutable order in SERVER-OWNED
 // storage. Retries reuse the stored order; they must not generate a new ID/time.
 // This adapter does not grant entitlements or activate rooms.
-export async function createTestCheckout(stripe: Stripe, order: CheckoutOrder, trustedOrigin: string) {
+export async function createTestCheckout(stripe: Stripe, order: CheckoutOrder, trustedOrigin: string, customerId?: string) {
   const origin = new URL(trustedOrigin);
   if (origin.protocol !== "https:" || origin.origin !== trustedOrigin) throw new Error("RCV3_ORIGIN");
   // Reuse the exact persisted request even after expiry: Stripe returns its
   // idempotent result after a lost response, or rejects an expired new session.
   const metadata = { rcv3_order: order.id, rcv3_owner: order.ownerId, rcv3_draft: order.draftId, rcv3_hash: order.draftHash };
   const result = await stripe.checkout.sessions.create({
+    ...(customerId ? {customer:customerId} : {}),
     mode: "subscription", line_items: order.lines.map(line => ({ price: line.priceId, quantity: 1 })),
     client_reference_id: order.id, metadata, subscription_data: { metadata },
     integration_identifier: order.integrationIdentifier, expires_at: order.expiresAt,

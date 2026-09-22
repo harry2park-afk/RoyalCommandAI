@@ -3,6 +3,7 @@ import { appearanceLimits as limits } from "./appearance-limits";
 import { AI_PROVIDER_IDS } from "@/lib/ai/types";
 import type { createClient } from "@/lib/supabase/server";
 import { validateDesign } from "../../../rcv3/core.mjs";
+import { requireToolInstallationAuthority } from './toolbox-authority';
 
 type DB = Awaited<ReturnType<typeof createClient>>;
 import { TOOL_IDS } from "../../../rcv3/tool-registry.mjs";
@@ -94,10 +95,11 @@ export async function readState(store: CloudStore) {
   if (revisionFile(state.revision) !== `state/${files[0].name}`) throw new Error("RCV3_STORAGE");
   return state;
 }
-export async function writeState(store: CloudStore, expectedRevision: number, candidate: unknown) {
+export async function writeState(store: CloudStore, expectedRevision: number, candidate: unknown, toolboxAuthorized = false) {
   const previous = await readState(store);
   if (!previous) throw new Error("RCV3_NOT_FOUND");
   const state = evolveState(previous, candidate, expectedRevision);
+  requireToolInstallationAuthority(previous, state, toolboxAuthorized);
   await store.insert(revisionFile(state.revision), state);
   return state;
 }

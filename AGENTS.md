@@ -73,3 +73,12 @@ For V3 room, access, shortcut or education work, follow [RC V3 Platform and Lear
 ## RC V3 toolbox-first development — mandatory
 
 For every new or changed V3 screen, room, button or executable feature, follow the toolbox-first section in [Self-service Tool Room Design](docs/rcv3/SELF_SERVICE_TOOL_ROOM_DESIGN.md). Inventory and reuse existing working controls and their real functionality. Register missing reusable functionality in the shared toolbox and verify it **before** consuming it in a screen or room. Do not implement duplicate per-room controls or defer toolbox registration. Reuse includes the UI, action, configuration schema, permissions, version and connection requirements; customer data, credentials and entitlements must not be copied. Report unregistered/unverified items explicitly. Documentation alone does not establish toolbox implementation or completion. This requirement adds no approval gate to unrelated work.
+
+
+## RC toolbox ownership — 2026-09-22 correction
+
+The shared toolbox is RC-managed and requires Harry’s authorization. Customers must not browse the toolbox or install tools directly. AI may prepare a scoped customer request; it cannot authorize or claim installation. Existing task approval is not blanket approval for unrelated customer installations. Server-side authorization is mandatory, independently of hidden UI controls. This correction overrides earlier customer self-service toolbox installation language. Customers may continue using and arranging their already supplied room features.
+
+## RC outbound email — Owner instruction 2026-09-22
+
+Only factual card-expiry/card-update reminders generated from verified current payment-provider records may be automatic. All other customer notices, including payment-success/failure notices, remain blocked pending Harry's explicit approval of the exact rendered message and recipient batch. Approval to develop this feature or finish the toolbox task is not approval to send customer emails. AI may draft, never authorize sending. Store approvals server-side; any change to content or recipients invalidates approval. Enforce this at the sending boundary, preserve an audit record, prevent duplicate sends, and never include full card numbers or CVV. Do not use Katie's personal Gmail connection as the RC system sender. Existing blanket automation plans are superseded by this instruction.

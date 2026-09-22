@@ -58,3 +58,13 @@ Harry 지시: 기존 모든 버튼과 작동 기능을 조사·등록하고, RC 
 ## 작업 제목별 1회 승인 — 2026-09-22
 
 Harry 지시: 하나의 작업 제목과 승인된 범위는 완료까지 승인을 유지한다. 필요한 수정·검증·커밋·승인된 원격 반영, 도구 변경·재시도·대화 재개마다 재승인을 요구하지 않는다. LAW 제14조와 AGENTS에 반영했다. 별도 외부 권한 등 실제로 새로운 경계만 이유를 명시하여 확인하고, 먼저 기존 승인으로 가능한 대안을 사용한다. 현재 GitHub 정비/툴박스 작업의 대상은 Preview이며 Production 승인이 아니다.
+
+
+## RC 관리 툴박스 — 2026-09-22 정정
+
+Harry 지시: 툴박스는 RC가 관리하며 Harry 허가하에 사용한다. 일반 고객의 직접 접근·설치를 금지하고 AI가 요청을 정리한 뒤 승인된 RC 작업으로 붙인다. 기존 고객 직접 설치 설계보다 이 정정이 우선한다. 현재 자동 요청 접수·승인 대기열·고객간 설치 실행은 구현되지 않았으며 AI 대화는 요청서 초안만 작성한다.
+
+### RC automatic email restriction — 2026-09-22
+- Owner authorizes automatic card-expiry/card-update reminders only. Other notices need Harry's review of the actual content and recipients before sending; task approval does not authorize email delivery.
+- Added `src/lib/rcv3/email-approval.ts` exact-envelope digest/owner validation and mutation-invalidates-approval tests. This is a guard, not evidence of a connected sender, durable approval queue, automatic schedule, or live delivery. Those remain unverified/incomplete. No customer emails sent by this work.
+- Follow-up implemented the protected email outbox, RC-only review UI, card-expiry renderer/current-card revalidation, and scheduler-callable Preview worker. Migration `20260922021440_rcv3_preview_email_outbox.sql` applied; RLS/grants read-back verified. Status/configuration gaps: `docs/rcv3/EMAIL_DELIVERY_STATUS.md`. No sender connection, installed schedule, hosted flow or real email delivery is claimed.

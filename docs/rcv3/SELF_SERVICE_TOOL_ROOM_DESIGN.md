@@ -80,3 +80,14 @@ Owner: Harry Park. RC V3부터 모든 신규·수정 화면, 방, 버튼 및 실
 7. 완료 증거에는 툴 ID/버전, 공통 원본 경로, 사용하는 화면·방, 실제 실행 및 필요한 실패 상태 검증을 남긴다. 동일 툴을 다른 방에서도 재사용할 수 있음을 확인한다. 공유 기능 수정은 공통 원본에서 처리하고 관련 사용처만 검증한다.
 
 이번 보강은 개발 규칙의 저장이다. 기존 모든 버튼의 등록이나 공통 툴박스 구현·배포가 완료됐다는 뜻은 아니다. 기존 구현 상태 및 미완료 체크리스트는 그대로 유효하다.
+
+
+## Owner correction — RC-managed toolbox (2026-09-22, takes precedence)
+
+Harry directs that RC manages the toolbox under his authorization. Customers do not access the toolbox or install directly. Their AI can prepare a request identifying the function, purpose and destination; only an authorized RC process may apply an approved installation. Customer room ownership is not RC toolbox authority. An AI answer, customer approval flag, paid entitlement or developer task approval for a different scope is not installation approval. Existing supplied features and visual arrangement remain usable. Earlier self-service installation text above is superseded by this correction.
+
+Current implementation: RC owner-only toolbox visibility, protected exact installation grants and state API installation checks. Customers submit text through Request a Tool; RC Requests lists protected requests for Harry to approve, reject or retry installation in the requested customer room. AI conversation alone does not submit a request. Paid service entitlements remain separately enforced. These code paths require Preview verification before being reported as operational.
+
+### Approved email boundary
+
+Email Review is an RC-owned toolbox function. Ordinary customers cannot draft or approve RC broadcasts. Card reminders use verified payment records and fixed factual templates. Every other outbound notice is a pending exact message until Harry approves its recipient and contents. The development task's standing approval does not approve customer communications. See `EMAIL_DELIVERY_STATUS.md` for implemented behavior and remaining delivery configuration.

@@ -7,10 +7,15 @@ import { roomTemplates, templateImage } from "./templates";
 import { createTestCheckout, previewStripe, readCheckoutConfiguration, verifyTestCheckout, type CheckoutOrder } from "./stripe-checkout";
 import { verifyCustomerMail } from "./customer-mail";
 import { bindCustomerPhoneForPaidOrder } from "./customer-phone-account";
+import type {ToolRequest,ToolGrant} from './tool-approval-types';
 
 export type OrderSnapshot = {
  order: CheckoutOrder; draft: RoomDraftInput; termsText: string;
  accountId: string; origin: string; recurringConsent: true;
+ billingContact?: {email:string;name:string};
+ billingCustomerId?: string;
+ toolRequests?: ToolRequest[];
+ toolGrants?: ToolGrant[];
 };
 export type LedgerOrder = {
  id: string; owner_id: string; draft_id: string; room_id: string;
@@ -60,6 +65,14 @@ export function orderLedger(db = createAdminClient()) {
   },
  };
 }
+// Compare the complete protected snapshot so unrelated approval/billing updates
+// cannot overwrite each other. A stale writer must reload and retry.
+export async function updateOrderSnapshot(row:LedgerOrder, snapshot:OrderSnapshot, ledger=orderLedger()) {
+ const result=await ledger.db.from('rcv3_preview_orders').update({snapshot}).eq('id',row.id).eq('owner_id',row.owner_id).eq('snapshot',JSON.stringify(row.snapshot)).select('*').maybeSingle();
+ if(result.error)throw new Error('RCV3_STORAGE');
+ if(!result.data)throw new Error('RCV3_CONFLICT');
+ return result.data as LedgerOrder;
+}
 export async function checkoutForOrder(row: LedgerOrder, ledger = orderLedger()) {
  const { stripe, catalog, origin } = checkoutRuntime();
  if (catalog.accountId !== row.snapshot.accountId || origin !== row.snapshot.origin) throw new Error("RCV3_PAYMENT_ACCOUNT");
@@ -70,7 +83,29 @@ export async function checkoutForOrder(row: LedgerOrder, ledger = orderLedger())
   if (s.status !== "open" || !s.url || new URL(s.url).origin !== "https://checkout.stripe.com") throw new Error("RCV3_QUOTE_EXPIRED");
   return {orderId:row.id, url:s.url};
  }
- const checkout = await createTestCheckout(stripe,row.snapshot.order,row.snapshot.origin);
+ let customerId=row.snapshot.billingCustomerId;
+ if(row.snapshot.billingContact && !customerId) {
+  // Reuse only a Stripe customer proven by another protected order for this
+  // same RC account and Stripe account. Never accept a browser customer ID.
+  const previous=await ledger.db.from('rcv3_preview_orders').select('*').eq('owner_id',row.owner_id).neq('id',row.id).not('session_id','is',null).order('activated_at',{ascending:false,nullsFirst:false}).limit(10);
+  if(previous.error)throw new Error('RCV3_STORAGE');
+  for(const item of (previous.data??[]) as LedgerOrder[]) {
+   if(item.snapshot.accountId!==catalog.accountId || !item.session_id?.startsWith('cs_test_'))continue;
+   const prior=await stripe.checkout.sessions.retrieve(item.session_id);
+   if(prior.livemode || prior.metadata?.rcv3_owner!==row.owner_id || prior.metadata.rcv3_order!==item.id || prior.client_reference_id!==item.id)throw new Error('RCV3_PAYMENT_MISMATCH');
+   const candidate=typeof prior.customer==='string'?prior.customer:prior.customer?.id;
+   if(candidate){customerId=candidate;break;}
+  }
+  if(!customerId){
+   const customer=await stripe.customers.create({...row.snapshot.billingContact,metadata:{rcv3_owner:row.owner_id}},{idempotencyKey:`rcv3-billing-customer-${row.id}`});
+   if(customer.livemode)throw new Error('RCV3_PAYMENT_MISMATCH');
+   customerId=customer.id;
+  }
+  // Freeze customer choice before the first Stripe Checkout request. Lost
+  // response retries must use identical parameters with the idempotency key.
+  row=await updateOrderSnapshot(row,{...row.snapshot,billingCustomerId:customerId},ledger);
+ }
+ const checkout = await createTestCheckout(stripe,row.snapshot.order,row.snapshot.origin,customerId);
  await ledger.bindSession(row,checkout.id);
  return {orderId:row.id,url:checkout.url};
 }

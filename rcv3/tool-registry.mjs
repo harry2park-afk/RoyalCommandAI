@@ -18,7 +18,8 @@ const entries = /** @type {const} */ ([
   {id:'background',label:'Background',description:'Choose a PNG, JPG or WebP background for this room.',requires:'An image under 950KB. Save the room design to keep the change.',source:'src/app/rcv3/Room.tsx'},
   {id:'edit-buttons',label:'Edit Buttons',description:'Move, resize, recolour, rename or remove installed buttons.',requires:'Save or cancel your current edits first.',source:'src/app/rcv3/Room.tsx'},
   {id:'upload-file',label:'Add Text File',description:'Add a TXT, MD or CSV file to this room.',requires:'A text file under 100KB and access to this room.',source:'src/app/rcv3/Room.tsx'},
-  {id:'toolbox',label:'Toolbox',description:'Find shared tools and add them to this room.',requires:'A saved room you own. Adding a tool does not purchase a service.',source:'src/components/rcv3-toolbox/Toolbox.tsx'},
+  {id:'toolbox',label:'Toolbox',description:'RC-managed shared tools for approved installation.',requires:'Harry’s authenticated RC owner account and authorization. Customers cannot install directly.',source:'src/components/rcv3-toolbox/Toolbox.tsx'},
+  {id:'payment',label:'Payment',description:'Open payment guidance and the existing room subscription payment page.',requires:'Your own RC order. Server-confirmed payment is required before paid tools can run.',source:'src/components/rcv3-toolbox/PaymentGate.tsx'},
 ]);
 export const TOOL_REGISTRY = Object.freeze(entries.map(entry => Object.freeze({...entry,version:'1.0.0'})));
 export const TOOL_IDS = Object.freeze(entries.map(entry => entry.id));

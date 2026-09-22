@@ -6,7 +6,16 @@ export type HelpEntry = {en:string;ko?:string};
 // contacts or contract bodies here. The translation API accepts these IDs only.
 import { TOOL_REGISTRY } from "../../../rcv3/tool-registry.mjs";
 export const helpCatalog: Record<string,HelpEntry> = {
- toolboxOverview:{en:"Add a shared tool to your room, then use Edit Buttons to arrange it. Your existing account connections and service limits still apply. Adding a tool does not buy or activate a paid service.",ko:"공통 툴을 방에 추가한 뒤 Edit Buttons로 배치하세요. 기존 계정 연결과 이용 한도가 적용됩니다. 툴 추가만으로 유료 서비스가 구매되거나 활성화되지는 않습니다."},
+ emailReviewOverview:{en:"Review the exact recipient, subject and message below before approving. Save Draft only prepares an email. Approval authorizes the worker to submit this exact email.",ko:"승인 전에 아래의 정확한 수신자·제목·본문을 확인하세요. Save Draft는 초안만 저장합니다. 승인하면 작업자가 해당 이메일을 발송업체에 제출할 수 있습니다."},
+ emailReviewUnconfigured:{en:"Email delivery is not configured. Approval is unavailable.",ko:"이메일 발송 설정이 없어 승인할 수 없습니다."},
+ emailReviewFailure:{en:"The request could not be completed. Refresh and check its status before trying again.",ko:"요청을 완료하지 못했습니다. 새로고침하여 상태를 확인한 후 다시 시도하세요."},
+ emailDraftSaved:{en:"Draft saved for review. It has not been approved or sent.",ko:"검토용 초안을 저장했습니다. 아직 승인하거나 발송하지 않았습니다."},
+ emailReviewApproved:{en:"This exact email is approved for worker submission. Approval is not delivery confirmation.",ko:"이 이메일의 작업자 제출을 승인했습니다. 승인은 수신 완료 확인이 아닙니다."},
+ emailReviewRejected:{en:"Email rejected.",ko:"이메일을 거절했습니다."},
+ emailProviderAccepted:{en:"The email provider accepted this message. Delivery to the recipient has not been confirmed.",ko:"발송업체가 이메일을 접수했습니다. 수신자에게 전달되었는지는 확인되지 않았습니다."},
+ toolPaymentRequired:{en:"Payment is required. Your buttons and saved room remain in place, but paid tools cannot connect or run until the server verifies payment.",ko:"결제가 필요합니다. 버튼과 저장된 방은 그대로 유지되며 서버가 결제를 확인한 후 유료 기능이 연결·실행됩니다."},
+ toolPaymentUnavailable:{en:"The payment page could not open. No payment was taken here. Try again or ask RC to check your subscription.",ko:"결제 화면을 열지 못했습니다. 여기서는 결제가 실행되지 않았습니다. 다시 시도하거나 RC에 구독 확인을 요청하세요."},
+ toolboxOverview:{en:"RC manages this toolbox. Only Harry may authorize tool installation. Customers can ask their AI to prepare a request stating the tool, purpose and target room for RC review. Use Request a Tool to submit it. RC Requests lets Harry review and install approved tools. A conversation alone does not submit or approve a request. Existing connections and paid-service limits still apply.",ko:"이 툴박스는 RC가 관리하며 Harry의 허가하에 툴을 설치합니다. 고객은 AI에게 필요한 기능·목적·대상 방을 정리한 요청서 작성을 부탁할 수 있습니다. Request a Tool에서 요청을 제출하고 Harry는 RC Requests에서 검토·승인·설치합니다. 대화만으로 요청이 제출되거나 승인되지는 않습니다. 기존 연결과 유료 이용 한도가 계속 적용됩니다."},
  ...Object.fromEntries(TOOL_REGISTRY.map(tool=>[`toolbox.${tool.id}`,{en:`${tool.description} ${tool.requires}`} ])),
  ...Object.fromEntries(lessons.map(l=>[`learn.${l.id}`,{en:l.body,ko:l.ko}])),
  learnOverview:{en:"A free 30-day AI literacy programme: 100 numbered lessons, 3–4 per day. Learn history, theory, current capabilities and future scenarios, then create reports and working projects. Lessons 001–050 use knowledge checks; 051–100 require written work and AI feedback. Progress is saved. The 30-day schedule is a study plan; you may learn at your own pace.",ko:"무료 30일 AI 종합교육입니다. 001~100번 과목을 하루 3~4개씩 배우세요. 역사·이론·현재 기술·미래 전망을 배우고 보고서와 작동하는 결과물을 만듭니다. 001~050은 확인 문제, 051~100은 결과물 제출과 AI 평가로 진행합니다. 진도는 저장되며 30일은 권장 계획이므로 본인 속도로 배울 수 있습니다."},
