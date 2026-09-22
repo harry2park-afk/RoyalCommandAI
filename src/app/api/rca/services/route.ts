@@ -3,26 +3,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { evaluateServicePaymentReadiness } from "@/lib/rooms/service-payment-readiness";
+import { hasReviewerProvenCountryApproval } from "@/lib/rooms/service-country-commercial-readiness";
 import { verifyCountryServiceCompliance } from "@/lib/compliance/countryComplianceStore";
 
 const CHECKOUT_CONFIGURED = false;
 
 function isRcaScope(scope?: string | null) {
   return scope === "rca_chat" || scope === "both";
-}
-
-function hasReviewerProvenCountryApproval(countryTerm: {
-  availability_status?: string | null;
-  review_status?: string | null;
-  reviewed_by?: string | null;
-  reviewed_at?: string | null;
-} | null | undefined) {
-  return countryTerm?.availability_status === "available"
-    && countryTerm.review_status === "approved"
-    && typeof countryTerm.reviewed_by === "string"
-    && countryTerm.reviewed_by.length > 0
-    && typeof countryTerm.reviewed_at === "string"
-    && countryTerm.reviewed_at.length > 0;
 }
 
 export async function GET() {
