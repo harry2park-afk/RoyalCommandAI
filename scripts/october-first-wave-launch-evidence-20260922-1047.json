@@ -1,0 +1,178 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-22T10:47:29+10:00",
+  "scope": "October first-wave launch evidence only; no Production or Hosted mutation",
+  "stable_baseline": {
+    "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+    "pre_increment_pr_head_sha": "bab8925a871f9731be5ac633a51d09b4831d4fe3",
+    "restore_branch": "restore/2026-09-22-1047-pr696-pre-post-migration-source-scan",
+    "production_mutation_performed": false,
+    "hosted_mutation_performed": false
+  },
+  "hosted_ledger": {
+    "rows": 79,
+    "migration_20260920091809_rows": 1,
+    "max_version": "20260921052125",
+    "migration_source_provenance_verified": false,
+    "migration_reviewer_provenance_verified": false,
+    "trusted_baseline_may_advance": false
+  },
+  "migration_76_source_scan": {
+    "migration_version": "20260920091809",
+    "migration_name": "add_secure_rc_customer_numbers",
+    "deployment_checkpoint_commit": "f4a61d2e76adf481d5869a9501119bbf423f83f5",
+    "checkpoint_parent_commit": "33bdfc1316fcc9862a2e9aa4b3453cb8ea8fdb63",
+    "checkpoint_commit_changed_only_session_log": true,
+    "exact_sql_path_present_at_checkpoint_commit": false,
+    "exact_sql_path_present_at_checkpoint_parent": false,
+    "exact_sql_path_present_at_restore_2330_source": false,
+    "exact_sql_path_present_at_restore_2330_pr748_preview": false,
+    "default_branch_exact_name_code_search_count": 0,
+    "default_branch_code_search_complete": false,
+    "exact_name_commit_search_count": 0,
+    "deployment_checkpoint_verified": true,
+    "original_sql_artifact_verified": false,
+    "independent_reviewer_verified": false,
+    "safe_for_historical_replay": false,
+    "status": "DEPLOYMENT_CHECKPOINT_VERIFIED_ORIGINAL_SOURCE_AND_REVIEWER_UNRESOLVED"
+  },
+  "first_wave": [
+    {
+      "country_code": "AU",
+      "expected_locale": "en-AU",
+      "manifest_rows": 7,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "country_terms_rows": 0,
+      "positive_local_terms_rows": 0,
+      "provider_offers_rows": 0,
+      "recording_policy_rows": 1,
+      "reviewer_proven_recording_approvals": 0,
+      "disposition": "HOLD"
+    },
+    {
+      "country_code": "US",
+      "expected_locale": "en-US",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "country_terms_rows": 0,
+      "positive_local_terms_rows": 0,
+      "provider_offers_rows": 0,
+      "recording_policy_rows": 1,
+      "reviewer_proven_recording_approvals": 0,
+      "disposition": "HOLD"
+    },
+    {
+      "country_code": "CA",
+      "expected_locale": "en-CA",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "country_terms_rows": 0,
+      "positive_local_terms_rows": 0,
+      "provider_offers_rows": 0,
+      "recording_policy_rows": 1,
+      "reviewer_proven_recording_approvals": 0,
+      "disposition": "HOLD"
+    },
+    {
+      "country_code": "KR",
+      "expected_locale": "ko-KR",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "country_terms_rows": 0,
+      "positive_local_terms_rows": 0,
+      "provider_offers_rows": 0,
+      "recording_policy_rows": 1,
+      "reviewer_proven_recording_approvals": 0,
+      "disposition": "HOLD"
+    },
+    {
+      "country_code": "JP",
+      "expected_locale": "ja-JP",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "country_terms_rows": 0,
+      "positive_local_terms_rows": 0,
+      "provider_offers_rows": 0,
+      "recording_policy_rows": 1,
+      "reviewer_proven_recording_approvals": 0,
+      "disposition": "HOLD"
+    },
+    {
+      "country_code": "GB",
+      "expected_locale": "en-GB",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "country_terms_rows": 0,
+      "positive_local_terms_rows": 0,
+      "provider_offers_rows": 0,
+      "recording_policy_rows": 1,
+      "reviewer_proven_recording_approvals": 0,
+      "disposition": "HOLD"
+    }
+  ],
+  "authorization_and_data_isolation": {
+    "room_factory_manifests_anon_privileges": [
+      "DELETE",
+      "INSERT",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "room_factory_manifests_authenticated_privileges": [
+      "DELETE",
+      "INSERT",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "rc_customer_accounts_authenticated_privileges": [
+      "DELETE",
+      "INSERT",
+      "REFERENCES",
+      "SELECT",
+      "TRIGGER",
+      "TRUNCATE",
+      "UPDATE"
+    ],
+    "hosted_least_privilege_verified": false
+  },
+  "payments_and_operations": {
+    "providers_rows": 0,
+    "active_providers_rows": 0,
+    "service_connection_orders_rows": 0,
+    "payment_named_tables_rows": 0,
+    "service_order_idempotency_columns": 0,
+    "payment_runtime_verified": false
+  },
+  "security_advisor": {
+    "rls_enabled_no_policy_count": 19,
+    "level": "INFO",
+    "release_blocker_until_classified": true
+  },
+  "repository_verification_before_increment": {
+    "quality_gate": "SUCCESS",
+    "conflict_guard": "SUCCESS",
+    "hosted_ledger_preflight": "SUCCESS",
+    "clean_replay": "SUCCESS",
+    "room_factory_concurrency": "SUCCESS",
+    "legal_matter_tenant_isolation": "SUCCESS",
+    "customer_account_authority": "SUCCESS",
+    "linked_dry_run": "EXPECTED_FAIL_CLOSED_ON_UNRESOLVED_LEDGER_DRIFT",
+    "change_control": "SKIPPED_DRAFT_NOT_PASS"
+  },
+  "release_decision": {
+    "first_wave_ready": false,
+    "country_ready_claimed": false,
+    "required_next_gate": "Independent reviewer/change-record binding for migration 20260920091809, then trusted ledger reconciliation before any credentialed linked dry-run or Hosted staging mutation."
+  }
+}
