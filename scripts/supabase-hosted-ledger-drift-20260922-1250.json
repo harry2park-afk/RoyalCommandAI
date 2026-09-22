@@ -23,8 +23,25 @@
     "present_on_pr696_preincrement_head": false,
     "present_on_production_master": false
   },
+  "hosted_source_shape_readback": {
+    "migration_row_exact_match": true,
+    "notices_table_present": true,
+    "notices_rls_enabled": true,
+    "notices_expected_columns_match": true,
+    "notices_anon_any_table_privilege": false,
+    "notices_authenticated_any_table_privilege": false,
+    "notices_service_role_select_insert_update": true,
+    "worker_state_table_present": true,
+    "worker_state_rls_enabled": true,
+    "worker_state_anon_any_table_privilege": false,
+    "worker_state_authenticated_any_table_privilege": false,
+    "worker_state_service_role_select_insert_update": true,
+    "card_sweep_seed_present": true,
+    "pending_index_present": true
+  },
   "rollout_candidate_name_matches": 0,
   "hosted_mutation_performed_by_this_capture": false,
+  "source_artifact_matches_observed_hosted_shape": true,
   "source_provenance_proves_deployment_authority": false,
   "independent_reviewer_or_change_record_verified": false,
   "trusted_hosted_baseline_may_advance": false,
@@ -33,7 +50,8 @@
   "safe_deploy_blocked": true,
   "notes": [
     "The Hosted ledger changed after the prior 79-row observation; stale 79-row assumptions must not authorize migration replay or deployment.",
-    "The exact SQL source is recoverable from draft PR #748 lineage, but source recovery alone does not prove who authorized or executed the Hosted migration.",
+    "READ-ONLY Hosted metadata read-back matches the recovered row-80 SQL shape: exact migration row, expected notice columns, both tables with RLS, no anon/authenticated table privileges, service-role select/insert/update, card_sweep seed, and pending index.",
+    "Source/shape matching narrows artifact provenance but does not prove who authorized or executed the Hosted migration or supply an independent reviewer/change record.",
     "The eight October rollout candidate migration names remain absent from Hosted."
   ]
 }
