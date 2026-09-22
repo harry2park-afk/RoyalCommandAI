@@ -7,6 +7,7 @@ const evidence = JSON.parse(
 
 describe('Hosted ledger drift evidence 2026-09-22', () => {
   it('records the new 80th Hosted migration without treating source recovery as approval', () => {
+    expect(evidence.contract_version).toBe(2);
     expect(evidence.previous_observed_migration_count).toBe(79);
     expect(evidence.migration_count).toBe(80);
     expect(evidence.last_version).toBe('20260922021440');
@@ -14,6 +15,21 @@ describe('Hosted ledger drift evidence 2026-09-22', () => {
     expect(evidence.source_provenance.source_pr).toBe(748);
     expect(evidence.source_provenance.source_commit).toBe('6a5fcb6579df5e0f739dac73ecd2ce0795e3f791');
     expect(evidence.source_provenance.source_blob_sha).toBe('b95f5429860dac1b717c797b3bcd8e53d67d5b0c');
+    expect(evidence.source_provenance_proves_deployment_authority).toBe(false);
+    expect(evidence.independent_reviewer_or_change_record_verified).toBe(false);
+  });
+
+  it('binds Hosted row 80 to the original Git source bytes without promoting deployment authority', () => {
+    const exact = evidence.exact_source_equivalence;
+    expect(exact.verification_mode).toBe('READ_ONLY_HOSTED_LEDGER_PLUS_GITHUB_SOURCE');
+    expect(exact.hosted_statement_count).toBe(1);
+    expect(exact.hosted_statement_md5).toBe('2f983fe4614f793e935835f370c1ea10');
+    expect(exact.source_file_md5).toBe(exact.hosted_statement_md5);
+    expect(exact.source_file_sha256).toBe('654bc1fc58d9ffbd9f5330092507935b6c458e24373cda6a6046902406d25e8e');
+    expect(exact.exact_byte_match).toBe(true);
+    expect(exact.ledger_created_by_present).toBe(true);
+    expect(exact.ledger_created_by_value_published).toBe(false);
+    expect(evidence.source_artifact_matches_hosted_statement_bytes).toBe(true);
     expect(evidence.source_provenance_proves_deployment_authority).toBe(false);
     expect(evidence.independent_reviewer_or_change_record_verified).toBe(false);
   });
@@ -37,7 +53,7 @@ describe('Hosted ledger drift evidence 2026-09-22', () => {
     expect(readback.pending_index_present).toBe(true);
   });
 
-  it('keeps reconciliation and deployment fail-closed after source/shape matching', () => {
+  it('keeps reconciliation and deployment fail-closed after exact source matching', () => {
     expect(evidence.hosted_mutation_performed_by_this_capture).toBe(false);
     expect(evidence.rollout_candidate_name_matches).toBe(0);
     expect(evidence.trusted_hosted_baseline_may_advance).toBe(false);
