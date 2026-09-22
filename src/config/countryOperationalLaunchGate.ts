@@ -25,6 +25,7 @@ export type CountryOperationalEvidence = {
   recordingReviewAuthority?: OperationalEvidenceStatus;
   paymentCommercialAuthority?: OperationalEvidenceStatus;
   paymentOperations?: OperationalEvidenceStatus;
+  paymentProviderSandbox?: OperationalEvidenceStatus;
   complianceReviewAuthority?: OperationalEvidenceStatus;
   complianceEvidence?: OperationalEvidenceStatus;
 };
@@ -51,6 +52,7 @@ export type CountryOperationalBlockerCode =
   | "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED"
   | "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
+  | "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED"
   | "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED"
   | "COMPLIANCE_EVIDENCE_NOT_VERIFIED";
 
@@ -85,6 +87,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "recordingReviewAuthority", blocker: "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED" },
   { key: "paymentCommercialAuthority", blocker: "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
+  { key: "paymentProviderSandbox", blocker: "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED" },
   { key: "complianceReviewAuthority", blocker: "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED" },
   { key: "complianceEvidence", blocker: "COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
 ] as const;
@@ -123,9 +126,13 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * reviewer identity and review chronology have not been independently verified.
  * Payment commercial authority is independent from payment operations so launch
  * cannot proceed while a client can author amount/currency/terms snapshots even
- * if checkout/webhook mechanics are otherwise operational. Compliance evidence
- * and the authority/provenance of the human compliance reviewer are also
- * independent: a country cannot launch solely because a compliance row says
+ * if checkout/webhook mechanics are otherwise operational. Payment provider
+ * sandbox proof is independent again: disposable schema/idempotency tests are not
+ * evidence that a real provider sandbox has passed signed-webhook verification,
+ * replay/idempotency rejection, exact amount/currency checks, cancel/refund,
+ * settlement/terminal-state handling, observability, and rollback. Compliance
+ * evidence and the authority/provenance of the human compliance reviewer are
+ * also independent: a country cannot launch solely because a compliance row says
  * VERIFIED when reviewer identity and review chronology have not themselves
  * been verified.
  */
