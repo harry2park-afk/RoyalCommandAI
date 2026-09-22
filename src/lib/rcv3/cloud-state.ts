@@ -5,7 +5,8 @@ import type { createClient } from "@/lib/supabase/server";
 import { validateDesign } from "../../../rcv3/core.mjs";
 
 type DB = Awaited<ReturnType<typeof createClient>>;
-export const capability = z.enum(["chat", "secretary", "files"]);
+import { TOOL_IDS } from "../../../rcv3/tool-registry.mjs";
+export const capability = z.enum(TOOL_IDS);
 export const buttonSchema = z.object({
   id: z.string().uuid().transform(v => v.toLowerCase()), capability,
   label: z.string().min(1).max(80), x: z.number(), y: z.number(),

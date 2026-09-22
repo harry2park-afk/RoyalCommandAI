@@ -11,7 +11,8 @@ export class RCVoiceControl extends HTMLElement {
  cancel(){this.conversationActive=false;this.#generation++;this.#dictation?.cancel();this.#dictation=undefined;this.#cleanup();this.#idle();}
  setAppearance(patch){return applyButtonAppearance(this.button,this.shadowRoot.querySelector('.custom-label'),patch);}
  #setupTimer; #recordingTimer; #stream; #context; #recorder; #frame; #abort; #generation=0; #busy=false; #transcribe; #samples=[]; #lastBar=0;
- constructor(){super();this.attachShadow({mode:'open'}).append(template.content.cloneNode(true));this.button=this.shadowRoot.querySelector('button');this.status=this.shadowRoot.querySelector('.status');this.canvas=this.shadowRoot.querySelector('canvas');this.button.addEventListener('click',()=>{const enabled=this.liveDictation?!this.#dictation:this.autoSubmit?!this.conversationActive:this.#recorder?.state!=='recording';this.conversationActive=enabled;this.dispatchEvent(new CustomEvent('voice-toggle',{detail:{enabled},bubbles:true,composed:true}));if(enabled)this.start();else if(this.autoSubmit)this.cancel();else this.stop();});}
+ constructor(){super();this.attachShadow({mode:'open'}).append(template.content.cloneNode(true));this.button=this.shadowRoot.querySelector('button');this.status=this.shadowRoot.querySelector('.status');this.canvas=this.shadowRoot.querySelector('canvas');this.button.addEventListener('click',()=>this.toggle());}
+ toggle(){const enabled=this.liveDictation?!this.#dictation:this.autoSubmit?!this.conversationActive:this.#recorder?.state!=='recording';this.conversationActive=enabled;this.dispatchEvent(new CustomEvent('voice-toggle',{detail:{enabled},bubbles:true,composed:true}));if(enabled)this.start();else if(this.autoSubmit)this.cancel();else this.stop();}
  set transcribe(adapter){this.#transcribe=adapter;if(this.isConnected&&!this.#busy)this.#idle();}
  connectedCallback(){this.#idle();}
  disconnectedCallback(){this.cancel();}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useImperativeHandle, type Ref } from "react";
 import { Move, Volume2, VolumeX, ChevronDown, ChevronUp } from "lucide-react";
 import type { Turn } from "@/lib/rcv3/execution";
 import styles from "./room.module.css";
@@ -8,9 +8,12 @@ import styles from "./room.module.css";
 import { AnswerSpeaker, readSpeakerPreference, saveSpeakerPreference } from "@/lib/client/answer-speaker";
 import { speakerNotice } from "@/lib/locale/speaker";
 
+import CopyText from "@/components/rcv3-toolbox/CopyText";
+import ToolButton from "@/components/rcv3-toolbox/ToolButton";
+export type AnswerCardsHandle = {toggleLatest:()=>boolean};
 type Provider = { id: string; label: string; logo?: string };
-export default function AnswerCards({ roomId, providers, turns, liveTurns, language, statuses, onRead, onReorder, reorderDisabled }: {
-  roomId: string; providers: Provider[]; turns: Turn[]; liveTurns: Turn[]; language: string;
+export default function AnswerCards({ ref, roomId, providers, turns, liveTurns, language, statuses, onRead, onReorder, reorderDisabled }: {
+  ref?:Ref<AnswerCardsHandle>; roomId: string; providers: Provider[]; turns: Turn[]; liveTurns: Turn[]; language: string;
   statuses: Record<string, string>; onRead: () => void;
   onReorder: (id: string, target: string) => void; reorderDisabled: boolean;
 }) {
@@ -78,6 +81,11 @@ export default function AnswerCards({ roomId, providers, turns, liveTurns, langu
     else player.current?.stop(provider.id);
   }
 
+  useImperativeHandle(ref,()=>({toggleLatest:()=>{
+    const turn=[...turns].reverse().find(turn=>turn.scope==="chat"&&providers.some(provider=>provider.id===turn.provider));
+    const provider=providers.find(provider=>provider.id===turn?.provider);
+    if(!turn||!provider)return false;toggle(provider,turn.answer);return true;
+  }}));
   return <div className={styles.answerGrid} style={{ gridTemplateColumns: `repeat(${Math.max(1, providers.length)}, minmax(0, 1fr))` }}>
     {providers.map(provider => {
       const history = turns.filter(turn => turn.provider === provider.id && turn.scope === "chat");
@@ -93,7 +101,7 @@ export default function AnswerCards({ roomId, providers, turns, liveTurns, langu
             onLostPointerCapture={()=>{dragId.current=null;setMoving(null);}}
             onKeyDown={event=>{if(!["ArrowLeft","ArrowRight"].includes(event.key))return;event.preventDefault();event.stopPropagation();const index=providers.findIndex(p=>p.id===provider.id);const target=providers[index+(event.key==="ArrowLeft"?-1:1)];if(target)onReorder(provider.id,target.id);}}><Move size={18}/></button>
           {provider.logo ? <img src={provider.logo} alt={provider.label} width={24} height={24}/> : <span>{provider.label.slice(0, 2)}</span>}
-          <button type="button" title={enabled[provider.id] ? "Speaker on" : "Speaker off"} aria-label={`${provider.label} speaker ${enabled[provider.id] ? "on" : "off"}`} aria-pressed={Boolean(enabled[provider.id])} onClick={event => { event.stopPropagation(); toggle(provider, answer); }}>{enabled[provider.id] ? <Volume2 size={18}/> : <VolumeX size={18}/>}</button>
+          <ToolButton toolId="speaker" title={enabled[provider.id] ? "Speaker on" : "Speaker off"} aria-label={`${provider.label} speaker ${enabled[provider.id] ? "on" : "off"}`} aria-pressed={Boolean(enabled[provider.id])} onClick={event => { event.stopPropagation(); toggle(provider, answer); }}>{enabled[provider.id] ? <Volume2 size={18}/> : <VolumeX size={18}/>}</ToolButton>
         </aside>
         <div className={styles.answerBody}>
           <button type="button" className={styles.answerHeading} aria-label={`${open ? "Collapse" : "Expand"} ${provider.label} answer`} aria-expanded={open} onClick={event => { event.stopPropagation(); setExpanded(open ? null : provider.id); }}><span>{provider.label}</span>{open ? <ChevronUp size={14}/> : <ChevronDown size={14}/>}</button>
@@ -101,6 +109,7 @@ export default function AnswerCards({ roomId, providers, turns, liveTurns, langu
             {history.map(turn => <div key={turn.requestId}><p className={styles.user}>{turn.prompt}</p><p className={styles.answer}>{turn.answer}</p></div>)}
             {statuses[provider.id] && <p role="status">{statuses[provider.id]}</p>}
           </div>
+          <CopyText text={answer}/>
           {notice[provider.id] && notice[provider.id] !== "idle" && <small role="status">{speakerNotice(notice[provider.id], language)}{notice[provider.id] === "error" && enabled[provider.id] && <button type="button" onClick={event => {event.stopPropagation(); player.current?.prime(); read(provider.id, answer);}}>Retry audio</button>}</small>}
         </div>
       </article>;

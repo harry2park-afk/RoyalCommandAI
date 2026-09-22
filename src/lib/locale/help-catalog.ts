@@ -4,7 +4,10 @@ import { ROOM_TEMPLATES } from "@/lib/rooms/templates";
 export type HelpEntry = {en:string;ko?:string};
 // Public product guidance only. Never register customer text, messages, files,
 // contacts or contract bodies here. The translation API accepts these IDs only.
+import { TOOL_REGISTRY } from "../../../rcv3/tool-registry.mjs";
 export const helpCatalog: Record<string,HelpEntry> = {
+ toolboxOverview:{en:"Add a shared tool to your room, then use Edit Buttons to arrange it. Your existing account connections and service limits still apply. Adding a tool does not buy or activate a paid service.",ko:"공통 툴을 방에 추가한 뒤 Edit Buttons로 배치하세요. 기존 계정 연결과 이용 한도가 적용됩니다. 툴 추가만으로 유료 서비스가 구매되거나 활성화되지는 않습니다."},
+ ...Object.fromEntries(TOOL_REGISTRY.map(tool=>[`toolbox.${tool.id}`,{en:`${tool.description} ${tool.requires}`} ])),
  ...Object.fromEntries(lessons.map(l=>[`learn.${l.id}`,{en:l.body,ko:l.ko}])),
  learnOverview:{en:"A free 30-day AI literacy programme: 100 numbered lessons, 3–4 per day. Learn history, theory, current capabilities and future scenarios, then create reports and working projects. Lessons 001–050 use knowledge checks; 051–100 require written work and AI feedback. Progress is saved. The 30-day schedule is a study plan; you may learn at your own pace.",ko:"무료 30일 AI 종합교육입니다. 001~100번 과목을 하루 3~4개씩 배우세요. 역사·이론·현재 기술·미래 전망을 배우고 보고서와 작동하는 결과물을 만듭니다. 001~050은 확인 문제, 051~100은 결과물 제출과 AI 평가로 진행합니다. 진도는 저장되며 30일은 권장 계획이므로 본인 속도로 배울 수 있습니다."},
  learnTutor:{en:"Ask for an explanation, example, counterexample or review of your work. Free allowance: 30 AI requests per day (UTC), including assignment reviews. Messages go to the configured AI provider. Use fictional data. Progress and submitted assignments are saved; this tutor conversation is not saved after leaving.",ko:"설명·예시·반례나 결과물 검토를 요청하세요. 과제 평가를 포함해 하루(UTC 기준) AI 30회가 무료입니다. 메시지는 연결된 AI 제공업체로 전송됩니다. 가상 자료를 사용하세요. 진도와 제출 과제는 저장되지만 이 대화는 페이지를 떠나면 보관되지 않습니다."},

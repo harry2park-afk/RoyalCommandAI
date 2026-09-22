@@ -1,11 +1,31 @@
-import { execFileSync } from "node:child_process";
+import { spawn } from "node:child_process";
+import { createInterface } from "node:readline";
 
 const base = process.env.CONFLICT_GUARD_BASE || "HEAD^";
 const head = process.env.CONFLICT_GUARD_HEAD || "HEAD";
 const strict = process.env.CONFLICT_GUARD_STRICT === "1";
 
-function git(args) {
-  return execFileSync("git", args, { encoding: "utf8" });
+// Stream large PR diffs instead of collecting them in execFileSync's 1 MiB
+// default buffer. Keep at most one line and one file's match flags in memory.
+async function* gitLines(args) {
+  const child = spawn("git", args, { stdio: ["ignore", "pipe", "pipe"] });
+  let stderr = "";
+  child.stderr.on("data", chunk => { stderr = (stderr + chunk.toString()).slice(-4096); });
+  // Resolve errors as values until stdout is drained, avoiding unhandled rejection.
+  const result = new Promise(resolve => {
+    child.once("error", error => resolve({ error }));
+    child.once("close", (code, signal) => resolve({ code, signal }));
+  });
+  const lines = createInterface({ input: child.stdout, crlfDelay: Infinity });
+  try {
+    for await (const line of lines) yield line;
+    const outcome = await result;
+    if (outcome.error) throw outcome.error;
+    if (outcome.code !== 0) throw new Error(`git failed (${outcome.code ?? outcome.signal}): ${stderr.trim()}`);
+  } finally {
+    lines.close();
+    if (child.exitCode === null && child.signalCode === null) child.kill();
+  }
 }
 
 function warning(message) {
@@ -45,40 +65,48 @@ const rules = [
 ];
 
 try {
-  const names = git(["diff", "--name-only", base, head]).trim().split("\n").filter(Boolean);
-  const diff = git(["diff", "--unified=0", base, head, "--", "*.js", "*.mjs", "*.ts", "*.tsx"]);
-  const sections = diff.split(/^diff --git /m).filter(Boolean);
+  let changedFiles = 0;
+  for await (const name of gitLines(["diff", "--name-only", base, head])) if (name) changedFiles++;
   let count = 0;
-
-  for (const section of sections) {
-    const fileMatch = section.match(/^a\/(.+?) b\/(.+?)\n/);
-    if (!fileMatch) continue;
-    const file = fileMatch[2];
-    const added = section.split("\n").filter((line) => line.startsWith("+") && !line.startsWith("+++")).join("\n");
-    if (!added) continue;
-
-    for (const rule of rules) {
-      if (rule.owners.includes(file)) continue;
-      if (rule.patterns.some((pattern) => pattern.test(added))) {
-        warning(`${rule.name}: ${file} adds direct control of a surface owned by ${rule.owners.join(", ")}. Review for duplicate ownership.`);
-        count += 1;
-      }
+  let file = null;
+  let inHunk = false;
+  const matched = new Set();
+  const risky = new Set();
+  function flush() {
+    if (!file) return;
+    for (const rule of matched) {
+      warning(`${rule.name}: ${file} adds direct control of a surface owned by ${rule.owners.join(", ")}. Review for duplicate ownership.`);
+      count++;
     }
-
+    if (risky.size) {
+      warning(`${file} adds ${[...risky].join(", ")}. Confirm this file is the sole owner of the affected DOM/state before merge.`);
+      count++;
+    }
+    file = null; matched.clear(); risky.clear();
+  }
+  for await (const line of gitLines(["-c", "core.quotePath=false", "diff", "--src-prefix=a/", "--dst-prefix=b/", "--no-ext-diff", "--no-textconv", "--unified=0", base, head, "--", "*.js", "*.mjs", "*.ts", "*.tsx"])) {
+    if (line.startsWith("diff --git ")) { flush(); inHunk=false; continue; }
+    if (line.startsWith("@@ ")) { inHunk=true; continue; }
+    if (!inHunk && line.startsWith("+++ ")) {
+      let path = line.slice(4);
+      if (path === "/dev/null") continue;
+      if (path.startsWith('"')) path = JSON.parse(path.replace(/\\(?:[av]|\\|")/g, escape => escape === '\\a' ? '\\u0007' : escape === '\\v' ? '\\u000b' : escape));
+      if (!path.startsWith("b/")) throw new Error("Unrecognised diff path");
+      file = path.slice(2); continue;
+    }
+    if (!file || !line.startsWith("+")) continue;
+    for (const rule of rules) {
+      if (!rule.owners.includes(file) && rule.patterns.some(pattern => pattern.test(line))) matched.add(rule);
+    }
     if (/src\/app\/rooms\/|public\/rc-/.test(file)) {
-      const risky = [];
-      if (/new\s+MutationObserver/i.test(added)) risky.push("MutationObserver");
-      if (/\.appendChild\s*\(/i.test(added)) risky.push("appendChild");
-      if (/\.insertBefore\s*\(/i.test(added)) risky.push("insertBefore");
-      if (/\.scrollTo\s*\(/i.test(added)) risky.push("forced scrollTo");
-      if (risky.length) {
-        warning(`${file} adds ${risky.join(", ")}. Confirm this file is the sole owner of the affected DOM/state before merge.`);
-        count += 1;
-      }
+      if (/new\s+MutationObserver/i.test(line)) risky.add("MutationObserver");
+      if (/\.appendChild\s*\(/i.test(line)) risky.add("appendChild");
+      if (/\.insertBefore\s*\(/i.test(line)) risky.add("insertBefore");
+      if (/\.scrollTo\s*\(/i.test(line)) risky.add("forced scrollTo");
     }
   }
-
-  console.log(`Conflict Guard v2 scanned ${names.length} changed file(s); ${count} warning(s).`);
+  flush();
+  console.log(`Conflict Guard v2 scanned ${changedFiles} changed file(s); ${count} warning(s).`);
 
   if (strict) {
     console.log("Mode: ENFORCING — ownership conflicts block the PR check.");

@@ -38,7 +38,7 @@ No AI self-report proves execution. File changes, tests, commits and deployments
 
 ## Owner approval continuity
 
-If the Owner explicitly grants continuing approval for a defined project phase or sequence, do not repeatedly ask for approval inside that scope unless the action becomes destructive, materially expands scope, exposes a new high-severity unknown, requires a credential/value only the Owner can supply, or binding external rules require separate confirmation.
+Follow Article 14 of `ROYAL_COMMAND_LAW.md`: one approval for a task title and its defined scope remains valid through completion, including necessary fixes, tests, commits, approved remote reflection and verification. Do not ask again because a tool changes, a step retries, a handoff occurs or a conversation resumes. Consume existing authorization at final gates. Ask only for a genuinely new boundary or binding external confirmation described in Article 14, explain the exact reason, and first prefer an authorized alternative. Do not extend the approved destination to Production or grant new account access implicitly.
 
 ## Royal Command daily recovery
 
@@ -69,3 +69,7 @@ For Room creation, tool catalog, tool installation, entitlement or removal work,
 ## RC V3 customer platform and AI education
 
 For V3 room, access, shortcut or education work, follow [RC V3 Platform and Learning Rules](docs/rcv3/PLATFORM_AND_AI_EDUCATION_RULES.md). Reuse the common frame; customers configure their own rooms. Education is free, 100 numbered topics over a recommended 30 days, increasingly practical after topic 050. Distinguish approved targets from implemented, verified features.
+
+## RC V3 toolbox-first development — mandatory
+
+For every new or changed V3 screen, room, button or executable feature, follow the toolbox-first section in [Self-service Tool Room Design](docs/rcv3/SELF_SERVICE_TOOL_ROOM_DESIGN.md). Inventory and reuse existing working controls and their real functionality. Register missing reusable functionality in the shared toolbox and verify it **before** consuming it in a screen or room. Do not implement duplicate per-room controls or defer toolbox registration. Reuse includes the UI, action, configuration schema, permissions, version and connection requirements; customer data, credentials and entitlements must not be copied. Report unregistered/unverified items explicitly. Documentation alone does not establish toolbox implementation or completion. This requirement adds no approval gate to unrelated work.

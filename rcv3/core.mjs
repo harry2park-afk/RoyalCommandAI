@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto';
 
 // This module has no imports from the old application and no provider credentials.
-const capabilities = Object.freeze(['chat', 'secretary', 'files']);
+import { TOOL_IDS, getTool, createToolButton } from './tool-registry.mjs';
+const capabilities = TOOL_IDS;
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const fail = () => { throw new Error('INVALID_DESIGN'); };
 function fields(value, allowed) {
@@ -44,7 +45,7 @@ export function validateDesign(input) {
 
 export function defaultDesign() {
   return validateDesign({ backgroundAssetId: null, buttons: [
-    { id: randomUUID(), capability: 'chat', label: 'Chat', x: 5, y: 5, width: 20, height: 10, opacity: 1 },
+    { ...createToolButton('chat', randomUUID()), width: 20, height: 10 },
   ] });
 }
 
@@ -71,12 +72,11 @@ export function editDesign(room, authenticatedOwnerId, expectedRevision, candida
 /** @param {any} source @param {(index: number) => string} newId */
 export function portableDesign(source, newId = () => randomUUID()) {
   const design = validateDesign(source);
-  const labels = { chat: 'My AI', secretary: 'Katie', files: 'Files' };
   return validateDesign({
     // Uploaded images and custom labels can themselves contain personal data.
     backgroundAssetId: null,
     buttons: design.buttons.map((button, index) => ({
-      id: newId(index), capability: button.capability, label: labels[button.capability],
+      id: newId(index), capability: button.capability, label: getTool(button.capability).label,
       x: button.x, y: button.y, width: button.width, height: button.height, opacity: button.opacity,
     })),
   });
