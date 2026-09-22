@@ -16,6 +16,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   requiredIntegrations: "VERIFIED",
   previewSmokeTest: "VERIFIED",
   rollbackPath: "VERIFIED",
+  nonProductionStaging: "VERIFIED",
   securityRegression: "VERIFIED",
   deploymentProvenance: "VERIFIED",
   roomFactoryTemplates: "VERIFIED",
