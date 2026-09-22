@@ -30,6 +30,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   recordingReviewAuthority: "NEEDS_REVIEW",
   paymentCommercialAuthority: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
+  paymentProviderSandbox: "NEEDS_REVIEW",
   complianceReviewAuthority: "NEEDS_REVIEW",
   complianceEvidence: "NEEDS_REVIEW",
 };
@@ -56,6 +57,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   recordingReviewAuthority: "VERIFIED",
   paymentCommercialAuthority: "VERIFIED",
   paymentOperations: "VERIFIED",
+  paymentProviderSandbox: "VERIFIED",
   complianceReviewAuthority: "VERIFIED",
   complianceEvidence: "VERIFIED",
 };
@@ -108,6 +110,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_EVIDENCE_NOT_VERIFIED");
     }
@@ -155,6 +158,7 @@ describe("country operational launch readiness gate", () => {
       "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED",
       "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
+      "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED",
       "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED",
       "COMPLIANCE_EVIDENCE_NOT_VERIFIED",
     ]);
@@ -293,6 +297,21 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED"]);
+  });
+
+  it("fails closed if real payment-provider sandbox proof has not been independently verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      paymentProviderSandbox: "BLOCKED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED"]);
   });
 
   it("fails closed if compliance reviewer authority has not been independently verified", () => {
