@@ -31,6 +31,9 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   paymentCommercialAuthority: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
   paymentProviderSandbox: "NEEDS_REVIEW",
+  legalEvidence: "NEEDS_REVIEW",
+  privacyEvidence: "NEEDS_REVIEW",
+  dataResidencyEvidence: "NEEDS_REVIEW",
   taxEvidence: "NEEDS_REVIEW",
   taxStructureEvidence: "NEEDS_REVIEW",
   complianceReviewAuthority: "NEEDS_REVIEW",
@@ -60,6 +63,9 @@ const verifiedEvidence: CountryOperationalEvidence = {
   paymentCommercialAuthority: "VERIFIED",
   paymentOperations: "VERIFIED",
   paymentProviderSandbox: "VERIFIED",
+  legalEvidence: "VERIFIED",
+  privacyEvidence: "VERIFIED",
+  dataResidencyEvidence: "VERIFIED",
   taxEvidence: "VERIFIED",
   taxStructureEvidence: "VERIFIED",
   complianceReviewAuthority: "VERIFIED",
@@ -115,6 +121,9 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("LEGAL_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("PRIVACY_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("DATA_RESIDENCY_EVIDENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TAX_EVIDENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED");
@@ -165,6 +174,9 @@ describe("country operational launch readiness gate", () => {
       "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
       "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED",
+      "LEGAL_EVIDENCE_NOT_VERIFIED",
+      "PRIVACY_EVIDENCE_NOT_VERIFIED",
+      "DATA_RESIDENCY_EVIDENCE_NOT_VERIFIED",
       "TAX_EVIDENCE_NOT_VERIFIED",
       "TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED",
       "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED",
