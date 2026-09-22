@@ -112,10 +112,11 @@ async function verifyCountryEvidenceKinds<TKind extends string>(
     };
   }
 
+  const evidenceRows = (data || []) as unknown as Record<string, unknown>[];
   const verifiedKinds = new Set(
-    (data || [])
-      .filter((row) => hasCurrentReviewerProvenEvidence(row as Record<string, unknown>, now))
-      .map((row) => (row as Record<string, unknown>).evidence_kind)
+    evidenceRows
+      .filter((row) => hasCurrentReviewerProvenEvidence(row, now))
+      .map((row) => row.evidence_kind)
       .filter((kind): kind is string => typeof kind === "string"),
   );
   const missingKinds = requiredKinds.filter((kind) => !verifiedKinds.has(kind));
