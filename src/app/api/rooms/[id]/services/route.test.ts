@@ -4,7 +4,7 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   createClient: vi.fn(),
   isSupabaseConfigured: vi.fn(),
-  verifyCountryLegalCompliance: vi.fn(),
+  verifyCountryServiceCompliance: vi.fn(),
   from: vi.fn(),
 }));
 
@@ -12,7 +12,7 @@ vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.createClient }));
 vi.mock("@/lib/utils", () => ({ isSupabaseConfigured: mocks.isSupabaseConfigured }));
 vi.mock("@/lib/compliance/countryComplianceStore", () => ({
-  verifyCountryLegalCompliance: mocks.verifyCountryLegalCompliance,
+  verifyCountryServiceCompliance: mocks.verifyCountryServiceCompliance,
 }));
 
 import { POST } from "./route";
@@ -64,7 +64,7 @@ describe("Room service launch fail-closed boundaries", () => {
     vi.clearAllMocks();
     mocks.getCurrentUser.mockResolvedValue(user);
     mocks.isSupabaseConfigured.mockReturnValue(true);
-    mocks.verifyCountryLegalCompliance.mockResolvedValue({ verified: true, error: null });
+    mocks.verifyCountryServiceCompliance.mockResolvedValue({ verified: true, error: null, missingKinds: [] });
   });
 
   it("does not create a selection or order when the global connection status is not available", async () => {
@@ -109,7 +109,7 @@ describe("Room service launch fail-closed boundaries", () => {
       serviceKey: "operationally-blocked-service",
     });
     expect(countryTerms.maybeSingle).not.toHaveBeenCalled();
-    expect(mocks.verifyCountryLegalCompliance).not.toHaveBeenCalled();
+    expect(mocks.verifyCountryServiceCompliance).not.toHaveBeenCalled();
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -156,7 +156,7 @@ describe("Room service launch fail-closed boundaries", () => {
       serviceKey: "country-blocked-service",
       countryCode: "AU",
     });
-    expect(mocks.verifyCountryLegalCompliance).not.toHaveBeenCalled();
+    expect(mocks.verifyCountryServiceCompliance).not.toHaveBeenCalled();
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -211,16 +211,16 @@ describe("Room service launch fail-closed boundaries", () => {
       serviceKey: "unreviewed-country-service",
       countryCode: "AU",
     });
-    expect(mocks.verifyCountryLegalCompliance).not.toHaveBeenCalled();
+    expect(mocks.verifyCountryServiceCompliance).not.toHaveBeenCalled();
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
 
-  it("does not create a selection or order without current reviewer-proven legal compliance evidence", async () => {
+  it("does not create a selection or order without all required country compliance evidence", async () => {
     const rooms = queryBuilder({ data: { id: roomId }, error: null });
     const catalog = queryBuilder({
       data: {
-        service_key: "legal-blocked-service",
+        service_key: "compliance-blocked-service",
         default_included: false,
         active: true,
         customer_selectable: true,
@@ -238,7 +238,7 @@ describe("Room service launch fail-closed boundaries", () => {
     const countryTerms = approvedCountryTerm();
     const selections = { upsert: vi.fn() };
     const orders = { insert: vi.fn() };
-    mocks.verifyCountryLegalCompliance.mockResolvedValue({ verified: false, error: null });
+    mocks.verifyCountryServiceCompliance.mockResolvedValue({ verified: false, error: null, missingKinds: ["data_residency"] });
 
     mocks.from.mockImplementation((table: string) => {
       if (table === "rooms") return rooms;
@@ -250,16 +250,16 @@ describe("Room service launch fail-closed boundaries", () => {
     });
     mocks.createClient.mockResolvedValue({ from: mocks.from });
 
-    const response = await POST(request("legal-blocked-service"), context());
+    const response = await POST(request("compliance-blocked-service"), context());
 
     expect(response.status).toBe(409);
     expect(await response.json()).toEqual({
-      error: "Country legal compliance is not verified for service connection",
+      error: "Required country compliance is not verified for service connection",
       code: "COUNTRY_COMPLIANCE_NOT_READY",
-      serviceKey: "legal-blocked-service",
+      serviceKey: "compliance-blocked-service",
       countryCode: "AU",
     });
-    expect(mocks.verifyCountryLegalCompliance).toHaveBeenCalledWith("AU");
+    expect(mocks.verifyCountryServiceCompliance).toHaveBeenCalledWith("AU");
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -307,7 +307,7 @@ describe("Room service launch fail-closed boundaries", () => {
       paymentRequired: true,
       checkoutConfigured: false,
     });
-    expect(mocks.verifyCountryLegalCompliance).toHaveBeenCalledWith("AU");
+    expect(mocks.verifyCountryServiceCompliance).toHaveBeenCalledWith("AU");
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -349,7 +349,7 @@ describe("Room service launch fail-closed boundaries", () => {
 
     expect(response.status).toBe(409);
     expect((await response.json()).code).toBe("PRICE_NOT_FIXED");
-    expect(mocks.verifyCountryLegalCompliance).toHaveBeenCalledWith("AU");
+    expect(mocks.verifyCountryServiceCompliance).toHaveBeenCalledWith("AU");
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -361,6 +361,6 @@ describe("Room service launch fail-closed boundaries", () => {
 
     expect(response.status).toBe(401);
     expect(mocks.createClient).not.toHaveBeenCalled();
-    expect(mocks.verifyCountryLegalCompliance).not.toHaveBeenCalled();
+    expect(mocks.verifyCountryServiceCompliance).not.toHaveBeenCalled();
   });
 });
