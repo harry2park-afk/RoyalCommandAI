@@ -22,6 +22,7 @@ export type CountryOperationalEvidence = {
   customerAccountAuthority?: OperationalEvidenceStatus;
   countryCommercialCatalog?: OperationalEvidenceStatus;
   commercialReviewAuthority?: OperationalEvidenceStatus;
+  recordingReviewAuthority?: OperationalEvidenceStatus;
   paymentCommercialAuthority?: OperationalEvidenceStatus;
   paymentOperations?: OperationalEvidenceStatus;
   complianceReviewAuthority?: OperationalEvidenceStatus;
@@ -47,6 +48,7 @@ export type CountryOperationalBlockerCode =
   | "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"
   | "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED"
   | "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED"
+  | "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED"
   | "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED"
@@ -80,6 +82,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "customerAccountAuthority", blocker: "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED" },
   { key: "countryCommercialCatalog", blocker: "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED" },
   { key: "commercialReviewAuthority", blocker: "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED" },
+  { key: "recordingReviewAuthority", blocker: "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED" },
   { key: "paymentCommercialAuthority", blocker: "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "complianceReviewAuthority", blocker: "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED" },
@@ -114,13 +117,17 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * proof is independent from commercial-review authority: a country must have
  * reviewed, available positive-priced terms and provider offers, and the
  * authority/provenance of the human commercial reviewer must itself be
- * independently verified before launch. Payment commercial authority is
- * independent from payment operations so launch cannot proceed while a client
- * can author amount/currency/terms snapshots even if checkout/webhook mechanics
- * are otherwise operational. Compliance evidence and the authority/provenance
- * of the human compliance reviewer are also independent: a country cannot
- * launch solely because a compliance row says VERIFIED when reviewer identity
- * and review chronology have not themselves been verified.
+ * independently verified before launch. Recording/consent reviewer authority is
+ * independent from general communications-rules evidence: a country must not
+ * launch merely because a recording policy row says approved when the human
+ * reviewer identity and review chronology have not been independently verified.
+ * Payment commercial authority is independent from payment operations so launch
+ * cannot proceed while a client can author amount/currency/terms snapshots even
+ * if checkout/webhook mechanics are otherwise operational. Compliance evidence
+ * and the authority/provenance of the human compliance reviewer are also
+ * independent: a country cannot launch solely because a compliance row says
+ * VERIFIED when reviewer identity and review chronology have not themselves
+ * been verified.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
