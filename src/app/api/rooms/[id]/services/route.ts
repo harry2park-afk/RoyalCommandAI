@@ -20,6 +20,20 @@ function isRoomScope(scope?: string | null) {
   return scope === "room" || scope === "both";
 }
 
+function hasReviewerProvenCountryApproval(countryTerm: {
+  availability_status?: string | null;
+  review_status?: string | null;
+  reviewed_by?: string | null;
+  reviewed_at?: string | null;
+} | null | undefined) {
+  return countryTerm?.availability_status === "available"
+    && countryTerm.review_status === "approved"
+    && typeof countryTerm.reviewed_by === "string"
+    && countryTerm.reviewed_by.length > 0
+    && typeof countryTerm.reviewed_at === "string"
+    && countryTerm.reviewed_at.length > 0;
+}
+
 export async function GET(
   _request: Request,
   context: { params: Promise<{ id: string }> },
@@ -136,14 +150,14 @@ export async function POST(
 
   const { data: countryTerm, error: countryTermError } = await supabase
     .from("rc_service_country_terms")
-    .select("availability_status")
+    .select("availability_status,review_status,reviewed_by,reviewed_at")
     .eq("service_key", serviceKey)
     .eq("country_code", countryCode)
     .maybeSingle();
   if (countryTermError) {
     return NextResponse.json({ error: "Unable to verify country service availability" }, { status: 503 });
   }
-  if (countryTerm?.availability_status !== "available") {
+  if (!hasReviewerProvenCountryApproval(countryTerm)) {
     return NextResponse.json({
       error: "Service is not approved for connection in this country",
       code: "COUNTRY_SERVICE_NOT_READY",
