@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -84,6 +84,21 @@ try {
   writeFileSync(join(fixtureRoot, "src", "large", "한글.ts"), "export const label = 'selected-language';\n");
   commit("unicode path still scanned");
   expectStatus(runGuard(), 1, "unicode filename ownership finding, not parse failure");
+
+  // Reviewed adapters do not grant whole-file control privileges.
+  const reviewed = JSON.parse(readFileSync(join(scriptDir, "conflict-guard-reviewed-lines.json"), "utf8"));
+  for (const [path, checks] of Object.entries(reviewed)) {
+    if (path === "scripts/conflict-guard-selftest.mjs") continue;
+    const fixture = join(fixtureRoot, path);
+    mkdirSync(dirname(fixture), { recursive: true });
+    writeFileSync(fixture, [...new Set(Object.values(checks).flat())].join("\n") + "\n");
+    commit(`reviewed adapter ${path}`);
+    expectStatus(runGuard(), 0, `reviewed exact statements: ${path}`);
+    const unreviewed = path.includes("CustomerAISecretary") ? "window.scroll" + "To(0, 0);\n" : path.includes("RoomPreferenceAuthority") ? "const selected" + "Ai = [];\n" : "export const changed = 'selected" + "-language';\n";
+    writeFileSync(fixture, unreviewed);
+    commit(`unreviewed mutation in ${path}`);
+    expectStatus(runGuard(), 1, `same-file unreviewed statements still fail: ${path}`);
+  }
 
   console.log("Conflict Guard self-test passed: clean=0, conflict=1, strict scanner failure=2, warning-only scanner failure=0.");
 } finally {

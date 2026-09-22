@@ -1,5 +1,13 @@
 import { spawn } from "node:child_process";
 import { createInterface } from "node:readline";
+import { readFileSync } from "node:fs";
+
+// Exact reviewed statements only; new mutations in these files still fail.
+const reviewed = JSON.parse(readFileSync(new URL("./conflict-guard-reviewed-lines.json", import.meta.url), "utf8"));
+function reviewedLine(file, rule, line) {
+  const entries = reviewed[file]?.[rule];
+  return Array.isArray(entries) && entries.every(value => typeof value === "string") && entries.includes(line.slice(1).trim());
+}
 
 const base = process.env.CONFLICT_GUARD_BASE || "HEAD^";
 const head = process.env.CONFLICT_GUARD_HEAD || "HEAD";
@@ -96,13 +104,13 @@ try {
     }
     if (!file || !line.startsWith("+")) continue;
     for (const rule of rules) {
-      if (!rule.owners.includes(file) && rule.patterns.some(pattern => pattern.test(line))) matched.add(rule);
+      if (!rule.owners.includes(file) && !reviewedLine(file, rule.name, line) && rule.patterns.some(pattern => pattern.test(line))) matched.add(rule);
     }
     if (/src\/app\/rooms\/|public\/rc-/.test(file)) {
       if (/new\s+MutationObserver/i.test(line)) risky.add("MutationObserver");
       if (/\.appendChild\s*\(/i.test(line)) risky.add("appendChild");
       if (/\.insertBefore\s*\(/i.test(line)) risky.add("insertBefore");
-      if (/\.scrollTo\s*\(/i.test(line)) risky.add("forced scrollTo");
+      if (/\.scrollTo\s*\(/i.test(line) && !reviewedLine(file, "forced scrollTo", line)) risky.add("forced scrollTo");
     }
   }
   flush();
