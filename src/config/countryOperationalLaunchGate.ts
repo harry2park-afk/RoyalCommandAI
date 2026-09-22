@@ -26,6 +26,8 @@ export type CountryOperationalEvidence = {
   paymentCommercialAuthority?: OperationalEvidenceStatus;
   paymentOperations?: OperationalEvidenceStatus;
   paymentProviderSandbox?: OperationalEvidenceStatus;
+  taxEvidence?: OperationalEvidenceStatus;
+  taxStructureEvidence?: OperationalEvidenceStatus;
   complianceReviewAuthority?: OperationalEvidenceStatus;
   complianceEvidence?: OperationalEvidenceStatus;
 };
@@ -53,6 +55,8 @@ export type CountryOperationalBlockerCode =
   | "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED"
   | "PAYMENT_OPERATIONS_NOT_VERIFIED"
   | "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED"
+  | "TAX_EVIDENCE_NOT_VERIFIED"
+  | "TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED"
   | "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED"
   | "COMPLIANCE_EVIDENCE_NOT_VERIFIED";
 
@@ -88,6 +92,8 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "paymentCommercialAuthority", blocker: "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED" },
   { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
   { key: "paymentProviderSandbox", blocker: "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED" },
+  { key: "taxEvidence", blocker: "TAX_EVIDENCE_NOT_VERIFIED" },
+  { key: "taxStructureEvidence", blocker: "TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED" },
   { key: "complianceReviewAuthority", blocker: "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED" },
   { key: "complianceEvidence", blocker: "COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
 ] as const;
@@ -130,11 +136,14 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * sandbox proof is independent again: disposable schema/idempotency tests are not
  * evidence that a real provider sandbox has passed signed-webhook verification,
  * replay/idempotency rejection, exact amount/currency checks, cancel/refund,
- * settlement/terminal-state handling, observability, and rollback. Compliance
- * evidence and the authority/provenance of the human compliance reviewer are
- * also independent: a country cannot launch solely because a compliance row says
- * VERIFIED when reviewer identity and review chronology have not themselves
- * been verified.
+ * settlement/terminal-state handling, observability, and rollback. Tax and tax-
+ * structure evidence are independent from static READY flags and provider
+ * connectivity: the rollout evidence registry must contain independently reviewed
+ * current proof for both evidence kinds before a country can become launchable.
+ * Compliance evidence and the authority/provenance of the human compliance
+ * reviewer are also independent: a country cannot launch solely because a
+ * compliance row says VERIFIED when reviewer identity and review chronology have
+ * not themselves been verified.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
