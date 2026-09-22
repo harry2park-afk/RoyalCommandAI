@@ -18,7 +18,26 @@ describe('Hosted ledger drift evidence 2026-09-22', () => {
     expect(evidence.independent_reviewer_or_change_record_verified).toBe(false);
   });
 
-  it('keeps reconciliation and deployment fail-closed', () => {
+  it('binds the recovered source artifact to the observed Hosted schema shape', () => {
+    const readback = evidence.hosted_source_shape_readback;
+    expect(evidence.source_artifact_matches_observed_hosted_shape).toBe(true);
+    expect(readback.migration_row_exact_match).toBe(true);
+    expect(readback.notices_table_present).toBe(true);
+    expect(readback.notices_rls_enabled).toBe(true);
+    expect(readback.notices_expected_columns_match).toBe(true);
+    expect(readback.notices_anon_any_table_privilege).toBe(false);
+    expect(readback.notices_authenticated_any_table_privilege).toBe(false);
+    expect(readback.notices_service_role_select_insert_update).toBe(true);
+    expect(readback.worker_state_table_present).toBe(true);
+    expect(readback.worker_state_rls_enabled).toBe(true);
+    expect(readback.worker_state_anon_any_table_privilege).toBe(false);
+    expect(readback.worker_state_authenticated_any_table_privilege).toBe(false);
+    expect(readback.worker_state_service_role_select_insert_update).toBe(true);
+    expect(readback.card_sweep_seed_present).toBe(true);
+    expect(readback.pending_index_present).toBe(true);
+  });
+
+  it('keeps reconciliation and deployment fail-closed after source/shape matching', () => {
     expect(evidence.hosted_mutation_performed_by_this_capture).toBe(false);
     expect(evidence.rollout_candidate_name_matches).toBe(0);
     expect(evidence.trusted_hosted_baseline_may_advance).toBe(false);
