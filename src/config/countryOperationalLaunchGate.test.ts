@@ -31,6 +31,8 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   paymentCommercialAuthority: "NEEDS_REVIEW",
   paymentOperations: "NEEDS_REVIEW",
   paymentProviderSandbox: "NEEDS_REVIEW",
+  taxEvidence: "NEEDS_REVIEW",
+  taxStructureEvidence: "NEEDS_REVIEW",
   complianceReviewAuthority: "NEEDS_REVIEW",
   complianceEvidence: "NEEDS_REVIEW",
 };
@@ -58,6 +60,8 @@ const verifiedEvidence: CountryOperationalEvidence = {
   paymentCommercialAuthority: "VERIFIED",
   paymentOperations: "VERIFIED",
   paymentProviderSandbox: "VERIFIED",
+  taxEvidence: "VERIFIED",
+  taxStructureEvidence: "VERIFIED",
   complianceReviewAuthority: "VERIFIED",
   complianceEvidence: "VERIFIED",
 };
@@ -111,6 +115,8 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_OPERATIONS_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("TAX_EVIDENCE_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMPLIANCE_EVIDENCE_NOT_VERIFIED");
     }
@@ -159,6 +165,8 @@ describe("country operational launch readiness gate", () => {
       "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED",
       "PAYMENT_OPERATIONS_NOT_VERIFIED",
       "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED",
+      "TAX_EVIDENCE_NOT_VERIFIED",
+      "TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED",
       "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED",
       "COMPLIANCE_EVIDENCE_NOT_VERIFIED",
     ]);
@@ -312,6 +320,36 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED"]);
+  });
+
+  it("fails closed if independently reviewed tax evidence is not verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      taxEvidence: "BLOCKED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["TAX_EVIDENCE_NOT_VERIFIED"]);
+  });
+
+  it("fails closed if independently reviewed tax-structure evidence is not verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      taxStructureEvidence: "BLOCKED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED"]);
   });
 
   it("fails closed if compliance reviewer authority has not been independently verified", () => {
