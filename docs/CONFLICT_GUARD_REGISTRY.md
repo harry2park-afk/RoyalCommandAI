@@ -1,6 +1,6 @@
 # Royal Command Conflict Guard — Ownership Registry
 
-Status: **WARNING ONLY**. It reports likely ownership conflicts; it does not modify code, auto-fix or block merges.
+Status: **ENFORCING in CI** (`CONFLICT_GUARD_STRICT=1`). Suspected ownership conflicts fail the check; scanner errors fail closed. It does not modify or auto-fix application code. Local diagnostic warning mode is not merge approval.
 
 | Surface | Owner(s) | Protected behavior |
 |---|---|---|
@@ -15,5 +15,6 @@ Status: **WARNING ONLY**. It reports likely ownership conflicts; it does not mod
 1. Owner files may change when their surface is explicitly in scope.
 2. Non-owner manipulation of another surface triggers a warning.
 3. New Command Room `MutationObserver`, `appendChild`, `insertBefore` or forced `scrollTo` triggers review.
-4. Warnings remain non-blocking (`success` exit).
-5. A rule becomes blocking only after two confirmed conflicts, false-positive review, an automated regression test and explicit owner approval.
+4. In CI, no findings = exit 0, ownership findings = exit 1, scanner failure = exit 2. Diagnose these separately.
+5. Review suspected conflicts against the actual owning component before changing an owner rule. Keep regression coverage; do not silence the guard merely to make a PR green.
+6. Large diffs are streamed, preserving the same ownership checks without the former 1 MiB process-output limit.
