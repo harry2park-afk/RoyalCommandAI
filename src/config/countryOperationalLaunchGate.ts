@@ -13,6 +13,7 @@ export type CountryOperationalEvidence = {
   requiredIntegrations: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
+  nonProductionStaging?: OperationalEvidenceStatus;
   securityRegression?: OperationalEvidenceStatus;
   deploymentProvenance?: OperationalEvidenceStatus;
   roomFactoryTemplates?: OperationalEvidenceStatus;
@@ -45,6 +46,7 @@ export type CountryOperationalBlockerCode =
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
   | "ROLLBACK_PATH_NOT_VERIFIED"
+  | "NON_PRODUCTION_STAGING_NOT_VERIFIED"
   | "SECURITY_REGRESSION_NOT_VERIFIED"
   | "DEPLOYMENT_PROVENANCE_NOT_VERIFIED"
   | "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED"
@@ -85,6 +87,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
+  { key: "nonProductionStaging", blocker: "NON_PRODUCTION_STAGING_NOT_VERIFIED" },
   { key: "securityRegression", blocker: "SECURITY_REGRESSION_NOT_VERIFIED" },
   { key: "deploymentProvenance", blocker: "DEPLOYMENT_PROVENANCE_NOT_VERIFIED" },
   { key: "roomFactoryTemplates", blocker: "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED" },
@@ -117,6 +120,13 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * older evidence producers still compile, but missing values fail closed.
  * Every item must be explicitly VERIFIED before a country can be launchable.
  *
+ * Controlled non-Production staging is independent from preview smoke and
+ * rollback proof. A country must not become launchable until the database and
+ * integration changes intended for rollout have been exercised on an isolated
+ * non-Production target with production-like migrations, negative-write tests,
+ * tenant-isolation checks, and rollback/denial paths. This prevents a green web
+ * preview from being treated as evidence that database/auth/payment changes are
+ * safe to apply to Hosted Production.
  * Security/regression proof is independent from preview smoke and rollback
  * proof: a country must not become launchable while the exact release candidate
  * lacks verified QA/security regression evidence or while known Hosted security
