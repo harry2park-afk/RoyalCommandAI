@@ -1,0 +1,92 @@
+{
+  "captured_at": "2026-09-23T06:50:00+10:00",
+  "source": {
+    "query_mode": "READ_ONLY",
+    "hosted_mutation_performed": false,
+    "supabase_project_id": "aygawkavujjmybekswrg",
+    "github_pr": 696,
+    "github_candidate_sha": "df6964c18ad6afecad1b54c7ec83c7e61ce985df",
+    "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+    "restore_ref": "restore/2026-09-23-0650-pr696-pre-acl-evidence-correction"
+  },
+  "tables": {
+    "rc_customer_accounts": {
+      "rls_enabled": true,
+      "force_rls": false,
+      "roles": {
+        "anon": [],
+        "authenticated": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER"
+        ]
+      },
+      "policies": [
+        {
+          "name": "rc_customer_accounts_read_own",
+          "role": "authenticated",
+          "command": "SELECT",
+          "qual": "owner_id = auth.uid()"
+        }
+      ]
+    },
+    "room_factory_manifests": {
+      "rls_enabled": true,
+      "force_rls": false,
+      "roles": {
+        "anon": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER"
+        ],
+        "authenticated": [
+          "SELECT",
+          "INSERT",
+          "UPDATE",
+          "DELETE",
+          "TRUNCATE",
+          "REFERENCES",
+          "TRIGGER"
+        ]
+      },
+      "policies": [
+        {
+          "name": "room_factory_manifests_insert_owner",
+          "role": "authenticated",
+          "command": "INSERT"
+        },
+        {
+          "name": "room_factory_manifests_select",
+          "role": "authenticated",
+          "command": "SELECT"
+        }
+      ]
+    }
+  },
+  "customer_number_authority": {
+    "sequence": "public.rc_customer_number_seq",
+    "role_privileges": {
+      "anon": [],
+      "authenticated": [],
+      "service_role": ["USAGE", "SELECT", "UPDATE"]
+    },
+    "allocator_function": "public.ensure_rc_customer_account(uuid)",
+    "allocator_function_present": false
+  },
+  "interpretation": {
+    "customer_account_fixture_matches_anon_no_table_access": true,
+    "customer_account_authenticated_direct_control_is_launch_blocker": true,
+    "room_factory_client_table_privileges_are_launch_blocker": true,
+    "room_factory_hosted_acl_hardening_verified": false,
+    "hosted_remediation_candidate_applied": false,
+    "first_wave_disposition": "HOLD"
+  }
+}
