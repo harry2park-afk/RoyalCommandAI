@@ -24,6 +24,18 @@ Status: **READ-ONLY evidence capture. No Hosted Supabase mutation. No Production
 
 The earlier evidence text on this branch incorrectly stated that `anon` also had all seven direct table privileges on `rc_customer_accounts`. The fresh readback above corrects that statement. The older `scripts/first-wave-hosted-readback-20260923.json` already recorded only the authenticated customer-account write blocker and was consistent with this corrected readback.
 
+### Hosted row 76 explains the remaining authenticated ACL gap
+
+The READ-ONLY migration-ledger statement for Hosted row `20260920091809 / add_secure_rc_customer_numbers` explicitly:
+
+- revokes all table privileges from `anon`;
+- grants `SELECT` to `authenticated`;
+- revokes sequence privileges from `anon, authenticated`;
+- **does not revoke existing table privileges from `authenticated`**;
+- does **not** create `public.ensure_rc_customer_account(uuid)`.
+
+That matches the fresh Hosted shape: anon table access is closed, but authenticated still retains broad table privileges. Therefore row 76 by itself is not evidence of authenticated least privilege and cannot satisfy the launch authority gate.
+
 ### `public.room_factory_manifests`
 
 - `anon`: **TRUE for all seven table privileges**.
