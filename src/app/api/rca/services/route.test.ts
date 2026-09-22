@@ -4,12 +4,16 @@ const mocks = vi.hoisted(() => ({
   getCurrentUser: vi.fn(),
   createClient: vi.fn(),
   isSupabaseConfigured: vi.fn(),
+  verifyCountryLegalCompliance: vi.fn(),
   from: vi.fn(),
 }));
 
 vi.mock("@/lib/auth", () => ({ getCurrentUser: mocks.getCurrentUser }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: mocks.createClient }));
 vi.mock("@/lib/utils", () => ({ isSupabaseConfigured: mocks.isSupabaseConfigured }));
+vi.mock("@/lib/compliance/countryComplianceStore", () => ({
+  verifyCountryLegalCompliance: mocks.verifyCountryLegalCompliance,
+}));
 
 import { POST } from "./route";
 
@@ -55,6 +59,7 @@ describe("RCA service launch fail-closed boundaries", () => {
     vi.clearAllMocks();
     mocks.getCurrentUser.mockResolvedValue(user);
     mocks.isSupabaseConfigured.mockReturnValue(true);
+    mocks.verifyCountryLegalCompliance.mockResolvedValue({ verified: true, error: null });
   });
 
   it("does not create a selection or order when the global connection status is not available", async () => {
@@ -97,6 +102,7 @@ describe("RCA service launch fail-closed boundaries", () => {
       serviceKey: "operationally-blocked-service",
     });
     expect(countryTerms.maybeSingle).not.toHaveBeenCalled();
+    expect(mocks.verifyCountryLegalCompliance).not.toHaveBeenCalled();
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -141,6 +147,7 @@ describe("RCA service launch fail-closed boundaries", () => {
       serviceKey: "country-blocked-service",
       countryCode: "AU",
     });
+    expect(mocks.verifyCountryLegalCompliance).not.toHaveBeenCalled();
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -193,6 +200,53 @@ describe("RCA service launch fail-closed boundaries", () => {
       serviceKey: "unreviewed-country-service",
       countryCode: "AU",
     });
+    expect(mocks.verifyCountryLegalCompliance).not.toHaveBeenCalled();
+    expect(selections.upsert).not.toHaveBeenCalled();
+    expect(orders.insert).not.toHaveBeenCalled();
+  });
+
+  it("does not create a selection or order without current reviewer-proven legal compliance evidence", async () => {
+    const catalog = queryBuilder({
+      data: {
+        service_key: "legal-blocked-service",
+        default_included: false,
+        active: true,
+        customer_selectable: true,
+        connection_scope: "rca_chat",
+        connection_status: "available",
+        pricing_type: "free",
+        price_status: "fixed",
+        price_minor: 0,
+        currency: "AUD",
+        terms_version: "2026-09",
+        agreement_required: false,
+      },
+      error: null,
+    });
+    const countryTerms = approvedCountryTerm();
+    const selections = { upsert: vi.fn() };
+    const orders = { insert: vi.fn() };
+    mocks.verifyCountryLegalCompliance.mockResolvedValue({ verified: false, error: null });
+
+    mocks.from.mockImplementation((table: string) => {
+      if (table === "rc_service_catalog") return catalog;
+      if (table === "rc_service_country_terms") return countryTerms;
+      if (table === "rc_user_service_selections") return selections;
+      if (table === "rc_service_connection_orders") return orders;
+      throw new Error(`unexpected table ${table}`);
+    });
+    mocks.createClient.mockResolvedValue({ from: mocks.from });
+
+    const response = await POST(request("legal-blocked-service"));
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "Country legal compliance is not verified for service connection",
+      code: "COUNTRY_COMPLIANCE_NOT_READY",
+      serviceKey: "legal-blocked-service",
+      countryCode: "AU",
+    });
+    expect(mocks.verifyCountryLegalCompliance).toHaveBeenCalledWith("AU");
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -238,6 +292,7 @@ describe("RCA service launch fail-closed boundaries", () => {
       paymentRequired: true,
       checkoutConfigured: false,
     });
+    expect(mocks.verifyCountryLegalCompliance).toHaveBeenCalledWith("AU");
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -277,6 +332,7 @@ describe("RCA service launch fail-closed boundaries", () => {
 
     expect(response.status).toBe(409);
     expect((await response.json()).code).toBe("PRICE_NOT_FIXED");
+    expect(mocks.verifyCountryLegalCompliance).toHaveBeenCalledWith("AU");
     expect(selections.upsert).not.toHaveBeenCalled();
     expect(orders.insert).not.toHaveBeenCalled();
   });
@@ -288,5 +344,6 @@ describe("RCA service launch fail-closed boundaries", () => {
 
     expect(response.status).toBe(401);
     expect(mocks.createClient).not.toHaveBeenCalled();
+    expect(mocks.verifyCountryLegalCompliance).not.toHaveBeenCalled();
   });
 });
