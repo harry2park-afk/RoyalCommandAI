@@ -1,0 +1,49 @@
+{
+  "captured_at": "2026-09-23T07:49:11+10:00",
+  "source": {
+    "query_mode": "READ_ONLY",
+    "hosted_mutation_performed": false,
+    "supabase_project_id": "aygawkavujjmybekswrg",
+    "github_pr": 696,
+    "github_candidate_sha": "781ea19622d3b4d3a86aa3f2c640b1c1c39fd960",
+    "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8"
+  },
+  "candidate_ci": {
+    "quality_gate": { "run_number": 2335, "conclusion": "success" },
+    "conflict_guard": { "run_number": 2032, "conclusion": "success" },
+    "hosted_ledger_preflight": { "run_number": 288, "conclusion": "success" },
+    "clean_replay": { "run_number": 535, "conclusion": "success" },
+    "room_factory_concurrency": { "run_number": 553, "conclusion": "success" },
+    "legal_tenant_isolation": { "run_number": 237, "conclusion": "success" },
+    "customer_account_authority": { "run_number": 55, "conclusion": "success" },
+    "payment_operational": { "run_number": 48, "conclusion": "success" },
+    "linked_migration_dry_run": {
+      "run_number": 309,
+      "conclusion": "failure",
+      "expected_fail_closed": true,
+      "reason": "unresolved_hosted_source_provenance"
+    }
+  },
+  "first_wave": [
+    { "country_code": "AU", "expected_locale": "en-AU", "recording_policy_rows": 1, "service_terms_rows": 0, "room_manifest_rows": 7, "exact_locale_manifest_rows": 0, "encounter_backed_exact_locale_rows": 0, "disposition": "HOLD" },
+    { "country_code": "US", "expected_locale": "en-US", "recording_policy_rows": 1, "service_terms_rows": 0, "room_manifest_rows": 0, "exact_locale_manifest_rows": 0, "encounter_backed_exact_locale_rows": 0, "disposition": "HOLD" },
+    { "country_code": "CA", "expected_locale": "en-CA", "recording_policy_rows": 1, "service_terms_rows": 0, "room_manifest_rows": 0, "exact_locale_manifest_rows": 0, "encounter_backed_exact_locale_rows": 0, "disposition": "HOLD" },
+    { "country_code": "KR", "expected_locale": "ko-KR", "recording_policy_rows": 1, "service_terms_rows": 0, "room_manifest_rows": 0, "exact_locale_manifest_rows": 0, "encounter_backed_exact_locale_rows": 0, "disposition": "HOLD" },
+    { "country_code": "JP", "expected_locale": "ja-JP", "recording_policy_rows": 1, "service_terms_rows": 0, "room_manifest_rows": 0, "exact_locale_manifest_rows": 0, "encounter_backed_exact_locale_rows": 0, "disposition": "HOLD" },
+    { "country_code": "GB", "expected_locale": "en-GB", "recording_policy_rows": 1, "service_terms_rows": 0, "room_manifest_rows": 0, "exact_locale_manifest_rows": 0, "encounter_backed_exact_locale_rows": 0, "disposition": "HOLD" }
+  ],
+  "recording_review": [
+    { "country_code": "AU", "review_status": "approved", "recording_policy": "consent_required", "notice_required": true, "consent_required": true, "has_reviewer": false, "has_reviewed_at": true, "verified": false },
+    { "country_code": "US", "review_status": "needs_review", "recording_policy": "blocked", "notice_required": false, "consent_required": false, "has_reviewer": false, "has_reviewed_at": false, "verified": false },
+    { "country_code": "CA", "review_status": "needs_review", "recording_policy": "blocked", "notice_required": false, "consent_required": false, "has_reviewer": false, "has_reviewed_at": false, "verified": false },
+    { "country_code": "KR", "review_status": "needs_review", "recording_policy": "blocked", "notice_required": false, "consent_required": false, "has_reviewer": false, "has_reviewed_at": false, "verified": false },
+    { "country_code": "JP", "review_status": "needs_review", "recording_policy": "blocked", "notice_required": false, "consent_required": false, "has_reviewer": false, "has_reviewed_at": false, "verified": false },
+    { "country_code": "GB", "review_status": "needs_review", "recording_policy": "blocked", "notice_required": false, "consent_required": false, "has_reviewer": false, "has_reviewed_at": false, "verified": false }
+  ],
+  "security_and_staging": {
+    "security_advisor_info_count": 21,
+    "supabase_development_branch_count": 0,
+    "isolated_non_production_staging_available": false,
+    "hosted_remediation_allowed": false
+  }
+}
