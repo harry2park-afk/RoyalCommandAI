@@ -157,7 +157,12 @@
   "security_advisor": {
     "rls_enabled_no_policy_count": 19,
     "level": "INFO",
-    "release_blocker_until_classified": true
+    "classification": "REVIEWED_SERVICE_ROLE_ONLY",
+    "tables_with_anon_privileges": 0,
+    "tables_with_authenticated_privileges": 0,
+    "tables_with_service_role_privileges": 19,
+    "direct_client_exposure_from_this_finding_family": false,
+    "security_regression_verified": false
   },
   "repository_verification_before_increment": {
     "quality_gate": "SUCCESS",
