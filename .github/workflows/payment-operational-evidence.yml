@@ -1,0 +1,213 @@
+name: Payment Operational Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260903205500_payment_operational_safeguards.sql"
+      - "scripts/supabase-payment-operational-safeguards-snapshot.sql"
+      - "scripts/supabase-payment-event-chronology.test.ts"
+      - ".github/workflows/payment-operational-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-payment-operational-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  payment-operational-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Prepare isolated payment fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+
+          cat > supabase/migrations/20260101000000_payment_fixture.sql <<'SQL'
+          create table public.rc_service_connection_orders (
+            id uuid primary key default gen_random_uuid(),
+            owner_id uuid not null,
+            created_at timestamptz not null default now()
+          );
+          alter table public.rc_service_connection_orders enable row level security;
+          SQL
+
+      - name: Start isolated Supabase stack
+        run: supabase start
+
+      - name: Apply payment safeguards candidate only to disposable stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 \
+            -f supabase/migrations-full/20260903205500_payment_operational_safeguards.sql
+
+      - name: Prove schema-level fail-closed payment boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if to_regclass('public.rc_payment_provider_registry') is null then
+              raise exception 'provider registry missing after candidate';
+            end if;
+            if to_regclass('public.rc_payment_provider_events') is null then
+              raise exception 'provider event ledger missing after candidate';
+            end if;
+            if not exists (
+              select 1 from information_schema.columns
+              where table_schema='public'
+                and table_name='rc_service_connection_orders'
+                and column_name='idempotency_key'
+            ) then
+              raise exception 'service-order idempotency key missing after candidate';
+            end if;
+            if to_regclass('public.rc_service_connection_orders_owner_idempotency_uidx') is null then
+              raise exception 'owner/idempotency unique index missing';
+            end if;
+            if has_table_privilege('anon','public.rc_payment_provider_registry','SELECT')
+               or has_table_privilege('anon','public.rc_payment_provider_registry','INSERT')
+               or has_table_privilege('anon','public.rc_payment_provider_registry','UPDATE')
+               or has_table_privilege('anon','public.rc_payment_provider_registry','DELETE') then
+              raise exception 'anon must not directly access provider registry';
+            end if;
+            if has_table_privilege('authenticated','public.rc_payment_provider_registry','SELECT')
+               or has_table_privilege('authenticated','public.rc_payment_provider_registry','INSERT')
+               or has_table_privilege('authenticated','public.rc_payment_provider_registry','UPDATE')
+               or has_table_privilege('authenticated','public.rc_payment_provider_registry','DELETE') then
+              raise exception 'authenticated must not directly access provider registry';
+            end if;
+            if has_table_privilege('anon','public.rc_payment_provider_events','SELECT')
+               or has_table_privilege('anon','public.rc_payment_provider_events','INSERT')
+               or has_table_privilege('anon','public.rc_payment_provider_events','UPDATE')
+               or has_table_privilege('anon','public.rc_payment_provider_events','DELETE') then
+              raise exception 'anon must not directly access provider event ledger';
+            end if;
+            if has_table_privilege('authenticated','public.rc_payment_provider_events','SELECT')
+               or has_table_privilege('authenticated','public.rc_payment_provider_events','INSERT')
+               or has_table_privilege('authenticated','public.rc_payment_provider_events','UPDATE')
+               or has_table_privilege('authenticated','public.rc_payment_provider_events','DELETE') then
+              raise exception 'authenticated must not directly access provider event ledger';
+            end if;
+            if exists (select 1 from public.rc_payment_provider_registry) then
+              raise exception 'candidate must not seed or activate a payment provider';
+            end if;
+            if exists (select 1 from public.rc_payment_provider_events) then
+              raise exception 'candidate must not seed payment events';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Prove idempotency and webhook replay rejection
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          insert into public.rc_service_connection_orders(owner_id, idempotency_key)
+          values ('00000000-0000-0000-0000-000000000001', 'launch-proof-idempotency-0001');
+
+          do $$
+          begin
+            begin
+              insert into public.rc_service_connection_orders(owner_id, idempotency_key)
+              values ('00000000-0000-0000-0000-000000000001', 'launch-proof-idempotency-0001');
+              raise exception 'duplicate owner/idempotency key unexpectedly accepted';
+            exception
+              when unique_violation then null;
+            end;
+          end;
+          $$;
+
+          insert into public.rc_payment_provider_registry(provider_key, environment)
+          values ('proof-provider', 'sandbox');
+
+          insert into public.rc_payment_provider_events(
+            provider_key, environment, external_event_id, event_type, payload_sha256
+          ) values (
+            'proof-provider', 'sandbox', 'evt-proof-001', 'payment.test', repeat('a',64)
+          );
+
+          do $$
+          begin
+            begin
+              insert into public.rc_payment_provider_events(
+                provider_key, environment, external_event_id, event_type, payload_sha256
+              ) values (
+                'proof-provider', 'sandbox', 'evt-proof-001', 'payment.test', repeat('b',64)
+              );
+              raise exception 'duplicate provider event unexpectedly accepted';
+            exception
+              when unique_violation then null;
+            end;
+          end;
+          $$;
+          SQL
+
+      - name: Prove unsigned events cannot enter processing
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            begin
+              insert into public.rc_payment_provider_events(
+                provider_key, environment, external_event_id, event_type,
+                payload_sha256, processing_status
+              ) values (
+                'proof-provider', 'sandbox', 'evt-proof-unsigned', 'payment.test',
+                repeat('c',64), 'processing'
+              );
+              raise exception 'unsigned event unexpectedly entered processing';
+            exception
+              when check_violation then null;
+            end;
+          end;
+          $$;
+          SQL
+
+      - name: Prove provider readiness cannot self-approve
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            begin
+              insert into public.rc_payment_provider_registry(
+                provider_key, environment, status,
+                supports_webhooks, supports_signed_webhooks
+              ) values (
+                'unreviewed-provider', 'sandbox', 'sandbox_ready', true, true
+              );
+              raise exception 'unreviewed sandbox_ready provider unexpectedly accepted';
+            exception
+              when check_violation then null;
+            end;
+          end;
+          $$;
+          SQL
+
+      - name: Run static payment chronology regression tests
+        run: npm test -- --run scripts/supabase-payment-event-chronology.test.ts
