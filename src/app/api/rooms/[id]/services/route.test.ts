@@ -43,8 +43,16 @@ function queryBuilder<T>(result: T) {
   };
 }
 
-function availableCountryTerm() {
-  return queryBuilder({ data: { availability_status: "available" }, error: null });
+function approvedCountryTerm() {
+  return queryBuilder({
+    data: {
+      availability_status: "available",
+      review_status: "approved",
+      reviewed_by: "33333333-3333-4333-8333-333333333333",
+      reviewed_at: "2026-09-22T07:51:00.000Z",
+    },
+    error: null,
+  });
 }
 
 describe("Room service launch fail-closed boundaries", () => {
@@ -73,7 +81,7 @@ describe("Room service launch fail-closed boundaries", () => {
       },
       error: null,
     });
-    const countryTerms = availableCountryTerm();
+    const countryTerms = approvedCountryTerm();
     const selections = { upsert: vi.fn() };
     const orders = { insert: vi.fn() };
 
@@ -146,6 +154,60 @@ describe("Room service launch fail-closed boundaries", () => {
     expect(orders.insert).not.toHaveBeenCalled();
   });
 
+  it("does not create a selection or order when an available country term lacks reviewer-proven approval", async () => {
+    const rooms = queryBuilder({ data: { id: roomId }, error: null });
+    const catalog = queryBuilder({
+      data: {
+        service_key: "unreviewed-country-service",
+        default_included: false,
+        active: true,
+        customer_selectable: true,
+        connection_scope: "room",
+        connection_status: "available",
+        pricing_type: "free",
+        price_status: "fixed",
+        price_minor: 0,
+        currency: "AUD",
+        terms_version: "2026-09",
+        agreement_required: false,
+      },
+      error: null,
+    });
+    const countryTerms = queryBuilder({
+      data: {
+        availability_status: "available",
+        review_status: "needs_review",
+        reviewed_by: null,
+        reviewed_at: null,
+      },
+      error: null,
+    });
+    const selections = { upsert: vi.fn() };
+    const orders = { insert: vi.fn() };
+
+    mocks.from.mockImplementation((table: string) => {
+      if (table === "rooms") return rooms;
+      if (table === "rc_service_catalog") return catalog;
+      if (table === "rc_service_country_terms") return countryTerms;
+      if (table === "rc_room_service_selections") return selections;
+      if (table === "rc_service_connection_orders") return orders;
+      throw new Error(`unexpected table ${table}`);
+    });
+    mocks.createClient.mockResolvedValue({ from: mocks.from });
+
+    const response = await POST(request("unreviewed-country-service"), context());
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({
+      error: "Service is not approved for connection in this country",
+      code: "COUNTRY_SERVICE_NOT_READY",
+      serviceKey: "unreviewed-country-service",
+      countryCode: "AU",
+    });
+    expect(selections.upsert).not.toHaveBeenCalled();
+    expect(orders.insert).not.toHaveBeenCalled();
+  });
+
   it("does not create a selection or order when fixed-price checkout is disconnected", async () => {
     const rooms = queryBuilder({ data: { id: roomId }, error: null });
     const catalog = queryBuilder({
@@ -165,7 +227,7 @@ describe("Room service launch fail-closed boundaries", () => {
       },
       error: null,
     });
-    const countryTerms = availableCountryTerm();
+    const countryTerms = approvedCountryTerm();
     const selections = { upsert: vi.fn() };
     const orders = { insert: vi.fn() };
 
@@ -212,7 +274,7 @@ describe("Room service launch fail-closed boundaries", () => {
       },
       error: null,
     });
-    const countryTerms = availableCountryTerm();
+    const countryTerms = approvedCountryTerm();
     const selections = { upsert: vi.fn() };
     const orders = { insert: vi.fn() };
 
