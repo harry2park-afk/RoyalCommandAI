@@ -29,9 +29,18 @@ const evidence = JSON.parse(evidenceRaw) as {
     role_privileges: { anon: string[]; authenticated: string[]; service_role: string[] };
     allocator_function_present: boolean;
   };
+  hosted_migration_row_76: {
+    version: string;
+    name: string;
+    revokes_anon_table_privileges: boolean;
+    revokes_authenticated_table_privileges: boolean;
+    grants_authenticated_select: boolean;
+    creates_allocator_function: boolean;
+  };
   interpretation: {
     customer_account_fixture_matches_anon_no_table_access: boolean;
     customer_account_authenticated_direct_control_is_launch_blocker: boolean;
+    row_76_does_not_close_authenticated_acl: boolean;
     room_factory_client_table_privileges_are_launch_blocker: boolean;
     room_factory_hosted_acl_hardening_verified: boolean;
     hosted_remediation_candidate_applied: boolean;
@@ -102,6 +111,18 @@ describe("2026-09-23 06:50 Hosted ACL readback", () => {
     ]);
     expect(evidence.customer_number_authority.allocator_function_present).toBe(false);
     expect(evidence.interpretation.hosted_remediation_candidate_applied).toBe(false);
+  });
+
+  it("records why Hosted row 76 does not establish authenticated least privilege", () => {
+    expect(evidence.hosted_migration_row_76).toEqual({
+      version: "20260920091809",
+      name: "add_secure_rc_customer_numbers",
+      revokes_anon_table_privileges: true,
+      revokes_authenticated_table_privileges: false,
+      grants_authenticated_select: true,
+      creates_allocator_function: false,
+    });
+    expect(evidence.interpretation.row_76_does_not_close_authenticated_acl).toBe(true);
   });
 
   it("keeps first-wave launch fail-closed", () => {
