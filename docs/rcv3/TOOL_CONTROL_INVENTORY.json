@@ -242,7 +242,7 @@
     {
       "controlId": "src/app/rcv3/RoomCatalog.tsx#4",
       "toolId": "create-room",
-      "sourceHash": "26b811bf29edf42c63e3f2cf72793967232d6f082aecd4ea65d76095437b04c0",
+      "sourceHash": "540aafdbf62fe90414255a48011188f764503256e8d436f9b56316f600a711a4",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

@@ -1,3 +1,4 @@
+import {rcOfficeDesigns} from './rc-office-designs';
 // Background artwork only; all actions remain in the shared button runtime.
 export const roomTemplates = [
  {id:'ocean-office',name:'Ocean Office',category:'Office',keywords:'ocean coast modern',image:'/room-designs/ocean-office-v1.webp'},
@@ -49,6 +50,7 @@ export const roomTemplates = [
  {id:'illustrated-office-set-four-20260921-03',name:'Seaside Team Illustration',category:'Illustration',keywords:'seaside team illustration',image:'/room-designs/illustrated-office-set-four-20260921-03.webp'},
  {id:'illustrated-office-set-four-20260921-04',name:'Grand Reading Room Illustration',category:'Illustration',keywords:'grand reading room illustration',image:'/room-designs/illustrated-office-set-four-20260921-04.webp'},
  {id:'illustrated-office-set-four-20260921-05',name:'Lavender Future Office Illustration',category:'Illustration',keywords:'lavender future office illustration',image:'/room-designs/illustrated-office-set-four-20260921-05.webp'},
+ ...rcOfficeDesigns.map(design=>({...design,category:'RC Office' as const,keywords:'rc office video call meeting sydney harbour brown desk'})),
 ] as const;
 export type RoomTemplate = typeof roomTemplates[number];
 export function templateImage(t:RoomTemplate){return t.image;}

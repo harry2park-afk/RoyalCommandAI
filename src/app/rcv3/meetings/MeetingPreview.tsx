@@ -31,7 +31,7 @@ export default function MeetingPreview({language,rooms}:{language:string;rooms:{
  function choose(id:string){setSelected(id);setSeat(0);}
  return <main className={styles.page}>
   <header><a href="/rcv3">← RC V3</a><span>ROYAL COMMAND · DESKTOP PREVIEW</span></header>
-  <div className={styles.heading}><div><p>MEETING ROOMS · PERSONAL & BUSINESS</p><h1>Your seat at the table</h1></div><span>10 designs</span></div>
+  <div className={styles.heading}><div><p>MEETING ROOMS · PERSONAL & BUSINESS</p><h1>Your seat at the table</h1></div><span>{meetingBackgrounds.length} designs</span></div>
   <p className={styles.notice}>{meetingPreviewText('intro',language)}</p>
   <section className={styles.workspace} aria-label="Camera preview">
    <div className={styles.stage}>
