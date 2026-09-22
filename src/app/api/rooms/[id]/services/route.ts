@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { evaluateServicePaymentReadiness } from "@/lib/rooms/service-payment-readiness";
-import { verifyCountryLegalCompliance } from "@/lib/compliance/countryComplianceStore";
+import { verifyCountryServiceCompliance } from "@/lib/compliance/countryComplianceStore";
 
 const CHECKOUT_CONFIGURED = false;
 
@@ -167,10 +167,10 @@ export async function POST(
     }, { status: 409 });
   }
 
-  const compliance = await verifyCountryLegalCompliance(countryCode);
+  const compliance = await verifyCountryServiceCompliance(countryCode);
   if (compliance.error) {
     return NextResponse.json({
-      error: "Unable to verify country legal compliance evidence",
+      error: "Unable to verify required country compliance evidence",
       code: "COUNTRY_COMPLIANCE_EVIDENCE_UNAVAILABLE",
       serviceKey,
       countryCode,
@@ -178,7 +178,7 @@ export async function POST(
   }
   if (!compliance.verified) {
     return NextResponse.json({
-      error: "Country legal compliance is not verified for service connection",
+      error: "Required country compliance is not verified for service connection",
       code: "COUNTRY_COMPLIANCE_NOT_READY",
       serviceKey,
       countryCode,
