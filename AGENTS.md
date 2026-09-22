@@ -69,3 +69,7 @@ For Room creation, tool catalog, tool installation, entitlement or removal work,
 ## RC V3 customer platform and AI education
 
 For V3 room, access, shortcut or education work, follow [RC V3 Platform and Learning Rules](docs/rcv3/PLATFORM_AND_AI_EDUCATION_RULES.md). Reuse the common frame; customers configure their own rooms. Education is free, 100 numbered topics over a recommended 30 days, increasingly practical after topic 050. Distinguish approved targets from implemented, verified features.
+
+## RC V3 toolbox-first development — mandatory
+
+For every new or changed V3 screen, room, button or executable feature, follow the toolbox-first section in [Self-service Tool Room Design](docs/rcv3/SELF_SERVICE_TOOL_ROOM_DESIGN.md). Inventory and reuse existing working controls and their real functionality. Register missing reusable functionality in the shared toolbox and verify it **before** consuming it in a screen or room. Do not implement duplicate per-room controls or defer toolbox registration. Reuse includes the UI, action, configuration schema, permissions, version and connection requirements; customer data, credentials and entitlements must not be copied. Report unregistered/unverified items explicitly. Documentation alone does not establish toolbox implementation or completion. This requirement adds no approval gate to unrelated work.
