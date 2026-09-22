@@ -1,0 +1,129 @@
+{
+  "captured_at": "2026-09-23T04:46:56+10:00",
+  "source": {
+    "query_mode": "READ_ONLY",
+    "hosted_mutation_performed": false,
+    "supabase_project_id": "aygawkavujjmybekswrg",
+    "github_pr": 696,
+    "github_candidate_sha": "f1535e1d270936c1657f8ab861aaf8ee5265c92a",
+    "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8"
+  },
+  "deployment": {
+    "hosted_migration_count": 80,
+    "hosted_migration_head": {
+      "version": "20260922021440",
+      "name": "rcv3_preview_email_outbox"
+    },
+    "unresolved_source_provenance": [
+      {
+        "version": "20260920091809",
+        "name": "add_secure_rc_customer_numbers",
+        "candidate_source_path_present": false,
+        "status": "UNRESOLVED"
+      },
+      {
+        "version": "20260922021440",
+        "name": "rcv3_preview_email_outbox",
+        "candidate_source_path_present": false,
+        "status": "UNRESOLVED"
+      }
+    ]
+  },
+  "first_wave_runtime": [
+    {
+      "country_code": "AU",
+      "expected_locale": "en-AU",
+      "manifest_rows": 7,
+      "exact_locale_rows": 0,
+      "exact_locale_encounter_rows": 0,
+      "observed_language_tags": ["ko", "ko-KR"],
+      "runtime_verified": false
+    },
+    {
+      "country_code": "US",
+      "expected_locale": "en-US",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_locale_encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "CA",
+      "expected_locale": "en-CA",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_locale_encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "KR",
+      "expected_locale": "ko-KR",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_locale_encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "JP",
+      "expected_locale": "ja-JP",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_locale_encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "GB",
+      "expected_locale": "en-GB",
+      "manifest_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_locale_encounter_rows": 0,
+      "runtime_verified": false
+    }
+  ],
+  "commercial_and_compliance": {
+    "first_wave_country_terms_rows": 0,
+    "commercial_review_columns_present": 0,
+    "commercial_review_columns_expected": 3,
+    "country_compliance_evidence_present": false,
+    "payment_provider_registry_present": false,
+    "payment_provider_events_present": false,
+    "verified": false
+  },
+  "write_authority": {
+    "room_factory_manifests": {
+      "anon": ["INSERT", "UPDATE", "DELETE", "TRUNCATE"],
+      "authenticated": ["INSERT", "UPDATE", "DELETE", "TRUNCATE"],
+      "verified": false
+    },
+    "rc_customer_accounts": {
+      "authenticated": ["INSERT", "UPDATE", "DELETE", "TRUNCATE"],
+      "verified": false
+    }
+  },
+  "security_advisor": {
+    "rls_enabled_no_policy_count": 21,
+    "level": "INFO",
+    "launch_relevant_findings": [
+      "communication_recording_policies",
+      "rc_service_provider_offers",
+      "rc_service_providers",
+      "rcv3_customer_ai_credentials",
+      "rcv3_customer_phone_accounts",
+      "rcv3_preview_email_notices",
+      "rcv3_preview_orders"
+    ],
+    "review_required": true
+  },
+  "non_production_staging": {
+    "supabase_branch_count": 0,
+    "available": false
+  },
+  "first_wave_disposition": {
+    "AU": "HOLD",
+    "US": "HOLD",
+    "CA": "HOLD",
+    "KR": "HOLD",
+    "JP": "HOLD",
+    "GB": "HOLD"
+  }
+}
