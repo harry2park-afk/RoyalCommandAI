@@ -1,0 +1,67 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-23T14:52:00+10:00",
+  "verification_mode": "READ_ONLY_SUPABASE_PLUS_GITHUB",
+  "project_ref": "aygawkavujjmybekswrg",
+  "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+  "pre_capture_pr_head": "038c8e630c276d421d202afb52295e09da35bd83",
+  "restore_ref": "restore/2026-09-23-1447-pr696-pre-legal-assignment-gate",
+  "hosted_mutation_performed_by_this_capture": false,
+  "production_master_mutated_by_this_capture": false,
+  "service_catalog": {
+    "selectable_active_services": 40,
+    "selectable_positive_price_services": 0,
+    "first_wave_country_term_rows": 0,
+    "breakdown": [
+      {
+        "pricing_type": "monthly",
+        "currency": "AUD",
+        "price_status": "tbd",
+        "connection_status": "planned",
+        "rows": 21
+      },
+      {
+        "pricing_type": "custom",
+        "currency": "AUD",
+        "price_status": "quote",
+        "connection_status": "planned",
+        "rows": 10
+      },
+      {
+        "pricing_type": "usage",
+        "currency": "AUD",
+        "price_status": "tbd",
+        "connection_status": "planned",
+        "rows": 6
+      },
+      {
+        "pricing_type": "free",
+        "currency": "AUD",
+        "price_status": "fixed",
+        "connection_status": "planned",
+        "rows": 3
+      }
+    ]
+  },
+  "payment_runtime": {
+    "rca_services_route_checkout_configured_literal_false": true,
+    "room_services_route_checkout_configured_literal_false": true,
+    "payment_provider_registry_present": false,
+    "payment_provider_events_present": false,
+    "service_connection_orders_present": true
+  },
+  "first_wave": {
+    "countries": ["AU", "US", "CA", "KR", "JP", "GB"],
+    "country_commercial_catalog_verified": false,
+    "payment_operations_verified": false,
+    "payment_provider_sandbox_verified": false,
+    "disposition": "HOLD"
+  },
+  "interpretation": {
+    "checkout_activation_authorized": false,
+    "positive_pricing_authorized": false,
+    "country_terms_authorized": false,
+    "country_ready_claimed": false,
+    "reason": "The Hosted catalog exposes 40 active customer-selectable services, but all are still planned, none has a positive selectable price, the six launch countries have zero country-term rows, both service routes keep checkout disabled, and provider registry/event proof is absent."
+  }
+}
