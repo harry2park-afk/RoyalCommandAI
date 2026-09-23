@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: read
+  packages: read
 
 concurrency:
   group: rc-supabase-minimal-stack-smoke-${{ github.workflow }}-${{ github.ref }}
@@ -29,6 +30,14 @@ jobs:
 
       - name: Record CLI version
         run: supabase --version
+
+      - name: Authenticate GHCR for Supabase image pulls
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
 
       - name: Start minimal isolated Supabase stack
         shell: bash
