@@ -37,13 +37,21 @@ describe('first-wave Hosted security readback 2026-09-23 12:49 AEST', () => {
     expect(evidence.legal_matter_isolation.set_matter_staff_assignment_present).toBe(false);
     expect(evidence.legal_matter_isolation.policies_using_broad_staff_helper).toBe(3);
     expect(evidence.legal_matter_isolation.policies_using_assignment_helper).toBe(0);
+    expect(evidence.legal_matter_isolation.broad_staff_policy_names).toEqual([
+      'matters_insert_own',
+      'matters_select_own_or_staff',
+      'matters_update_own_or_staff',
+    ]);
     expect(evidence.legal_matter_isolation.hosted_scope_matter_staff_access_rows).toBe(0);
     expect(evidence.legal_matter_isolation.verified).toBe(false);
   });
 
-  it('keeps profile role authority fail-closed while authenticated role UPDATE remains granted', () => {
+  it('keeps profile role authority fail-closed on the current Hosted authority path', () => {
     expect(evidence.profile_role_authority.authenticated_role_update_privilege).toBe(true);
     expect(evidence.profile_role_authority.authenticated_profile_update_privilege).toBe(true);
+    expect(evidence.profile_role_authority.role_guard_trigger_count).toBe(0);
+    expect(evidence.profile_role_authority.handle_new_user_uses_raw_metadata_role).toBe(true);
+    expect(evidence.profile_role_authority.profile_update_policy_count).toBe(1);
     expect(evidence.profile_role_authority.hosted_harden_profile_role_authority_rows).toBe(0);
     expect(evidence.profile_role_authority.verified).toBe(false);
   });
