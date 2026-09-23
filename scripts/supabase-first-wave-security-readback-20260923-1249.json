@@ -1,0 +1,104 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-23T12:49:29+10:00",
+  "verification_mode": "READ_ONLY_SUPABASE_PLUS_GITHUB",
+  "project_ref": "aygawkavujjmybekswrg",
+  "hosted_mutation_performed_by_this_capture": false,
+  "production_master_mutated_by_this_capture": false,
+  "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+  "pre_capture_pr_head": "c25429c323ebbc37a7d10b15a2a8ff28100e4f09",
+  "restore_ref": "restore/2026-09-23-1247-pr696-pre-country-config-evidence",
+  "migration_ledger": {
+    "count": 80,
+    "head_version": "20260922021440",
+    "head_name": "rcv3_preview_email_outbox",
+    "required_candidate_migrations": {
+      "scope_matter_staff_access": {"hosted_rows": 0, "candidate_present_in_pr": true},
+      "room_factory_atomic_non_encounter": {"hosted_rows": 0, "candidate_present_in_pr": true},
+      "country_compliance_evidence_registry": {"hosted_rows": 0, "candidate_present_in_pr": true},
+      "payment_operational_safeguards": {"hosted_rows": 0, "candidate_present_in_pr": true},
+      "add_room_factory_fk_indexes": {"hosted_rows": 0, "candidate_present_in_pr": true},
+      "harden_profile_role_authority": {"hosted_rows": 0, "candidate_present_in_pr": true},
+      "harden_commercial_review_provenance": {"hosted_rows": 0, "candidate_present_in_pr": true},
+      "room_factory_manifest_acl_hardening": {"hosted_rows": 0, "candidate_present_in_pr": true}
+    },
+    "trusted_80_row_baseline_verified": false
+  },
+  "legal_matter_isolation": {
+    "matters_total": 3,
+    "assigned": 0,
+    "unassigned": 3,
+    "client_id_updateable_by_authenticated": true,
+    "assigned_staff_id_updateable_by_authenticated": true,
+    "private_is_admin_present": false,
+    "private_is_assigned_matter_staff_present": false,
+    "set_matter_staff_assignment_present": false,
+    "policies_using_broad_staff_helper": 3,
+    "policies_using_assignment_helper": 0,
+    "candidate_scope_matter_staff_access_present_in_pr": true,
+    "hosted_scope_matter_staff_access_rows": 0,
+    "verified": false
+  },
+  "profile_role_authority": {
+    "authenticated_role_update_privilege": true,
+    "authenticated_profile_update_privilege": true,
+    "candidate_harden_profile_role_authority_present_in_pr": true,
+    "hosted_harden_profile_role_authority_rows": 0,
+    "verified": false
+  },
+  "room_factory": {
+    "first_wave_runtime": {
+      "AU": {"expected_locale": "en-AU", "manifest_rows": 7, "exact_locale_rows": 0, "encounter_backed_exact_runtime_rows": 0},
+      "US": {"expected_locale": "en-US", "manifest_rows": 0, "exact_locale_rows": 0, "encounter_backed_exact_runtime_rows": 0},
+      "CA": {"expected_locale": "en-CA", "manifest_rows": 0, "exact_locale_rows": 0, "encounter_backed_exact_runtime_rows": 0},
+      "KR": {"expected_locale": "ko-KR", "manifest_rows": 0, "exact_locale_rows": 0, "encounter_backed_exact_runtime_rows": 0},
+      "JP": {"expected_locale": "ja-JP", "manifest_rows": 0, "exact_locale_rows": 0, "encounter_backed_exact_runtime_rows": 0},
+      "GB": {"expected_locale": "en-GB", "manifest_rows": 0, "exact_locale_rows": 0, "encounter_backed_exact_runtime_rows": 0}
+    },
+    "au_observed_other_locales": {"ko": 5, "ko-KR": 2},
+    "anon_direct_manifest_insert": true,
+    "authenticated_direct_manifest_insert": true,
+    "authenticated_direct_manifest_update": true,
+    "authenticated_direct_manifest_delete": true,
+    "rls_enabled": true,
+    "force_rls": false,
+    "verified": false
+  },
+  "customer_account_authority": {
+    "rls_enabled": true,
+    "force_rls": false,
+    "anon_direct_insert": false,
+    "authenticated_direct_insert": true,
+    "authenticated_direct_update": true,
+    "authenticated_direct_delete": true,
+    "verified": false
+  },
+  "commercial_compliance_payment": {
+    "first_wave_country_term_rows": {"AU": 0, "US": 0, "CA": 0, "KR": 0, "JP": 0, "GB": 0},
+    "reviewer_proven_recording_rows": {"AU": 0, "US": 0, "CA": 0, "KR": 0, "JP": 0, "GB": 0},
+    "country_compliance_evidence_present": false,
+    "payment_provider_registry_present": false,
+    "payment_provider_events_present": false,
+    "verified": false
+  },
+  "non_production_staging": {
+    "supabase_development_branch_count": 0,
+    "verified": false
+  },
+  "security_advisor": {
+    "rls_enabled_no_policy_level": "INFO",
+    "rls_enabled_no_policy_count": 21,
+    "remediation_url": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+    "treated_as_exploitable_access_proof": false
+  },
+  "first_wave_disposition": {
+    "AU": "HOLD",
+    "US": "HOLD",
+    "CA": "HOLD",
+    "KR": "HOLD",
+    "JP": "HOLD",
+    "GB": "HOLD"
+  },
+  "safe_deploy_blocked": true,
+  "country_ready_claimed": false
+}
