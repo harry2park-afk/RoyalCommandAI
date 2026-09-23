@@ -23,6 +23,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   roomFactoryRuntime: "VERIFIED",
   roomFactoryWriteAuthority: "VERIFIED",
   tenantIsolation: "VERIFIED",
+  profileRoleAuthority: "VERIFIED",
   customerAccountAuthority: "VERIFIED",
   countryCommercialCatalog: "VERIFIED",
   commercialReviewAuthority: "VERIFIED",
