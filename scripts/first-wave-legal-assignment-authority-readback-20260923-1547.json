@@ -1,0 +1,36 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-23T15:47:52+10:00",
+  "verification_mode": "READ_ONLY_SUPABASE_PLUS_EXACT_BRANCH_GITHUB",
+  "project_ref": "aygawkavujjmybekswrg",
+  "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+  "pre_capture_pr_head": "29331813ee632e41ef33a99278cb1f69cc1cfb56",
+  "restore_ref": "restore/2026-09-23-1547-pr696-pre-provider-registry-correction",
+  "hosted_mutation_performed_by_this_capture": false,
+  "production_master_mutated_by_this_capture": false,
+  "hosted_legal_assignment_authority": {
+    "authenticated_can_update_matters_client_id": true,
+    "authenticated_can_update_matters_assigned_staff_id": true,
+    "trusted_assignment_rpc_count": 0,
+    "matter_assignment_named_function_count": 0,
+    "matters_policy_count": 3,
+    "staff_referencing_matters_policy_count": 3,
+    "scope_matter_staff_access_hosted_migration_rows": 0
+  },
+  "candidate_source": {
+    "path": "supabase/migrations/20260831225500_scope_matter_staff_access.sql",
+    "status": "SOURCE_ONLY_NOT_HOSTED_VERIFIED",
+    "removes_direct_tenant_assignment_column_update": true,
+    "adds_admin_checked_assignment_rpc": true
+  },
+  "first_wave": {
+    "countries": ["AU", "US", "CA", "KR", "JP", "GB"],
+    "legal_matter_assignment_authority_verified": false,
+    "disposition": "HOLD"
+  },
+  "interpretation": {
+    "launch_gate_blocker": "LEGAL_MATTER_ASSIGNMENT_AUTHORITY_NOT_VERIFIED",
+    "country_ready_claimed": false,
+    "reason": "Hosted authenticated access can still directly UPDATE both matters.client_id and matters.assigned_staff_id, no trusted assignment RPC is present, and the scoped assignment migration is not in the Hosted migration ledger. The candidate migration remains source-only until controlled non-Production verification and separate deployment approval."
+  }
+}
