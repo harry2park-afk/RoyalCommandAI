@@ -22,6 +22,7 @@ export type CountryOperationalEvidence = {
   tenantIsolation?: OperationalEvidenceStatus;
   profileRoleAuthority?: OperationalEvidenceStatus;
   customerAccountAuthority?: OperationalEvidenceStatus;
+  legalMatterAssignmentAuthority?: OperationalEvidenceStatus;
   countryCommercialCatalog?: OperationalEvidenceStatus;
   commercialReviewAuthority?: OperationalEvidenceStatus;
   recordingReviewAuthority?: OperationalEvidenceStatus;
@@ -56,6 +57,7 @@ export type CountryOperationalBlockerCode =
   | "TENANT_ISOLATION_NOT_VERIFIED"
   | "PROFILE_ROLE_AUTHORITY_NOT_VERIFIED"
   | "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"
+  | "LEGAL_MATTER_ASSIGNMENT_AUTHORITY_NOT_VERIFIED"
   | "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED"
   | "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED"
   | "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED"
@@ -98,6 +100,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
   { key: "profileRoleAuthority", blocker: "PROFILE_ROLE_AUTHORITY_NOT_VERIFIED" },
   { key: "customerAccountAuthority", blocker: "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED" },
+  { key: "legalMatterAssignmentAuthority", blocker: "LEGAL_MATTER_ASSIGNMENT_AUTHORITY_NOT_VERIFIED" },
   { key: "countryCommercialCatalog", blocker: "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED" },
   { key: "commercialReviewAuthority", blocker: "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED" },
   { key: "recordingReviewAuthority", blocker: "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED" },
@@ -148,6 +151,10 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * authority is also independent from broad tenant-isolation evidence so a country
  * cannot launch while authenticated clients retain unsafe direct writes or
  * customer-number allocation is not verified through the controlled account path.
+ * Legal matter assignment authority is independent again: authenticated clients
+ * and ordinary staff must not be able to rewrite matter tenant ownership or staff
+ * assignment columns directly, and the approved assignment path must prove its
+ * caller authority and assigned-staff role before a country can launch.
  * Country commercial catalog proof is independent from commercial-review
  * authority: a country must have reviewed, available positive-priced terms and
  * provider offers, and the authority/provenance of the human commercial reviewer
