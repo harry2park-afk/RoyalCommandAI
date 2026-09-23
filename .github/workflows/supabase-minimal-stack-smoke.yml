@@ -1,0 +1,49 @@
+name: Supabase Minimal Stack Smoke
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/supabase-minimal-stack-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-supabase-minimal-stack-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Record CLI version
+        run: supabase --version
+
+      - name: Start minimal isolated Supabase stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Prove database and Auth are usable
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -qAtc "select 1" | grep -qx '1'
+          curl -fsS "$API_URL/auth/v1/health" >/dev/null
+
+      - name: Stop isolated Supabase stack
+        if: always()
+        run: supabase stop --no-backup
