@@ -1,6 +1,7 @@
 {
-  "contract_version": 1,
+  "contract_version": 2,
   "captured_at": "2026-09-23T14:52:00+10:00",
+  "provider_table_clarification_at": "2026-09-23T15:47:52+10:00",
   "verification_mode": "READ_ONLY_SUPABASE_PLUS_GITHUB",
   "project_ref": "aygawkavujjmybekswrg",
   "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
@@ -43,11 +44,22 @@
       }
     ]
   },
+  "provider_catalog": {
+    "service_provider_registry_table": "rc_service_providers",
+    "service_provider_registry_present": true,
+    "service_provider_registry_rows": 0,
+    "service_provider_offers_table": "rc_service_provider_offers",
+    "service_provider_offers_present": true,
+    "service_provider_offers_rows": 0
+  },
   "payment_runtime": {
     "rca_services_route_checkout_configured_literal_false": true,
     "room_services_route_checkout_configured_literal_false": true,
+    "payment_provider_registry_table": "rc_payment_provider_registry",
     "payment_provider_registry_present": false,
+    "payment_provider_events_table": "rc_payment_provider_events",
     "payment_provider_events_present": false,
+    "payment_operational_safeguards_hosted_migration_rows": 0,
     "service_connection_orders_present": true
   },
   "first_wave": {
@@ -62,6 +74,6 @@
     "positive_pricing_authorized": false,
     "country_terms_authorized": false,
     "country_ready_claimed": false,
-    "reason": "The Hosted catalog exposes 40 active customer-selectable services, but all are still planned, none has a positive selectable price, the six launch countries have zero country-term rows, both service routes keep checkout disabled, and provider registry/event proof is absent."
+    "reason": "The Hosted catalog exposes 40 active customer-selectable services, but all are still planned, none has a positive selectable price, and the six launch countries have zero country-term rows. The generic service-provider catalog tables exist but contain zero providers/offers. The separate payment-readiness registry/event ledger from the source-only payment safeguards migration is not Hosted, and both service routes keep checkout disabled."
   }
 }
