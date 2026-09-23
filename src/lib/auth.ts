@@ -3,6 +3,13 @@ import { isSupabaseConfigured } from "@/lib/utils";
 import { localDb } from "@/lib/local-store";
 import { createClient } from "@/lib/supabase/server";
 
+export function getTrustedCountryCode(user: {
+  app_metadata?: Record<string, unknown> | null;
+}) {
+  const countryCode = user.app_metadata?.country_code;
+  return typeof countryCode === "string" ? countryCode : "";
+}
+
 export async function getCurrentUser() {
   if (isSupabaseConfigured()) {
     const supabase = await createClient();
@@ -19,8 +26,10 @@ export async function getCurrentUser() {
         "User",
       defaultLanguage:
         (user.user_metadata?.default_language as string) || "en",
-      countryCode:
-        (user.user_metadata?.country_code as string) || "",
+      // Country controls legal/compliance, commercial terms and payment routing.
+      // Supabase user_metadata is user-editable, so it must never grant country
+      // authority. Only server-controlled app_metadata is accepted here.
+      countryCode: getTrustedCountryCode(user),
       mode: "supabase" as const,
     };
   }
