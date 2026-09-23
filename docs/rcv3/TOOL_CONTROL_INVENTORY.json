@@ -590,6 +590,48 @@
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#1",
+      "toolId": "room-list",
+      "sourceHash": "8e6bec05349717fd92139dfd95f91054647173bbfea845bdb7affb69d4ac89a2",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#2",
+      "toolId": "room-list",
+      "sourceHash": "caf683e293f907b3d9b7d2ed6a3d271895106124aa20f4f3cc8c9879c1c758d4",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#3",
+      "toolId": "room-list",
+      "sourceHash": "c5e0a5e82ec4e8122158aa4079bb46a68ae14974c75498c97fbaeff30f97b44e",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#4",
+      "toolId": "room-list",
+      "sourceHash": "0f98ad7bcc2df8d63ff28e310041f740ffd496ca90045a8dc059af3650e348f1",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#5",
+      "toolId": "room-list",
+      "sourceHash": "5b70e3fbb049192575cec81c584d9076dc31454a789813b79e6ca1597ef306d7",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#6",
+      "toolId": "room-list",
+      "sourceHash": "3d4aa09c6433467508f24fe3c0e82851c2bd1a401e1a91da6734c08afc5bc91e",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
       "controlId": "src/components/rcv3-toolbox/ToolButton.tsx#1",
       "toolId": "toolbox",
       "sourceHash": "64a38c1573f5d3cae75e59273533c32aec8a5440bdf4d54b36be14f870dbcbcd",
