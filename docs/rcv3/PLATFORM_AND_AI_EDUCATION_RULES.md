@@ -36,3 +36,7 @@
 - [NIST AI Risk Management Framework](https://www.nist.gov/itl/ai-risk-management-framework)
 
 규정은 AGENTS.md에서 연결하고 RC_MEMORY.md에서 찾을 수 있게 한다. 실제 구현·검증 증거는 [교육방 구현 기록](AI_EDUCATION_IMPLEMENTATION.md)에 구분하여 남긴다. 관련 없는 작업에 추가 승인 절차를 만들지 않는다.
+
+## 기본방을 통한 회원 이용 — 2026-09-23 정정
+
+[기본방·회원 이용·추가방 규칙](BASIC_ROOM_MEMBERSHIP_RULES.md)을 따른다. 신규 가입 시 기본방을 먼저 생성하며 기존 회원의 Create Room은 추가방만 생성한다. 위의 방 없는 외부 앱 바로가기 설명은 RC 회원 기능 이용을 허용하는 예외가 아니다.

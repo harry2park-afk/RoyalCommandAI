@@ -82,3 +82,7 @@ The shared toolbox is RC-managed and requires Harry’s authorization. Customers
 ## RC outbound email — Owner instruction 2026-09-22
 
 Only factual card-expiry/card-update reminders generated from verified current payment-provider records may be automatic. All other customer notices, including payment-success/failure notices, remain blocked pending Harry's explicit approval of the exact rendered message and recipient batch. Approval to develop this feature or finish the toolbox task is not approval to send customer emails. AI may draft, never authorize sending. Store approvals server-side; any change to content or recipients invalidates approval. Enforce this at the sending boundary, preserve an audit record, prevent duplicate sends, and never include full card numbers or CVV. Do not use Katie's personal Gmail connection as the RC system sender. Existing blanket automation plans are superseded by this instruction.
+
+## RC V3 basic room and additional rooms — Owner instruction 2026-09-23
+
+Follow [Basic Room Membership Rules](docs/rcv3/BASIC_ROOM_MEMBERSHIP_RULES.md). Signup creates the customer's basic room before member use. Existing-member Create Room creates additional rooms only and must verify the owned basic room server-side. Every non-basic room and the additional-room creation screen links directly to the customer's basic room as `← actual basic room name`. The basic room lists actual created rooms for navigation. Preserve existing rooms and customer data. This rule record is not evidence of runtime enforcement.
