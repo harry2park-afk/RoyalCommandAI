@@ -1,0 +1,70 @@
+{
+  "captured_at": "2026-09-23T23:46:36+10:00",
+  "source": {
+    "query_mode": "READ_ONLY",
+    "hosted_mutation_performed": false,
+    "supabase_project": "RoyalCommand",
+    "supabase_region": "ap-south-1",
+    "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+    "pre_change_pr_head_sha": "b9217603725dae448c8d8b003d139beba60fb5d0",
+    "restore_ref": "restore/2026-09-23-2346-pr696-pre-room-factory-write-authority"
+  },
+  "room_factory_manifests": {
+    "rls_enabled": true,
+    "force_rls": false,
+    "role_privileges": {
+      "anon": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+      "authenticated": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+      "service_role": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+    },
+    "policies": [
+      {
+        "name": "room_factory_manifests_insert_owner",
+        "command": "INSERT",
+        "role": "authenticated",
+        "with_check_summary": "owner_id=auth.uid() and room.room_owner_id=auth.uid()"
+      },
+      {
+        "name": "room_factory_manifests_select",
+        "command": "SELECT",
+        "role": "authenticated",
+        "qual_summary": "private.is_room_member(room_id)"
+      }
+    ]
+  },
+  "atomic_room_factory_path": {
+    "private_create_function": {
+      "schema": "private",
+      "name": "create_room_factory_room_atomic",
+      "security_definer": true,
+      "authenticated_execute_grant_observed": false
+    },
+    "public_wrapper": {
+      "schema": "public",
+      "name": "create_room_factory_room_atomic",
+      "security_definer": false,
+      "authenticated_execute_grant_observed": true
+    }
+  },
+  "acl_hardening_candidate": {
+    "version": "20260911045100",
+    "name": "room_factory_manifest_acl_hardening",
+    "source_sha": "637f759884f099e37257c021c9dbb09badc9e799",
+    "hosted_ledger_match_count": 0,
+    "intended_effects": [
+      "revoke all direct anon access to room_factory_manifests",
+      "revoke authenticated INSERT UPDATE DELETE TRUNCATE REFERENCES TRIGGER",
+      "retain authenticated SELECT subject to RLS",
+      "drop room_factory_manifests_insert_owner policy"
+    ]
+  },
+  "interpretation": {
+    "atomic_rpc_path_exists": true,
+    "authenticated_direct_manifest_insert_still_possible_subject_to_rls": true,
+    "anonymous_table_grants_are_broad_but_no_anon_policy_was_observed": true,
+    "hosted_acl_hardening_verified": false,
+    "room_factory_write_authority_status": "NEEDS_REVIEW",
+    "first_wave_disposition": "HOLD",
+    "country_ready_claimed": false
+  }
+}
