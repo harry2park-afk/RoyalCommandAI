@@ -20,6 +20,7 @@ export type CountryOperationalEvidence = {
   roomFactoryRuntime?: OperationalEvidenceStatus;
   roomFactoryWriteAuthority?: OperationalEvidenceStatus;
   tenantIsolation?: OperationalEvidenceStatus;
+  profileRoleAuthority?: OperationalEvidenceStatus;
   customerAccountAuthority?: OperationalEvidenceStatus;
   countryCommercialCatalog?: OperationalEvidenceStatus;
   commercialReviewAuthority?: OperationalEvidenceStatus;
@@ -53,6 +54,7 @@ export type CountryOperationalBlockerCode =
   | "ROOM_FACTORY_RUNTIME_NOT_VERIFIED"
   | "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED"
   | "TENANT_ISOLATION_NOT_VERIFIED"
+  | "PROFILE_ROLE_AUTHORITY_NOT_VERIFIED"
   | "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"
   | "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED"
   | "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED"
@@ -94,6 +96,7 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "roomFactoryRuntime", blocker: "ROOM_FACTORY_RUNTIME_NOT_VERIFIED" },
   { key: "roomFactoryWriteAuthority", blocker: "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED" },
   { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
+  { key: "profileRoleAuthority", blocker: "PROFILE_ROLE_AUTHORITY_NOT_VERIFIED" },
   { key: "customerAccountAuthority", blocker: "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED" },
   { key: "countryCommercialCatalog", blocker: "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED" },
   { key: "commercialReviewAuthority", blocker: "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED" },
@@ -138,34 +141,37 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
  * deliberately separate. Static templates are not enough: the country must also
  * prove a real non-null encounter-backed manifest with its exact runtime locale
  * through the controlled Room Factory path, and direct client manifest writes
- * must be blocked. Customer account authority is also independent from broad
- * tenant-isolation evidence so a country cannot launch while authenticated
- * clients retain unsafe direct writes or customer-number allocation is not
- * verified through the controlled account path. Country commercial catalog
- * proof is independent from commercial-review authority: a country must have
- * reviewed, available positive-priced terms and provider offers, and the
- * authority/provenance of the human commercial reviewer must itself be
- * independently verified before launch. Recording/consent reviewer authority is
- * independent from general communications-rules evidence: a country must not
- * launch merely because a recording policy row says approved when the human
- * reviewer identity and review chronology have not been independently verified.
- * Payment commercial authority is independent from payment operations so launch
- * cannot proceed while a client can author amount/currency/terms snapshots even
- * if checkout/webhook mechanics are otherwise operational. Payment provider
- * sandbox proof is independent again: disposable schema/idempotency tests are not
- * evidence that a real provider sandbox has passed signed-webhook verification,
- * replay/idempotency rejection, exact amount/currency checks, cancel/refund,
- * settlement/terminal-state handling, observability, and rollback. Legal,
- * privacy, and data-residency evidence are required independently because a
- * generic compliance flag or an operational routing check must not substitute
- * for current reviewer-backed evidence of each launch-critical evidence kind.
- * Tax and tax-structure evidence are independent from static READY flags and
- * provider connectivity: the rollout evidence registry must contain independently
- * reviewed current proof for both evidence kinds before a country can become
- * launchable. Compliance evidence and the authority/provenance of the human
- * compliance reviewer are also independent: a country cannot launch solely
- * because a compliance row says VERIFIED when reviewer identity and review
- * chronology have not themselves been verified.
+ * must be blocked. Profile role authority is independent from general tenant
+ * isolation: authenticated users must not be able to grant themselves privileged
+ * roles through profile updates or signup metadata, and any role-change path must
+ * be constrained to a verified trusted authority before launch. Customer account
+ * authority is also independent from broad tenant-isolation evidence so a country
+ * cannot launch while authenticated clients retain unsafe direct writes or
+ * customer-number allocation is not verified through the controlled account path.
+ * Country commercial catalog proof is independent from commercial-review
+ * authority: a country must have reviewed, available positive-priced terms and
+ * provider offers, and the authority/provenance of the human commercial reviewer
+ * must itself be independently verified before launch. Recording/consent reviewer
+ * authority is independent from general communications-rules evidence: a country
+ * must not launch merely because a recording policy row says approved when the
+ * human reviewer identity and review chronology have not been independently
+ * verified. Payment commercial authority is independent from payment operations
+ * so launch cannot proceed while a client can author amount/currency/terms
+ * snapshots even if checkout/webhook mechanics are otherwise operational.
+ * Payment provider sandbox proof is independent again: disposable
+ * schema/idempotency tests are not evidence that a real provider sandbox has
+ * passed signed-webhook verification, replay/idempotency rejection, exact
+ * amount/currency checks, cancel/refund, settlement/terminal-state handling,
+ * observability, and rollback. Legal, privacy, and data-residency evidence are
+ * required independently because a generic compliance flag or an operational
+ * routing check must not substitute for current reviewer-backed evidence of each
+ * launch-critical evidence kind. Tax and tax-structure evidence are independent
+ * from static READY flags and provider connectivity: the rollout evidence registry
+ * must contain independently reviewed current proof for both evidence kinds before
+ * a country can become launchable. Compliance evidence and the
+ * authority/provenance of the human compliance reviewer are also independent: a
+ * country cannot launch solely because a compliance row says VERIFIED when reviewer
+ * identity and review chronology have not themselves been verified.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
