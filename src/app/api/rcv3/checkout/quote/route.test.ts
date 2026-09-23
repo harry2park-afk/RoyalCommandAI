@@ -5,6 +5,8 @@ vi.mock("@/lib/rcv3/cloud-state",()=>({cloudStore:m.store}));
 vi.mock("@/lib/rcv3/room-draft",()=>({readDraftRegistry:m.read}));
 vi.mock("@/lib/rcv3/stripe-checkout",()=>({readCheckoutConfiguration:m.config,previewStripe:()=>"stripe",bundleForDraft:m.bundle,validateStripePrices:m.validate,quoteFingerprint:()=>"quoteHash",draftFingerprint:()=>"hash",termsFingerprint:()=>"termsHash"}));
 vi.mock("@/lib/rcv3/checkout-ledger",()=>({checkoutRuntime:m.config,validateCreationDraft:(d:unknown)=>d}));
+vi.mock("@/lib/rcv3/customer-setup",()=>({verifyCustomerSetup:vi.fn().mockResolvedValue(undefined)}));
+vi.mock("@/lib/rcv3/execution",()=>({reserve:vi.fn()}));
 import { GET, POST } from "./route";
 const draftId="10000000-0000-4000-8000-000000000001";
 const req=(body:unknown)=>new Request("https://preview.example/api/rcv3/checkout/quote",{method:"POST",body:JSON.stringify(body)});

@@ -2,10 +2,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { roomPurposes, newRoomDraft, changePurpose, selectSecretary, secretarySetupValid, type RoomDraftInput, type DraftRegistry } from "@/lib/rcv3/room-draft";
 import { roomTemplates, templateImage } from "@/lib/rcv3/templates";
-import { creationText, type CreationMessage } from "@/lib/locale/rcv3-creation";
+import { selectedCreationText, type CreationMessage } from "@/lib/locale/rcv3-creation";
 import type { AIProviderId } from "@/lib/ai/types";
-import HelpText from "@/components/help/HelpText";
-import AIHelperChat from "@/app/rooms/[id]/AIHelperChat";
+import { simpleCreateText, roomFeatureLabel } from "@/lib/locale/rcv3-simple-create";
+import { applyRoomBrief, recommendedDesigns } from "@/lib/rcv3/room-recommendations";
 import CheckoutPanel from "./CheckoutPanel";
 import CustomerConnections from "./CustomerConnections";
 import { COUNTRY_ROOM_PRESETS } from "@/lib/rooms/countryPresets";
@@ -20,7 +20,7 @@ async function draftsRequest(body?: unknown): Promise<DraftRegistry> {
   if (!response.ok) throw new Error(data.code || "RCV3_STORAGE");
   return data;
 }
-export default function CreateRoomWizard({ helperAvailable, language, providers, accountEmail, country }: {
+export default function CreateRoomWizard({ language, providers, accountEmail, country }: {
   helperAvailable: boolean; accountEmail: string; country: string; language: string; providers: { id: AIProviderId; label: string }[];
 }) {
   const defaultInput = useCallback((): RoomDraftInput => ({...newRoomDraft(),onboarding:{country:COUNTRY_ROOM_PRESETS.some(c=>c.id===country)?country:"",aiSources:{},emailEnabled:false,phoneRequested:false,phoneOfferId:""},providers:providers.some(p=>p.id==="openai")?["openai"]:providers[0]?[providers[0].id]:[]}),[providers,country]);
@@ -30,8 +30,10 @@ export default function CreateRoomWizard({ helperAvailable, language, providers,
   const [purposeChosen,setPurposeChosen]=useState(false);
   const [loaded, setLoaded] = useState(false), [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false), [error, setError] = useState<CreationMessage | "">("");
-  const [status, setStatus] = useState<CreationMessage | "">("");
+  const [, setStatus] = useState<CreationMessage | "">("");
 
+  const [showAllDesigns, setShowAllDesigns] = useState(false);
+  const t = (key: Parameters<typeof simpleCreateText>[0]) => simpleCreateText(key, language);
   const saving = useRef(false);
   const latestInput = useRef(input);
   useEffect(() => { latestInput.current = input; }, [input]);
@@ -46,7 +48,7 @@ export default function CreateRoomWizard({ helperAvailable, language, providers,
       setRegistry(result);
       const requestedId = new URLSearchParams(window.location.search).get("draft");
       const resumed = result.drafts.find(d => d.id === requestedId);
-      if (resumed) { setPurposeChosen(true); setInput({...resumed.input,plan:"paid"}); latestInput.current = {...resumed.input,plan:"paid"}; if(resumed.input.plan!=="paid")setDirty(true); setDraftId(resumed.id); }
+      if (resumed) { setPurposeChosen(resumed.input.brief === undefined || !!resumed.input.brief.trim()); setInput({...resumed.input,plan:"paid"}); latestInput.current = {...resumed.input,plan:"paid"}; if(resumed.input.plan!=="paid")setDirty(true); setDraftId(resumed.id); }
       else { const templateId = new URLSearchParams(window.location.search).get("template");
         if(roomTemplates.some(t=>t.id===templateId)) {const fresh={...defaultInput(),templateId:templateId!};setInput(fresh);latestInput.current=fresh;}
         setDraftId(crypto.randomUUID()); }
@@ -73,6 +75,7 @@ export default function CreateRoomWizard({ helperAvailable, language, providers,
       setRegistry(result); setDraftId(id);
       const url = new URL(window.location.href);
       url.searchParams.set("draft", id);
+      if(asNew)url.searchParams.delete("checkout");
       window.history.replaceState(null, "", url);
       const unchanged = JSON.stringify(latestInput.current) === JSON.stringify(input);
       setDirty(!unchanged); setStatus(unchanged ? "draft" : "");
@@ -91,9 +94,9 @@ export default function CreateRoomWizard({ helperAvailable, language, providers,
   function loadDraft(id: string) {
     const draft = registry.drafts.find(d => d.id === id);
     if (dirty || !draft) return;
-    setPurposeChosen(true);
+    setPurposeChosen(draft.input.brief === undefined || !!draft.input.brief.trim());
     latestInput.current = {...draft.input,plan:"paid"}; setInput({...draft.input,plan:"paid"}); if(draft.input.plan!=="paid")setDirty(true); setDraftId(id); setStatus(""); setError("");
-    const url = new URL(window.location.href); url.searchParams.set("draft", id);
+    const url = new URL(window.location.href); url.searchParams.set("draft", id); url.searchParams.delete("checkout");
     window.history.replaceState(null, "", url);
   }
   const providerToggle = (id: AIProviderId) => {
@@ -101,68 +104,56 @@ export default function CreateRoomWizard({ helperAvailable, language, providers,
     const aiSources = Object.fromEntries(Object.entries(setup.aiSources).filter(([key])=>selected.includes(key as AIProviderId)));
     update({...input, providers:selected,onboarding:{...setup,aiSources}});
   };
-  return <><main className={styles.page}>
-    <header className={styles.header}><a href="/rcv3">← My Room</a><h1>Create Room</h1>
-      <span className={styles.saveState} role="status">{busy ? "Saving…" : dirty ? "Unsaved changes" : loaded ? "Saved forms available below" : "Loading…"}</span>
-      <button disabled={!loaded || busy} onClick={() => void save()}>Save Draft</button>
+  const ready = purposeChosen && (input.brief === undefined || !!input.brief.trim()) && !!input.name.trim() && (input.purpose !== "custom" || !!input.answers.purpose?.[0]?.trim());
+  const designs = showAllDesigns ? roomTemplates : [...new Map([selectedDesign, ...recommendedDesigns(input.purpose)].map(d=>[d.id,d])).values()];
+  return <main className={styles.page} lang={language}>
+    <header className={styles.header}><a href="/rcv3">← {t("back")}</a><h1>{t("title")}</h1>
+      <span className={styles.saveState} role="status">{busy?t("saving"):dirty?t("unsaved"):loaded?t("saved"):t("loading")}</span>
     </header>
-    <div className={styles.layout}>
-      <section className={styles.workspace} aria-label="Room creation">
-        <div className={styles.overview}><HelpText helpKey="createOverview"/></div>
-        {error && <div role="alert" className={styles.error}>{<HelpText helpKey={`creation.${error}`}/>}{error === "conflict" ? <button disabled={busy || !loaded} onClick={() => void save(true)}>Save as New Draft</button> : loaded && <button disabled={busy} onClick={() => void save()}>Retry</button>}{!loaded && <button onClick={() => window.location.reload()}>Retry</button>}</div>}
-        {status && <p role="status" className={styles.success}>{<HelpText helpKey={`creation.${status}`}/>}</p>}
-        <fieldset disabled={!loaded} className={styles.form}>
-          <section className={styles.verticalSection} aria-label="Room Setup">
-            <h2>1. Room Setup</h2><p><HelpText helpKey="createStep1"/></p>
-            <div data-question="Room Name" className={styles.question}><label>Room Name<input autoComplete="off" maxLength={80} value={input.name} onChange={e => update({ ...input, name: e.target.value })}/></label>
-            <p><HelpText helpKey="roomName"/></p></div>
-            <div data-question="Purpose" className={styles.question}><label>Purpose<select value={purposeChosen?input.purpose:""} onChange={e => {setPurposeChosen(true);update(changePurpose(input, e.target.value));}}>
-              <option value="" disabled>Choose a purpose</option>
-              {[...roomPurposes].sort((a,b)=>{const common=["custom","legal","accounting","business"];const rank=(id:string)=>common.includes(id)?common.indexOf(id):100;return rank(a.id)-rank(b.id);}).map(p => <option key={p.id} value={p.id}>{p.id==="custom"?"Personal / Other":p.name}</option>)}
-            </select></label>
-            <p><HelpText helpKey="purpose"/></p></div>
-            <div data-question="Country" className={styles.question}><label>Country<select value={setup.country} onChange={e=>{update({...input,onboarding:{...setup,country:e.target.value,phoneOfferId:"",phoneNumberId:"",phoneConsent:false}});}}><option value="" disabled>Choose your country</option>{COUNTRY_ROOM_PRESETS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label><p><HelpText helpKey="country"/></p></div>
-            {purposeChosen && <>
-            <p><HelpText helpKey={`purpose.${purpose.id}`}/></p>
-            {purpose.fields.map(field => <div key={field.id} data-question={field.label} className={styles.question}><strong>{field.label}</strong>
-              <p><HelpText helpKey={field.options?"chooseOptions":"customPurpose"}/></p>
-              {field.options ? <div className={styles.choices}>{field.options.map(option => <label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option) || false} onChange={() => { const old = input.answers[field.id] || []; update({ ...input, answers: { ...input.answers, [field.id]: old.includes(option) ? old.filter(x => x !== option) : [...old, option] } }); }}/>{option}</label>)}</div> : <input aria-label={field.label} maxLength={300} placeholder="For example: organise my email and appointments" value={input.answers[field.id]?.[0] || ""} onChange={e => update({ ...input, answers: { ...input.answers, [field.id]: e.target.value.trim() ? [e.target.value] : [] } })}/> }</div>)}
-            </>}
-
+    <div className={styles.layout}><section className={styles.workspace} aria-label={t("title")}>
+      {error && <div role="alert" className={styles.error}>{selectedCreationText(error,language)}{loaded?<button disabled={busy} onClick={()=>void save(error==="conflict")}>{t(error==="conflict"?"fork":"retry")}</button>:<button onClick={()=>window.location.reload()}>{t("retry")}</button>}</div>}
+      <fieldset disabled={!loaded} className={styles.form}>
+        <section className={styles.verticalSection}>
+          <label className={styles.question}>{t("name")}<input autoComplete="off" maxLength={80} value={input.name} onChange={e=>update({...input,name:e.target.value})}/></label>
+        </section>
+        <section className={styles.verticalSection}>
+          <label className={styles.question}>{t("purpose")}<textarea rows={3} maxLength={300} placeholder={t("example")} value={input.brief ?? input.answers.purpose?.[0] ?? ""}
+            onChange={e=>{setPurposeChosen(false);update(applyRoomBrief(input,e.target.value));}}
+            onBlur={e=>setPurposeChosen(!!e.target.value.trim())}/></label>
+        </section>
+        {!ready && <p role="status">{t("required")}</p>}
+        {ready && <>
+          <section className={styles.verticalSection}>
+            <h2>{t("design")}</h2><div className={styles.designs}>{designs.map(design=><button type="button" key={design.id} aria-pressed={design.id===input.templateId} onClick={()=>update({...input,templateId:design.id})}>
+              <img loading="lazy" src={templateImage(design)} alt="" width={1672} height={941}/><span>{design.name}{design.id===input.templateId?" ✓":""}</span>
+            </button>)}</div>
+            {!showAllDesigns && <button type="button" onClick={()=>setShowAllDesigns(true)}>{t("more")}</button>}
           </section>
-          <section className={styles.verticalSection} aria-label="AI & Tools">
-            <h2>2. AI &amp; Tools</h2><p><HelpText helpKey="createStep2"/></p>
-            <div data-question="Tasks" className={styles.question}><strong>Tasks</strong><p><HelpText helpKey="tasks"/></p><div className={styles.choices}>{purpose.suggestedAgents.map(task => <label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={() => update({ ...input, tasks: input.tasks.includes(task) ? input.tasks.filter(t => t !== task) : [...input.tasks, task] })}/>{task}</label>)}</div></div>
-            <div data-question="Your AI" className={styles.question}><strong>Your AI</strong><p>{input.providers.map(id=>providers.find(p=>p.id===id)?.label).join(", ") || "No AI selected"}</p><p><HelpText helpKey="ai"/></p>
-              <details><summary>More AI options</summary><div className={styles.choices}>{providers.map(p => <label key={p.id}><input type="checkbox" checked={input.providers.includes(p.id)} onChange={() => providerToggle(p.id)}/>{p.label}</label>)}</div></details>
-            </div>
-            <div data-question="AI Secretary" className={styles.question}><div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e => {const next=selectSecretary({...input,onboarding:setup},e.target.checked);if(e.target.checked&&!next.secretarySetup.email)next.secretarySetup.email=accountEmail;update(next);}}/>AI Secretary</label><label><input type="checkbox" checked={input.specialAI} onChange={e => update({ ...input, specialAI: e.target.checked })}/>Specialist AI</label></div>
-            <p><HelpText helpKey="secretary"/></p>
-            {input.secretary && <section aria-label="Secretary setup" className={styles.field}>
-
-              <label>{creationText("secretaryEmail", "en")}<input type="email" autoComplete="off" maxLength={254} value={input.secretarySetup.email} onChange={e => update({ ...input, secretarySetup: { ...input.secretarySetup, email: e.target.value } })}/></label><p><HelpText helpKey="email"/></p>
-              <label>Contact phone (optional)<input type="tel" autoComplete="off" maxLength={40} value={input.secretarySetup.phone} onChange={e => update({ ...input, secretarySetup: { ...input.secretarySetup, phone: e.target.value } })}/></label><p><HelpText helpKey="setupContactPhone"/></p>
-            </section>}
-            <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} disabled={busy||!loaded}/></div>
+          <section className={styles.verticalSection}>
+            <h2>{t("options")}</h2><p>{t("recommended")}</p>
+            <div className={styles.choices}>{purpose.suggestedAgents.map(task=><label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={()=>update({...input,tasks:input.tasks.includes(task)?input.tasks.filter(x=>x!==task):[...input.tasks,task]})}/>{roomFeatureLabel(task,language)}</label>)}</div>
+            <details><summary>{t("settings")}</summary>
+              <label>{t("category")}<select value={input.purpose} onChange={e=>{const next=changePurpose(input,e.target.value);const p=roomPurposes.find(p=>p.id===e.target.value)!;update({...next,tasks:[...p.suggestedAgents],answers:p.id==="custom"&&input.brief?{purpose:[input.brief]}:{},templateId:recommendedDesigns(p.id)[0].id});}}>{roomPurposes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
+              {purpose.fields.filter(f=>f.options).map(field=><div key={field.id}><strong>{field.label}</strong><div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>{option}</label>)}</div></div>)}
+              <label>{t("country")}<select value={setup.country} onChange={e=>update({...input,onboarding:{...setup,country:e.target.value,phoneOfferId:"",phoneNumberId:"",phoneConsent:false}})}><option value="">—</option>{COUNTRY_ROOM_PRESETS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
+              <div className={styles.choices}>{providers.map(p=><label key={p.id}><input type="checkbox" checked={input.providers.includes(p.id)} onChange={()=>providerToggle(p.id)}/>{p.label}</label>)}</div>
+              <div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e=>{const next=selectSecretary({...input,onboarding:setup},e.target.checked);if(e.target.checked&&!next.secretarySetup.email)next.secretarySetup.email=accountEmail;update(next);}}/>{t("secretary")}</label><label><input type="checkbox" checked={input.specialAI} onChange={e=>update({...input,specialAI:e.target.checked})}/>{t("specialist")}</label></div>
+              {input.secretary && <><label>{t("email")}<input type="email" maxLength={254} value={input.secretarySetup.email} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,email:e.target.value}})}/></label><label>{t("phone")}<input type="tel" maxLength={40} value={input.secretarySetup.phone} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,phone:e.target.value}})}/></label></>}
+              <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} disabled={busy||!loaded}/>
+            </details>
           </section>
-          <section className={styles.verticalSection} aria-label="Design">
-            <h2>3. Design</h2><p><HelpText helpKey="createDesignOptional"/></p><p>{selectedDesign.name}</p><details><summary>Choose a design</summary><div className={styles.designs}>{roomTemplates.map(t => <button key={t.id} type="button" aria-pressed={input.templateId === t.id} onClick={() => update({ ...input, templateId: t.id })}><img loading="lazy" src={templateImage(t)} alt={t.name} width={1672} height={941}/><span>{t.name}{input.templateId === t.id ? " ✓" : ""}</span></button>)}</div></details>
+          <section className={styles.verticalSection}>
+            <h2>{t("payment")}</h2>
+            {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
+            <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)} language={language}/>
+            <p>{t("unavailableCredits")}</p>
           </section>
-          <section className={styles.verticalSection} aria-label="Review & Payment">
-            <h2>4. Review &amp; Payment</h2><p><HelpText helpKey="createStep4"/></p><h3>{input.name || "Your Room"}</h3><img className={styles.preview} src={templateImage(selectedDesign)} alt={selectedDesign.name} width={1672} height={941}/>
-            <dl className={styles.summary}><dt>Country</dt><dd>{COUNTRY_ROOM_PRESETS.find(c=>c.id===setup.country)?.label || "—"}</dd><dt>Purpose</dt><dd>{purpose.name}</dd><dt>Tasks</dt><dd>{input.tasks.join(", ") || "None"}</dd><dt>Design</dt><dd>{selectedDesign.name}</dd></dl>
-            {input.secretary && <section aria-label="Secretary setup review"><h3>AI Secretary</h3><dl className={styles.summary}><dt>{creationText("secretaryEmail", "en")}</dt><dd>{input.secretarySetup.email || "—"}</dd><dt>{creationText("secretaryPhone", "en")}</dt><dd>{input.secretarySetup.phone || "—"}</dd></dl><p><HelpText helpKey="creation.secretaryPending"/></p></section>}
-            {(!purposeChosen || !input.name.trim() || (input.purpose==="custom"&&!input.answers.purpose?.[0]?.trim()) || !setup.country || !input.providers.length || !secretarySetupValid(input)) && <p role="status"><HelpText helpKey="createRequired"/></p>}
-            <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy || dirty || !loaded || !purposeChosen || !input.name.trim() || (input.purpose==="custom"&&!input.answers.purpose?.[0]?.trim()) || !setup.country || !input.providers.length || !secretarySetupValid(input)} language={language}/>
-
-          </section>
-        </fieldset>
-        <footer className={styles.footer}><button disabled={busy || !loaded} onClick={() => void save()}>Save Draft</button></footer>
-      </section>
-      <details className={styles.sidebar}><summary>Saved forms</summary><p><HelpText helpKey="saved"/></p>
-        <button disabled={busy || dirty || !loaded} onClick={() => { setPurposeChosen(false); const fresh = defaultInput(); latestInput.current = fresh; setInput(fresh); setDraftId(crypto.randomUUID()); setStatus(""); setError(""); const url = new URL(window.location.href); url.searchParams.delete("draft"); url.searchParams.delete("checkout"); window.history.replaceState(null, "", url); }}>New Draft</button>
-        {registry.drafts.map(d => <button key={d.id} disabled={busy || dirty} aria-pressed={draftId === d.id} onClick={() => loadDraft(d.id)}>{d.input.name || "Untitled Room"}<small>{roomPurposes.find(p => p.id === d.input.purpose)?.name}</small></button>)}
-      </details>
-    </div>
-  </main>{helperAvailable && <AIHelperChat formLanguage={language}/>}</>;
+        </>}
+      </fieldset>
+    </section>
+    <details className={styles.sidebar}><summary>{t("drafts")}</summary>
+      <button disabled={busy||dirty||!loaded} onClick={()=>{setPurposeChosen(false);const fresh=defaultInput();latestInput.current=fresh;setInput(fresh);setDraftId(crypto.randomUUID());setStatus("");setError("");setShowAllDesigns(false);const url=new URL(window.location.href);url.searchParams.delete("draft");url.searchParams.delete("checkout");window.history.replaceState(null,"",url);}}>{t("new")}</button>
+      {registry.drafts.map(d=><button key={d.id} disabled={busy||dirty} aria-pressed={draftId===d.id} onClick={()=>loadDraft(d.id)}>{d.input.name||t("title")}</button>)}
+    </details></div>
+  </main>;
 }

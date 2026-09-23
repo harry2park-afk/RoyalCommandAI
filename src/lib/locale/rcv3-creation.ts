@@ -35,3 +35,8 @@ export function creationText(key: CreationMessage, locale: string) {
   const lang = locale.toLowerCase().split(/[-_]/)[0];
   return lang === "ko" ? `${text.en} ${text.ko}` : text.en;
 }
+
+export function selectedCreationText(key: CreationMessage, locale: string) {
+ const text=creationMessages[key];
+ return locale.toLowerCase().split(/[-_]/)[0]==="ko"?text.ko:text.en;
+}

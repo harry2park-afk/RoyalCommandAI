@@ -11,6 +11,7 @@ export const roomPurposes = ROOM_TEMPLATES.map(p => ({ ...p,
 }));
 export const draftInputSchema = z.object({
   name: z.string().trim().max(80),
+  brief: z.string().trim().max(300).optional(),
   purpose: z.string().refine(id => roomPurposes.some(p => p.id === id)),
   answers: z.record(z.string().max(80), z.array(z.string().trim().min(1).max(300)).max(12)),
   tasks: z.array(z.string().max(120)).max(12),
