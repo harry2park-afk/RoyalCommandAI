@@ -27,6 +27,7 @@ const unverifiedEvidence: CountryOperationalEvidence = {
   tenantIsolation: "NEEDS_REVIEW",
   profileRoleAuthority: "NEEDS_REVIEW",
   customerAccountAuthority: "NEEDS_REVIEW",
+  legalMatterAssignmentAuthority: "NEEDS_REVIEW",
   countryCommercialCatalog: "NEEDS_REVIEW",
   commercialReviewAuthority: "NEEDS_REVIEW",
   recordingReviewAuthority: "NEEDS_REVIEW",
@@ -61,6 +62,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   tenantIsolation: "VERIFIED",
   profileRoleAuthority: "VERIFIED",
   customerAccountAuthority: "VERIFIED",
+  legalMatterAssignmentAuthority: "VERIFIED",
   countryCommercialCatalog: "VERIFIED",
   commercialReviewAuthority: "VERIFIED",
   recordingReviewAuthority: "VERIFIED",
@@ -121,6 +123,7 @@ describe("country operational launch readiness gate", () => {
       expect(gate.operationalBlockers, countryCode).toContain("TENANT_ISOLATION_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("PROFILE_ROLE_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED");
+      expect(gate.operationalBlockers, countryCode).toContain("LEGAL_MATTER_ASSIGNMENT_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED");
       expect(gate.operationalBlockers, countryCode).toContain("RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED");
@@ -176,6 +179,7 @@ describe("country operational launch readiness gate", () => {
       "TENANT_ISOLATION_NOT_VERIFIED",
       "PROFILE_ROLE_AUTHORITY_NOT_VERIFIED",
       "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED",
+      "LEGAL_MATTER_ASSIGNMENT_AUTHORITY_NOT_VERIFIED",
       "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED",
       "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED",
       "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED",
@@ -295,6 +299,21 @@ describe("country operational launch readiness gate", () => {
     expect(gate.launchable).toBe(false);
     expect(gate.countryGate.launchable).toBe(true);
     expect(gate.operationalBlockers).toEqual(["CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"]);
+  });
+
+  it("fails closed if legal matter tenant/assignment authority has not been independently verified", () => {
+    const base = getCountryConfigByCountryCode("AU");
+    expect(base).not.toBeNull();
+    const ready = makeCountryGateReady(base!);
+
+    const gate = evaluateCountryOperationalLaunch(ready, {
+      ...verifiedEvidence,
+      legalMatterAssignmentAuthority: "BLOCKED",
+    });
+
+    expect(gate.launchable).toBe(false);
+    expect(gate.countryGate.launchable).toBe(true);
+    expect(gate.operationalBlockers).toEqual(["LEGAL_MATTER_ASSIGNMENT_AUTHORITY_NOT_VERIFIED"]);
   });
 
   it("fails closed if country commercial catalog readiness has not been independently verified", () => {
