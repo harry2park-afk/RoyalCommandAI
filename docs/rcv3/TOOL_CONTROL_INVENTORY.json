@@ -599,7 +599,7 @@
     {
       "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#2",
       "toolId": "room-list",
-      "sourceHash": "caf683e293f907b3d9b7d2ed6a3d271895106124aa20f4f3cc8c9879c1c758d4",
+      "sourceHash": "503bd5242713294a455d4edf669091a795e66e9b317a6ae094e9f39e96214428",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
@@ -613,7 +613,7 @@
     {
       "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#4",
       "toolId": "room-list",
-      "sourceHash": "0f98ad7bcc2df8d63ff28e310041f740ffd496ca90045a8dc059af3650e348f1",
+      "sourceHash": "8c25a6c2b47b0838781a586daa62c191287d2806b198aa56cc399dcd4a44afa9",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
@@ -627,7 +627,7 @@
     {
       "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#6",
       "toolId": "room-list",
-      "sourceHash": "3d4aa09c6433467508f24fe3c0e82851c2bd1a401e1a91da6734c08afc5bc91e",
+      "sourceHash": "df8e835543f2c5c42e1ae10307565f44231baf084ff4cadc3751c124c2027abb",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

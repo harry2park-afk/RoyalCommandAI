@@ -6,6 +6,7 @@ import { selectedCreationText, type CreationMessage } from "@/lib/locale/rcv3-cr
 import type { AIProviderId } from "@/lib/ai/types";
 import { simpleCreateText, roomFeatureLabel } from "@/lib/locale/rcv3-simple-create";
 import { applyRoomBrief, recommendedDesigns } from "@/lib/rcv3/room-recommendations";
+import RoomNavigation from "@/components/rcv3-toolbox/RoomNavigation";
 import CheckoutPanel from "./CheckoutPanel";
 import CustomerConnections from "./CustomerConnections";
 import { COUNTRY_ROOM_PRESETS } from "@/lib/rooms/countryPresets";
@@ -107,7 +108,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
   const ready = purposeChosen && (input.brief === undefined || !!input.brief.trim()) && !!input.name.trim() && (input.purpose !== "custom" || !!input.answers.purpose?.[0]?.trim());
   const designs = showAllDesigns ? roomTemplates : [...new Map([selectedDesign, ...recommendedDesigns(input.purpose)].map(d=>[d.id,d])).values()];
   return <main className={styles.page} lang={language}>
-    <header className={styles.header}><a href="/rcv3">← {t("back")}</a><h1>{t("title")}</h1>
+    <header className={styles.header}><RoomNavigation language={language} disabled={busy||dirty||!loaded}/><h1>{t("title")}</h1>
       <span className={styles.saveState} role="status">{busy?t("saving"):dirty?t("unsaved"):loaded?t("saved"):t("loading")}</span>
     </header>
     <div className={styles.layout}><section className={styles.workspace} aria-label={t("title")}>

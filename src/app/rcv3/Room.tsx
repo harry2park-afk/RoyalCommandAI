@@ -12,6 +12,7 @@ import EmailReview from '@/components/rcv3-toolbox/EmailReview';
 import ToolRequests from '@/components/rcv3-toolbox/ToolRequests';
 import PaymentGate from "@/components/rcv3-toolbox/PaymentGate";
 import Toolbox from "@/components/rcv3-toolbox/Toolbox";
+import RoomNavigation, {type RoomNavigationHandle} from "@/components/rcv3-toolbox/RoomNavigation";
 import ToolButton from "@/components/rcv3-toolbox/ToolButton";
 import { copyText } from "@/components/rcv3-toolbox/CopyText";
 import HelpText from "@/components/help/HelpText";
@@ -27,6 +28,7 @@ async function api(path: string, body?: unknown, method = "POST") {
   return value;
 }
 export default function Room({ providers, secretaryRooms, language, toolboxManager = false }: { toolboxManager?:boolean; providers: { id: AIProviderId; label: string; configured:boolean }[]; secretaryRooms:{id:string;name:string}[]; language:string }) {
+  const roomNavigation=useRef<RoomNavigationHandle>(null);
   const [rooms,setRooms] = useState<{id:string;name:string}[]>([]), [roomId,setRoomId] = useState("");
   const [state,setState] = useState<CloudState|null>(null), [background,setBackground] = useState("");
 
@@ -84,12 +86,12 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
     const token=++generation.current;editBaseline.current=null;editBackground.current=""; roomRef.current=id; setRoomId(id); setState(null); setPaymentRequired(true); setPaymentOpen(false); setError(""); setDirty(false); setEditing(false); setSelected(null); setTurns([]); setLiveTurns([]); setText(""); setFiles([]); setShowFiles(false); setBackground("");setBatchIds([]);setCardStatus({});
     audioRef.current?.pause();continuousVoice.current=false;
     const billingRequested=new URLSearchParams(window.location.search).get("billing")==="1";
-    try { const result=await api(`state?room=${id}`); if(token!==generation.current)return;
+    try { const result=await api(`state?room=${encodeURIComponent(id)}`); if(token!==generation.current)return;
       setPaymentRequired(result.paymentRequired===true); if(billingRequested)setPaymentOpen(true); setState(result.state); saved.current=result.state; setBackground(result.background?.data??"");
-      window.history.replaceState(null,"",`/rcv3?room=${id}`);
+      window.history.replaceState(null,"",`/rcv3?room=${encodeURIComponent(id)}`);
     } catch(e){if(token===generation.current)setError((e as Error).message);}
   },[]);
-  useEffect(()=>{let active=true; api("rooms").then(result=>{if(!active)return;setRooms(result.rooms); const requested=new URLSearchParams(window.location.search).get("room"); const id=result.rooms.some((r:{id:string})=>r.id===requested)?requested:result.rooms[0]?.id;if(id)void openRoom(id);}).catch(e=>setError(e.message));return()=>{active=false;};},[openRoom]);
+  useEffect(()=>{let active=true; api("rooms").then(result=>{if(!active)return;setRooms(result.rooms); const requested=new URLSearchParams(window.location.search).get("room"); const id=requested||result.rooms[0]?.id;if(id)void openRoom(id);}).catch(e=>setError(e.message));return()=>{active=false;};},[openRoom]);
   useEffect(()=>{if(!roomId||paymentRequired)return;let active=true;setTurns([]);api(`chat?room=${roomId}&scope=${scope}`).then(r=>{if(active)setTurns(current=>[...new Map([...r.turns,...current].map((t:Turn)=>[t.requestId,t])).values()].sort((a,b)=>a.at.localeCompare(b.at)));}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[roomId,scope,paymentRequired]);
   useEffect(()=>{import("../../../rcv3/voice-control.mjs").then(()=>setVoiceLoaded(true)).catch(()=>setError("Could not load microphone."));return()=>{audioRef.current?.pause();};},[]);
   useEffect(()=>{const el=voiceRef.current;if(!el||!roomId||!voiceLoaded)return;
@@ -140,7 +142,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
     speaker:()=>{if(!answerTools.current?.toggleLatest())throw new Error("There is no AI answer to read yet.");},
     "copy-answer":async()=>{await copyText(turns.filter(turn=>turn.scope==="chat").at(-1)?.answer??"");setToolNotice("Copied");},
     helper:()=>showGallery("Help"),learning:()=>{window.location.assign("/rcv3/learn");},meetings:()=>{window.location.assign("/rcv3/meetings");},
-    "create-room":()=>create(),"room-list":()=>showGallery("MyRooms"),background:()=>imageInput.current?.click(),
+    "create-room":()=>create(),"room-list":()=>roomNavigation.current?.open(),background:()=>imageInput.current?.click(),
     "edit-buttons":()=>beginEdit(),"upload-file":()=>{setShowFiles(true);fileInput.current?.click();},toolbox:()=>showGallery("Tools"),payment:()=>setPaymentOpen(true),
   };
   async function executeTool(id:ToolId){
@@ -201,7 +203,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
   const shownProviders=orderedProviders.filter(p=>visibleProviders.has(p.id)).map(p=>p.id);
   const button=state?.design.buttons.find(b=>b.id===selected);
   return <main className={styles.root}>
-    <header className={styles.header}>{toolboxManager&&<ToolButton toolId="toolbox" disabled={busy||dirty||saving||!state} onClick={()=>showGallery("Tools")}/>}<a href="/rooms/rca">← RC</a><strong>RC V3 · My Room</strong><a href="/rcv3/learn">AI Learning Room</a>{state&&(<section className={`${styles.toolbar} ${styles.aiToolbar}`} aria-label="Answer AIs"><PersonalAI/><button disabled={busy||dirty} onClick={()=>{setGalleryTab("Connections");setAISearch("");setWarehouse(true);}}>AI List</button>{orderedProviders.filter(p=>state.connectedProviders.includes(p.id)&&state.selectedProviders.includes(p.id)).map(p=><button key={p.id} className={styles.fixedAI} title={`${p.label}: ${state.selectedProviders.includes(p.id)?"On":"Off"}`} aria-label={`Answer with ${p.label}`} aria-pressed={state.selectedProviders.includes(p.id)} disabled={busy||editing} onClick={()=>{if(paymentRequired)setPaymentOpen(true);else void selectAI(p.id,false);}}>{brand(p.id)}<span className={styles.aiTick} aria-hidden="true">✓</span></button>)}</section>)}<ToolButton toolId="helper" disabled={busy||dirty||saving} onClick={()=>showGallery("Help")} aria-label="AI Helper"><img className={styles.helperPortrait} src="/ai-helper-woman.svg" alt="" width={44} height={55}/></ToolButton><button disabled={busy||dirty} onClick={()=>{setGalleryTab("Rooms");setWarehouse(!warehouse);}}>Create Room</button>{state&&<button disabled={busy||dirty} onClick={beginEdit}>Edit Buttons</button>}</header>
+    <header className={styles.header}>{toolboxManager&&<ToolButton toolId="toolbox" disabled={busy||dirty||saving||!state} onClick={()=>showGallery("Tools")}/>}<a href="/rooms/rca">← RC</a><strong>RC V3 · My Room</strong><RoomNavigation language={language} currentRoomId={roomId} ref={roomNavigation} disabled={busy||dirty||saving} onOpen={id=>void openRoom(id)}/><a href="/rcv3/learn">AI Learning Room</a>{state&&(<section className={`${styles.toolbar} ${styles.aiToolbar}`} aria-label="Answer AIs"><PersonalAI/><button disabled={busy||dirty} onClick={()=>{setGalleryTab("Connections");setAISearch("");setWarehouse(true);}}>AI List</button>{orderedProviders.filter(p=>state.connectedProviders.includes(p.id)&&state.selectedProviders.includes(p.id)).map(p=><button key={p.id} className={styles.fixedAI} title={`${p.label}: ${state.selectedProviders.includes(p.id)?"On":"Off"}`} aria-label={`Answer with ${p.label}`} aria-pressed={state.selectedProviders.includes(p.id)} disabled={busy||editing} onClick={()=>{if(paymentRequired)setPaymentOpen(true);else void selectAI(p.id,false);}}>{brand(p.id)}<span className={styles.aiTick} aria-hidden="true">✓</span></button>)}</section>)}<ToolButton toolId="helper" disabled={busy||dirty||saving} onClick={()=>showGallery("Help")} aria-label="AI Helper"><img className={styles.helperPortrait} src="/ai-helper-woman.svg" alt="" width={44} height={55}/></ToolButton><button disabled={busy||dirty} onClick={()=>{setGalleryTab("Rooms");setWarehouse(!warehouse);}}>Create Room</button>{state&&<button disabled={busy||dirty} onClick={beginEdit}>Edit Buttons</button>}</header>
     {toolboxManager&&<button onClick={()=>setEmailReviewOpen(true)}>Email Review</button>}
     {toolboxManager&&emailReviewOpen&&<EmailReview onClose={()=>setEmailReviewOpen(false)}/>}
     {state&&<button onClick={()=>setRequestsOpen(true)}>{toolboxManager?'RC Requests':'Request a Tool'}</button>}
