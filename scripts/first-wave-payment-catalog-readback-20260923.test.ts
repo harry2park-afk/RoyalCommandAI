@@ -21,11 +21,22 @@ const snapshot = JSON.parse(
       rows: number;
     }>;
   };
+  provider_catalog: {
+    service_provider_registry_table: string;
+    service_provider_registry_present: boolean;
+    service_provider_registry_rows: number;
+    service_provider_offers_table: string;
+    service_provider_offers_present: boolean;
+    service_provider_offers_rows: number;
+  };
   payment_runtime: {
     rca_services_route_checkout_configured_literal_false: boolean;
     room_services_route_checkout_configured_literal_false: boolean;
+    payment_provider_registry_table: string;
     payment_provider_registry_present: boolean;
+    payment_provider_events_table: string;
     payment_provider_events_present: boolean;
+    payment_operational_safeguards_hosted_migration_rows: number;
     service_connection_orders_present: boolean;
   };
   first_wave: {
@@ -71,6 +82,21 @@ describe("first-wave payment/catalog Hosted readback", () => {
     expect(snapshot.interpretation.country_terms_authorized).toBe(false);
   });
 
+  it("distinguishes empty service-provider catalog tables from the absent payment-readiness ledger", () => {
+    expect(snapshot.provider_catalog.service_provider_registry_table).toBe("rc_service_providers");
+    expect(snapshot.provider_catalog.service_provider_registry_present).toBe(true);
+    expect(snapshot.provider_catalog.service_provider_registry_rows).toBe(0);
+    expect(snapshot.provider_catalog.service_provider_offers_table).toBe("rc_service_provider_offers");
+    expect(snapshot.provider_catalog.service_provider_offers_present).toBe(true);
+    expect(snapshot.provider_catalog.service_provider_offers_rows).toBe(0);
+
+    expect(snapshot.payment_runtime.payment_provider_registry_table).toBe("rc_payment_provider_registry");
+    expect(snapshot.payment_runtime.payment_provider_registry_present).toBe(false);
+    expect(snapshot.payment_runtime.payment_provider_events_table).toBe("rc_payment_provider_events");
+    expect(snapshot.payment_runtime.payment_provider_events_present).toBe(false);
+    expect(snapshot.payment_runtime.payment_operational_safeguards_hosted_migration_rows).toBe(0);
+  });
+
   it("keeps paid checkout fail-closed in both service connection routes", () => {
     const rcaRoute = source("src/app/api/rca/services/route.ts");
     const roomRoute = source("src/app/api/rooms/[id]/services/route.ts");
@@ -82,8 +108,10 @@ describe("first-wave payment/catalog Hosted readback", () => {
     expect(snapshot.interpretation.checkout_activation_authorized).toBe(false);
   });
 
-  it("requires real provider evidence instead of inferring readiness from the order table", () => {
+  it("requires real provider evidence instead of inferring readiness from catalog/order schema", () => {
     expect(snapshot.payment_runtime.service_connection_orders_present).toBe(true);
+    expect(snapshot.provider_catalog.service_provider_registry_rows).toBe(0);
+    expect(snapshot.provider_catalog.service_provider_offers_rows).toBe(0);
     expect(snapshot.payment_runtime.payment_provider_registry_present).toBe(false);
     expect(snapshot.payment_runtime.payment_provider_events_present).toBe(false);
     expect(snapshot.first_wave.payment_provider_sandbox_verified).toBe(false);
