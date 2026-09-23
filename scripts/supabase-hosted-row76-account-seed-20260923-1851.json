@@ -1,0 +1,37 @@
+{
+  "contract_version": 1,
+  "captured_at_utc": "2026-09-23T08:51:00Z",
+  "capture_mode": "READ_ONLY",
+  "hosted_mutation_performed": false,
+  "hosted_row": {
+    "version": "20260920091809",
+    "name": "add_secure_rc_customer_numbers",
+    "creates_reusable_sequence": true,
+    "creates_customer_accounts_table": true,
+    "enables_rls": true,
+    "defines_security_definer_account_helper": true,
+    "includes_account_specific_seed_backfill": true,
+    "account_specific_identifier_stored": false,
+    "account_specific_identifier_published": false
+  },
+  "provenance": {
+    "exact_version_search_match_found": false,
+    "migration_name_search_match_found": false,
+    "sequence_name_search_match_found": false,
+    "legacy_candidate_filename_search_match_found": false,
+    "original_git_source_provenance": "UNRESOLVED",
+    "independent_reviewer_or_change_record_authority": "UNRESOLVED"
+  },
+  "safety": {
+    "mixed_reusable_schema_and_account_specific_data_mutation": true,
+    "account_specific_backfill_may_be_normalized_into_reusable_baseline": false,
+    "trusted_replay_baseline": "BLOCKED",
+    "linked_dry_run_authorized": false,
+    "safe_deploy_blocked": true,
+    "reason": "Hosted row 76 mixes reusable schema and security changes with an account-specific seed/backfill. Original source provenance and independent authorization for the data mutation must be verified before baseline reuse or replay."
+  },
+  "launch_implication": {
+    "country_ready": false,
+    "first_wave_disposition": "HOLD"
+  }
+}
