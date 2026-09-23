@@ -35,6 +35,11 @@
     "set_matter_staff_assignment_present": false,
     "policies_using_broad_staff_helper": 3,
     "policies_using_assignment_helper": 0,
+    "broad_staff_policy_names": [
+      "matters_insert_own",
+      "matters_select_own_or_staff",
+      "matters_update_own_or_staff"
+    ],
     "candidate_scope_matter_staff_access_present_in_pr": true,
     "hosted_scope_matter_staff_access_rows": 0,
     "verified": false
@@ -42,6 +47,9 @@
   "profile_role_authority": {
     "authenticated_role_update_privilege": true,
     "authenticated_profile_update_privilege": true,
+    "role_guard_trigger_count": 0,
+    "handle_new_user_uses_raw_metadata_role": true,
+    "profile_update_policy_count": 1,
     "candidate_harden_profile_role_authority_present_in_pr": true,
     "hosted_harden_profile_role_authority_rows": 0,
     "verified": false
