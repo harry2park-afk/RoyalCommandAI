@@ -25,6 +25,7 @@ const verifiedEvidence: CountryOperationalEvidence = {
   tenantIsolation: "VERIFIED",
   profileRoleAuthority: "VERIFIED",
   customerAccountAuthority: "VERIFIED",
+  legalMatterAssignmentAuthority: "VERIFIED",
   countryCommercialCatalog: "VERIFIED",
   commercialReviewAuthority: "VERIFIED",
   recordingReviewAuthority: "VERIFIED",
