@@ -1,0 +1,74 @@
+{
+  "captured_at": "2026-09-24T00:49:36+10:00",
+  "source": {
+    "query_mode": "READ_ONLY",
+    "hosted_mutation_performed": false,
+    "supabase_project": "RoyalCommand",
+    "supabase_project_ref": "aygawkavujjmybekswrg",
+    "supabase_region": "ap-south-1",
+    "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+    "pre_change_pr_head_sha": "b6353fd7af58ec69a4081c333b3478cab6a7eb05",
+    "restore_ref": "restore/2026-09-24-0049-pr696-pre-room-factory-country-gate"
+  },
+  "exact_head_workflows": {
+    "quality_gate": "SUCCESS",
+    "conflict_guard": "SUCCESS",
+    "hosted_ledger_preflight": "SUCCESS",
+    "clean_replay": "SUCCESS",
+    "room_factory_concurrency": "SUCCESS",
+    "legal_matter_tenant_isolation": "SUCCESS",
+    "customer_account_authority": "SUCCESS",
+    "payment_operational": "SUCCESS",
+    "linked_dry_run": "FAIL_CLOSED_ON_UNRESOLVED_HOSTED_LEDGER_DRIFT"
+  },
+  "supabase_control_plane": {
+    "development_branch_count": 0,
+    "security_advisor_rls_enabled_no_policy_count": 21
+  },
+  "room_factory_runtime": [
+    {"country_code":"AU","expected_locale":"en-AU","manifest_rows":7,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"US","expected_locale":"en-US","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"CA","expected_locale":"en-CA","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"KR","expected_locale":"ko-KR","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"JP","expected_locale":"ja-JP","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"GB","expected_locale":"en-GB","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0}
+  ],
+  "commercial_runtime": {
+    "service_country_terms_total": 0,
+    "service_providers_total": 0,
+    "service_provider_offers_total": 0,
+    "service_connection_orders_total": 0
+  },
+  "recording_policy_review": [
+    {"country_code":"AU","policy_rows":1,"reviewer_proven_rows":0},
+    {"country_code":"US","policy_rows":1,"reviewer_proven_rows":0},
+    {"country_code":"CA","policy_rows":1,"reviewer_proven_rows":0},
+    {"country_code":"KR","policy_rows":1,"reviewer_proven_rows":0},
+    {"country_code":"JP","policy_rows":1,"reviewer_proven_rows":0},
+    {"country_code":"GB","policy_rows":1,"reviewer_proven_rows":0}
+  ],
+  "hosted_write_authority": {
+    "profile_role_direct_update_blocked": false,
+    "matter_assignment_direct_update_blocked": false,
+    "room_factory_manifest_direct_write_blocked": false
+  },
+  "hosted_migration_ledger_tail": [
+    {"version":"20260922021440","name":"rcv3_preview_email_outbox"},
+    {"version":"20260921052125","name":"rcv3_learning_atomic_project_completion"},
+    {"version":"20260921051948","name":"rcv3_learning_100_assignments"},
+    {"version":"20260921050212","name":"rcv3_preview_learning_room"},
+    {"version":"20260920091809","name":"add_secure_rc_customer_numbers"}
+  ],
+  "interpretation": {
+    "non_production_staging_verified": false,
+    "room_factory_runtime_verified": false,
+    "country_commercial_catalog_verified": false,
+    "recording_review_authority_verified": false,
+    "profile_role_authority_verified": false,
+    "legal_matter_assignment_authority_verified": false,
+    "room_factory_write_authority_verified": false,
+    "deployment_provenance_verified": false,
+    "first_wave_disposition": "HOLD",
+    "country_ready_claimed": false
+  }
+}
