@@ -18,7 +18,7 @@ export default function MobileInstall() {
   },[]);
   async function install() {
     const event=pending.current;if(!event||busy)return;
-    pending.current=null;setAvailable(false);setBusy(true);setFailed(false);
+    pending.current=null;setAvailable(false);setBusy(true);
     try {await event.prompt();await event.userChoice;} catch {} finally {setBusy(false);}
   }
   if(installed||(!available&&!busy))return null;
