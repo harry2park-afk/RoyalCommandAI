@@ -1,0 +1,22 @@
+name: RC V3 Preview Build Diagnostic
+
+on:
+  push:
+    branches:
+      - fix/rcv3-toolbox-ci-20260922
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
