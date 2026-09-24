@@ -51,7 +51,8 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
   const [emailReviewOpen,setEmailReviewOpen]=useState(false);
   const [requestsOpen,setRequestsOpen]=useState(false);
   const [paymentRequired,setPaymentRequired]=useState(true),[paymentOpen,setPaymentOpen]=useState(false);
-  const [pendingTool,setPendingTool]=useState<ToolId|null>(null);\n  const [toolPointer,setToolPointer]=useState<{x:number;y:number}|null>(null);
+  const [pendingTool,setPendingTool]=useState<ToolId|null>(null);
+  const [toolPointer,setToolPointer]=useState<{x:number;y:number}|null>(null);
   const galleryTitle=({Rooms:"Create Room",Connections:"AI List",Tools:"Toolbox",Help:"AI Helper",MyRooms:"My Rooms",Personal:"My AI account"} as Record<string,string>)[galleryTab]??"Toolbox";
   const [aiSearch,setAISearch]=useState("");
   const [liveTurns,setLiveTurns]=useState<Turn[]>([]);
