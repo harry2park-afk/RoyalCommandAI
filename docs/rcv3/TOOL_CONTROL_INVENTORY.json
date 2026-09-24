@@ -326,7 +326,7 @@
     {
       "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#5",
       "toolId": "create-room",
-      "sourceHash": "ae46d14657c985bb74b8041131bf79215922db27ff618070fc8e4c44cb14e650",
+      "sourceHash": "0ca4bdaedbe9400f22428887d6a631fcd663e1e4cecdf3dbc1594ff8bafdffec",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
@@ -520,6 +520,27 @@
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
+      "controlId": "src/components/rcv3-toolbox/ConfirmDeleteButton.tsx#1",
+      "toolId": "room-list",
+      "sourceHash": "ec5ea7d9e5638c0cd5baa07d919ee26d269a492720b6c0cf3cc62883ae389b99",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ConfirmDeleteButton.tsx#2",
+      "toolId": "room-list",
+      "sourceHash": "42f5544f856d0cb86b1fe818b746a79d9c07ca73bc6df23581fd165949f70cbc",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ConfirmDeleteButton.tsx#3",
+      "toolId": "room-list",
+      "sourceHash": "9da109ba59b09e4b162402b086f25b76473b12874207c7f23119cb85f9031d25",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
       "controlId": "src/components/rcv3-toolbox/CopyText.tsx#1",
       "toolId": "copy-answer",
       "sourceHash": "51645991c15807a995682ccb0ef999b4dd19fc98b0efb78fc9e3659695b3d715",
@@ -558,6 +579,13 @@
       "controlId": "src/components/rcv3-toolbox/EmailReview.tsx#5",
       "toolId": "toolbox",
       "sourceHash": "5b911d923c86781496e56cf05ad2b5e35e798e88204be8481c0dba513598350f",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ExplicitSaveButton.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "c7b3bb5a5c1d80f6beba0169fe2834a78fb67ce66aa9bedab6487829e9179cec",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
@@ -620,7 +648,7 @@
     {
       "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#5",
       "toolId": "room-list",
-      "sourceHash": "5b70e3fbb049192575cec81c584d9076dc31454a789813b79e6ca1597ef306d7",
+      "sourceHash": "064cd382e4438b2efcb69f0657539043b81b778489e5a9804eb4f1d4411d0813",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
