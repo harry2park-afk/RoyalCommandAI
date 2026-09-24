@@ -508,21 +508,21 @@
     {
       "controlId": "src/components/rcv3-toolbox/CopyText.tsx#1",
       "toolId": "copy-answer",
-      "sourceHash": "51645991c15807a995682ccb0ef999b4dd19fc98b0efb78fc9e3659695b3d715",
+      "sourceHash": "e0441e945afaee772d31fd7bedac9c050daa77c49b954f4feebecf6be715a263",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/ToolButton.tsx#1",
       "toolId": "toolbox",
-      "sourceHash": "64a38c1573f5d3cae75e59273533c32aec8a5440bdf4d54b36be14f870dbcbcd",
+      "sourceHash": "faf9893d7815e11e34eee5f68f34a9da6d892b0ef8e6e2a8cb45801f784b5bb2",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/Toolbox.tsx#1",
       "toolId": "toolbox",
-      "sourceHash": "f10d39c5fa36ab9aaa82ad308c57eff46fc1bfed5c3aa85750d2d76e88114f61",
+      "sourceHash": "458b14043a61e5fda656b7160773f0883cf7e46184495bc466d020a2988e89c7",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
