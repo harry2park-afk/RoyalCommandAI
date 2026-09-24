@@ -11,7 +11,10 @@ describe("trusted country identity", () => {
   });
 
   it("does not treat user metadata as country authority", () => {
-    const selfEditableUserMetadata = { country_code: "US" };
+    const selfEditableUserMetadata = {
+      country_code: "US",
+      requested_country_code: "CA",
+    };
 
     expect(
       getTrustedCountryCode({
@@ -22,6 +25,20 @@ describe("trusted country identity", () => {
         ...({ user_metadata: selfEditableUserMetadata } as Record<string, unknown>),
       }),
     ).toBe("");
+  });
+
+  it("keeps trusted app metadata authoritative over signup country requests", () => {
+    expect(
+      getTrustedCountryCode({
+        app_metadata: { country_code: "GB" },
+        ...({
+          user_metadata: {
+            country_code: "US",
+            requested_country_code: "JP",
+          },
+        } as Record<string, unknown>),
+      }),
+    ).toBe("GB");
   });
 
   it("fails closed when trusted country metadata is missing or malformed", () => {
