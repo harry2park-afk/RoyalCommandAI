@@ -70,3 +70,17 @@ main.root{width:100%!important;max-width:100%!important;padding:0;box-sizing:bor
 .flowerMotion{animation:flowerOfficePan 28s ease-in-out infinite alternate}
 @keyframes flowerOfficePan{from{background-size:103.5% auto;background-position:40% 50%}to{background-size:106.5% auto;background-position:60% 50%}}
 @media(prefers-reduced-motion:reduce){.flowerMotion{animation:none}}
+
+/* Canonical current-room nameplate: source is the same server room list used by My Rooms. */
+.header .productTitle{margin-right:0;white-space:nowrap}
+.header .roomNamePlate{
+  display:inline-flex;align-items:center;justify-content:center;
+  min-width:170px;max-width:min(360px,34vw);height:42px;box-sizing:border-box;
+  padding:0 18px;margin-right:4px;border:1px solid #f2d36d;border-radius:9px;
+  background:linear-gradient(135deg,#8b650b 0%,#d5ae3e 46%,#f2d36d 72%,#9a7011 100%);
+  color:#241600!important;font-size:17px!important;font-weight:800;line-height:40px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  box-shadow:inset 0 0 10px rgba(255,245,187,.35),0 3px 12px rgba(0,0,0,.28);
+}
+@media(max-width:1100px){.header .roomNamePlate{min-width:140px;max-width:280px;height:38px;font-size:15px!important;line-height:36px;padding:0 12px}}
+@media(max-width:650px){.header .roomNamePlate{order:1;min-width:0;max-width:100%;flex:1 1 180px}}
