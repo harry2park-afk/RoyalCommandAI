@@ -19,4 +19,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --no-audit --no-fund
+      - name: Show exact toolbox inventory refresh
+        run: |
+          node scripts/rcv3-toolbox-inventory.mjs --write
+          git diff -- docs/rcv3/TOOL_CONTROL_INVENTORY.json
       - run: npm run build
