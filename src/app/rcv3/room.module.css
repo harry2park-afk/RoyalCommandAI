@@ -84,3 +84,6 @@ main.root{width:100%!important;max-width:100%!important;padding:0;box-sizing:bor
 }
 @media(max-width:1100px){.header .roomNamePlate{min-width:140px;max-width:280px;height:38px;font-size:15px!important;line-height:36px;padding:0 12px}}
 @media(max-width:650px){.header .roomNamePlate{order:1;min-width:0;max-width:100%;flex:1 1 180px}}
+
+/* Toolbox placement mode: choose in the warehouse, then click the exact empty location. */
+.toolPlaceNotice{position:sticky;top:0;z-index:450;display:flex;align-items:center;justify-content:center;gap:16px;min-height:48px;padding:8px 14px;box-sizing:border-box;background:linear-gradient(90deg,#6f500b,#d1a93b,#6f500b);color:#1c1404;font-size:14px;font-weight:700;box-shadow:0 4px 16px #0006}.toolPlaceNotice span{min-width:0}.root .toolPlaceNotice button{flex-shrink:0;background:#142536;color:#fff;border-color:#f2d36d;padding:7px 12px}.toolPlacing{cursor:crosshair!important;outline:3px solid #e0bd50;outline-offset:-3px}.toolPlacing:after{content:"Click empty space to place";position:absolute;left:50%;top:14px;transform:translateX(-50%);z-index:20;pointer-events:none;padding:7px 12px;border-radius:999px;background:#111c28dd;color:#f6d86f;font-size:12px;font-weight:800;box-shadow:0 4px 14px #0007}.toolPlacing .tile{cursor:not-allowed!important}
