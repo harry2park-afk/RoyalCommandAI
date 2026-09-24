@@ -4,7 +4,7 @@ on:
   pull_request:
     branches: [master]
     paths:
-      - "supabase/migrations/20260924140100_harden_payment_order_authority.sql"
+      - "supabase/candidates/20260924140100_harden_payment_order_authority.sql"
       - ".github/workflows/payment-order-authority-evidence.yml"
   workflow_dispatch:
 
@@ -119,7 +119,7 @@ jobs:
           set -euo pipefail
           eval "$(supabase status -o env)"
           psql "$DB_URL" -v ON_ERROR_STOP=1 \
-            -f supabase/migrations-full/20260924140100_harden_payment_order_authority.sql
+            -f supabase/candidates/20260924140100_harden_payment_order_authority.sql
 
       - name: Prove authenticated order writes fail closed
         shell: bash
