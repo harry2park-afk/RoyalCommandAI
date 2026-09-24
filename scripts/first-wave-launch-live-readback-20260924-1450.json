@@ -1,0 +1,96 @@
+{
+  "captured_at": "2026-09-24T14:50:07+10:00",
+  "source": {
+    "query_mode": "READ_ONLY",
+    "hosted_mutation_performed": false,
+    "supabase_project": "RoyalCommand",
+    "supabase_project_ref": "aygawkavujjmybekswrg",
+    "supabase_region": "ap-south-1",
+    "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+    "pre_change_pr_head_sha": "5d4b1fb69b15647e8e0a09ee2d035b5c26e4a27d",
+    "restore_ref": "restore/2026-09-24-1448-pr696-pre-launch-snapshot-fix"
+  },
+  "evidence_tooling": {
+    "room_factory_locale_column": "language_tag",
+    "stale_snapshot_reference_detected": "m.locale",
+    "stale_snapshot_file": "scripts/supabase-first-wave-launch-snapshot.sql",
+    "interpretation": "The general launch snapshot currently references a non-existent room_factory_manifests.locale column. Live evidence must use language_tag until the helper is corrected."
+  },
+  "supabase_control_plane": {
+    "development_branch_count": 0,
+    "security_advisor_rls_enabled_no_policy_count": 21
+  },
+  "required_launch_hardening_migrations": {
+    "scope_matter_staff_access": 0,
+    "room_factory_atomic_non_encounter": 0,
+    "country_compliance_evidence_registry": 0,
+    "payment_operational_safeguards": 0,
+    "add_room_factory_fk_indexes": 0,
+    "harden_profile_role_authority": 0,
+    "harden_commercial_review_provenance": 0,
+    "room_factory_manifest_acl_hardening": 0
+  },
+  "auth_country_authority": {
+    "auth_users_total": 10,
+    "trusted_app_country_count": 0,
+    "legacy_user_country_count": 1,
+    "requested_country_count": 0
+  },
+  "room_factory_runtime": [
+    {"country_code":"AU","expected_locale":"en-AU","manifest_rows":7,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"US","expected_locale":"en-US","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"CA","expected_locale":"en-CA","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"KR","expected_locale":"ko-KR","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"JP","expected_locale":"ja-JP","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0},
+    {"country_code":"GB","expected_locale":"en-GB","manifest_rows":0,"exact_locale_rows":0,"encounter_backed_rows":0,"exact_runtime_rows":0}
+  ],
+  "commercial_runtime": {
+    "country_terms": [
+      {"country_code":"AU","currency":"AUD","term_rows":0,"positive_available_terms":0},
+      {"country_code":"US","currency":"USD","term_rows":0,"positive_available_terms":0},
+      {"country_code":"CA","currency":"CAD","term_rows":0,"positive_available_terms":0},
+      {"country_code":"KR","currency":"KRW","term_rows":0,"positive_available_terms":0},
+      {"country_code":"JP","currency":"JPY","term_rows":0,"positive_available_terms":0},
+      {"country_code":"GB","currency":"GBP","term_rows":0,"positive_available_terms":0}
+    ],
+    "providers_total": 0,
+    "providers_active": 0,
+    "offers_total": 0,
+    "orders_total": 0
+  },
+  "recording_policy_review": [
+    {"country_code":"AU","policy_rows":1,"reviewer_proven_approved_rows":0},
+    {"country_code":"US","policy_rows":1,"reviewer_proven_approved_rows":0},
+    {"country_code":"CA","policy_rows":1,"reviewer_proven_approved_rows":0},
+    {"country_code":"KR","policy_rows":1,"reviewer_proven_approved_rows":0},
+    {"country_code":"JP","policy_rows":1,"reviewer_proven_approved_rows":0},
+    {"country_code":"GB","policy_rows":1,"reviewer_proven_approved_rows":0}
+  ],
+  "hosted_write_authority": {
+    "profile_role_updateable_by_authenticated": true,
+    "profile_role_guard_trigger_count": 0,
+    "matter_client_updateable_by_authenticated": true,
+    "matter_assignment_updateable_by_authenticated": true,
+    "legal_assignment_helper_present": false,
+    "room_factory_insert_by_authenticated": true,
+    "room_factory_authenticated_insert_policy_count": 1,
+    "payment_order_insert_by_authenticated": true,
+    "payment_order_authenticated_insert_policy_count": 1
+  },
+  "payment_operational_schema": {
+    "provider_registry_present": false,
+    "provider_events_present": false,
+    "service_order_idempotency_key_present": false
+  },
+  "interpretation": {
+    "first_wave_disposition": "HOLD",
+    "country_ready_claimed": false,
+    "non_production_staging_verified": false,
+    "room_factory_runtime_verified": false,
+    "country_commercial_catalog_verified": false,
+    "recording_review_authority_verified": false,
+    "auth_data_isolation_cutover_verified": false,
+    "payment_operational_cutover_verified": false,
+    "deployment_provenance_verified": false
+  }
+}
