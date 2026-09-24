@@ -1,0 +1,71 @@
+{
+  "contract_version": 1,
+  "captured_at_local": "2026-09-22T15:46:43+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "capture_mode": "read_only",
+  "protected_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+  "pr696_preincrement_head": "8c089019997c38a95e13b2fbc4f8a6a256c988ed",
+  "hosted_ledger": {
+    "migration_count": 80,
+    "head_version": "20260922021440",
+    "head_name": "rcv3_preview_email_outbox"
+  },
+  "exact_linked_dry_run_candidates": [
+    {"version":"20260831225500","name":"scope_matter_staff_access","present_hosted":false},
+    {"version":"20260901025800","name":"room_factory_atomic_non_encounter","present_hosted":false},
+    {"version":"20260903075000","name":"country_compliance_evidence_registry","present_hosted":false},
+    {"version":"20260903205500","name":"payment_operational_safeguards","present_hosted":false},
+    {"version":"20260904005500","name":"add_room_factory_fk_indexes","present_hosted":false},
+    {"version":"20260904105500","name":"harden_profile_role_authority","present_hosted":false},
+    {"version":"20260910030000","name":"harden_commercial_review_provenance","present_hosted":false},
+    {"version":"20260911045100","name":"room_factory_manifest_acl_hardening","present_hosted":false}
+  ],
+  "first_wave": [
+    {"country_code":"AU","locale":"en-AU","exact_manifest_count":0,"encounter_backed_count":0,"provider_offer_count":0,"recording_rows":1,"reviewer_proven_recording_count":0},
+    {"country_code":"US","locale":"en-US","exact_manifest_count":0,"encounter_backed_count":0,"provider_offer_count":0,"recording_rows":1,"reviewer_proven_recording_count":0},
+    {"country_code":"CA","locale":"en-CA","exact_manifest_count":0,"encounter_backed_count":0,"provider_offer_count":0,"recording_rows":1,"reviewer_proven_recording_count":0},
+    {"country_code":"KR","locale":"ko-KR","exact_manifest_count":0,"encounter_backed_count":0,"provider_offer_count":0,"recording_rows":1,"reviewer_proven_recording_count":0},
+    {"country_code":"JP","locale":"ja-JP","exact_manifest_count":0,"encounter_backed_count":0,"provider_offer_count":0,"recording_rows":1,"reviewer_proven_recording_count":0},
+    {"country_code":"GB","locale":"en-GB","exact_manifest_count":0,"encounter_backed_count":0,"provider_offer_count":0,"recording_rows":1,"reviewer_proven_recording_count":0}
+  ],
+  "auth_data_isolation": {
+    "room_factory_manifests": {
+      "anon_insert": true,
+      "authenticated_insert": true,
+      "authenticated_update": true,
+      "authenticated_delete": true,
+      "authenticated_truncate": true
+    },
+    "rc_customer_accounts": {
+      "present": true,
+      "authenticated_select": true,
+      "authenticated_insert": true,
+      "authenticated_update": true,
+      "authenticated_delete": true,
+      "authenticated_truncate": true
+    }
+  },
+  "operational_schema": {
+    "country_terms_table_present": false,
+    "country_compliance_evidence_table_present": false,
+    "payment_provider_registry_present": false,
+    "payment_event_ledger_present": false,
+    "service_order_idempotency_column_present": false
+  },
+  "hosted_mutation_performed_by_this_capture": false,
+  "all_first_wave_countries_hold": true,
+  "trusted_80_row_baseline_established": false,
+  "linked_dry_run_authorized": false,
+  "production_deploy_authorized": false,
+  "safe_next_order": [
+    "Resolve independent reviewer/change-record authority for migration 20260920091809 and Hosted row 80.",
+    "Establish a trusted 80-row ledger baseline before credentialed linked inventory or dry-run.",
+    "Stage customer-account least privilege and Room Factory manifest ACL only in controlled non-Production, with negative direct-write and tenant-isolation tests.",
+    "Prove Australia en-AU encounter-backed Room Factory runtime first, then repeat for US, CA, KR, JP and GB.",
+    "Complete reviewer-backed legal/privacy/recording/commercial evidence and real payment-provider sandbox verification before any Country READY transition."
+  ],
+  "notes": [
+    "This is READ-ONLY Hosted evidence and does not authorize migration repair/replay, DDL/DML/Auth/Storage mutation, Production deployment, payment/provider activation, legal/compliance approval, customer Room creation, or Country READY.",
+    "Repository-only Draft candidates for Room Factory, localization, compliance, Auth/Data Isolation and payments do not substitute for Hosted/runtime/human approval evidence."
+  ]
+}

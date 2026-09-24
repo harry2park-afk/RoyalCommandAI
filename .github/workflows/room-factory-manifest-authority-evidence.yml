@@ -1,0 +1,313 @@
+name: Room Factory Manifest Authority Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260911045100_room_factory_manifest_acl_hardening.sql"
+      - ".github/workflows/room-factory-manifest-authority-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-room-factory-manifest-authority-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Prepare verified-shape disposable Room Factory fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+          cp supabase/migrations-full/001_init.sql supabase/migrations/
+
+          cat > supabase/migrations/20260101000000_room_factory_manifest_authority_fixture.sql <<'SQL'
+          create schema if not exists private;
+          revoke all on schema private from public, anon;
+          grant usage on schema private to authenticated, service_role;
+
+          create or replace function private.is_room_member(r_id uuid)
+          returns boolean
+          language sql
+          stable
+          security definer
+          set search_path = public
+          as $$
+            select exists (
+              select 1
+              from public.room_members
+              where room_id = r_id
+                and user_id = auth.uid()
+            );
+          $$;
+
+          revoke all on function private.is_room_member(uuid) from public, anon;
+          grant execute on function private.is_room_member(uuid) to authenticated, service_role;
+
+          create table public.room_factory_manifests (
+            id uuid primary key default gen_random_uuid(),
+            room_id uuid not null unique references public.rooms(id) on delete cascade,
+            owner_id uuid not null references public.profiles(id) on delete cascade,
+            factory_version text not null,
+            template_id text not null,
+            country_code text not null,
+            language_tag text not null,
+            country_profile_status text not null
+              check (country_profile_status in ('registered', 'custom-profile-required')),
+            manifest jsonb not null,
+            created_at timestamptz not null default now(),
+            updated_at timestamptz not null default now(),
+            check (jsonb_typeof(manifest) = 'object')
+          );
+
+          alter table public.room_factory_manifests enable row level security;
+
+          create policy room_factory_manifests_select
+            on public.room_factory_manifests
+            for select
+            to authenticated
+            using (private.is_room_member(room_id));
+
+          create policy room_factory_manifests_insert_owner
+            on public.room_factory_manifests
+            for insert
+            to authenticated
+            with check (
+              owner_id = auth.uid()
+              and exists (
+                select 1
+                from public.rooms r
+                where r.id = room_factory_manifests.room_id
+                  and r.room_owner_id = auth.uid()
+              )
+            );
+
+          -- Reproduce the fresh Hosted ACL observed before hardening: anon,
+          -- authenticated and service_role all have broad table privileges.
+          grant all privileges on table public.room_factory_manifests
+            to anon, authenticated, service_role;
+          SQL
+
+      - name: Start isolated Supabase stack
+        run: supabase start
+
+      - name: Seed owner, rooms and membership through trusted fixture setup
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+
+          USER_EMAIL="room-factory-authority@example.test"
+          USER_PASSWORD="RoomFactoryAuthority-2026!"
+
+          CREATE_JSON="$(curl --fail-with-body --silent --show-error \
+            -X POST "http://127.0.0.1:54321/auth/v1/admin/users" \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            --data "{\"email\":\"$USER_EMAIL\",\"password\":\"$USER_PASSWORD\",\"email_confirm\":true}")"
+          USER_ID="$(printf '%s' "$CREATE_JSON" | jq -r '.id')"
+          test -n "$USER_ID" && test "$USER_ID" != "null"
+
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -v user_id="$USER_ID" <<'SQL'
+          insert into public.households (owner_id, name, household_type)
+          values (:'user_id'::uuid, 'Authority Evidence Household', 'business')
+          returning id \gset household_
+
+          insert into public.household_members (household_id, user_id, role)
+          values (:'household_id'::uuid, :'user_id'::uuid, 'sovereign');
+
+          insert into public.rooms (household_id, room_owner_id, name)
+          values (:'household_id'::uuid, :'user_id'::uuid, 'Pre-Hardening Room')
+          returning id \gset room_one_
+
+          insert into public.rooms (household_id, room_owner_id, name)
+          values (:'household_id'::uuid, :'user_id'::uuid, 'Post-Hardening Room')
+          returning id \gset room_two_
+
+          insert into public.room_members (room_id, user_id, role)
+          values
+            (:'room_one_id'::uuid, :'user_id'::uuid, 'owner'),
+            (:'room_two_id'::uuid, :'user_id'::uuid, 'owner');
+
+          select :'room_one_id' as room_one_id, :'room_two_id' as room_two_id \g /tmp/room_ids.txt
+          SQL
+
+          ROOM_ONE_ID="$(awk 'NR==3 {print $1}' /tmp/room_ids.txt)"
+          ROOM_TWO_ID="$(awk 'NR==3 {print $3}' /tmp/room_ids.txt)"
+          test -n "$ROOM_ONE_ID"
+          test -n "$ROOM_TWO_ID"
+          printf '%s\n' "$USER_ID" > /tmp/room_factory_user_id
+          printf '%s\n' "$ROOM_ONE_ID" > /tmp/room_factory_room_one_id
+          printf '%s\n' "$ROOM_TWO_ID" > /tmp/room_factory_room_two_id
+
+      - name: Prove verified unsafe direct-write precondition
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          USER_ID="$(cat /tmp/room_factory_user_id)"
+          ROOM_ONE_ID="$(cat /tmp/room_factory_room_one_id)"
+
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not has_table_privilege('authenticated', 'public.room_factory_manifests', 'INSERT') then
+              raise exception 'fixture must reproduce authenticated manifest INSERT';
+            end if;
+            if not has_table_privilege('anon', 'public.room_factory_manifests', 'INSERT') then
+              raise exception 'fixture must reproduce broad anon manifest INSERT grant';
+            end if;
+            if not exists (
+              select 1 from pg_policies
+              where schemaname = 'public'
+                and tablename = 'room_factory_manifests'
+                and policyname = 'room_factory_manifests_insert_owner'
+                and cmd = 'INSERT'
+            ) then
+              raise exception 'fixture must reproduce owner INSERT policy';
+            end if;
+          end;
+          $$;
+          SQL
+
+          LOGIN_JSON="$(curl --fail-with-body --silent --show-error \
+            -X POST "http://127.0.0.1:54321/auth/v1/token?grant_type=password" \
+            -H "apikey: $ANON_KEY" \
+            -H "Content-Type: application/json" \
+            --data "{\"email\":\"room-factory-authority@example.test\",\"password\":\"RoomFactoryAuthority-2026!\"}")"
+          ACCESS_TOKEN="$(printf '%s' "$LOGIN_JSON" | jq -r '.access_token')"
+          test -n "$ACCESS_TOKEN" && test "$ACCESS_TOKEN" != "null"
+          printf '%s\n' "$ACCESS_TOKEN" > /tmp/room_factory_access_token
+
+          PRE_CODE="$(curl --silent --show-error -o /tmp/pre_insert.json -w '%{http_code}' \
+            -X POST "http://127.0.0.1:54321/rest/v1/room_factory_manifests" \
+            -H "apikey: $ANON_KEY" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            --data "{\"room_id\":\"$ROOM_ONE_ID\",\"owner_id\":\"$USER_ID\",\"factory_version\":\"evidence-v1\",\"template_id\":\"evidence-template\",\"country_code\":\"AU\",\"language_tag\":\"en-AU\",\"country_profile_status\":\"registered\",\"manifest\":{\"evidence\":true}}")"
+          test "$PRE_CODE" = "201"
+          test "$(jq -r '.[0].room_id' /tmp/pre_insert.json)" = "$ROOM_ONE_ID"
+
+      - name: Apply exact Room Factory manifest ACL hardening to disposable stack only
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 \
+            -f supabase/migrations-full/20260911045100_room_factory_manifest_acl_hardening.sql
+
+      - name: Prove least-privilege manifest ACL and policy boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not has_table_privilege('authenticated', 'public.room_factory_manifests', 'SELECT') then
+              raise exception 'authenticated member-scoped manifest SELECT must remain available';
+            end if;
+
+            if has_table_privilege('authenticated', 'public.room_factory_manifests', 'INSERT')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'UPDATE')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'DELETE')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'TRUNCATE')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'REFERENCES')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'TRIGGER') then
+              raise exception 'authenticated retains forbidden manifest mutation/control privilege';
+            end if;
+
+            if has_table_privilege('anon', 'public.room_factory_manifests', 'SELECT')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'INSERT')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'UPDATE')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'DELETE')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'TRUNCATE')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'REFERENCES')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'TRIGGER') then
+              raise exception 'anon must have no direct manifest-table privilege';
+            end if;
+
+            if not has_table_privilege('service_role', 'public.room_factory_manifests', 'INSERT')
+               or not has_table_privilege('service_role', 'public.room_factory_manifests', 'SELECT') then
+              raise exception 'trusted service role authority must remain available';
+            end if;
+
+            if exists (
+              select 1 from pg_policies
+              where schemaname = 'public'
+                and tablename = 'room_factory_manifests'
+                and policyname = 'room_factory_manifests_insert_owner'
+            ) then
+              raise exception 'obsolete direct owner INSERT policy still exists';
+            end if;
+
+            if not exists (
+              select 1 from pg_policies
+              where schemaname = 'public'
+                and tablename = 'room_factory_manifests'
+                and policyname = 'room_factory_manifests_select'
+                and cmd = 'SELECT'
+            ) then
+              raise exception 'member-scoped manifest SELECT policy must remain';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Prove authenticated direct INSERT is blocked while member SELECT remains usable
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          USER_ID="$(cat /tmp/room_factory_user_id)"
+          ROOM_ONE_ID="$(cat /tmp/room_factory_room_one_id)"
+          ROOM_TWO_ID="$(cat /tmp/room_factory_room_two_id)"
+          ACCESS_TOKEN="$(cat /tmp/room_factory_access_token)"
+
+          BLOCKED_CODE="$(curl --silent --show-error -o /tmp/post_insert.json -w '%{http_code}' \
+            -X POST "http://127.0.0.1:54321/rest/v1/room_factory_manifests" \
+            -H "apikey: $ANON_KEY" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            --data "{\"room_id\":\"$ROOM_TWO_ID\",\"owner_id\":\"$USER_ID\",\"factory_version\":\"evidence-v1\",\"template_id\":\"evidence-template\",\"country_code\":\"AU\",\"language_tag\":\"en-AU\",\"country_profile_status\":\"registered\",\"manifest\":{\"evidence\":true}}")"
+          test "$BLOCKED_CODE" = "403"
+
+          SELECT_CODE="$(curl --silent --show-error -o /tmp/member_select.json -w '%{http_code}' \
+            -X GET "http://127.0.0.1:54321/rest/v1/room_factory_manifests?room_id=eq.$ROOM_ONE_ID&select=room_id,owner_id,country_code,language_tag" \
+            -H "apikey: $ANON_KEY" \
+            -H "Authorization: Bearer $ACCESS_TOKEN")"
+          test "$SELECT_CODE" = "200"
+          test "$(jq -r '.[0].room_id' /tmp/member_select.json)" = "$ROOM_ONE_ID"
+          test "$(jq -r '.[0].country_code' /tmp/member_select.json)" = "AU"
+          test "$(jq -r '.[0].language_tag' /tmp/member_select.json)" = "en-AU"
+
+          ANON_CODE="$(curl --silent --show-error -o /tmp/anon_select.json -w '%{http_code}' \
+            -X GET "http://127.0.0.1:54321/rest/v1/room_factory_manifests?select=id" \
+            -H "apikey: $ANON_KEY")"
+          if [[ "$ANON_CODE" =~ ^2 ]]; then
+            echo "anonymous manifest SELECT unexpectedly succeeded" >&2
+            exit 1
+          fi
+
+      - name: Stop disposable Supabase stack
+        if: always()
+        run: supabase stop --no-backup

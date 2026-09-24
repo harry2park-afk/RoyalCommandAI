@@ -2,10 +2,11 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/utils";
+import { evaluateServicePaymentReadiness } from "@/lib/rooms/service-payment-readiness";
+import { hasReviewerProvenCountryApproval } from "@/lib/rooms/service-country-commercial-readiness";
+import { verifyCountryServiceCompliance } from "@/lib/compliance/countryComplianceStore";
 
-function requiresPayment(service: { pricing_type?: string | null; default_included?: boolean | null }) {
-  return !service.default_included && service.pricing_type !== "free";
-}
+const CHECKOUT_CONFIGURED = false;
 
 function isRcaScope(scope?: string | null) {
   return scope === "rca_chat" || scope === "both";
@@ -40,15 +41,18 @@ export async function GET() {
   return NextResponse.json({
     services: (services || []).map((service) => {
       const selection = selectionByKey.get(service.service_key);
+      const paymentReadiness = evaluateServicePaymentReadiness(service, CHECKOUT_CONFIGURED);
       return {
         ...service,
-        payment_required: requiresPayment(service),
+        payment_required: paymentReadiness.paymentRequired,
+        payment_ready: paymentReadiness.ready,
+        payment_readiness_reason: paymentReadiness.reason,
         selection_status: selection?.selection_status || (service.default_included ? "active" : "cancelled"),
         payment_status: selection?.payment_status || "not_required",
         agreed_at: selection?.agreed_at || null,
       };
     }),
-    checkoutConfigured: false,
+    checkoutConfigured: CHECKOUT_CONFIGURED,
   });
 }
 
@@ -65,7 +69,7 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: service } = await supabase
     .from("rc_service_catalog")
-    .select("service_key,default_included,active,customer_selectable,connection_scope,pricing_type,price_minor,currency,terms_version,agreement_required")
+    .select("service_key,default_included,active,customer_selectable,connection_scope,connection_status,pricing_type,price_minor,price_status,currency,terms_version,agreement_required")
     .eq("service_key", serviceKey)
     .maybeSingle();
   if (!service?.active || !service?.customer_selectable || !isRcaScope(service.connection_scope)) {
@@ -84,9 +88,74 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, serviceKey, selectionStatus: "cancelled", paymentStatus: "not_required" });
   }
 
+  if (service.connection_status !== "available") {
+    return NextResponse.json({
+      error: "Service connection is not operationally ready",
+      code: "SERVICE_CONNECTION_NOT_READY",
+      serviceKey,
+    }, { status: 409 });
+  }
+
+  const countryCode = typeof user.countryCode === "string" ? user.countryCode.trim().toUpperCase() : "";
+  if (!/^[A-Z]{2}$/.test(countryCode)) {
+    return NextResponse.json({
+      error: "Country context is required before connecting this service",
+      code: "COUNTRY_CONTEXT_REQUIRED",
+      serviceKey,
+    }, { status: 409 });
+  }
+
+  const { data: countryTerm, error: countryTermError } = await supabase
+    .from("rc_service_country_terms")
+    .select("availability_status,review_status,reviewed_by,reviewed_at")
+    .eq("service_key", serviceKey)
+    .eq("country_code", countryCode)
+    .maybeSingle();
+  if (countryTermError) {
+    return NextResponse.json({ error: "Unable to verify country service availability" }, { status: 503 });
+  }
+  if (!hasReviewerProvenCountryApproval(countryTerm)) {
+    return NextResponse.json({
+      error: "Service is not approved for connection in this country",
+      code: "COUNTRY_SERVICE_NOT_READY",
+      serviceKey,
+      countryCode,
+    }, { status: 409 });
+  }
+
+  const compliance = await verifyCountryServiceCompliance(countryCode);
+  if (compliance.error) {
+    return NextResponse.json({
+      error: "Unable to verify required country compliance evidence",
+      code: "COUNTRY_COMPLIANCE_EVIDENCE_UNAVAILABLE",
+      serviceKey,
+      countryCode,
+    }, { status: 503 });
+  }
+  if (!compliance.verified) {
+    return NextResponse.json({
+      error: "Required country compliance is not verified for service connection",
+      code: "COUNTRY_COMPLIANCE_NOT_READY",
+      serviceKey,
+      countryCode,
+    }, { status: 409 });
+  }
+
   if (service.agreement_required && body?.agree !== true) return NextResponse.json({ error: "Agreement is required" }, { status: 400 });
 
-  const paymentRequired = requiresPayment(service);
+  const paymentReadiness = evaluateServicePaymentReadiness(service, CHECKOUT_CONFIGURED);
+  if (paymentReadiness.paymentRequired && !paymentReadiness.ready) {
+    const checkoutNotReady = paymentReadiness.reason === "CHECKOUT_NOT_READY";
+    return NextResponse.json({
+      error: checkoutNotReady ? "Checkout is not connected" : "Paid service pricing is not ready",
+      code: paymentReadiness.reason,
+      serviceKey,
+      paymentRequired: true,
+      checkoutConfigured: CHECKOUT_CONFIGURED,
+    }, { status: 409 });
+  }
+
+  const paymentRequired = paymentReadiness.paymentRequired;
   const selectionStatus = paymentRequired ? "pending_payment" : "active";
   const paymentStatus = paymentRequired ? "required" : "not_required";
 
@@ -130,5 +199,5 @@ export async function POST(request: Request) {
     orderId = order.id;
   }
 
-  return NextResponse.json({ ok: true, serviceKey, selectionStatus, paymentStatus, paymentRequired, orderId, checkoutConfigured: false });
+  return NextResponse.json({ ok: true, serviceKey, selectionStatus, paymentStatus, paymentRequired, orderId, checkoutConfigured: CHECKOUT_CONFIGURED });
 }

@@ -1,0 +1,47 @@
+{
+  "source": {
+    "provider": "Supabase Security Advisor + pg_catalog privilege read-back",
+    "queryMode": "READ_ONLY",
+    "hostedMutationPerformed": false
+  },
+  "observedAt": "2026-09-23T10:49:36.181Z",
+  "securityRegression": {
+    "status": "NEEDS_REVIEW",
+    "externalFindingFamilies": 1,
+    "findingCount": 21,
+    "previousObservedFindingCount": 19,
+    "findingCountDelta": 2,
+    "findings": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "facing": "EXTERNAL",
+        "count": 21,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+        "classification": "REVIEWED_SERVICE_ROLE_ONLY",
+        "tablesWithAnonPrivileges": 0,
+        "tablesWithAuthenticatedPrivileges": 0,
+        "tablesWithServiceRolePrivileges": 21
+      }
+    ],
+    "newSincePreviousReadback": [
+      "rcv3_preview_email_notices",
+      "rcv3_preview_email_worker_state"
+    ],
+    "launchRelevantTablesObserved": [
+      "communication_recording_policies",
+      "rc_service_provider_offers",
+      "rc_service_providers",
+      "rcv3_customer_ai_credentials",
+      "rcv3_customer_phone_accounts",
+      "rcv3_customer_phone_bindings",
+      "rcv3_customer_phone_calls",
+      "rcv3_customer_phone_checks",
+      "rcv3_preview_email_notices",
+      "rcv3_preview_email_worker_state",
+      "rcv3_preview_orders"
+    ],
+    "advisorDisposition": "The current RLS-with-no-policy finding family remains informational for direct client exposure: independent privilege read-back found zero anon/authenticated table privileges across all 21 findings and service_role-only table privileges on all 21. The increase from 19 to 21 is real and must remain tracked; it does not by itself establish a client-readable or client-writable path.",
+    "remainingVerification": "Keep SECURITY_REGRESSION non-VERIFIED while Hosted migration provenance/authority is unresolved and until the exact release candidate preserves successful Quality Gate, clean replay, Room Factory, Legal tenant-isolation, customer-account and payment evidence checks on the same head. Do not treat an expected fail-closed linked dry-run as deployment authorization."
+  }
+}

@@ -1,0 +1,161 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-18T02:48:00+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "project_name": "RoyalCommand",
+  "source": "Fresh Hosted supabase_migrations.schema_migrations READ-ONLY inventory (no rows for the six candidate versions) plus exact #696 checkout sources, reviewed #696 Matter isolation candidate with anon/authenticated sensitive-column ACL hardening, validated handle_new_user function delimiter, and Legal Matter control-plane ACL hardening, reviewed #696 Room Factory non-encounter candidate with the #661 manifest ACL boundary reasserted before function replacement, manifest identity/localization binding, encounter-reuse immutable-metadata binding, and full persisted-manifest creation-intent binding, #657 country compliance evidence registry candidate plus #696 reviewer-identity/chronology hardening, #658 payment operational safeguards candidate plus #696 environment/status, provider-review chronology, signed-webhook capability, timestamped signature-provenance, and payment-event chronology fail-closed hardening, byte-identical #691 profile-role authority candidate migration, and byte-identical #661 Room Factory manifest ACL hardening candidate migration",
+  "purpose": "Extend the fail-closed linked dry-run evidence set to the independently verified Matter isolation, non-encounter Room Factory, country compliance evidence registry, payment operational safeguards, profile-role authority, and Room Factory manifest ACL hardening migrations without authorizing migration repair, push, deploy, provider activation, or Country READY. Every expected-apply candidate is bound to an exact Git source-blob SHA. Historical equivalent/diverged migrations remain quarantined. The Matter candidate removes broad UPDATE from both anon and authenticated before granting only the reviewed authenticated mutable columns; it also removes anon direct access and authenticated control-plane/unused destructive privileges across matters, matter_documents, matter_messages, and matter_chat_reads while regranting only the reviewed authenticated DML contract. The non-encounter candidate closes the Hosted legacy direct-manifest-write boundary before installing the new null-encounter contract, rejects split-identity manifest records by binding version, templateId, countryCode, languageTag, and countryProfileStatus to the authoritative transaction columns, and permits encounter idempotent reuse only when both immutable metadata and the complete persisted Room Factory manifest still match the existing creation intent; the later dedicated ACL migration remains idempotent defense in depth. Compliance VERIFIED evidence must bind reviewed_by to an existing auth user and cannot claim a review timestamp earlier than the evidence row creation time. Payment readiness is bound fail-closed so sandbox_ready can only exist on sandbox rows and production_ready only on production rows, any ready provider must support signed webhooks, production readiness also requires refund/cancellation capability, provider review timestamps cannot predate registry creation, webhook processing requires timestamped signature-verification evidence, and receipt/verification/processing audit timestamps must remain chronologically consistent.",
+  "normalization": "CRLF to LF, trim whole source, drop blank lines and full-line -- comments, preserve remaining line bytes, SHA-256",
+  "expected_apply_migrations": [
+    "20260831225500_scope_matter_staff_access.sql",
+    "20260901025800_room_factory_atomic_non_encounter.sql",
+    "20260903075000_country_compliance_evidence_registry.sql",
+    "20260903205500_payment_operational_safeguards.sql",
+    "20260904105500_harden_profile_role_authority.sql",
+    "20260911045100_room_factory_manifest_acl_hardening.sql"
+  ],
+  "entries": [
+    {
+      "local_basename": "20260810065600_passkeys.sql",
+      "local_name": "passkeys",
+      "classification": "REMOTE_EQUIVALENT_AFTER_COMMENT_BLANK_NORMALIZATION",
+      "remote": [
+        {
+          "version": "20260809215715",
+          "name": "passkey_credentials",
+          "diagnostic_sha256": "e393ae4a9147a1365a17e827746bf5e57cd0dd4e649b880369e556cd25c46c5c"
+        }
+      ]
+    },
+    {
+      "local_basename": "20260825041500_fix_room_member_insert_rls.sql",
+      "local_name": "fix_room_member_insert_rls",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260825042819",
+          "name": "harden_room_membership_owner_only",
+          "diagnostic_sha256": "d3809760234af7edfdb3a20bea7b0ea98aee0b166b80f468437daf4c406d2a5f"
+        }
+      ],
+      "reason": "Hosted replacement source is not byte-equivalent after comment/blank normalization; keep the older local migration quarantined from any inferred apply set."
+    },
+    {
+      "local_basename": "20260829190000_global_service_commercial_terms.sql",
+      "local_name": "global_service_commercial_terms",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260829123104",
+          "name": "add_global_service_commercial_terms",
+          "diagnostic_sha256": "bad912cc9b846d00eb3a81f21799d1e1779c8040fd8aeba019d7039562b86bf3"
+        }
+      ],
+      "reason": "Hosted and local policy-creation source differ; historical replay must not be inferred from name similarity."
+    },
+    {
+      "local_basename": "20260829224000_service_provider_registry.sql",
+      "local_name": "service_provider_registry",
+      "classification": "REMOTE_EQUIVALENT_AFTER_COMMENT_BLANK_NORMALIZATION",
+      "remote": [
+        {
+          "version": "20260829125149",
+          "name": "add_service_provider_registry",
+          "diagnostic_sha256": "6745027401dfaceb86fa851287d6928ea4b651a4e82be4721e0bed801ea15f9d"
+        }
+      ]
+    },
+    {
+      "local_basename": "20260830013500_allow_shared_service_scope.sql",
+      "local_name": "allow_shared_service_scope",
+      "classification": "REMOTE_EQUIVALENT_TO_ORDERED_REMOTE_SEQUENCE",
+      "remote": [
+        {
+          "version": "20260829152721",
+          "name": "allow_service_connection_scope_both",
+          "diagnostic_sha256": "45dc6e348a5079d84163d794921853c4a19a5e040eee447f3c4b7134d64069ea"
+        },
+        {
+          "version": "20260829152826",
+          "name": "seed_shared_service_scopes",
+          "diagnostic_sha256": "5d0569f6434198048f5f59ce4cf0470d4075cfd80ff0d09db59092593e303127"
+        }
+      ],
+      "expected_combined_diagnostic_sha256": "b6ff4456cf691a633c5d45a146fc12c359fe99f566c5ee3e4ed446de770449a6"
+    },
+    {
+      "local_basename": "20260830020500_harden_room_household_insert.sql",
+      "local_name": "harden_room_household_insert",
+      "classification": "REMOTE_DIVERGED_DO_NOT_REPLAY",
+      "remote": [
+        {
+          "version": "20260829165635",
+          "name": "harden_room_household_insert_rls",
+          "diagnostic_sha256": "e436422dca3ea2cc36ea15c65294acd01441bf7e636f1f94961e177112988488"
+        }
+      ],
+      "reason": "Hosted replacement source uses a different role/predicate shape; the older local migration must remain quarantined."
+    },
+    {
+      "local_basename": "20260831225500_scope_matter_staff_access.sql",
+      "local_name": "scope_matter_staff_access",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #696 Matter isolation candidate plus anon sensitive-column ACL hardening commit 97ae2e0f1804d8f1ad1623430511dfe62ccf1949, syntax-only handle_new_user delimiter fix abaea10be7746d285f2407cb9af24c54e21e0c7b, and Legal Matter control-plane ACL hardening commit a6dd191adabb7691796a97917647b9e6a2b68ac8",
+      "source_blob_sha": "e518dcb10cb4eafad8311922bf801e75d0ce38fb",
+      "reason": "Fresh Hosted ACL read-back shows both anon and authenticated still hold SELECT/INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER on public.matters, public.matter_documents, public.matter_messages, and public.matter_chat_reads. RLS remains a separate defense, but untrusted API roles do not require control-plane privileges such as TRUNCATE/REFERENCES/TRIGGER; anon does not require direct Matter-table DML, and authenticated requires only the reviewed DML contract. The candidate therefore removes anon direct table privileges, resets authenticated table privileges and explicitly regrants only the reviewed DML, while separately retaining the sensitive-column UPDATE hardening on public.matters. The handle_new_user PL/pgSQL delimiter remains syntactically valid so disposable clean-replay and tenant-isolation evidence can execute the candidate instead of failing before security assertions. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260901025800_room_factory_atomic_non_encounter.sql",
+      "local_name": "room_factory_atomic_non_encounter",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #696 manifest-order guard commit 3260e76aa46736565600dd80468c363dcfbd6b9b plus manifest identity/localization binding commit c9918d3bc4e8b8c298a4a88fdfbe647a62cba419 plus encounter reuse immutable-metadata binding commit 13ac546dfe86333d831324f4bae9582ddd045656 plus full manifest creation-intent binding commit 225438a1245e9d0a372999e4db77f8bf71583f4d",
+      "source_blob_sha": "4a4a9c14c9b659fbdfc811b92c5788f358025a68",
+      "reason": "Fresh Hosted migration inventory has no 20260901025800 row and Hosted private.create_room_factory_room_atomic still rejects null encounters. Fresh Hosted ACL read-back also shows the legacy authenticated owner-insert policy plus broad anon/authenticated manifest-table grants. Fresh Hosted function/routine read-back further confirms authenticated callers can execute the public and room_factory_internal atomic wrappers and therefore supply p_manifest directly. Existing Hosted manifests currently have zero mismatches between version/template/country/language/profile-status JSON identity and their indexed columns, so the candidate preserves that invariant fail-closed by validating all five identity/localization fields before locking or writing. Encounter-backed reuse now also rejects a stale encounter key when the requested factory version, template, country, language, country-profile status, or any other persisted Room Factory manifest creation intent differs from the existing manifest, preventing an old Room/manifest from being silently paired with a new API blueprint. The candidate reasserts the reviewed #661 manifest ACL boundary before replacing the private function, while keeping the later dedicated ACL migration as idempotent defense in depth. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260903075000_country_compliance_evidence_registry.sql",
+      "local_name": "country_compliance_evidence_registry",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #657 exact head 51d51a5c10c2fef791d2cc3c6001518ae47ce9b2 plus PR #696 compliance reviewer-provenance hardening commit c673acc3e4ee57a5706cf1cd1d51a52c0095a59e",
+      "source_blob_sha": "ba1c10c6858a9990c4eb17de31b007c3c9c0810c",
+      "reason": "Fresh Hosted migration inventory has no 20260903075000 row and public.country_compliance_evidence is absent, while auth.users exists with a unique/primary id key. The candidate seeds no approvals, requires reviewer provenance for VERIFIED evidence, binds reviewed_by to an existing auth user, rejects VERIFIED review timestamps that predate row creation, enables RLS, and removes anon/authenticated direct access. This entry authorizes linked dry-run evidence capture only; it does not authorize apply, legal approval, Compliance READY, or Country READY."
+    },
+    {
+      "local_basename": "20260903205500_payment_operational_safeguards.sql",
+      "local_name": "payment_operational_safeguards",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #658 exact head 391eef59838b609b57f584ec50b6bf856e31d73a plus PR #696 payment environment guard commit c4693169da52c036f8d1015eada9986ecbb45e9c plus timestamped signature-provenance hardening commit 8eda4ffaaf13e1ba7c8bd18e404881d085f09251 plus payment-event chronology hardening commit 393009ef98084293fceb1bbbc72f01d083c069ff plus provider-review chronology hardening commit ef6322c338aa7f95f3cf02302db03de33c4c6204 plus signed-webhook capability hardening commit bad5b34a20a3d453d3a568d80bedb2b22801c160",
+      "source_blob_sha": "9f29a75e06a044cc5c14d7cc10d1aa1a8fcbfc10",
+      "reason": "Fresh Hosted migration inventory has no 20260903205500 row; rc_payment_provider_registry and rc_payment_provider_events are absent; rc_service_connection_orders has UUID not-null id/owner_id, zero rows, and no idempotency_key column. The candidate fail-closes readiness/environment semantics, requires every ready provider to support signed webhooks, requires production-ready providers to also support refunds and cancellations, rejects provider review timestamps that predate registry creation, requires signature_verified_at whenever webhook signature verification is recorded or an event advances to processing/processed, and rejects verification/processing audit timestamps that predate event receipt or, for processed events, signature verification. This entry authorizes linked dry-run evidence capture only; it does not authorize apply, provider activation, or Country READY."
+    },
+    {
+      "local_basename": "20260904105500_harden_profile_role_authority.sql",
+      "local_name": "harden_profile_role_authority",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #691 exact head 4ac81c5914bb2e0133706e9cc9c8bc4c92353ba0",
+      "source_blob_sha": "b97a1834111d5ec6c4b089314e7552f5f2073fa7",
+      "reason": "Fresh Hosted migration inventory has no 20260904105500 row and Hosted anon/authenticated profile table grants remain broader than the verified #691 least-privilege contract. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    },
+    {
+      "local_basename": "20260911045100_room_factory_manifest_acl_hardening.sql",
+      "local_name": "room_factory_manifest_acl_hardening",
+      "classification": "NEW_CANDIDATE_EXPECTED_APPLY",
+      "remote": [],
+      "expected_apply": true,
+      "source_candidate": "PR #661 exact head b1859541f33940124c6dee36dde26e6bfb68f52c",
+      "source_blob_sha": "637f759884f099e37257c021c9dbb09badc9e799",
+      "reason": "Fresh Hosted migration inventory has no 20260911045100 row; anon/authenticated still have broad direct write privileges on public.room_factory_manifests. This entry authorizes linked dry-run evidence capture only; it does not authorize apply."
+    }
+  ],
+  "ready_for_apply": false
+}

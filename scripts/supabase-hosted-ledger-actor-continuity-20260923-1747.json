@@ -1,0 +1,63 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-23T17:47:42+10:00",
+  "project_ref": "aygawkavujjmybekswrg",
+  "capture_mode": "READ_ONLY",
+  "hosted_mutation_performed": false,
+  "rows": [
+    {
+      "version": "20260920091809",
+      "name": "add_secure_rc_customer_numbers",
+      "statement_count": 1,
+      "statements_md5": "9b70e55a43515314977d1f12de9149e1",
+      "created_by_present": true,
+      "created_by_md5": "c8efde1a5aa05a47ac842b1e29ae9b29",
+      "created_by_value_published": false,
+      "idempotency_key_present": false,
+      "rollback_count": 0,
+      "original_git_source_provenance_verified": false,
+      "independent_reviewer_or_change_record_verified": false
+    },
+    {
+      "version": "20260922021440",
+      "name": "rcv3_preview_email_outbox",
+      "statement_count": 1,
+      "statements_md5": "2f983fe4614f793e935835f370c1ea10",
+      "created_by_present": true,
+      "created_by_md5": "c8efde1a5aa05a47ac842b1e29ae9b29",
+      "created_by_value_published": false,
+      "idempotency_key_present": false,
+      "rollback_count": 0,
+      "original_git_source_provenance_verified": true,
+      "independent_reviewer_or_change_record_verified": false
+    }
+  ],
+  "continuity": {
+    "same_created_by_fingerprint": true,
+    "same_deployer_actor_continuity_narrowed": true,
+    "proves_row76_source_artifact": false,
+    "proves_row76_reviewer_authority": false,
+    "proves_row80_deployment_authority": false,
+    "trusted_80_row_baseline_may_advance": false,
+    "linked_dry_run_authorized": false,
+    "safe_deploy_blocked": true
+  },
+  "safety_observations": {
+    "both_rows_have_idempotency_key": false,
+    "both_rows_have_rollback_statements": false,
+    "actor_hash_is_non_secret_evidence_only": true,
+    "raw_created_by_value_not_published": true
+  },
+  "launch_implication": {
+    "country_ready": false,
+    "first_wave_disposition": "HOLD",
+    "blocker_narrowed": "Rows 76 and 80 were written by the same Hosted ledger created_by fingerprint, establishing deployer-actor continuity without exposing the actor value.",
+    "blocker_not_resolved": "Actor continuity does not recover row 76 original Git source, independent review/change-record authority, or row 80 deployment authorization. The trusted Hosted baseline remains blocked.",
+    "required_next_evidence": [
+      "Recover or independently bind row 76 exact Hosted statement fingerprint to an approved source artifact/change record without publishing customer-specific backfill values.",
+      "Verify independent reviewer/deployment authority for rows 76 and 80.",
+      "Keep linked replay and Hosted deployment fail-closed until the 80-row baseline is trusted.",
+      "Exercise the least-privilege customer-account remediation only in controlled non-Production staging before any Hosted promotion."
+    ]
+  }
+}

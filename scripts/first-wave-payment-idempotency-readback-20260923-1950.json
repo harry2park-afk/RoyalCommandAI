@@ -1,0 +1,59 @@
+{
+  "captured_at": "2026-09-23T19:50:48+10:00",
+  "capture_mode": "Hosted Supabase READ-ONLY schema/security inspection plus exact-head source comparison",
+  "hosted_mutation_performed_by_this_capture": false,
+  "production_master_mutated_by_this_capture": false,
+  "service_connection_orders": {
+    "table": "rc_service_connection_orders",
+    "rls_enabled": true,
+    "force_rls_enabled": false,
+    "authenticated_privileges": ["INSERT", "SELECT"],
+    "authenticated_update_privilege": false,
+    "authenticated_delete_privilege": false,
+    "owner_insert_pending_policy_present": true,
+    "owner_select_policy_present": true,
+    "owner_insert_policy_requires_pending": true,
+    "owner_insert_policy_requires_payment_provider_null": true,
+    "owner_insert_policy_requires_external_checkout_id_null": true,
+    "owner_insert_policy_requires_external_payment_id_null": true,
+    "owner_insert_policy_requires_paid_at_null": true,
+    "external_checkout_id_column_present": true,
+    "external_payment_id_column_present": true,
+    "external_checkout_id_unique_constraint_or_index_present": false,
+    "external_payment_id_unique_constraint_or_index_present": false,
+    "idempotency_key_column_present": false,
+    "idempotency_key_unique_index_present": false,
+    "payment_or_checkout_named_function_count": 0,
+    "payment_order_trigger_count": 0
+  },
+  "hosted_payment_safeguards": {
+    "source_candidate_migration": "supabase/migrations/20260903205500_payment_operational_safeguards.sql",
+    "source_candidate_version": "20260903205500",
+    "hosted_migration_rows": 0,
+    "payment_provider_registry_present": false,
+    "payment_provider_events_present": false,
+    "provider_event_uniqueness_hosted_verified": false,
+    "signed_webhook_event_chronology_hosted_verified": false,
+    "order_idempotency_hosted_verified": false,
+    "real_provider_sandbox_verified": false
+  },
+  "source_candidate_safeguards": {
+    "adds_nullable_idempotency_key": true,
+    "adds_owner_scoped_unique_idempotency_index": true,
+    "adds_provider_event_ledger": true,
+    "adds_provider_environment_external_event_unique_constraint": true,
+    "requires_signed_webhook_capability_for_ready_provider": true,
+    "stores_payload_digest_not_raw_payload": true,
+    "source_only_until_separately_approved": true
+  },
+  "interpretation": {
+    "least_privilege_insert_surface_observed": true,
+    "schema_presence_alone_proves_payment_readiness": false,
+    "absence_of_db_idempotency_proves_duplicate_charge_vulnerability": false,
+    "checkout_activation_authorized": false,
+    "country_ready_claimed": false,
+    "disposition": "HOLD",
+    "reason": "Hosted order schema currently has no DB-enforced order idempotency or external payment identifier uniqueness, and the source-only safeguard migration that adds an idempotency key plus provider event uniqueness is not in the Hosted ledger. Application/provider idempotency and real sandbox webhook behavior are not independently verified, so paid checkout must remain fail-closed."
+  },
+  "first_wave_countries": ["AU", "US", "CA", "KR", "JP", "GB"]
+}

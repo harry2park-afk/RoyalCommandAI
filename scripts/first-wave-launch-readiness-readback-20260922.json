@@ -1,0 +1,117 @@
+{
+  "captured_at": "2026-09-22T04:50:20+10:00",
+  "source": {
+    "query_mode": "READ_ONLY",
+    "hosted_mutation_performed": false,
+    "supabase_project_id": "aygawkavujjmybekswrg"
+  },
+  "deployment": {
+    "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+    "hosted_migration_count": 79,
+    "hosted_migration_head": "20260921052125",
+    "migration_20260920091809_deployment_provenance": "UNRESOLVED"
+  },
+  "first_wave_runtime": [
+    {
+      "country_code": "AU",
+      "expected_locale": "en-AU",
+      "manifest_rows": 7,
+      "non_null_encounter_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "US",
+      "expected_locale": "en-US",
+      "manifest_rows": 0,
+      "non_null_encounter_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "CA",
+      "expected_locale": "en-CA",
+      "manifest_rows": 0,
+      "non_null_encounter_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "KR",
+      "expected_locale": "ko-KR",
+      "manifest_rows": 0,
+      "non_null_encounter_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "JP",
+      "expected_locale": "ja-JP",
+      "manifest_rows": 0,
+      "non_null_encounter_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "GB",
+      "expected_locale": "en-GB",
+      "manifest_rows": 0,
+      "non_null_encounter_rows": 0,
+      "exact_locale_rows": 0,
+      "exact_runtime_rows": 0,
+      "runtime_verified": false
+    }
+  ],
+  "room_factory_authority": {
+    "anon_insert": true,
+    "authenticated_insert": true,
+    "authenticated_update": true,
+    "authenticated_delete": true,
+    "verified": false
+  },
+  "customer_account_authority": {
+    "authenticated_insert": true,
+    "authenticated_update": true,
+    "authenticated_delete": true,
+    "authenticated_truncate": true,
+    "allocator_noninternal_triggers": 0,
+    "allocator_functions": 0,
+    "trusted_allocator_verified": false,
+    "verified": false
+  },
+  "commercial_runtime": {
+    "service_catalog_rows": 43,
+    "first_wave_country_terms_rows": 0,
+    "providers_rows": 0,
+    "first_wave_provider_offers_rows": 0,
+    "connection_orders_rows": 0,
+    "verified": false
+  },
+  "payment_runtime": {
+    "provider_registry_present": false,
+    "provider_events_present": false,
+    "order_idempotency_key_present": false,
+    "verified": false
+  },
+  "recording_review": [
+    { "country_code": "AU", "policy_rows": 1, "reviewer_proven_approved": 0 },
+    { "country_code": "US", "policy_rows": 1, "reviewer_proven_approved": 0 },
+    { "country_code": "CA", "policy_rows": 1, "reviewer_proven_approved": 0 },
+    { "country_code": "KR", "policy_rows": 1, "reviewer_proven_approved": 0 },
+    { "country_code": "JP", "policy_rows": 1, "reviewer_proven_approved": 0 },
+    { "country_code": "GB", "policy_rows": 1, "reviewer_proven_approved": 0 }
+  ],
+  "first_wave_disposition": {
+    "AU": "HOLD",
+    "US": "HOLD",
+    "CA": "HOLD",
+    "KR": "HOLD",
+    "JP": "HOLD",
+    "GB": "HOLD"
+  }
+}

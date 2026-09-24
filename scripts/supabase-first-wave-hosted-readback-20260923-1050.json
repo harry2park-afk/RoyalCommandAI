@@ -1,0 +1,118 @@
+{
+  "contract_version": 1,
+  "captured_at": "2026-09-23T10:50:59+10:00",
+  "verification_mode": "READ_ONLY_SUPABASE_PLUS_GITHUB",
+  "project_ref": "aygawkavujjmybekswrg",
+  "hosted_mutation_performed_by_this_capture": false,
+  "production_master_mutated_by_this_capture": false,
+  "production_master_sha": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+  "pre_capture_pr_head": "a12e0c899fadf77cafa025f882c38abbf1678ed5",
+  "restore_ref": "restore/2026-09-23-1050-pr696-pre-first-wave-hosted-readback",
+  "migration_ledger": {
+    "count": 80,
+    "head_version": "20260922021440",
+    "head_name": "rcv3_preview_email_outbox",
+    "head_statement_md5": "2f983fe4614f793e935835f370c1ea10",
+    "row76_version": "20260920091809",
+    "row76_name": "add_secure_rc_customer_numbers",
+    "row76_statement_md5": "9b70e55a43515314977d1f12de9149e1",
+    "row76_original_git_source_verified": false,
+    "row80_original_git_source_verified": true,
+    "row80_deployment_authority_verified": false,
+    "trusted_80_row_baseline_verified": false
+  },
+  "non_production_staging": {
+    "supabase_development_branch_count": 0,
+    "verified": false
+  },
+  "first_wave": {
+    "AU": {
+      "expected_locales": ["en-AU"],
+      "exact_runtime_counts": {"en-AU": 0},
+      "encounter_backed_counts": {"en-AU": 0},
+      "observed_other_manifest_locales": {"ko": 5, "ko-KR": 2},
+      "service_country_terms": 0,
+      "recording_review_status": "approved",
+      "recording_policy": "consent_required",
+      "recording_reviewed_by_present": false,
+      "launch_disposition": "HOLD"
+    },
+    "US": {
+      "expected_locales": ["en-US"],
+      "exact_runtime_counts": {"en-US": 0},
+      "encounter_backed_counts": {"en-US": 0},
+      "service_country_terms": 0,
+      "recording_review_status": "needs_review",
+      "recording_policy": "blocked",
+      "recording_reviewed_by_present": false,
+      "launch_disposition": "HOLD"
+    },
+    "CA": {
+      "expected_locales": ["en-CA", "fr-CA"],
+      "exact_runtime_counts": {"en-CA": 0, "fr-CA": 0},
+      "encounter_backed_counts": {"en-CA": 0, "fr-CA": 0},
+      "service_country_terms": 0,
+      "recording_review_status": "needs_review",
+      "recording_policy": "blocked",
+      "recording_reviewed_by_present": false,
+      "launch_disposition": "HOLD"
+    },
+    "KR": {
+      "expected_locales": ["ko-KR"],
+      "exact_runtime_counts": {"ko-KR": 0},
+      "encounter_backed_counts": {"ko-KR": 0},
+      "service_country_terms": 0,
+      "recording_review_status": "needs_review",
+      "recording_policy": "blocked",
+      "recording_reviewed_by_present": false,
+      "launch_disposition": "HOLD"
+    },
+    "JP": {
+      "expected_locales": ["ja-JP"],
+      "exact_runtime_counts": {"ja-JP": 0},
+      "encounter_backed_counts": {"ja-JP": 0},
+      "service_country_terms": 0,
+      "recording_review_status": "needs_review",
+      "recording_policy": "blocked",
+      "recording_reviewed_by_present": false,
+      "launch_disposition": "HOLD"
+    },
+    "GB": {
+      "expected_locales": ["en-GB"],
+      "exact_runtime_counts": {"en-GB": 0},
+      "encounter_backed_counts": {"en-GB": 0},
+      "service_country_terms": 0,
+      "recording_review_status": "needs_review",
+      "recording_policy": "blocked",
+      "recording_reviewed_by_present": false,
+      "launch_disposition": "HOLD"
+    }
+  },
+  "hosted_launch_tables": {
+    "country_compliance_evidence_present": false,
+    "payment_provider_registry_present": false,
+    "payment_provider_events_present": false,
+    "rc_service_country_terms_present": true
+  },
+  "hosted_acl": {
+    "rc_customer_accounts": {
+      "rls_enabled": true,
+      "force_rls": false,
+      "anon_privileges": [],
+      "authenticated_privileges": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+    },
+    "room_factory_manifests": {
+      "rls_enabled": true,
+      "force_rls": false,
+      "anon_privileges": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"],
+      "authenticated_privileges": ["DELETE", "INSERT", "REFERENCES", "SELECT", "TRIGGER", "TRUNCATE", "UPDATE"]
+    }
+  },
+  "security_advisor": {
+    "rls_enabled_no_policy_level": "INFO",
+    "rls_enabled_no_policy_count": 21,
+    "treated_as_exploitable_access_proof": false
+  },
+  "safe_deploy_blocked": true,
+  "country_ready_claimed": false
+}

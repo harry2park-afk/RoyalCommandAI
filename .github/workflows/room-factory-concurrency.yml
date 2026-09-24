@@ -54,6 +54,8 @@ jobs:
           cp supabase/migrations-full/20260829211500_room_factory_manifests.sql supabase/migrations/
           cp supabase/migrations-full/20260831084700_atomic_room_factory_encounter_creation.sql supabase/migrations/
           cp supabase/migrations-full/20260901022500_harden_room_factory_atomic_invoker.sql supabase/migrations/
+          cp supabase/migrations-full/20260901025800_room_factory_atomic_non_encounter.sql supabase/migrations/
+          cp supabase/migrations-full/20260911045100_room_factory_manifest_acl_hardening.sql supabase/migrations/
 
           # Production has private.is_room_member from the canonical recovered
           # lineage. Match that helper only for this focused disposable fixture;
@@ -79,6 +81,65 @@ jobs:
 
       - name: Start isolated Supabase stack
         run: supabase start
+
+      - name: Prove manifest ACL hardening in disposable stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          declare
+            v_rls_enabled boolean;
+            v_owner_insert_policy_count integer;
+          begin
+            select c.relrowsecurity
+            into v_rls_enabled
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+            where n.nspname = 'public'
+              and c.relname = 'room_factory_manifests';
+
+            if v_rls_enabled is distinct from true then
+              raise exception 'room_factory_manifests RLS must remain enabled';
+            end if;
+
+            if has_table_privilege('anon', 'public.room_factory_manifests', 'SELECT')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'INSERT')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'UPDATE')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'DELETE')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'TRUNCATE')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'REFERENCES')
+               or has_table_privilege('anon', 'public.room_factory_manifests', 'TRIGGER') then
+              raise exception 'anon must have no direct room_factory_manifests table privilege';
+            end if;
+
+            if not has_table_privilege('authenticated', 'public.room_factory_manifests', 'SELECT') then
+              raise exception 'authenticated must retain RLS-scoped SELECT on room_factory_manifests';
+            end if;
+
+            if has_table_privilege('authenticated', 'public.room_factory_manifests', 'INSERT')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'UPDATE')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'DELETE')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'TRUNCATE')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'REFERENCES')
+               or has_table_privilege('authenticated', 'public.room_factory_manifests', 'TRIGGER') then
+              raise exception 'authenticated direct manifest mutation/control privilege must be revoked';
+            end if;
+
+            select count(*)::integer
+            into v_owner_insert_policy_count
+            from pg_policies
+            where schemaname = 'public'
+              and tablename = 'room_factory_manifests'
+              and policyname = 'room_factory_manifests_insert_owner';
+
+            if v_owner_insert_policy_count <> 0 then
+              raise exception 'obsolete room_factory_manifests_insert_owner policy must be removed';
+            end if;
+          end;
+          $$;
+          SQL
 
       - name: Prove public invoker and internal privilege boundary
         shell: bash

@@ -1,0 +1,172 @@
+name: Payment Order Authority Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/candidates/20260924140100_harden_payment_order_authority.sql"
+      - ".github/workflows/payment-order-authority-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: rc-payment-order-authority-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  payment-order-authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Authenticate GHCR for Supabase image pulls
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Prepare isolated payment-order authority fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+
+          cat > supabase/migrations/20260101000000_payment_order_authority_fixture.sql <<'SQL'
+          create table public.rc_service_connection_orders (
+            id uuid primary key default gen_random_uuid(),
+            owner_id uuid not null,
+            payment_required boolean not null default true,
+            payment_status text not null default 'pending',
+            payment_provider text,
+            external_checkout_id text,
+            external_payment_id text,
+            paid_at timestamptz
+          );
+
+          alter table public.rc_service_connection_orders enable row level security;
+
+          grant select, insert, update, delete
+            on table public.rc_service_connection_orders
+            to authenticated;
+          grant all
+            on table public.rc_service_connection_orders
+            to service_role;
+
+          create policy rc_service_connection_orders_owner_select
+            on public.rc_service_connection_orders
+            for select to authenticated
+            using (owner_id = auth.uid());
+
+          create policy rc_service_connection_orders_owner_insert_pending
+            on public.rc_service_connection_orders
+            for insert to authenticated
+            with check (
+              owner_id = auth.uid()
+              and payment_required is true
+              and payment_status = 'pending'
+              and payment_provider is null
+              and external_checkout_id is null
+              and external_payment_id is null
+              and paid_at is null
+            );
+          SQL
+
+      - name: Start isolated Supabase stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Prove vulnerable fixture precondition
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not has_table_privilege('authenticated', 'public.rc_service_connection_orders', 'INSERT') then
+              raise exception 'fixture must begin with authenticated INSERT privilege';
+            end if;
+            if not exists (
+              select 1 from pg_policies
+              where schemaname = 'public'
+                and tablename = 'rc_service_connection_orders'
+                and policyname = 'rc_service_connection_orders_owner_insert_pending'
+            ) then
+              raise exception 'fixture must begin with owner pending-order INSERT policy';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Apply payment order authority candidate to disposable stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 \
+            -f supabase/candidates/20260924140100_harden_payment_order_authority.sql
+
+      - name: Prove authenticated order writes fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if has_table_privilege('authenticated', 'public.rc_service_connection_orders', 'INSERT')
+              or has_table_privilege('authenticated', 'public.rc_service_connection_orders', 'UPDATE')
+              or has_table_privilege('authenticated', 'public.rc_service_connection_orders', 'DELETE') then
+              raise exception 'authenticated direct payment-order write privilege remains';
+            end if;
+
+            if not has_table_privilege('authenticated', 'public.rc_service_connection_orders', 'SELECT') then
+              raise exception 'authenticated owner-scoped order read privilege was lost';
+            end if;
+
+            if exists (
+              select 1 from pg_policies
+              where schemaname = 'public'
+                and tablename = 'rc_service_connection_orders'
+                and policyname = 'rc_service_connection_orders_owner_insert_pending'
+            ) then
+              raise exception 'obsolete authenticated pending-order INSERT policy remains';
+            end if;
+
+            if not exists (
+              select 1 from pg_policies
+              where schemaname = 'public'
+                and tablename = 'rc_service_connection_orders'
+                and policyname = 'rc_service_connection_orders_owner_select'
+            ) then
+              raise exception 'owner SELECT policy was unexpectedly removed';
+            end if;
+
+            if not has_table_privilege('service_role', 'public.rc_service_connection_orders', 'SELECT')
+              or not has_table_privilege('service_role', 'public.rc_service_connection_orders', 'INSERT')
+              or not has_table_privilege('service_role', 'public.rc_service_connection_orders', 'UPDATE')
+              or not has_table_privilege('service_role', 'public.rc_service_connection_orders', 'DELETE') then
+              raise exception 'trusted service role lost required order access';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Stop isolated Supabase stack
+        if: always()
+        run: supabase stop --no-backup

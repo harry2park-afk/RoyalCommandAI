@@ -1,0 +1,182 @@
+{
+  "contract_version": 3,
+  "captured_at": "2026-09-21T05:50:37Z",
+  "project_ref": "aygawkavujjmybekswrg",
+  "project_name": "RoyalCommand",
+  "source": "Fresh read-only Supabase + GitHub connector evidence",
+  "purpose": "Record the current 79-row Hosted migration ledger while preserving the unresolved 76th-migration provenance blocker, proving exact repository source equivalence for later Hosted migrations 77-79, and avoiding any customer-specific row values or migration repair/replay.",
+  "safety": {
+    "hosted_mutation_performed": false,
+    "production_master_changed": false,
+    "migration_repair_or_replay_performed": false,
+    "customer_row_values_recorded": false,
+    "ready_for_apply": false,
+    "country_ready": false
+  },
+  "stable_restore": {
+    "production_master": "33da2a917dc6adcf266f59f0b27d18a56f1271d8",
+    "pr696_pre_change_head": "658b8a184d58fe659542e5e3f69144503427d60b",
+    "restore_ref": "restore/2026-09-21-1550-pr696-pre-79-ledger-refresh"
+  },
+  "hosted_migration_ledger": {
+    "observed_count": 79,
+    "observed_head_version": "20260921052125",
+    "observed_head_name": "rcv3_learning_atomic_project_completion",
+    "previous_repository_snapshot": "scripts/supabase-hosted-ledger-snapshot-20260920.json",
+    "previous_snapshot_count": 75,
+    "previous_snapshot_head_version": "20260920015655",
+    "drift_detected": true,
+    "trusted_baseline_advanced": false
+  },
+  "blocking_migration_sanitized_fingerprint": {
+    "version": "20260920091809",
+    "name": "add_secure_rc_customer_numbers",
+    "statement_count": 1,
+    "statements_md5": "9b70e55a43515314977d1f12de9149e1",
+    "statements_bytes": 1310,
+    "exact_sql_copied_to_repository": false,
+    "reason_exact_sql_not_copied": "Hosted statement contains customer-specific data; repository is public. Preserve provenance evidence without publishing row values."
+  },
+  "migration_record_metadata": {
+    "version": "20260920091809",
+    "created_by_present": true,
+    "created_by_md5": "c8efde1a5aa05a47ac842b1e29ae9b29",
+    "idempotency_key_present": false,
+    "rollback_statement_count": 0,
+    "created_by_value_recorded": false,
+    "customer_row_values_recorded": false
+  },
+  "git_provenance": {
+    "blocking_migration_version": "20260920091809",
+    "blocking_migration_name": "add_secure_rc_customer_numbers",
+    "pr748_exact_head": "fc684e9cdce36c796fa80c1d7e1a40a55bec6763",
+    "exact_migration_path": "supabase/migrations/20260920091809_add_secure_rc_customer_numbers.sql",
+    "exact_path_present_on_pr748_head": false,
+    "migration_name_commit_search_match_found": false,
+    "fingerprint_version_name_verified": true,
+    "contemporaneous_change_record": {
+      "commit_sha": "f4a61d2e76adf481d5869a9501119bbf423f83f5",
+      "commit_timestamp": "2026-09-20T09:20:20Z",
+      "migration_version_timestamp": "2026-09-20T09:18:09Z",
+      "delta_seconds": 131,
+      "exact_migration_name_recorded": true,
+      "hosted_apply_recorded": true,
+      "source_sql_present_in_commit": false,
+      "customer_specific_values_copied_into_this_evidence": false
+    },
+    "status": "UNRESOLVED",
+    "resolution_method": null,
+    "resolution_evidence_ref": null,
+    "reviewed_by": null,
+    "reviewed_at": null,
+    "required_closure": "The contemporaneous Git change record proves the named 76th migration was intentionally applied, but it does not contain the source SQL or a reversible/idempotent deployment artifact. Locate an approved private deployment artifact/change record or reconstruct a schema-only non-PII source artifact plus separately reviewed private backfill evidence. Record reviewer identity, review timestamp, resolution method and evidence reference. Do not use migration repair/replay as provenance."
+  },
+  "post_blocking_migrations": [
+    {
+      "version": "20260921050212",
+      "name": "rcv3_preview_learning_room",
+      "source_pr": 748,
+      "source_head": "fc684e9cdce36c796fa80c1d7e1a40a55bec6763",
+      "path": "supabase/migrations/20260921050212_rcv3_preview_learning_room.sql",
+      "exact_path_present_on_source_head": true,
+      "hosted_statement_md5": "1f30fb31e429f67e190cdad4f0e5c0b2",
+      "hosted_statement_bytes": 1752,
+      "repository_statement_md5": "1f30fb31e429f67e190cdad4f0e5c0b2",
+      "repository_statement_bytes": 1752,
+      "source_file_terminal_newline_stripped": false,
+      "exact_source_equivalent": true,
+      "customer_specific_row_values_present": false
+    },
+    {
+      "version": "20260921051948",
+      "name": "rcv3_learning_100_assignments",
+      "source_pr": 748,
+      "source_head": "fc684e9cdce36c796fa80c1d7e1a40a55bec6763",
+      "path": "supabase/migrations/20260921051948_rcv3_learning_100_assignments.sql",
+      "exact_path_present_on_source_head": true,
+      "hosted_statement_md5": "d26c77a589b19ecd9add8f25426cafac",
+      "hosted_statement_bytes": 870,
+      "repository_statement_md5": "d26c77a589b19ecd9add8f25426cafac",
+      "repository_statement_bytes": 870,
+      "source_file_terminal_newline_stripped": false,
+      "exact_source_equivalent": true,
+      "customer_specific_row_values_present": false
+    },
+    {
+      "version": "20260921052125",
+      "name": "rcv3_learning_atomic_project_completion",
+      "source_pr": 748,
+      "source_head": "fc684e9cdce36c796fa80c1d7e1a40a55bec6763",
+      "path": "supabase/migrations/20260921052125_rcv3_learning_atomic_project_completion.sql",
+      "exact_path_present_on_source_head": true,
+      "hosted_statement_md5": "e2937b6b8c11daeefe30d02afb39a50a",
+      "hosted_statement_bytes": 1201,
+      "repository_statement_md5": "e2937b6b8c11daeefe30d02afb39a50a",
+      "repository_statement_bytes": 1201,
+      "source_file_terminal_newline_stripped": true,
+      "exact_source_equivalent": true,
+      "customer_specific_row_values_present": false
+    }
+  ],
+  "rc_customer_accounts_schema": {
+    "row_count": 1,
+    "columns": [
+      {"name":"owner_id","type":"uuid","nullable":false,"default":null},
+      {"name":"customer_number","type":"text","nullable":false,"default":null},
+      {"name":"customer_sequence","type":"bigint","nullable":false,"default":null},
+      {"name":"created_at","type":"timestamptz","nullable":false,"default":"now()"},
+      {"name":"updated_at","type":"timestamptz","nullable":false,"default":"now()"}
+    ],
+    "constraints": [
+      "PRIMARY KEY (owner_id)",
+      "FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "UNIQUE (customer_number)",
+      "UNIQUE (customer_sequence)",
+      "CHECK customer_number format RC + 7 digits",
+      "CHECK customer_sequence >= configured floor"
+    ],
+    "non_internal_triggers": 0,
+    "customer_number_default_present": false,
+    "customer_sequence_default_present": false,
+    "read_policy": {
+      "name": "rc_customer_accounts_read_own",
+      "command": "SELECT",
+      "role": "authenticated",
+      "predicate": "owner_id = auth.uid()"
+    },
+    "authenticated_table_privileges": ["DELETE","INSERT","REFERENCES","SELECT","TRIGGER","TRUNCATE","UPDATE"],
+    "sequence_usage_roles": ["postgres","service_role"],
+    "launch_assessment": "FAIL_CLOSED: no trigger/default allocator is present and authenticated has broader table ACL than least-privilege launch target. RLS currently supplies only own-row SELECT policy."
+  },
+  "fresh_operational_readback": {
+    "profiles": 10,
+    "matters": 3,
+    "assigned_matters": 0,
+    "room_factory_manifests": 7,
+    "room_factory_null_encounter": 7,
+    "room_factory_nonnull_encounter": 0,
+    "service_catalog": 43,
+    "service_country_terms": 0,
+    "service_providers": 0,
+    "service_provider_offers": 0,
+    "service_connection_orders": 0,
+    "first_wave_recording_policies": 6,
+    "reviewer_proven_approvals": 0
+  },
+  "first_wave_country_state": {
+    "AU": "HOLD",
+    "US": "HOLD",
+    "CA": "HOLD",
+    "KR": "HOLD",
+    "JP": "HOLD",
+    "GB": "HOLD"
+  },
+  "notes": [
+    "Hosted has advanced from 76 to 79 migration rows. The 76th migration remains the deployment-provenance blocker; later migrations do not erase or bypass that blocker.",
+    "Hosted migrations 77 and 78 are byte-identical to the migration files present on PR #748 exact head fc684e9cdce36c796fa80c1d7e1a40a55bec6763. Migration 79 is byte-identical after stripping the repository file's single terminal newline. Their version/name/path/digest/byte-count evidence is recorded above without customer row values.",
+    "The exact 76th migration path remains absent from fresh PR #748 head fc684e9cdce36c796fa80c1d7e1a40a55bec6763 (404).",
+    "AU recording policy may have an approved status value, but no first-wave policy currently has both reviewer identity and review timestamp; reviewer-proven approvals remain 0/6.",
+    "All seven existing Room Factory manifests still have NULL encounter_session_id; controlled non-NULL encounter staging remains unproven.",
+    "This evidence artifact intentionally does not alter the existing 75-row trusted snapshot. The linked dry-run must remain fail-closed until the 76th provenance blocker is reviewed and the trusted snapshot is explicitly reconciled through the current 79-row Hosted head."
+  ]
+}

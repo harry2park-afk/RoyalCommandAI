@@ -1,0 +1,11 @@
+{
+  "captured_date_aest": "2026-09-24",
+  "mode": "READ_ONLY_AGGREGATE",
+  "production_mutation": false,
+  "auth_users_total": 10,
+  "trusted_app_metadata_country_users": 0,
+  "self_editable_user_metadata_country_users": 1,
+  "first_wave": ["AU", "US", "CA", "KR", "JP", "GB"],
+  "status": "HOLD_TRUSTED_COUNTRY_IDENTITY_NOT_ESTABLISHED",
+  "interpretation": "Country jurisdiction affects legal/compliance, commercial terms and payment routing. Supabase user_metadata is self-editable and is not accepted as authority. No current Auth user has a server-controlled app_metadata country_code, so first-wave country activation remains fail-closed until trusted country assignment and verification exist."
+}

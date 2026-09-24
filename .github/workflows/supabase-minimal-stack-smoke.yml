@@ -1,0 +1,79 @@
+name: Supabase Minimal Stack Smoke
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/supabase-minimal-stack-smoke.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+concurrency:
+  group: rc-supabase-minimal-stack-smoke-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Record CLI version
+        run: supabase --version
+
+      - name: Authenticate GHCR for Supabase image pulls
+        shell: bash
+        env:
+          GHCR_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Assemble disposable recovery prerequisites
+        shell: bash
+        run: |
+          set -euo pipefail
+          # The checked-in historical chain intentionally depends on recovery
+          # prerequisites that are kept outside supabase/migrations so they can
+          # never be applied to Hosted/Production by normal migration tooling.
+          # Mirror the proven clean-replay ordering only inside this disposable CI checkout.
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+          cp supabase/migrations-full/001_init.sql supabase/migrations/001_init.sql
+          cp supabase/migrations-full/002_rls.sql supabase/migrations/002_rls.sql
+          cp supabase/recovery/20260901_prelaunch_baseline.sql \
+             supabase/migrations/003_recovery_prelaunch_baseline.sql
+          cp supabase/recovery/20260901_communications_foundation.sql \
+             supabase/migrations/004_recovery_communications_foundation.sql
+          find supabase/migrations-full -maxdepth 1 -type f -name '*.sql' \
+            ! -name '001_init.sql' \
+            ! -name '002_rls.sql' \
+            -print0 | sort -z | xargs -0 -I{} cp '{}' supabase/migrations/
+
+      - name: Start minimal isolated Supabase stack
+        shell: bash
+        run: |
+          set -euo pipefail
+          supabase start -x realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor
+
+      - name: Prove database and Auth are usable
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -qAtc "select 1" | grep -qx '1'
+          curl -fsS "$API_URL/auth/v1/health" >/dev/null
+
+      - name: Stop isolated Supabase stack
+        if: always()
+        run: supabase stop --no-backup

@@ -1,0 +1,33 @@
+{
+  "source": {
+    "provider": "Supabase Security Advisor + pg_catalog privilege read-back",
+    "queryMode": "READ_ONLY",
+    "hostedMutationPerformed": false
+  },
+  "observedAt": "2026-09-21T19:50:26.403Z",
+  "securityRegression": {
+    "status": "NEEDS_REVIEW",
+    "externalFindingFamilies": 1,
+    "findingCount": 19,
+    "findings": [
+      {
+        "name": "rls_enabled_no_policy",
+        "level": "INFO",
+        "facing": "EXTERNAL",
+        "count": 19,
+        "remediation": "https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy",
+        "classification": "REVIEWED_SERVICE_ROLE_ONLY",
+        "tablesWithAnonPrivileges": 0,
+        "tablesWithAuthenticatedPrivileges": 0,
+        "tablesWithServiceRolePrivileges": 19
+      }
+    ],
+    "launchCriticalTablesObserved": [
+      "communication_recording_policies",
+      "rc_service_provider_offers",
+      "rc_service_providers"
+    ],
+    "advisorDisposition": "The current RLS-with-no-policy finding family is informational for these tables because all 19 have zero anon/authenticated table privileges and service_role-only table privileges. Do not treat the advisor count alone as client exposure.",
+    "remainingVerification": "Keep SECURITY_REGRESSION non-VERIFIED until the exact release-candidate Quality Gate, clean replay, tenant-isolation, and related security regressions complete successfully on the same head."
+  }
+}

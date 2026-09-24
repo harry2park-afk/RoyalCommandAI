@@ -1,0 +1,86 @@
+{
+  "snapshot": "first-wave-locale-runtime-readback",
+  "captured_at": "2026-09-23T16:49:04+10:00",
+  "project_id": "aygawkavujjmybekswrg",
+  "read_only": true,
+  "source": "Hosted Supabase READ-ONLY SQL plus country config locale contract",
+  "first_wave_required_locales": [
+    {
+      "country_code": "AU",
+      "locale_tag": "en-AU",
+      "locale_kind": "primary",
+      "locale_rows": 0,
+      "encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "US",
+      "locale_tag": "en-US",
+      "locale_kind": "primary",
+      "locale_rows": 0,
+      "encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "CA",
+      "locale_tag": "en-CA",
+      "locale_kind": "primary",
+      "locale_rows": 0,
+      "encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "CA",
+      "locale_tag": "fr-CA",
+      "locale_kind": "secondary",
+      "locale_rows": 0,
+      "encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "KR",
+      "locale_tag": "ko-KR",
+      "locale_kind": "primary",
+      "locale_rows": 0,
+      "encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "JP",
+      "locale_tag": "ja-JP",
+      "locale_kind": "primary",
+      "locale_rows": 0,
+      "encounter_rows": 0,
+      "runtime_verified": false
+    },
+    {
+      "country_code": "GB",
+      "locale_tag": "en-GB",
+      "locale_kind": "primary",
+      "locale_rows": 0,
+      "encounter_rows": 0,
+      "runtime_verified": false
+    }
+  ],
+  "hosted_manifest_summary": {
+    "AU": {
+      "manifest_rows": 7,
+      "non_null_encounter_rows": 0,
+      "language_distribution": {
+        "ko": 5,
+        "ko-KR": 2
+      }
+    },
+    "US": { "manifest_rows": 0, "non_null_encounter_rows": 0 },
+    "CA": { "manifest_rows": 0, "non_null_encounter_rows": 0 },
+    "KR": { "manifest_rows": 0, "non_null_encounter_rows": 0 },
+    "JP": { "manifest_rows": 0, "non_null_encounter_rows": 0 },
+    "GB": { "manifest_rows": 0, "non_null_encounter_rows": 0 }
+  },
+  "supabase_development_branches": 0,
+  "launch_interpretation": {
+    "rule": "A configured launch locale is not runtime-verified unless an exact language_tag manifest exists with a non-null encounter_session_id on a controlled runtime path.",
+    "canada_secondary_locale": "fr-CA is configured as Canada's secondary locale and therefore remains explicit localization evidence debt; this snapshot does not make a legal-language-coverage claim.",
+    "first_wave_disposition": "HOLD"
+  }
+}
