@@ -14,8 +14,8 @@ describe("country authority route security contract", () => {
     expect(source).toContain("country_code: parsed.data.countryCode");
   });
 
-  it("does not trust profiles.role for country assignment", () => {
+  it("does not query profiles for country assignment authority", () => {
     expect(source).not.toContain('.from("profiles")');
-    expect(source).not.toContain("profiles.role");
+    expect(source).not.toContain('.select("role")');
   });
 });
