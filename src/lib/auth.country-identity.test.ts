@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
-import { getTrustedCountryCode } from "./auth";
+import { FIRST_WAVE_COUNTRY_CODES, getTrustedCountryCode } from "./auth";
 
 describe("trusted country identity", () => {
-  it("accepts only server-controlled app_metadata country_code", () => {
-    expect(
-      getTrustedCountryCode({
-        app_metadata: { country_code: "AU" },
-      }),
-    ).toBe("AU");
+  it("accepts every first-wave server-controlled country", () => {
+    for (const countryCode of FIRST_WAVE_COUNTRY_CODES) {
+      expect(
+        getTrustedCountryCode({
+          app_metadata: { country_code: countryCode },
+        }),
+      ).toBe(countryCode);
+    }
   });
 
   it("does not treat user metadata as country authority", () => {
@@ -39,6 +41,18 @@ describe("trusted country identity", () => {
         } as Record<string, unknown>),
       }),
     ).toBe("GB");
+  });
+
+  it("fails closed for countries outside the current launch allowlist", () => {
+    expect(
+      getTrustedCountryCode({ app_metadata: { country_code: "SG" } }),
+    ).toBe("");
+    expect(
+      getTrustedCountryCode({ app_metadata: { country_code: "au" } }),
+    ).toBe("");
+    expect(
+      getTrustedCountryCode({ app_metadata: { country_code: "ZZ" } }),
+    ).toBe("");
   });
 
   it("fails closed when trusted country metadata is missing or malformed", () => {
