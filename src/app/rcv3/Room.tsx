@@ -51,7 +51,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
   const [emailReviewOpen,setEmailReviewOpen]=useState(false);
   const [requestsOpen,setRequestsOpen]=useState(false);
   const [paymentRequired,setPaymentRequired]=useState(true),[paymentOpen,setPaymentOpen]=useState(false);
-  const [pendingTool,setPendingTool]=useState<ToolId|null>(null);
+  const [pendingTool,setPendingTool]=useState<ToolId|null>(null);\n  const [toolPointer,setToolPointer]=useState<{x:number;y:number}|null>(null);
   const galleryTitle=({Rooms:"Create Room",Connections:"AI List",Tools:"Toolbox",Help:"AI Helper",MyRooms:"My Rooms",Personal:"My AI account"} as Record<string,string>)[galleryTab]??"Toolbox";
   const [aiSearch,setAISearch]=useState("");
   const [liveTurns,setLiveTurns]=useState<Turn[]>([]);
@@ -82,6 +82,14 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
     requestAnimationFrame(()=>{chatPanel.current?.scrollIntoView({block:"start",behavior:"instant"});messageInput.current?.focus({preventScroll:true});});
   }
   useEffect(()=>{if(showFiles)filesPanel.current?.scrollIntoView({block:"start",behavior:"instant"});},[showFiles]);
+  useEffect(()=>{
+    if(!pendingTool){setToolPointer(null);return;}
+    const move=(event:PointerEvent)=>setToolPointer({x:event.clientX,y:event.clientY});
+    const key=(event:KeyboardEvent)=>{if(event.key==="Escape"){setPendingTool(null);setToolPointer(null);setToolNotice("");}};
+    window.addEventListener("pointermove",move,{passive:true});
+    window.addEventListener("keydown",key);
+    return()=>{window.removeEventListener("pointermove",move);window.removeEventListener("keydown",key);};
+  },[pendingTool]);
 
   const openRoom = useCallback(async (id:string) => {
     const token=++generation.current;editBaseline.current=null;editBackground.current="";setPendingTool(null); roomRef.current=id; setRoomId(id); setState(null); setPaymentRequired(true); setPaymentOpen(false); setError(""); setDirty(false); setEditing(false); setSelected(null); setTurns([]); setLiveTurns([]); setText(""); setFiles([]); setShowFiles(false); setBackground("");setBatchIds([]);setCardStatus({});
@@ -175,7 +183,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
     const current=liveState.current;if(!current)throw new Error("Choose a room first.");
     if(current.design.buttons.some(button=>button.capability===id))throw new Error("This tool is already in the room.");
     if(current.design.buttons.length>=32)throw new Error("This room has 32 buttons. Remove one before adding another.");
-    setPendingTool(id);setWarehouse(false);setToolNotice(`${getTool(id).label}: click an empty place in the room.`);setError("");
+    setPendingTool(id);setToolPointer(null);setWarehouse(false);setToolNotice(`${getTool(id).label}: move the shadow button and click an empty place.`);setError("");
   }
   function placePendingTool(event:React.MouseEvent<HTMLElement>){
     if(!pendingTool||event.target!==event.currentTarget||busyRef.current||saving)return;
@@ -189,7 +197,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
     if(!placed)return;
     editBaseline.current=current;editBackground.current=background;
     liveState.current=next;setState(next);setDirty(true);setEditing(true);editingNow.current=true;setRepeatStyle(false);setSelected(placed.id);
-    setToolNotice(`${getTool(pendingTool).label} placed. Adjust it if needed, then Save.`);setPendingTool(null);
+    setToolNotice(`${getTool(pendingTool).label} placed. Adjust it if needed, then Save.`);setPendingTool(null);setToolPointer(null);
   }
   function showGallery(tab:string){if(tab==="Tools"&&!toolboxManager)return;setGalleryTab(tab);setWarehouse(true);}
   function beginEdit(){if(paymentRequired){setPaymentOpen(true);return;}editBaseline.current=liveState.current;editBackground.current=background;setRepeatStyle(true);setEditing(true);setSelected(liveState.current?.design.buttons[0]?.id??null);}
@@ -277,6 +285,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
     {saving&&<span className={styles.saveStatus} role="status">Saving…</span>}
     {error&&<div className={styles.error} role="alert">{error}</div>}
     {movingAI&&movePoint&&<div className={styles.aiGhost} style={{left:movePoint.x+12,top:movePoint.y+12}}>{brand(movingAI)}</div>}
+    {pendingTool&&toolPointer&&<div className={styles.toolCursorGhost} aria-hidden="true" style={{left:toolPointer.x,top:toolPointer.y}}><span>{getTool(pendingTool).label}</span></div>}
     {warehouse&&<section ref={galleryRef} className={styles.gallery} role="dialog" aria-modal="true" aria-label={galleryTitle}>
       <div className={styles.galleryHeader}><div><small>ROYAL COMMAND</small><h1>{galleryTitle}</h1></div>{["Rooms","Connections"].includes(galleryTab)&&<input autoFocus aria-label={galleryTab==="Rooms"?"Search rooms":"Search AIs"} placeholder={galleryTab==="Rooms"?"Search rooms…":"Search AIs…"} value={galleryTab==="Rooms"?roomSearch:aiSearch} onChange={e=>galleryTab==="Rooms"?setRoomSearch(e.target.value):setAISearch(e.target.value)}/>}<button disabled={busy||saving} onClick={()=>setWarehouse(false)}>Close</button></div>
       <nav className={styles.galleryTabs} aria-label="Warehouse sections">{(toolboxManager?["Tools","Rooms","Connections","MyRooms"]:["Rooms","Connections","MyRooms"]).map(t=><button key={t} aria-pressed={galleryTab===t} onClick={()=>setGalleryTab(t)}>{({Tools:"Toolbox",Rooms:"Create Room",Connections:"AI List",MyRooms:"My Rooms"} as Record<string,string>)[t]}</button>)}</nav>
@@ -292,7 +301,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
 
 
       {flowerMotion&&<div className={styles.toolbar}><button type="button" aria-pressed={motionPaused} disabled={editing} onClick={()=>setMotionPaused(v=>!v)}>{motionPaused?"Resume Motion":"Pause Motion"}</button></div>}
-      {pendingTool&&<div className={styles.toolPlaceNotice} role="status"><span><strong>{getTool(pendingTool).label}</strong> · Click an empty place in the room.</span><button type="button" onClick={()=>{setPendingTool(null);setToolNotice("");}}>Cancel</button></div>}
+      {pendingTool&&<div className={styles.toolPlaceNotice} role="status"><span><strong>{getTool(pendingTool).label}</strong> · Click an empty place in the room.</span><button type="button" onClick={()=>{setPendingTool(null);setToolPointer(null);setToolNotice("");}}>Cancel</button></div>}
       <section ref={canvasRef} tabIndex={0} onClick={placePendingTool} onPaste={e=>{const file=Array.from(e.clipboardData.items).find(item=>item.kind==="file"&&item.type.startsWith("image/"))?.getAsFile();if(file){e.preventDefault();void uploadImage(file);}}} onDragOver={e=>{if(e.dataTransfer.types.includes("Files"))e.preventDefault();}} onDrop={e=>{if(e.dataTransfer.files.length){e.preventDefault();void uploadImage(e.dataTransfer.files[0]);}}} className={`${styles.canvas} ${!background?styles.compactCanvas:""} ${editing?styles.placing:""} ${pendingTool?styles.toolPlacing:""} ${flowerMotion?styles.flowerMotion:""}`} aria-label="Room layout" style={{...(!background?{height:Math.max(180,Math.ceil(state.design.buttons.length/3)*80)}:{}),...(background.startsWith("/room-designs/")?{aspectRatio:"16 / 9",minHeight:0,backgroundSize:"contain",backgroundRepeat:"no-repeat"}:{}),animationPlayState:motionPaused||editing||warehouse?"paused":"running",backgroundImage:background?`url("${background}")`:undefined}}>
         {state.design.buttons.filter(b=>toolboxManager||b.capability!=="toolbox").map(b=>{const appearance=state.appearances[b.id];return <ToolButton toolId={b.capability} key={b.id} className={styles.tile} title={paymentRequired?"Payment required":undefined} disabled={busy||saving} aria-label={({"내 AI":"My AI","파일":"Files","Chat":"My AI"} as Record<string,string>)[b.label]??b.label} style={{left:`${b.x}%`,top:`${b.y}%`,width:`${b.width}%`,height:`${b.height}%`,opacity:b.opacity,color:appearance?.color,backgroundColor:appearance?.background,borderColor:appearance?.borderColor,borderWidth:appearance?.borderWidth??0,borderRadius:appearance?.radius,fontSize:appearance?.fontSize}} onPointerDown={e=>{if(!editing)return;const rect=canvasRef.current!.getBoundingClientRect();drag.current={id:b.id,x:e.clientX,y:e.clientY,left:b.x,top:b.y,width:rect.width,height:rect.height};e.currentTarget.setPointerCapture(e.pointerId);selectButtonForEdit(b.id);}} onPointerMove={e=>moveButton(e,b)} onPointerUp={()=>{drag.current=null;}} onPointerCancel={()=>{drag.current=null;}} onClick={()=>{if(pendingTool){setToolNotice("That position is occupied. Click an empty place.");return;}if(editing)selectButtonForEdit(b.id);else void executeTool(b.capability);}}>{paymentRequired?"🔒 ":""}{({"내 AI":"My AI","파일":"Files","Chat":"My AI"} as Record<string,string>)[b.label]??b.label}</ToolButton>;})}
       </section>
