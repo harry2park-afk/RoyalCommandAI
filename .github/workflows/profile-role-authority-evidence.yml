@@ -1,0 +1,250 @@
+name: Profile Role Authority Evidence
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - "supabase/migrations/20260904105500_harden_profile_role_authority.sql"
+      - ".github/workflows/profile-role-authority-evidence.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rc-profile-role-authority-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  authority:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@3c2f5e2ae34c34e428e8e206e2c4d21fa2d20fbf
+        with:
+          version: latest
+
+      - name: Prepare verified-shape disposable profile fixture
+        shell: bash
+        run: |
+          set -euo pipefail
+          mv supabase/migrations supabase/migrations-full
+          mkdir supabase/migrations
+          cp supabase/migrations-full/001_init.sql supabase/migrations/
+
+          cat > supabase/migrations/20260101000000_profile_role_authority_fixture.sql <<'SQL'
+          alter table public.profiles
+            add column if not exists role text not null default 'client',
+            add column if not exists ui_preferences jsonb not null default '{}'::jsonb;
+
+          create schema if not exists private;
+          revoke all on schema private from public, anon;
+          grant usage on schema private to authenticated, service_role;
+
+          alter table public.profiles enable row level security;
+
+          drop policy if exists profiles_select_own on public.profiles;
+          create policy profiles_select_own
+            on public.profiles
+            for select
+            using (auth.uid() = id);
+
+          drop policy if exists profiles_update_own on public.profiles;
+          create policy profiles_update_own
+            on public.profiles
+            for update
+            using (auth.uid() = id);
+
+          -- Reproduce the verified Hosted starting ACL for this security boundary:
+          -- anon/authenticated/service_role have broad table privileges and RLS is
+          -- the only end-user write restriction before the hardening migration.
+          grant all privileges on table public.profiles to anon, authenticated, service_role;
+          SQL
+
+      - name: Start isolated Supabase stack
+        run: supabase start
+
+      - name: Prove verified unsafe authority precondition
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not has_table_privilege('authenticated', 'public.profiles', 'UPDATE') then
+              raise exception 'fixture must reproduce whole-table authenticated UPDATE';
+            end if;
+            if not has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE') then
+              raise exception 'fixture must reproduce authenticated role UPDATE privilege';
+            end if;
+            if not has_table_privilege('anon', 'public.profiles', 'UPDATE') then
+              raise exception 'fixture must reproduce broad anon table grant';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Apply exact profile-role hardening migration to disposable stack only
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 \
+            -f supabase/migrations-full/20260904105500_harden_profile_role_authority.sql
+
+      - name: Prove least-privilege profile ACL and trigger boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          psql "$DB_URL" -v ON_ERROR_STOP=1 <<'SQL'
+          do $$
+          begin
+            if not has_table_privilege('authenticated', 'public.profiles', 'SELECT') then
+              raise exception 'authenticated owner-scoped profile SELECT must remain available';
+            end if;
+
+            if has_table_privilege('authenticated', 'public.profiles', 'UPDATE') then
+              raise exception 'authenticated whole-table UPDATE must be revoked';
+            end if;
+
+            if has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE')
+               or has_column_privilege('authenticated', 'public.profiles', 'id', 'UPDATE')
+               or has_column_privilege('authenticated', 'public.profiles', 'email', 'UPDATE') then
+              raise exception 'authenticated must not update identity/authorization columns';
+            end if;
+
+            if not has_column_privilege('authenticated', 'public.profiles', 'full_name', 'UPDATE')
+               or not has_column_privilege('authenticated', 'public.profiles', 'default_language', 'UPDATE')
+               or not has_column_privilege('authenticated', 'public.profiles', 'avatar_url', 'UPDATE')
+               or not has_column_privilege('authenticated', 'public.profiles', 'ui_preferences', 'UPDATE')
+               or not has_column_privilege('authenticated', 'public.profiles', 'updated_at', 'UPDATE') then
+              raise exception 'reviewed self-service profile preference updates must remain available';
+            end if;
+
+            if has_table_privilege('authenticated', 'public.profiles', 'INSERT')
+               or has_table_privilege('authenticated', 'public.profiles', 'DELETE')
+               or has_table_privilege('authenticated', 'public.profiles', 'TRUNCATE')
+               or has_table_privilege('authenticated', 'public.profiles', 'REFERENCES')
+               or has_table_privilege('authenticated', 'public.profiles', 'TRIGGER') then
+              raise exception 'authenticated retains forbidden profile control-plane privilege';
+            end if;
+
+            if has_table_privilege('anon', 'public.profiles', 'INSERT')
+               or has_table_privilege('anon', 'public.profiles', 'UPDATE')
+               or has_table_privilege('anon', 'public.profiles', 'DELETE')
+               or has_table_privilege('anon', 'public.profiles', 'TRUNCATE')
+               or has_table_privilege('anon', 'public.profiles', 'REFERENCES')
+               or has_table_privilege('anon', 'public.profiles', 'TRIGGER') then
+              raise exception 'anon must not retain direct profile mutation/control privilege';
+            end if;
+
+            if not exists (
+              select 1 from pg_trigger
+              where tgrelid = 'public.profiles'::regclass
+                and tgname = 'guard_profile_role_change'
+                and not tgisinternal
+            ) then
+              raise exception 'profile role guard trigger is missing';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Prove signup metadata cannot mint privilege and ordinary self-edit remains usable
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+
+          USER_EMAIL="profile-role-evidence@example.test"
+          USER_PASSWORD="ProfileRoleEvidence-2026!"
+
+          CREATE_JSON="$(curl --fail-with-body --silent --show-error \
+            -X POST "http://127.0.0.1:54321/auth/v1/admin/users" \
+            -H "apikey: $SERVICE_ROLE_KEY" \
+            -H "Authorization: Bearer $SERVICE_ROLE_KEY" \
+            -H "Content-Type: application/json" \
+            --data "{\"email\":\"$USER_EMAIL\",\"password\":\"$USER_PASSWORD\",\"email_confirm\":true,\"user_metadata\":{\"full_name\":\"Role Evidence User\",\"role\":\"admin\"}}")"
+          USER_ID="$(printf '%s' "$CREATE_JSON" | jq -r '.id')"
+          test -n "$USER_ID" && test "$USER_ID" != "null"
+
+          ROLE="$(psql "$DB_URL" -Atqc "select role from public.profiles where id = '$USER_ID'::uuid")"
+          test "$ROLE" = "client"
+
+          LOGIN_JSON="$(curl --fail-with-body --silent --show-error \
+            -X POST "http://127.0.0.1:54321/auth/v1/token?grant_type=password" \
+            -H "apikey: $ANON_KEY" \
+            -H "Content-Type: application/json" \
+            --data "{\"email\":\"$USER_EMAIL\",\"password\":\"$USER_PASSWORD\"}")"
+          ACCESS_TOKEN="$(printf '%s' "$LOGIN_JSON" | jq -r '.access_token')"
+          test -n "$ACCESS_TOKEN" && test "$ACCESS_TOKEN" != "null"
+
+          ALLOWED_CODE="$(curl --silent --show-error -o /tmp/allowed.json -w '%{http_code}' \
+            -X PATCH "http://127.0.0.1:54321/rest/v1/profiles?id=eq.$USER_ID" \
+            -H "apikey: $ANON_KEY" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            --data '{"full_name":"Allowed Profile Edit"}')"
+          test "$ALLOWED_CODE" = "200"
+          test "$(jq -r '.[0].full_name' /tmp/allowed.json)" = "Allowed Profile Edit"
+
+          BLOCKED_CODE="$(curl --silent --show-error -o /tmp/blocked.json -w '%{http_code}' \
+            -X PATCH "http://127.0.0.1:54321/rest/v1/profiles?id=eq.$USER_ID" \
+            -H "apikey: $ANON_KEY" \
+            -H "Authorization: Bearer $ACCESS_TOKEN" \
+            -H "Content-Type: application/json" \
+            -H "Prefer: return=representation" \
+            --data '{"role":"admin"}')"
+          test "$BLOCKED_CODE" = "403"
+          test "$(psql "$DB_URL" -Atqc "select role from public.profiles where id = '$USER_ID'::uuid")" = "client"
+
+      - name: Prove trigger remains defense in depth if SQL column privilege is reintroduced
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(supabase status -o env)"
+          USER_ID="$(psql "$DB_URL" -Atqc "select id from auth.users where email = 'profile-role-evidence@example.test' limit 1")"
+          test -n "$USER_ID"
+
+          psql "$DB_URL" -v ON_ERROR_STOP=1 -v user_id="$USER_ID" <<'SQL'
+          begin;
+          grant update (role) on public.profiles to authenticated;
+          set local role authenticated;
+          select set_config('request.jwt.claim.sub', :'user_id', true);
+
+          do $$
+          begin
+            begin
+              update public.profiles
+              set role = 'admin'
+              where id = auth.uid();
+              raise exception 'role guard did not block JWT-backed self-escalation';
+            exception
+              when insufficient_privilege then
+                if sqlerrm = 'role guard did not block JWT-backed self-escalation' then
+                  raise;
+                end if;
+            end;
+          end;
+          $$;
+          rollback;
+
+          do $$
+          begin
+            if has_column_privilege('authenticated', 'public.profiles', 'role', 'UPDATE') then
+              raise exception 'temporary defense-in-depth grant leaked outside rollback';
+            end if;
+          end;
+          $$;
+          SQL
+
+      - name: Stop disposable Supabase stack
+        if: always()
+        run: supabase stop --no-backup
