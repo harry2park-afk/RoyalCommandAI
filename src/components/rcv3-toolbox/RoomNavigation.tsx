@@ -1,6 +1,7 @@
 "use client";
 import {useEffect,useImperativeHandle,useRef,useState,type Ref} from "react";
 import ToolButton from "./ToolButton";
+import ConfirmDeleteButton from "./ConfirmDeleteButton";
 import {basicNavigationRoom,roomNavigationTarget,type NavigationRoom} from "@/lib/rcv3/room-navigation";
 import {navigationText} from "@/lib/locale/room-navigation";
 import styles from "./room-navigation.module.css";
@@ -27,6 +28,12 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
  },[open,query,offset,retry]);
  function close(){setOpen(false);trigger.current?.focus();}
  function go(room:NavigationRoom){if(disabled)return;const target=roomNavigationTarget([room],room.id);close();if(onOpen)onOpen(room.id);else window.location.assign(target);}
+ async function remove(room:NavigationRoom){
+  const response=await fetch(`/api/rcv3/rooms/${encodeURIComponent(room.id)}`,{method:"DELETE",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(20000)});
+  if(!response.ok)throw new Error("delete");
+  setRooms(previous=>previous.filter(item=>item.id!==room.id));
+  if(room.id===currentRoomId){close();window.location.assign("/rcv3");}
+ }
  const base=basicNavigationRoom(basicRoom?[basicRoom]:[],basicRoom?.id);
  return <nav className={styles.navigation} aria-label={t("list")}>
   {base&&base.id!==currentRoomId&&<ToolButton toolId="room-list" disabled={disabled} onClick={()=>go(base)}>← {base.name}</ToolButton>}
@@ -37,7 +44,10 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
    {loading&&<p role="status">{t("loading")}</p>}
    {failed&&<p role="alert">{t("error")} <ToolButton toolId="room-list" onClick={()=>{setLoading(true);setRetry(value=>value+1);}}>{t("retry")}</ToolButton></p>}
    {!loading&&!failed&&!rooms.length&&<p>{t("empty")}</p>}
-   <div className={styles.rooms}>{rooms.map(room=><ToolButton toolId="room-list" key={room.id} disabled={disabled||room.id===currentRoomId} aria-current={room.id===currentRoomId?"page":undefined} onClick={()=>go(room)}>{room.name}{room.id===currentRoomId?` · ${t("current")}`:""}</ToolButton>)}</div>
+   <div className={styles.rooms}>{rooms.map(room=><div className={styles.roomRow} key={room.id}>
+    <ToolButton toolId="room-list" className={styles.roomOpen} disabled={disabled||room.id===currentRoomId} aria-current={room.id===currentRoomId?"page":undefined} onClick={()=>go(room)}>{room.name}{room.id===currentRoomId?` · ${t("current")}`:""}</ToolButton>
+    <ConfirmDeleteButton disabled={disabled} className={styles.deleteButton} labels={{trigger:t("delete"),title:room.name,body:t("deleteQuestion"),cancel:t("cancel"),confirm:t("confirmDelete"),busy:t("deleting"),error:t("deleteError")}} onConfirm={()=>remove(room)}/>
+   </div>)}</div>
    {more&&!failed&&<ToolButton toolId="room-list" disabled={loading} onClick={()=>{if(loading)return;setLoading(true);setOffset(value=>value+100);}}>{t("more")}</ToolButton>}
   </dialog>
  </nav>;

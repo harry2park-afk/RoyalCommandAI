@@ -7,6 +7,7 @@ import type { AIProviderId } from "@/lib/ai/types";
 import { simpleCreateText, roomFeatureLabel } from "@/lib/locale/rcv3-simple-create";
 import { applyRoomBrief, recommendedDesigns } from "@/lib/rcv3/room-recommendations";
 import RoomNavigation from "@/components/rcv3-toolbox/RoomNavigation";
+import ExplicitSaveButton from "@/components/rcv3-toolbox/ExplicitSaveButton";
 import CheckoutPanel from "./CheckoutPanel";
 import CustomerConnections from "./CustomerConnections";
 import { COUNTRY_ROOM_PRESETS } from "@/lib/rooms/countryPresets";
@@ -30,6 +31,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
   const [draftId, setDraftId] = useState("");
   const [purposeChosen,setPurposeChosen]=useState(false);
   const [loaded, setLoaded] = useState(false), [busy, setBusy] = useState(false);
+  const [explicitlySaved,setExplicitlySaved]=useState(false);
   const [dirty, setDirty] = useState(false), [error, setError] = useState<CreationMessage | "">("");
   const [, setStatus] = useState<CreationMessage | "">("");
 
@@ -63,8 +65,8 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
-  function update(next: RoomDraftInput) { latestInput.current = next; setInput(next); setDirty(true); setStatus(""); setError(""); }
-  async function save(asNew = false) {
+  function update(next: RoomDraftInput) { latestInput.current = next; setInput(next); setDirty(true); setExplicitlySaved(false); setStatus(""); setError(""); }
+  async function save(asNew = false, explicit = false) {
     if (!loaded || saving.current) return null;
     saving.current = true; setBusy(true); setError("");
     try {
@@ -79,24 +81,17 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
       if(asNew)url.searchParams.delete("checkout");
       window.history.replaceState(null, "", url);
       const unchanged = JSON.stringify(latestInput.current) === JSON.stringify(input);
-      setDirty(!unchanged); setStatus(unchanged ? "draft" : "");
+      setDirty(!unchanged); setExplicitlySaved(Boolean(explicit&&unchanged)); setStatus(unchanged ? "draft" : "");
       return unchanged ? id : null;
     } catch (e) {
       setError(e instanceof Error && e.message === "RCV3_CONFLICT" ? "conflict" : e instanceof Error && e.message === "RCV3_LIMIT" ? "limit" : "error");
     } finally { saving.current = false; setBusy(false); }
   }
-  useEffect(() => {
-    if (!loaded || !dirty || busy || error) return;
-    const timer = window.setTimeout(() => { void save(); }, 1200);
-    return () => window.clearTimeout(timer);
-    // save uses this render’s snapshot; pending edits remain dirty on completion.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [input, loaded, dirty, busy, error]);
   function loadDraft(id: string) {
     const draft = registry.drafts.find(d => d.id === id);
     if (dirty || !draft) return;
     setPurposeChosen(draft.input.brief === undefined || !!draft.input.brief.trim());
-    latestInput.current = {...draft.input,plan:"paid"}; setInput({...draft.input,plan:"paid"}); if(draft.input.plan!=="paid")setDirty(true); setDraftId(id); setStatus(""); setError("");
+    latestInput.current = {...draft.input,plan:"paid"}; setInput({...draft.input,plan:"paid"}); if(draft.input.plan!=="paid")setDirty(true); setExplicitlySaved(false); setDraftId(id); setStatus(""); setError("");
     const url = new URL(window.location.href); url.searchParams.set("draft", id); url.searchParams.delete("checkout");
     window.history.replaceState(null, "", url);
   }
@@ -109,7 +104,8 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
   const designs = showAllDesigns ? roomTemplates : [...new Map([selectedDesign, ...recommendedDesigns(input.purpose)].map(d=>[d.id,d])).values()];
   return <main className={styles.page} lang={language}>
     <header className={styles.header}><RoomNavigation language={language} disabled={busy||dirty||!loaded}/><h1>{t("title")}</h1>
-      <span className={styles.saveState} role="status">{busy?t("saving"):dirty?t("unsaved"):loaded?t("saved"):t("loading")}</span>
+      <span className={styles.saveState} role="status">{busy?t("saving"):dirty?t("unsaved"):loaded?(explicitlySaved?t("saved"):t("saveRequired")):t("loading")}</span>
+      <ExplicitSaveButton disabled={!loaded} busy={busy} label={t("save")} busyLabel={t("saving")} onSave={()=>save(false,true)}/>
     </header>
     <div className={styles.layout}><section className={styles.workspace} aria-label={t("title")}>
       {error && <div role="alert" className={styles.error}>{selectedCreationText(error,language)}{loaded?<button disabled={busy} onClick={()=>void save(error==="conflict")}>{t(error==="conflict"?"fork":"retry")}</button>:<button onClick={()=>window.location.reload()}>{t("retry")}</button>}</div>}
@@ -146,14 +142,14 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
           <section className={styles.verticalSection}>
             <h2>{t("payment")}</h2>
             {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
-            <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)} language={language}/>
+            <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!explicitlySaved||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)} language={language}/>
             <p>{t("unavailableCredits")}</p>
           </section>
         </>}
       </fieldset>
     </section>
     <details className={styles.sidebar}><summary>{t("drafts")}</summary>
-      <button disabled={busy||dirty||!loaded} onClick={()=>{setPurposeChosen(false);const fresh=defaultInput();latestInput.current=fresh;setInput(fresh);setDraftId(crypto.randomUUID());setStatus("");setError("");setShowAllDesigns(false);const url=new URL(window.location.href);url.searchParams.delete("draft");url.searchParams.delete("checkout");window.history.replaceState(null,"",url);}}>{t("new")}</button>
+      <button disabled={busy||dirty||!loaded} onClick={()=>{setPurposeChosen(false);const fresh=defaultInput();latestInput.current=fresh;setInput(fresh);setExplicitlySaved(false);setDraftId(crypto.randomUUID());setStatus("");setError("");setShowAllDesigns(false);const url=new URL(window.location.href);url.searchParams.delete("draft");url.searchParams.delete("checkout");window.history.replaceState(null,"",url);}}>{t("new")}</button>
       {registry.drafts.map(d=><button key={d.id} disabled={busy||dirty} aria-pressed={draftId===d.id} onClick={()=>loadDraft(d.id)}>{d.input.name||t("title")}</button>)}
     </details></div>
   </main>;

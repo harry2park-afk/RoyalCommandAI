@@ -7,7 +7,7 @@ const messages = {
  options:["4. Your room features","4. 자동으로 준비한 기능 선택"], payment:["5. Review and pay","5. 금액 확인 및 결제"],
  recommended:["Suggested for your purpose. Change any selection below.","용도에 맞춰 준비했습니다. 필요한 항목을 선택하거나 해제하세요."],
  more:["More designs","다른 디자인 보기"], settings:["Change AI and connection settings","AI 및 연결 설정 변경"],
- category:["Room category","룸 종류"], saved:["Saved automatically","자동 저장됨"], saving:["Saving…","저장 중…"], loading:["Loading…","불러오는 중…"], unsaved:["Waiting to save…","저장 대기 중…"],
+ category:["Room category","룸 종류"], save:["Save","Save"], saved:["Saved","저장됨"], saveRequired:["Press Save before payment.","결제 전에 Save를 눌러 주세요."], saving:["Saving…","저장 중…"], loading:["Loading…","불러오는 중…"], unsaved:["Unsaved changes","저장되지 않은 변경"],
  drafts:["Saved rooms in progress","작성 중인 방"], new:["Start a new room","새 방 작성"], retry:["Retry","다시 시도"], fork:["Save as a new room","새 방으로 저장"],
  country:["Country","국가"], required:["Enter your room name and purpose to continue.","룸 이름과 용도를 입력하면 다음 항목이 준비됩니다."],
  secretary:["AI secretary","AI 비서"], specialist:["Specialist AI","전문 AI"], email:["Secretary email","비서 이메일"], phone:["Contact phone (optional)","연락처 (선택)"],
