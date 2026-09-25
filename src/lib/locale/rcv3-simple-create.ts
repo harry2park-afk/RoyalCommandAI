@@ -33,6 +33,8 @@ const messages = {
  card:["Card details are entered securely on the payment page.","카드 정보는 다음 결제 화면에서 안전하게 입력합니다."],
  cardChoice:["Pay by card","카드로 결제"], bankChoice:["Pay by bank transfer","은행 계좌로 송금"],
  balanceChoice:["Pay with RC balance","RC 잔액으로 결제"],
+ tokenBalance:["RC test tokens","RC 테스트 토큰"],tokenPreviewTerms:["Preview test: opening this room uses 30 non-cash tokens and grants 30 days of access. Tokens cannot be transferred or converted to cash. There is no automatic renewal.","미리보기 테스트: 이 방을 열면 현금이 아닌 토큰 30개가 차감되고 30일간 이용합니다. 토큰은 송금하거나 현금으로 바꿀 수 없으며 자동 갱신되지 않습니다."],
+ tokenAgree:["I agree to use 30 tokens for this 30-day Preview room.","미리보기 방 30일 이용에 토큰 30개를 사용하는 데 동의합니다."],tokenOpen:["Use 30 tokens and open room","토큰 30개로 방 열기"],tokenInsufficient:["Not enough tokens.","토큰이 부족합니다."],tokenConflict:["This draft changed. Save and try again.","초안이 변경됐습니다. 저장 후 다시 시도하세요."],tokenFailed:["Could not open the room. No extra tokens will be charged when retrying this draft.","방을 열지 못했습니다. 같은 초안을 다시 시도해도 토큰은 중복 차감되지 않습니다."],
  balancePending:["RC balance payments will be available after your verified deposits and balance are connected. No balance will be deducted now.","확인된 입금액과 고객별 RC 잔액이 연결된 뒤 이용할 수 있습니다. 지금은 잔액이 차감되지 않습니다."],
  bankAccount:["Account name","계좌명"], bankReference:["Payment reference","입금 내용"],
  bankInstructions:["Enter your RC customer number as the payment reference when transferring. Your room remains a saved draft until the actual deposit and amount are verified. Bank transfer verification is not connected yet.","송금할 때 입금 내용에 본인의 RC 고객번호를 입력하세요. 실제 입금액과 번호가 확인될 때까지 방은 저장된 초안으로 남습니다. 은행 입금 자동 확인은 아직 연결되지 않았습니다."],

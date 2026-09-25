@@ -347,19 +347,12 @@
     {
       "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#6",
       "toolId": "create-room",
-      "sourceHash": "db4a11a174f3f84aa6a6c4af22bb8af801b16268c810e79f76eafd5e33017de3",
-      "mode": "context-bound",
-      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
-    },
-    {
-      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#7",
-      "toolId": "create-room",
       "sourceHash": "3ab595789745c73797ff330b66741849db37a70886278e5a4274c137eba3167f",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
-      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#8",
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#7",
       "toolId": "create-room",
       "sourceHash": "5f505fba864ffffa95ad3293a2e824321034234d5d40b3e26d3896a3c39664be",
       "mode": "context-bound",
@@ -411,6 +404,27 @@
       "controlId": "src/app/rcv3/create/CustomerPhoneSetup.tsx#2",
       "toolId": "create-room",
       "sourceHash": "c62ae824f35d45a165780894e201904d88c1f577582410e988eb51b445768208",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "780525586983ab520a6c62c94a99db60911022934d28c51936f1bb7922868d28",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "85e016a676dbc5a32efb335eacf7835e35c9963d89b0e899d8da22cae299a9f6",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#3",
+      "toolId": "create-room",
+      "sourceHash": "9372bb2177cd01fd59df3e3c7d21fb84d83f7873f95f80d94636f391d3eeb47b",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

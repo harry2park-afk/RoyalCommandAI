@@ -164,6 +164,9 @@ export function initialPaidState(draft:RoomDraftInput,roomId:string) {
 // creation timestamp, writable storage, or frontend state as payment evidence.
 export async function paidRoomEntitlement(ownerId:string,roomId:string) {
  z.string().uuid().parse(roomId);
+ const {tokenRoomEntitlement}=await import("./preview-tokens");
+ const tokenDraft=await tokenRoomEntitlement(ownerId,roomId);
+ if(tokenDraft)return tokenDraft;
  const ledger = orderLedger();
  const legacy = await ledger.db.from("rcv3_preview_legacy_rooms").select("room_id").eq("room_id",roomId).eq("owner_id",ownerId).maybeSingle();
  if(legacy.error) throw new Error("RCV3_STORAGE");

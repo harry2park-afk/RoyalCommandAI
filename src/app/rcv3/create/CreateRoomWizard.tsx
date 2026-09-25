@@ -8,7 +8,7 @@ import { simpleCreateText, roomFeatureLabel } from "@/lib/locale/rcv3-simple-cre
 import { applyRoomBrief, recommendedDesigns } from "@/lib/rcv3/room-recommendations";
 import RoomNavigation from "@/components/rcv3-toolbox/RoomNavigation";
 import ExplicitSaveButton from "@/components/rcv3-toolbox/ExplicitSaveButton";
-import CheckoutPanel from "./CheckoutPanel";
+import PreviewTokenPanel from "./PreviewTokenPanel";
 import CustomerConnections from "./CustomerConnections";
 import SearchableChoices from "@/components/rcv3-toolbox/SearchableChoices";
 import { COUNTRY_ROOM_PRESETS } from "@/lib/rooms/countryPresets";
@@ -198,8 +198,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
           <section className={styles.verticalSection}>
             <h2>{t("payment")}</h2>
             {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
-            <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!explicitlySaved||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
-            <button type="button" disabled>{t("balanceChoice")} · Not Connected</button>
+            <PreviewTokenPanel key={`${draftId}:${registry.revision}`} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!explicitlySaved||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
           </section>
         </>}
       </fieldset>
