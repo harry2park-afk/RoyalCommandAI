@@ -4,10 +4,10 @@ import { simpleCreateText } from "@/lib/locale/rcv3-simple-create";
 
 type Balance={customerNumber:string;balance:number;cost:number};
 export default function PreviewTokenPanel({draftId,revision,disabled,language}:{draftId:string;revision:number;disabled:boolean;language:string}) {
- const [account,setAccount]=useState<Balance|null>(null),[busy,setBusy]=useState(false),[error,setError]=useState("");
+ const [account,setAccount]=useState<Balance|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const [signature,setSignature]=useState(""),[agreed,setAgreed]=useState(false),[url,setUrl]=useState("");
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
- useEffect(()=>{let active=true;fetch("/api/rcv3/token-room",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active)setAccount(v);}).catch(()=>{});return()=>{active=false;};},[]);
+ useEffect(()=>{let active=true;fetch("/api/rcv3/token-room",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active)setAccount(v);}).catch(()=>{}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
  async function open() {
   if(busy||disabled||!account||!agreed||signature.trim().length<2)return;
   setBusy(true);setError("");
@@ -23,6 +23,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
  return <section aria-label={t("payment")}>
   <button type="button" disabled>{t("cardChoice")} · Not Connected</button>{" "}
   <button type="button" disabled>{t("bankChoice")} · Not Connected</button>
+  {!loading&&!account&&<p role="status">{t("tokenAccountUnavailable")}</p>}
   {account&&<div>
    <p>{account.customerNumber} · {t("tokenBalance")}: <strong>{account.balance.toLocaleString(language)}</strong></p>
    <p>{t("tokenPreviewTerms")}</p>
