@@ -12,6 +12,7 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
  const [busy,setBusy]=useState(false),[message,setMessage]=useState<CreationMessage|"">("");
  const [checking,setChecking]=useState(false),[roomUrl,setRoomUrl]=useState("");
  const [paymentMethod,setPaymentMethod]=useState<"card"|"bank"|"balance">("card");
+ const [bankSigned,setBankSigned]=useState(false);
  const flight=useRef(false);
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
  async function run(action:()=>Promise<void>) {
@@ -52,12 +53,20 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
    <label><input type="radio" name={`payment-method-${draftId}`} checked={paymentMethod==="bank"} onChange={()=>setPaymentMethod("bank")}/>{t("bankChoice")}</label>
    <label><input type="radio" name={`payment-method-${draftId}`} checked={paymentMethod==="balance"} onChange={()=>setPaymentMethod("balance")}/>{t("balanceChoice")}</label>
   </div>
-  {paymentMethod==="balance"?<div role="status"><p>{t("balancePending")}</p></div>:paymentMethod==="bank"?<div role="status">
+  {paymentMethod==="balance"?<div role="status"><p>{t("balancePending")}</p></div>:paymentMethod==="bank"?<div>
    {quote?<>
+    <table><tbody>{quote.lines.map(l=><tr key={l.serviceId}><td>{l.label}</td><td>{money(l.amountMinor)}</td></tr>)}</tbody></table>
+    <p>{selectedCreationText("taxIncluded",language)}</p>
+    <p><strong>{t("total")}: {money(quote.totalMinor)}</strong></p>
+    <details><summary>{t("terms")} · {quote.terms.version}</summary><div style={{whiteSpace:"pre-wrap",maxHeight:320,overflowY:"auto",border:"1px solid #596273",padding:16}} tabIndex={0}>{quote.terms.text}</div></details>
+    <label><input type="checkbox" checked={accepted} disabled={busy||bankSigned} onChange={e=>setAccepted(e.target.checked)}/>{t("bankConsent")}</label>
+    <label>{t("signature")}<input maxLength={160} autoComplete="name" value={signature} disabled={busy||bankSigned} onChange={e=>setSignature(e.target.value)}/></label>
+    {!bankSigned&&<button disabled={disabled||busy||!accepted||signature.trim().length<2||!quote.checkoutEnabled} onClick={()=>void run(async()=>{await post("bank-start",{draftId,expectedRevision:revision,quoteHash:quote.quoteHash,termsHash:quote.termsHash,signature,termsConsent:accepted});setBankSigned(true);})}>{busy?t("wait"):t("bankSign")}</button>}
+    {bankSigned&&<div role="status"><p>{t("bankSigned")}</p>
     <p>{t("bankAccount")}: <strong>ROYAL COMMAND PTY LTD</strong></p>
     <p>BSB: <strong>032070</strong> · Account: <strong>914904</strong></p>
     <p>{t("bankReference")}: <strong>RC {language.toLowerCase().startsWith("ko")?"고객번호":"customer number"}</strong></p>
-    <p><strong>{t("total")}: {money(quote.totalMinor)}</strong></p>
+    </div>}
    </>:<p>{t("bankNoQuote")}</p>}
    <p>{t("bankInstructions")}</p>
   </div>:<>
