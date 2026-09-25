@@ -15,6 +15,7 @@ const owners={
  'src/app/rcv3/RoomCatalog.tsx':'create-room',
  'src/app/rcv3/create/CheckoutPanel.tsx':'create-room',
  'src/app/rcv3/create/PreviewTokenPanel.tsx':'create-room',
+ 'src/app/rcv3/create/BankPicker.tsx':'create-room',
  'src/app/rcv3/create/CreateRoomWizard.tsx':'create-room',
  'src/app/rcv3/create/CustomerConnections.tsx':'create-room',
  'src/app/rcv3/create/CustomerPhoneSetup.tsx':'create-room',
