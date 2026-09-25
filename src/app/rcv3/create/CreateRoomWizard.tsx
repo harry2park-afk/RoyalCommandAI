@@ -192,7 +192,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
               {input.purpose!=="legal"&&<div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e=>{const next=selectSecretary({...input,onboarding:setup},e.target.checked);if(e.target.checked&&!next.secretarySetup.email)next.secretarySetup.email=accountEmail;update(next);}}/>{t("secretary")}</label><label><input type="checkbox" checked={input.specialAI} onChange={e=>update({...input,specialAI:e.target.checked})}/>{t("specialist")}</label></div>}
               {input.purpose!=="legal"&&<p>{t("secretaryDescription")}</p>}
               {input.secretary && <>{input.purpose!=="legal"&&<label>{t("email")}<input type="email" maxLength={254} value={input.secretarySetup.email} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,email:e.target.value}})}/></label>}<label>{t("phone")}<input type="tel" maxLength={40} value={input.secretarySetup.phone} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,phone:e.target.value}})}/></label></>}
-              <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} disabled={busy||!loaded}/>
+              <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} language={language} disabled={busy||!loaded}/>
             </details>
           </section>
           <section className={styles.verticalSection}>

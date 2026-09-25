@@ -5,6 +5,7 @@ import type { AIProviderId } from "@/lib/ai/types";
 import type { CustomerPhoneRecommendation } from "@/lib/rcv3/customer-phone";
 import type { RoomDraftInput } from "@/lib/rcv3/room-draft";
 import CustomerPhoneSetup from "./CustomerPhoneSetup";
+import { simpleCreateText } from "@/lib/locale/rcv3-simple-create";
 
 type Setup = NonNullable<RoomDraftInput["onboarding"]>;
 type AIStatus = {personalAvailable:boolean;providers:{id:AIProviderId;platform:boolean;personalSupported:boolean;personal:boolean}[]};
@@ -19,9 +20,9 @@ function errorHelp(error:unknown) {
   if(code.includes("KEY")||code.includes("CREDENTIAL")||code.includes("AI"))return "setupAIError";
   return "setupError";
 }
-export default function CustomerConnections({input,setup,update,save,providers,disabled}: {
+export default function CustomerConnections({input,setup,update,save,providers,disabled,language}: {
   input:RoomDraftInput;setup:Setup;update:(next:RoomDraftInput)=>void;save:()=>Promise<string|null|undefined>;
-  providers:{id:AIProviderId;label:string}[];disabled:boolean;
+  providers:{id:AIProviderId;label:string}[];disabled:boolean;language:string;
 }) {
   const [ai,setAI]=useState<AIStatus|null>(null),[mail,setMail]=useState<MailStatus|null>(null);
   const [busy,setBusy]=useState(false),[message,setMessage]=useState("");
@@ -70,6 +71,7 @@ export default function CustomerConnections({input,setup,update,save,providers,d
     {input.secretary&&<fieldset disabled={disabled||busy}>
       <legend>Email and calls</legend>
       <label><input type="checkbox" checked={setup.emailEnabled} onChange={event=>changeSetup({emailEnabled:event.target.checked})}/>Connect my Gmail</label>
+      {(!setup.emailEnabled||!mail?.connected)&&<p role="status">{simpleCreateText("mailNotConnected",language)}</p>}
       {setup.emailEnabled&&<>
         <p><HelpText helpKey="setupEmail"/></p>
         <p><HelpText helpKey={mail?.connected?"setupMailConnected":"setupMailNeeded"}/>{mail?.connected?` ${mail.email}`:""}</p>
@@ -83,6 +85,7 @@ export default function CustomerConnections({input,setup,update,save,providers,d
         <button type="button" onClick={()=>void run(async()=>setMail(await request("customer-mail")))}>Check Connection</button>
       </>}
       <label><input type="checkbox" checked={Boolean(setup.phoneRequested)} onChange={event=>{setPhone(null);changeSetup({phoneRequested:event.target.checked,phoneOfferId:"",phoneNumberId:"",phoneConsent:false});}}/>Use my own secretary phone number</label>
+      {!setup.phoneNumberId&&<p role="status">{simpleCreateText("phoneNotConnected",language)}</p>}
       {setup.phoneRequested&&<>
         <p><HelpText helpKey="setupPhone"/></p>
         {phone?.purchaseUrl?<>
