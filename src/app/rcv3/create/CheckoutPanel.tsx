@@ -11,6 +11,7 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
  const [quote,setQuote]=useState<Quote|null>(null),[accepted,setAccepted]=useState(false),[signature,setSignature]=useState("");
  const [busy,setBusy]=useState(false),[message,setMessage]=useState<CreationMessage|"">("");
  const [checking,setChecking]=useState(false),[roomUrl,setRoomUrl]=useState("");
+ const [paymentMethod,setPaymentMethod]=useState<"card"|"bank">("card");
  const flight=useRef(false);
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
  async function run(action:()=>Promise<void>) {
@@ -46,6 +47,19 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
  const money=(minor:number)=>new Intl.NumberFormat(language||"en",{style:"currency",currency:quote?.currency||"AUD"}).format(minor/100);
  return <section aria-label="Monthly subscription">
   <p>{selectedCreationText("sandbox",language)}</p>
+  <div role="group" aria-label={selectedCreationText("sandbox",language)}>
+   <label><input type="radio" name={`payment-method-${draftId}`} checked={paymentMethod==="card"} onChange={()=>setPaymentMethod("card")}/>{t("cardChoice")}</label>
+   <label><input type="radio" name={`payment-method-${draftId}`} checked={paymentMethod==="bank"} onChange={()=>setPaymentMethod("bank")}/>{t("bankChoice")}</label>
+  </div>
+  {paymentMethod==="bank"?<div role="status">
+   {quote?<>
+    <p>{t("bankAccount")}: <strong>ROYAL COMMAND PTY LTD</strong></p>
+    <p>BSB: <strong>032070</strong> · Account: <strong>914904</strong></p>
+    <p>{t("bankReference")}: <strong>RC {language.toLowerCase().startsWith("ko")?"고객번호":"customer number"}</strong></p>
+    <p><strong>{t("total")}: {money(quote.totalMinor)}</strong></p>
+   </>:<p>{t("bankNoQuote")}</p>}
+   <p>{t("bankInstructions")}</p>
+  </div>:<>
   {!checking&&!roomUrl&&<button disabled={busy||disabled} onClick={()=>{setChecking(true);void check();}}>{t("check")}</button>}
   {message&&<p role="status">{selectedCreationText(message,language)}</p>}
   {message==="orderLocked"&&<button disabled={busy||disabled} onClick={onFork}>{t("fork")}</button>}
@@ -65,6 +79,7 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
      else {setChecking(true);setMessage("paymentPending");}
     })}>{busy?t("wait"):t("approve")}</button>
    </>}
+  </>}
   </>}
  </section>;
 }
