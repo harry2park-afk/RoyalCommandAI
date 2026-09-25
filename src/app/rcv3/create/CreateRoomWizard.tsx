@@ -199,7 +199,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
             <h2>{t("payment")}</h2>
             {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
             <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!explicitlySaved||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
-            <p>{t("unavailableCredits")}</p>
+            <button type="button" disabled>{t("balanceChoice")} · Not Connected</button>
           </section>
         </>}
       </fieldset>

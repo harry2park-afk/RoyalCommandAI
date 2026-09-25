@@ -347,12 +347,19 @@
     {
       "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#6",
       "toolId": "create-room",
-      "sourceHash": "3ab595789745c73797ff330b66741849db37a70886278e5a4274c137eba3167f",
+      "sourceHash": "db4a11a174f3f84aa6a6c4af22bb8af801b16268c810e79f76eafd5e33017de3",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#7",
+      "toolId": "create-room",
+      "sourceHash": "3ab595789745c73797ff330b66741849db37a70886278e5a4274c137eba3167f",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#8",
       "toolId": "create-room",
       "sourceHash": "5f505fba864ffffa95ad3293a2e824321034234d5d40b3e26d3896a3c39664be",
       "mode": "context-bound",
