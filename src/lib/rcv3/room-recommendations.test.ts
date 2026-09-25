@@ -23,6 +23,13 @@ describe("simple room creation",()=>{
   expect(next.answers).toEqual({});expect(next.tasks).not.toContain("Legal Intake");
   expect(draftInputSchema.safeParse(next).success).toBe(true);
  });
+ it("saves legal advanced requests without enabling them as paid tasks",()=>{
+  const draft=applyRoomBrief(newRoomDraft(),"법률 비즈니스");
+  const selected={...draft,specialAI:true,answers:{practice:["Family"],advancedRequests:["Case timeline","Document comparison"]}};
+  expect(draftInputSchema.safeParse(selected).success).toBe(true);
+  expect(selected.tasks).not.toContain("Case timeline");
+  expect(draftInputSchema.safeParse({...selected,answers:{advancedRequests:["Unknown feature"]}}).success).toBe(false);
+ });
  it("preserves old signed draft shape and enforces the description limit",()=>{
   expect(draftInputSchema.parse(newRoomDraft())).not.toHaveProperty("brief");
   expect(draftInputSchema.safeParse({...newRoomDraft(),brief:"x".repeat(301)}).success).toBe(false);

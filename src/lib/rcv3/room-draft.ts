@@ -7,7 +7,10 @@ import type { CloudStore } from "./cloud-state";
 // Reuse the existing catalogue. Headcount, atmosphere and customer type do not
 // affect this flow and must not become mandatory onboarding questions.
 export const roomPurposes = ROOM_TEMPLATES.map(p => ({ ...p,
-  fields: p.fields.filter(f => !["team", "customer", "scope"].includes(f.id)),
+  fields: [
+    ...p.fields.filter(f => !["team", "customer", "scope"].includes(f.id)),
+    ...(p.id === "legal" ? [{id:"advancedRequests",label:"Advanced legal requests",options:["Case timeline", "Evidence organisation", "Document comparison", "Contract review", "Citation research", "Client intake summary", "Deadline tracking", "Bilingual drafts"]}] : []),
+  ],
 }));
 export const draftInputSchema = z.object({
   name: z.string().trim().max(80),

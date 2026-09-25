@@ -3,6 +3,11 @@ const messages = {
  title: ["Create your room", "내 방 만들기"], back:["My rooms","내 방"],
  name:["1. Room name","1. 룸 이름"], purpose:["2. What will you use this room for?","2. 무엇을 할 방인가요?"],
  example:["For example: teach English or manage customer enquiries","예: 영어 공부를 하거나 고객 문의를 관리하고 싶어요"],
+ legalPractice:["Choose your legal practice areas","법률 업무 분야를 선택하세요"],
+ legalRoles:["Choose AI roles for this legal room","법률 방에 필요한 AI 역할을 선택하세요"],
+ legalAdvanced:["Specialist AI option","고급 전문 AI 선택"],
+ legalAdvancedRequests:["Advanced features (connection pending)","고급 기능 (연결 대기)"],
+ legalSetupNotice:["Advanced selections are saved as requests. They cannot be used until RC connects and activates them.","고급 기능 선택은 요청으로 저장됩니다. RC가 연결하고 활성화하기 전에는 사용할 수 없습니다."],
  design:["3. Choose your room design","3. 룸 디자인 선택"],
  options:["4. Your room features","4. 자동으로 준비한 기능 선택"], payment:["5. Review and pay","5. 금액 확인 및 결제"],
  recommended:["Suggested for your purpose. Change any selection below.","용도에 맞춰 준비했습니다. 필요한 항목을 선택하거나 해제하세요."],
@@ -17,6 +22,15 @@ const messages = {
  consent:["I agree to the terms and the monthly recurring total.","약관 및 표시된 금액의 매월 정기결제에 동의합니다."],
  signature:["Full name for agreement","동의하는 본인의 성명"], terms:["Subscription terms","구독 약관"], total:["Monthly total","매월 총금액"],
  card:["Card details are entered securely on the payment page.","카드 정보는 다음 결제 화면에서 안전하게 입력합니다."],
+ cardChoice:["Pay by card","카드로 결제"], bankChoice:["Pay by bank transfer","은행 계좌로 송금"],
+ balanceChoice:["Pay with RC balance","RC 잔액으로 결제"],
+ balancePending:["RC balance payments will be available after your verified deposits and balance are connected. No balance will be deducted now.","확인된 입금액과 고객별 RC 잔액이 연결된 뒤 이용할 수 있습니다. 지금은 잔액이 차감되지 않습니다."],
+ bankAccount:["Account name","계좌명"], bankReference:["Payment reference","입금 내용"],
+ bankInstructions:["Enter your RC customer number as the payment reference when transferring. Your room remains a saved draft until the actual deposit and amount are verified. Bank transfer verification is not connected yet.","송금할 때 입금 내용에 본인의 RC 고객번호를 입력하세요. 실제 입금액과 번호가 확인될 때까지 방은 저장된 초안으로 남습니다. 은행 입금 자동 확인은 아직 연결되지 않았습니다."],
+ bankNoQuote:["Do not transfer until the monthly amount is shown and confirmed.","월 결제 금액이 표시되고 확인되기 전에는 송금하지 마세요."],
+ bankConsent:["I agree to the displayed RC terms and monthly amount. I understand bank transfers require verification and future months require another payment.","표시된 RC 규정과 월 금액에 동의합니다. 은행 송금은 입금 확인이 필요하며 다음 달에도 별도 결제가 필요함을 이해합니다."],
+ bankSign:["Sign and show bank details","서명하고 송금 계좌 보기"],
+ bankSigned:["Agreement saved. Bank deposit matching is not connected; do not transfer money yet. Your room stays a draft until RC verifies the actual deposit.","동의와 서명이 저장됐습니다. 은행 입금 대조가 아직 연결되지 않았으니 지금은 송금하지 마세요. 실제 입금이 확인될 때까지 방은 초안으로 남습니다."],
 } as const;
 export function simpleCreateText(key:keyof typeof messages, language:string) {
  return messages[key][language.toLowerCase().split(/[-_]/)[0] === "ko" ? 1 : 0];
@@ -27,5 +41,7 @@ const ko:Record<string,string> = {
  "AI Room Designer":"방 설계 도우미", "Research Assistant":"조사 도우미", "General Assistant":"일반 도우미",
  "AI Tutor":"AI 학습 지도", "Assessment":"학습 평가", "Tutor":"학습 지도", "Lesson Planner":"수업 계획", "Student Support":"학생 지원", "Learning Assistant":"학습 도우미",
  "Customer Support":"고객 지원", "Orders":"주문", "Returns":"반품", "Scheduling":"일정 관리", "Project Coordinator":"프로젝트 관리",
+ "Family":"가족법", "Property":"부동산", "Compensation":"손해배상", "Commercial":"상사·기업", "Criminal":"형사", "Immigration":"이민", "General":"일반 법률",
+ "Case timeline":"사건 경과표", "Evidence organisation":"증거 정리", "Document comparison":"문서 비교", "Contract review":"계약서 검토", "Citation research":"판례·법령 조사", "Client intake summary":"고객 상담 요약", "Deadline tracking":"기한 추적", "Bilingual drafts":"이중 언어 초안",
 };
 export function roomFeatureLabel(value:string, language:string) { return language.toLowerCase().startsWith("ko") ? ko[value] || value : value; }

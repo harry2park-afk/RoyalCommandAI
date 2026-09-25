@@ -117,6 +117,20 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
           <label className={styles.question}>{t("purpose")}<textarea rows={3} maxLength={300} placeholder={t("example")} value={input.brief ?? input.answers.purpose?.[0] ?? ""}
             onChange={e=>{setPurposeChosen(false);update(applyRoomBrief(input,e.target.value));}}
             onBlur={e=>setPurposeChosen(!!e.target.value.trim())}/></label>
+          {input.purpose === "legal" && !!input.brief?.trim() && purpose.fields.filter(field=>field.id==="practice"&&field.options).map(field=><div key={field.id} className={styles.practiceChoices}>
+            <strong>{t("legalPractice")}</strong>
+            <div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>{roomFeatureLabel(option,language)}</label>)}</div>
+          </div>)}
+          {input.purpose === "legal" && !!input.brief?.trim() && <div className={styles.practiceChoices}>
+            <strong>{t("legalRoles")}</strong>
+            <div className={styles.choices}>{purpose.suggestedAgents.map(task=><label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={()=>update({...input,tasks:input.tasks.includes(task)?input.tasks.filter(x=>x!==task):[...input.tasks,task]})}/>{roomFeatureLabel(task,language)}</label>)}</div>
+            <label><input type="checkbox" checked={input.specialAI} onChange={e=>{const {advancedRequests,...answers}=input.answers;update({...input,specialAI:e.target.checked,answers:e.target.checked?input.answers:answers});}}/>{t("legalAdvanced")}</label>
+            {input.specialAI && purpose.fields.filter(field=>field.id==="advancedRequests"&&field.options).map(field=><div key={field.id}>
+              <strong>{t("legalAdvancedRequests")}</strong>
+              <div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>{roomFeatureLabel(option,language)}</label>)}</div>
+            </div>)}
+            <p>{t("legalSetupNotice")}</p>
+          </div>}
         </section>
         {!ready && <p role="status">{t("required")}</p>}
         {ready && <>
@@ -128,13 +142,13 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
           </section>
           <section className={styles.verticalSection}>
             <h2>{t("options")}</h2><p>{t("recommended")}</p>
-            <div className={styles.choices}>{purpose.suggestedAgents.map(task=><label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={()=>update({...input,tasks:input.tasks.includes(task)?input.tasks.filter(x=>x!==task):[...input.tasks,task]})}/>{roomFeatureLabel(task,language)}</label>)}</div>
+            {input.purpose !== "legal" && <div className={styles.choices}>{purpose.suggestedAgents.map(task=><label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={()=>update({...input,tasks:input.tasks.includes(task)?input.tasks.filter(x=>x!==task):[...input.tasks,task]})}/>{roomFeatureLabel(task,language)}</label>)}</div>}
             <details><summary>{t("settings")}</summary>
               <label>{t("category")}<select value={input.purpose} onChange={e=>{const next=changePurpose(input,e.target.value);const p=roomPurposes.find(p=>p.id===e.target.value)!;update({...next,tasks:[...p.suggestedAgents],answers:p.id==="custom"&&input.brief?{purpose:[input.brief]}:{},templateId:recommendedDesigns(p.id)[0].id});}}>{roomPurposes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
-              {purpose.fields.filter(f=>f.options).map(field=><div key={field.id}><strong>{field.label}</strong><div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>{option}</label>)}</div></div>)}
+              {purpose.fields.filter(f=>f.options && !(input.purpose==="legal"&&(f.id==="practice"||f.id==="advancedRequests"))).map(field=><div key={field.id}><strong>{field.label}</strong><div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>{option}</label>)}</div></div>)}
               <label>{t("country")}<select value={setup.country} onChange={e=>update({...input,onboarding:{...setup,country:e.target.value,phoneOfferId:"",phoneNumberId:"",phoneConsent:false}})}><option value="">—</option>{COUNTRY_ROOM_PRESETS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
               <div className={styles.choices}>{providers.map(p=><label key={p.id}><input type="checkbox" checked={input.providers.includes(p.id)} onChange={()=>providerToggle(p.id)}/>{p.label}</label>)}</div>
-              <div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e=>{const next=selectSecretary({...input,onboarding:setup},e.target.checked);if(e.target.checked&&!next.secretarySetup.email)next.secretarySetup.email=accountEmail;update(next);}}/>{t("secretary")}</label><label><input type="checkbox" checked={input.specialAI} onChange={e=>update({...input,specialAI:e.target.checked})}/>{t("specialist")}</label></div>
+              <div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e=>{const next=selectSecretary({...input,onboarding:setup},e.target.checked);if(e.target.checked&&!next.secretarySetup.email)next.secretarySetup.email=accountEmail;update(next);}}/>{t("secretary")}</label>{input.purpose!=="legal"&&<label><input type="checkbox" checked={input.specialAI} onChange={e=>update({...input,specialAI:e.target.checked})}/>{t("specialist")}</label>}</div>
               {input.secretary && <><label>{t("email")}<input type="email" maxLength={254} value={input.secretarySetup.email} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,email:e.target.value}})}/></label><label>{t("phone")}<input type="tel" maxLength={40} value={input.secretarySetup.phone} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,phone:e.target.value}})}/></label></>}
               <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} disabled={busy||!loaded}/>
             </details>
