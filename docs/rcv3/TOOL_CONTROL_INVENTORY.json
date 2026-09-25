@@ -424,6 +424,20 @@
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#3",
       "toolId": "create-room",
+      "sourceHash": "deca21c2b262a6d5253aa988e322e9da7d7332062126d4c138665bd703110820",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#4",
+      "toolId": "create-room",
+      "sourceHash": "d8add9b97ecbb3cf2513e64c1ba7a9ca9f03cabecdebe9c09c73e988d8c3be1b",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#5",
+      "toolId": "create-room",
       "sourceHash": "9372bb2177cd01fd59df3e3c7d21fb84d83f7873f95f80d94636f391d3eeb47b",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
