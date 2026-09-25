@@ -1,13 +1,14 @@
 "use client";
 import { useEffect, useState } from "react";
 import { simpleCreateText } from "@/lib/locale/rcv3-simple-create";
+import BankPicker from "./BankPicker";
 
 type Balance={customerNumber:string;balance:number;cost:number};
 type Quote={currency:string;totalMinor:number;lines:{serviceId:string;label:string;amountMinor:number}[];quoteHash:string;terms:{version:string;text:string};termsHash:string};
 export default function PreviewTokenPanel({draftId,revision,disabled,language}:{draftId:string;revision:number;disabled:boolean;language:string}) {
  const [account,setAccount]=useState<Balance|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const [signature,setSignature]=useState(""),[agreed,setAgreed]=useState(false),[url,setUrl]=useState("");
- const [showBank,setShowBank]=useState(false),[bank,setBank]=useState("");
+ const [showBank,setShowBank]=useState(false);
  const [bankNumber,setBankNumber]=useState(""),[quote,setQuote]=useState<Quote|null>(null),[bankError,setBankError]=useState(""),[bankBusy,setBankBusy]=useState(false),[bankAgreed,setBankAgreed]=useState(false),[bankSignature,setBankSignature]=useState(""),[bankSigned,setBankSigned]=useState(false);
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
  useEffect(()=>{let active=true;fetch("/api/rcv3/token-room",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active)setAccount(v);}).catch(()=>{}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
@@ -62,12 +63,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
     <button type="button" disabled={disabled||bankBusy||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(language.startsWith("ko")?"송금 신청 저장":"Save transfer request")}</button></>:<p role="status">{language.startsWith("ko")?"송금 신청이 저장됐습니다. 실제 입금 확인 전까지 방은 초안으로 보관됩니다.":"Transfer request saved. The room remains a draft until the incoming payment is verified."}</p>}
    </>}
    {bankError&&<p role="alert">{bankError==="RCV3_CONFLICT"?t("tokenConflict"):(language.startsWith("ko")?`금액을 확인할 수 없습니다 (${bankError}). 저장한 방과 요금 설정을 확인하세요.`:`Could not confirm the amount (${bankError}). Check your saved room and pricing setup.`)}</p>}
-   <label htmlFor="rc-bank-select">{language.startsWith("ko")?"이용할 은행 선택":"Choose your bank"}</label>{" "}
-   <select id="rc-bank-select" value={bank} onChange={e=>setBank(e.target.value)}>
-    <option value="">{language.startsWith("ko")?"은행을 선택하세요":"Select a bank"}</option>
-    <option value="anz">ANZ</option><option value="cba">CBA (CommBank)</option><option value="westpac">Westpac</option>
-   </select>
-   {bank&&<p><a style={{display:"inline-block",padding:"12px 18px",border:"1px solid #71e6c1",borderRadius:10,color:"#9ff7df",fontWeight:700}} href={{anz:"https://www.anz.com.au/personal/internet-banking/",cba:"https://www.my.commbank.com.au/netbank/Logon/Logon.aspx",westpac:"https://banking.westpac.com.au/"}[bank as "anz"|"cba"|"westpac"]} rel="noreferrer">{language.startsWith("ko")?`${bank==="westpac"?"Westpac":bank.toUpperCase()} 은행 웹사이트 열기`:`Open ${bank.toUpperCase()} banking website`}</a></p>}
+   <BankPicker customerNumber={bankNumber||account?.customerNumber||""} language={language}/>
    <p role="status">{language.startsWith("ko")?"은행 사이트에서 직접 로그인하고 수취인 계좌와 본인의 RC 번호를 입력하세요. RC는 은행 비밀번호를 받지 않습니다. 월 이용료와 실제 입금을 확인하기 전에는 방이 열리지 않습니다. 현재 RC는 은행 거래내역을 조회할 수 없습니다.":"Sign in on the bank's own site and enter the recipient account and your RC number yourself. RC never receives your bank password. Your room cannot open until the monthly amount and actual deposit are verified. RC currently has no access to the bank's incoming transaction feed."}</p>
   </div>}
   {!loading&&!account&&<p role="status">{t("tokenAccountUnavailable")}</p>}
