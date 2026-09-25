@@ -268,6 +268,34 @@
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
+      "controlId": "src/app/rcv3/create/BankPicker.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "ea3376f375e7f7663ded36de4d05085572c41082f2561b4a9c60c901a2078834",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/BankPicker.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "c444b9e4eb75ea80f48cd1c51f4be4fa841442150223fdf414c583bdd2a31d58",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/BankPicker.tsx#3",
+      "toolId": "create-room",
+      "sourceHash": "512171acbc47ac379427f1ab197ec933f5246dcb2b5973dfa295adad7bf7228d",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/BankPicker.tsx#4",
+      "toolId": "create-room",
+      "sourceHash": "87ab79763302f122c92d06be7a5600198d5c74c61d92f3cfa122f13ac9bd5534",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
       "controlId": "src/app/rcv3/create/CheckoutPanel.tsx#1",
       "toolId": "create-room",
       "sourceHash": "3e87126e3225f7947aae669ae6c37554365114ca10821d268e2d594afd8e172c",
