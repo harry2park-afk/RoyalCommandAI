@@ -11,6 +11,7 @@ export const roomPurposes = ROOM_TEMPLATES.map(p => ({ ...p,
     ...p.fields.filter(f => !["team", "customer", "scope"].includes(f.id)),
     ...(p.id === "legal" ? [
       {id:"legalAiPriority",label:"Legal AI priority",options:["Highest available reasoning", "Balanced speed and quality", "Use my connected AI"]},
+      {id:"customRequest",label:"Customer's requested legal capability"},
       {id:"advancedRequests",label:"Advanced legal requests",options:["Case timeline", "Evidence organisation", "Document comparison", "Contract review", "Citation research", "Client intake summary", "Deadline tracking", "Bilingual drafts", "Jurisdiction and source checks", "Conflicting evidence review", "Privilege and confidentiality review", "Court filing checklist"]},
     ] : []),
   ],

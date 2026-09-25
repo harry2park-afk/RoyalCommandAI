@@ -11,7 +11,8 @@ import type {ToolRequest,ToolGrant} from './tool-approval-types';
 
 export type OrderSnapshot = {
  order: CheckoutOrder; draft: RoomDraftInput; termsText: string;
- accountId: string; origin: string; recurringConsent: true;
+ accountId: string; origin: string; recurringConsent: boolean;
+ paymentMethod?: "card" | "bank";
  billingContact?: {email:string;name:string};
  billingCustomerId?: string;
  toolRequests?: ToolRequest[];
@@ -31,7 +32,7 @@ export function checkoutRuntime() {
 }
 export function validateCreationDraft(candidate: unknown) {
  const draft = draftInputSchema.parse(candidate);
- if(draft.specialAI)throw new Error("RCV3_SERVICE_NOT_READY");
+ if(draft.specialAI || draft.answers.customRequest?.[0]?.trim())throw new Error("RCV3_SERVICE_NOT_READY");
  if(draft.secretary&&!draft.providers.length)throw new Error("RCV3_FORM_REQUIRED");
  if(draft.onboarding&&(!draft.onboarding.country||!draft.providers.length))throw new Error("RCV3_FORM_REQUIRED");
  if (!draft.name || draft.plan !== "paid" || !secretarySetupValid(draft) ||
@@ -74,6 +75,7 @@ export async function updateOrderSnapshot(row:LedgerOrder, snapshot:OrderSnapsho
  return result.data as LedgerOrder;
 }
 export async function checkoutForOrder(row: LedgerOrder, ledger = orderLedger()) {
+ if (row.snapshot.paymentMethod === "bank") throw new Error("RCV3_ORDER_LOCKED");
  const { stripe, catalog, origin } = checkoutRuntime();
  if (catalog.accountId !== row.snapshot.accountId || origin !== row.snapshot.origin) throw new Error("RCV3_PAYMENT_ACCOUNT");
  if (row.session_id) {

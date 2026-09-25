@@ -36,7 +36,15 @@ describe("account room drafts", () => {
   });
   it("retains the existing 40 purposes and removes unnecessary questions", () => {
     expect(roomPurposes).toHaveLength(40);
-    expect(roomPurposes.find(p => p.id === "legal")?.fields.map(f => f.id)).toEqual(["practice", "legalAiPriority", "advancedRequests"]);
+    expect(roomPurposes.find(p => p.id === "legal")?.fields.map(f => f.id)).toEqual(["practice", "legalAiPriority", "customRequest", "advancedRequests"]);
+  });
+  it("stores an unlisted legal request only as draft text", async () => {
+    const store=memoryStore();
+    const input={...newRoomDraft(),purpose:"legal",answers:{customRequest:["Find a specialist case management integration"]}};
+    await saveRoomDraft(store,{id,expectedRevision:0,input});
+    expect((await readDraftRegistry(store)).drafts[0].input.answers.customRequest).toEqual(input.answers.customRequest);
+    expect(draftInputSchema.safeParse({...input,answers:{customRequest:["x".repeat(301)]}}).success).toBe(false);
+    expect(draftInputSchema.safeParse({...input,purpose:"accounting"}).success).toBe(false);
   });
   it("persists an unpaid draft and restores purpose, design and paid wishes", async () => {
     const store = memoryStore(); const input = { ...newRoomDraft(), name: "My legal room", purpose: "legal", answers: { practice: ["Family"] }, secretary: true, plan: "paid" as const, providers: ["openai" as const] };

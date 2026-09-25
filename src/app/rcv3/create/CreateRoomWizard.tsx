@@ -10,6 +10,7 @@ import RoomNavigation from "@/components/rcv3-toolbox/RoomNavigation";
 import ExplicitSaveButton from "@/components/rcv3-toolbox/ExplicitSaveButton";
 import CheckoutPanel from "./CheckoutPanel";
 import CustomerConnections from "./CustomerConnections";
+import SearchableChoices from "@/components/rcv3-toolbox/SearchableChoices";
 import { COUNTRY_ROOM_PRESETS } from "@/lib/rooms/countryPresets";
 import styles from "./create.module.css";
 
@@ -131,8 +132,10 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
             <label><input type="checkbox" checked={input.specialAI} onChange={e=>{const {advancedRequests,...answers}=input.answers;update({...input,specialAI:e.target.checked,answers:e.target.checked?input.answers:answers});}}/>{t("legalAdvanced")}</label>
             {input.specialAI && purpose.fields.filter(field=>field.id==="advancedRequests"&&field.options).map(field=><div key={field.id}>
               <strong>{t("legalAdvancedRequests")}</strong>
-              <div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>{roomFeatureLabel(option,language)}</label>)}</div>
+              <SearchableChoices options={field.options!} selected={input.answers[field.id]||[]} searchLabel={t("legalSearch")} emptyLabel={t("legalNotFound")} labelFor={option=>roomFeatureLabel(option,language)} onToggle={option=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>
             </div>)}
+            <label>{t("legalCustomRequest")}<textarea rows={2} maxLength={300} value={input.answers.customRequest?.[0]||""} onChange={e=>update({...input,answers:{...input.answers,customRequest:e.target.value.trim()?[e.target.value]:[]}})}/></label>
+            <p>{t("legalRequestStatus")}</p>
             <p>{t("legalSetupNotice")}</p>
           </div>}
         </section>
@@ -160,7 +163,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
           <section className={styles.verticalSection}>
             <h2>{t("payment")}</h2>
             {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
-            <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!explicitlySaved||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)} language={language}/>
+            <CheckoutPanel key={`${draftId}:${registry.revision}:${JSON.stringify(input)}`} onFork={()=>void save(true)} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!explicitlySaved||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()} language={language}/>
             <p>{t("unavailableCredits")}</p>
           </section>
         </>}
