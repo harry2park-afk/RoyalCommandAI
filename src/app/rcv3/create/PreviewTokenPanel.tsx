@@ -34,7 +34,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
     <option value="anz">ANZ</option><option value="cba">CBA (CommBank)</option><option value="westpac">Westpac</option>
    </select>
    {bank&&<p><a href={{anz:"https://www.anz.com.au/personal/internet-banking/",cba:"https://www.my.commbank.com.au/netbank/Logon/Logon.aspx",westpac:"https://banking.westpac.com.au/"}[bank as "anz"|"cba"|"westpac"]} rel="noreferrer">{language.startsWith("ko")?`${bank==="westpac"?"Westpac":bank.toUpperCase()} 공식 은행 로그인으로 이동`:`Continue to ${bank.toUpperCase()} official bank sign in`}</a></p>}
-   <p role="status">{language.startsWith("ko")?"은행 사이트에서 직접 로그인하고 수취인 계좌와 본인의 RC 번호를 입력하세요. RC는 은행 비밀번호를 받지 않습니다. 월 이용료와 실제 입금을 확인하기 전에는 방이 열리지 않으며, 현재 자동 입금 확인은 연결되지 않았습니다.":"Sign in on the bank's own site and enter the recipient account and your RC number yourself. RC never receives your bank password. Your room cannot open until the monthly amount and actual deposit are verified; automatic deposit verification is not connected."}</p>
+   <p role="status">{language.startsWith("ko")?"은행 사이트에서 직접 로그인하고 수취인 계좌와 본인의 RC 번호를 입력하세요. RC는 은행 비밀번호를 받지 않습니다. 월 이용료와 실제 입금을 확인하기 전에는 방이 열리지 않습니다. 현재 RC는 은행 거래내역을 조회할 수 없습니다.":"Sign in on the bank's own site and enter the recipient account and your RC number yourself. RC never receives your bank password. Your room cannot open until the monthly amount and actual deposit are verified. RC currently has no access to the bank's incoming transaction feed."}</p>
   </div>}
   {!loading&&!account&&<p role="status">{t("tokenAccountUnavailable")}</p>}
   {account&&<div>
