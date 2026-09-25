@@ -17,6 +17,10 @@ const messages = {
  consent:["I agree to the terms and the monthly recurring total.","약관 및 표시된 금액의 매월 정기결제에 동의합니다."],
  signature:["Full name for agreement","동의하는 본인의 성명"], terms:["Subscription terms","구독 약관"], total:["Monthly total","매월 총금액"],
  card:["Card details are entered securely on the payment page.","카드 정보는 다음 결제 화면에서 안전하게 입력합니다."],
+ cardChoice:["Pay by card","카드로 결제"], bankChoice:["Pay by bank transfer","은행 계좌로 송금"],
+ bankAccount:["Account name","계좌명"], bankReference:["Payment reference","입금 내용"],
+ bankInstructions:["Enter your RC customer number as the payment reference when transferring. Your room remains a saved draft until the actual deposit and amount are verified. Bank transfer verification is not connected yet.","송금할 때 입금 내용에 본인의 RC 고객번호를 입력하세요. 실제 입금액과 번호가 확인될 때까지 방은 저장된 초안으로 남습니다. 은행 입금 자동 확인은 아직 연결되지 않았습니다."],
+ bankNoQuote:["Do not transfer until the monthly amount is shown and confirmed.","월 결제 금액이 표시되고 확인되기 전에는 송금하지 마세요."],
 } as const;
 export function simpleCreateText(key:keyof typeof messages, language:string) {
  return messages[key][language.toLowerCase().split(/[-_]/)[0] === "ko" ? 1 : 0];
