@@ -11,7 +11,7 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
  const [quote,setQuote]=useState<Quote|null>(null),[accepted,setAccepted]=useState(false),[signature,setSignature]=useState("");
  const [busy,setBusy]=useState(false),[message,setMessage]=useState<CreationMessage|"">("");
  const [checking,setChecking]=useState(false),[roomUrl,setRoomUrl]=useState("");
- const [paymentMethod,setPaymentMethod]=useState<"card"|"bank">("card");
+ const [paymentMethod,setPaymentMethod]=useState<"card"|"bank"|"balance">("card");
  const flight=useRef(false);
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
  async function run(action:()=>Promise<void>) {
@@ -50,8 +50,9 @@ export default function CheckoutPanel({draftId,revision,disabled,language,onFork
   <div role="group" aria-label={selectedCreationText("sandbox",language)}>
    <label><input type="radio" name={`payment-method-${draftId}`} checked={paymentMethod==="card"} onChange={()=>setPaymentMethod("card")}/>{t("cardChoice")}</label>
    <label><input type="radio" name={`payment-method-${draftId}`} checked={paymentMethod==="bank"} onChange={()=>setPaymentMethod("bank")}/>{t("bankChoice")}</label>
+   <label><input type="radio" name={`payment-method-${draftId}`} checked={paymentMethod==="balance"} onChange={()=>setPaymentMethod("balance")}/>{t("balanceChoice")}</label>
   </div>
-  {paymentMethod==="bank"?<div role="status">
+  {paymentMethod==="balance"?<div role="status"><p>{t("balancePending")}</p></div>:paymentMethod==="bank"?<div role="status">
    {quote?<>
     <p>{t("bankAccount")}: <strong>ROYAL COMMAND PTY LTD</strong></p>
     <p>BSB: <strong>032070</strong> · Account: <strong>914904</strong></p>
