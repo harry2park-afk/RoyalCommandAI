@@ -120,7 +120,8 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
             onBlur={e=>setPurposeChosen(!!e.target.value.trim())}/></label>
           {input.purpose === "legal" && !!input.brief?.trim() && purpose.fields.filter(field=>field.id==="practice"&&field.options).map(field=><div key={field.id} className={styles.practiceChoices}>
             <strong>{t("legalPractice")}</strong>
-            <div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>{roomFeatureLabel(option,language)}</label>)}</div>
+            <div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];const answers={...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]};if(option==="Other"&&old.includes(option))delete answers.otherPractice;update({...input,answers});}}/>{roomFeatureLabel(option,language)}</label>)}</div>
+            {input.answers.practice?.includes("Other")&&<label>{t("legalOtherPractice")}<input maxLength={300} value={input.answers.otherPractice?.[0]||""} onChange={e=>update({...input,answers:{...input.answers,otherPractice:e.target.value.trim()?[e.target.value]:[]}})}/></label>}
           </div>)}
           {input.purpose === "legal" && !!input.brief?.trim() && <div className={styles.practiceChoices}>
             <strong>{t("legalRoles")}</strong>

@@ -8,8 +8,9 @@ import type { CloudStore } from "./cloud-state";
 // affect this flow and must not become mandatory onboarding questions.
 export const roomPurposes = ROOM_TEMPLATES.map(p => ({ ...p,
   fields: [
-    ...p.fields.filter(f => !["team", "customer", "scope"].includes(f.id)),
+    ...p.fields.filter(f => !["team", "customer", "scope"].includes(f.id)).map(f => p.id === "legal" && f.id === "practice" ? {...f,options:[...(f.options||[]),"Other"]} : f),
     ...(p.id === "legal" ? [
+      {id:"otherPractice",label:"Other legal practice area"},
       {id:"legalAiPriority",label:"Legal AI priority",options:["Highest available reasoning", "Balanced speed and quality", "Use my connected AI"]},
       {id:"customRequest",label:"Customer's requested legal capability"},
       {id:"advancedRequests",label:"Advanced legal requests",options:["Case timeline", "Evidence organisation", "Document comparison", "Contract review", "Citation research", "Client intake summary", "Deadline tracking", "Bilingual drafts", "Jurisdiction and source checks", "Conflicting evidence review", "Privilege and confidentiality review", "Court filing checklist"]},
@@ -53,7 +54,7 @@ export const draftInputSchema = z.object({
       ? values.some(value => !field.options!.includes(value))
       : values.length > 1);
   });
-  if (invalidAnswers || Object.keys(d.answers).some(key => !allowed.has(key)) ||
+  if (invalidAnswers || (d.purpose === "legal" && d.answers.practice?.includes("Other") && !d.answers.otherPractice?.[0]?.trim()) || Object.keys(d.answers).some(key => !allowed.has(key)) ||
       Object.keys(d.onboarding?.aiSources || {}).some(id => !d.providers.includes(id as typeof d.providers[number])) ||
       (!d.secretary && (d.onboarding?.emailEnabled || d.onboarding?.phoneOfferId || d.onboarding?.phoneRequested || d.onboarding?.phoneNumberId || d.onboarding?.phoneConsent)) ||
       d.tasks.some(t => !purpose.suggestedAgents.includes(t)) ||
