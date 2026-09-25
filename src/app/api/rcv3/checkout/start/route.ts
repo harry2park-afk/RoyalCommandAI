@@ -21,10 +21,11 @@ export async function POST(request:Request) {
   await verifyCustomerSetup(user.id,d.draftId,draft);
   const ledger = orderLedger();
   let row = await ledger.one("draft_id",d.draftId,user.id);
+  if(row?.snapshot.paymentMethod === "bank")throw new Error("RCV3_ORDER_LOCKED");
   const order = prepareOrder({id:row?.id || randomUUID(),ownerId:user.id,draftId:d.draftId,draft,catalog,signature:d.signature,acceptedTermsHash:d.termsHash});
   if(row && (row.snapshot.order.draftHash!==order.draftHash || row.snapshot.order.termsHash!==order.termsHash || JSON.stringify(row.snapshot.order.lines)!==JSON.stringify(order.lines)))throw new Error("RCV3_ORDER_LOCKED");
   await validateStripePrices(stripe,catalog,bundleForDraft(catalog,draft).lines);
-  row ??= await ledger.insert({order,draft,termsText:catalog.terms.text,accountId:catalog.accountId,origin,recurringConsent:true,billingContact:{email:user.email,name:user.fullName}});
+  row ??= await ledger.insert({order,draft,termsText:catalog.terms.text,accountId:catalog.accountId,origin,recurringConsent:true,paymentMethod:"card",billingContact:{email:user.email,name:user.fullName}});
   if(row.snapshot.order.draftHash!==order.draftHash || row.snapshot.order.termsHash!==order.termsHash || JSON.stringify(row.snapshot.order.lines)!==JSON.stringify(order.lines))throw new Error("RCV3_ORDER_LOCKED");
   return reply(await checkoutForOrder(row,ledger));
  } catch(e) {return failure(e);}

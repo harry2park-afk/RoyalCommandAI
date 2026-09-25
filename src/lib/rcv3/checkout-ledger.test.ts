@@ -19,6 +19,17 @@ async function makeOrder(){const draft={...newRoomDraft(),name:"Customer room",p
 beforeEach(()=>{vi.clearAllMocks();mock.files.clear();mock.failState=false;tables={};mock.admin.mockImplementation(db);mock.verify.mockResolvedValue({paid:true,sessionId:"cs_test_fixture",subscriptionId:"sub_fixture"});
  vi.stubEnv("VERCEL_ENV","preview");vi.stubEnv("RCV3_STRIPE_TEST_KEY","rk_test_fixture");vi.stubEnv("RCV3_CHECKOUT_CATALOG",JSON.stringify(catalog));vi.stubEnv("RCV3_CHECKOUT_ENABLED","true");vi.stubEnv("RCV3_CHECKOUT_ORIGIN","https://preview.example");vi.stubEnv("RCV3_STRIPE_WEBHOOK_SECRET","whsec_fixture");});
 describe("server-owned checkout fulfillment",()=>{
+ it("keeps a signed bank-transfer request pending and blocks card checkout for its draft",async()=>{
+  const {ledger,row}=await makeOrder();
+  tables.rcv3_preview_orders[0].session_id=null;
+  tables.rcv3_preview_orders[0].snapshot={...row.snapshot,paymentMethod:"bank",recurringConsent:false};
+  const bank=(await ledger.one("id",row.id,row.owner_id))!;
+  expect(bank.snapshot.order.signature).toBe("Customer");
+  expect(bank.snapshot.order.termsHash).toBe(termsFingerprint(catalog.terms));
+  expect(await fulfillOrder(bank,ledger)).toEqual({status:"pending"});
+  await expect(checkoutForOrder(bank,ledger)).rejects.toThrow("RCV3_ORDER_LOCKED");
+  expect(tables.rooms).toBeUndefined();
+ });
  it("does not write room or storage for unpaid checkout",async()=>{const {ledger,row}=await makeOrder();mock.verify.mockResolvedValue({paid:false});expect(await fulfillOrder(row,ledger)).toEqual({status:"pending"});expect(tables.rooms).toBeUndefined();expect(mock.files.size).toBe(0);});
  it("concurrent return and webhook deliveries create exactly one room",async()=>{const {ledger,row}=await makeOrder();const results=await Promise.all([fulfillOrder(row,ledger),fulfillOrder(row,ledger)]);expect(results[0]).toEqual(results[1]);expect(tables.rooms).toHaveLength(1);expect(tables.households).toHaveLength(1);expect([...mock.files.keys()].filter(k=>k.startsWith("state/"))).toHaveLength(1);expect(tables.rcv3_preview_orders[0].activated_at).toBeTruthy();});
  it("recovers after payment succeeded but initial state storage failed",async()=>{const {ledger,row}=await makeOrder();mock.failState=true;await expect(fulfillOrder(row,ledger)).rejects.toThrow("RCV3_STORAGE");expect(tables.rcv3_preview_orders[0].activated_at).toBeUndefined();mock.failState=false;expect((await fulfillOrder(row,ledger)).status).toBe("active");expect(tables.rooms).toHaveLength(1);});

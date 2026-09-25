@@ -17,6 +17,15 @@ const messages = {
  consent:["I agree to the terms and the monthly recurring total.","약관 및 표시된 금액의 매월 정기결제에 동의합니다."],
  signature:["Full name for agreement","동의하는 본인의 성명"], terms:["Subscription terms","구독 약관"], total:["Monthly total","매월 총금액"],
  card:["Card details are entered securely on the payment page.","카드 정보는 다음 결제 화면에서 안전하게 입력합니다."],
+ cardChoice:["Pay by card","카드로 결제"], bankChoice:["Pay by bank transfer","은행 계좌로 송금"],
+ balanceChoice:["Pay with RC balance","RC 잔액으로 결제"],
+ balancePending:["RC balance payments will be available after your verified deposits and balance are connected. No balance will be deducted now.","확인된 입금액과 고객별 RC 잔액이 연결된 뒤 이용할 수 있습니다. 지금은 잔액이 차감되지 않습니다."],
+ bankAccount:["Account name","계좌명"], bankReference:["Payment reference","입금 내용"],
+ bankInstructions:["Enter your RC customer number as the payment reference when transferring. Your room remains a saved draft until the actual deposit and amount are verified. Bank transfer verification is not connected yet.","송금할 때 입금 내용에 본인의 RC 고객번호를 입력하세요. 실제 입금액과 번호가 확인될 때까지 방은 저장된 초안으로 남습니다. 은행 입금 자동 확인은 아직 연결되지 않았습니다."],
+ bankNoQuote:["Do not transfer until the monthly amount is shown and confirmed.","월 결제 금액이 표시되고 확인되기 전에는 송금하지 마세요."],
+ bankConsent:["I agree to the displayed RC terms and monthly amount. I understand bank transfers require verification and future months require another payment.","표시된 RC 규정과 월 금액에 동의합니다. 은행 송금은 입금 확인이 필요하며 다음 달에도 별도 결제가 필요함을 이해합니다."],
+ bankSign:["Sign and show bank details","서명하고 송금 계좌 보기"],
+ bankSigned:["Agreement saved. Bank deposit matching is not connected; do not transfer money yet. Your room stays a draft until RC verifies the actual deposit.","동의와 서명이 저장됐습니다. 은행 입금 대조가 아직 연결되지 않았으니 지금은 송금하지 마세요. 실제 입금이 확인될 때까지 방은 초안으로 남습니다."],
 } as const;
 export function simpleCreateText(key:keyof typeof messages, language:string) {
  return messages[key][language.toLowerCase().split(/[-_]/)[0] === "ko" ? 1 : 0];
