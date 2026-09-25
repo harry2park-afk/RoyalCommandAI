@@ -21,6 +21,7 @@ beforeEach(()=>{vi.clearAllMocks();mock.files.clear();mock.failState=false;table
 describe("server-owned checkout fulfillment",()=>{
  it("keeps an unconnected custom legal request out of checkout",()=>{
   expect(()=>validateCreationDraft({...newRoomDraft(),name:"Legal",purpose:"legal",providers:["openai"],answers:{customRequest:["Specialist integration"]}})).toThrow("RCV3_SERVICE_NOT_READY");
+  expect(()=>validateCreationDraft({...newRoomDraft(),name:"Legal",purpose:"legal",providers:["openai"],answers:{practice:["Other"]}})).toThrow("RCV3_FORM_REQUIRED");
  });
  it("keeps a signed bank-transfer request pending and blocks card checkout for its draft",async()=>{
   const {ledger,row}=await makeOrder();

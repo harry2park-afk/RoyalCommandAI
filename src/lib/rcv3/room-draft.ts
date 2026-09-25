@@ -54,7 +54,7 @@ export const draftInputSchema = z.object({
       ? values.some(value => !field.options!.includes(value))
       : values.length > 1);
   });
-  if (invalidAnswers || (d.purpose === "legal" && d.answers.practice?.includes("Other") && !d.answers.otherPractice?.[0]?.trim()) || Object.keys(d.answers).some(key => !allowed.has(key)) ||
+  if (invalidAnswers || Object.keys(d.answers).some(key => !allowed.has(key)) ||
       Object.keys(d.onboarding?.aiSources || {}).some(id => !d.providers.includes(id as typeof d.providers[number])) ||
       (!d.secretary && (d.onboarding?.emailEnabled || d.onboarding?.phoneOfferId || d.onboarding?.phoneRequested || d.onboarding?.phoneNumberId || d.onboarding?.phoneConsent)) ||
       d.tasks.some(t => !purpose.suggestedAgents.includes(t)) ||
@@ -85,6 +85,9 @@ const registrySchema = z.object({
 export type DraftRegistry = z.infer<typeof registrySchema>;
 export const draftUpdateSchema = z.object({
   id: z.string().uuid(), expectedRevision: z.number().int().min(0).max(9999999998), input: draftInputSchema,
+}).strict();
+const draftCancelSchema = z.object({
+  id: z.string().uuid(), expectedRevision: z.number().int().min(0).max(9999999998),
 }).strict();
 export function newRoomDraft(): RoomDraftInput {
   return { name: "", purpose: "custom", answers: {}, tasks: [], providers: [],
@@ -117,5 +120,14 @@ export async function saveRoomDraft(store: CloudStore, candidate: unknown): Prom
   // Draft data never grants payment or AI entitlements.
   if (new TextEncoder().encode(JSON.stringify(next)).byteLength > 1400000) throw new Error("RCV3_LIMIT");
   await store.insert(file(next.revision), next);
+  return next;
+}
+export async function cancelRoomDraft(store: CloudStore, candidate: unknown): Promise<DraftRegistry> {
+  const { id, expectedRevision } = draftCancelSchema.parse(candidate);
+  const current = await readDraftRegistry(store);
+  if (current.revision !== expectedRevision) throw new Error("RCV3_CONFLICT");
+  if (!current.drafts.some(d => d.id === id)) throw new Error("RCV3_CONFLICT");
+  const next = registrySchema.parse({revision:current.revision+1,drafts:current.drafts.filter(d=>d.id!==id)});
+  await store.insert(file(next.revision),next);
   return next;
 }

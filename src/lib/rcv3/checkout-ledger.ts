@@ -33,6 +33,7 @@ export function checkoutRuntime() {
 export function validateCreationDraft(candidate: unknown) {
  const draft = draftInputSchema.parse(candidate);
  if(draft.specialAI || draft.answers.customRequest?.[0]?.trim())throw new Error("RCV3_SERVICE_NOT_READY");
+ if(draft.purpose === "legal" && draft.answers.practice?.includes("Other") && !draft.answers.otherPractice?.[0]?.trim())throw new Error("RCV3_FORM_REQUIRED");
  if(draft.secretary&&!draft.providers.length)throw new Error("RCV3_FORM_REQUIRED");
  if(draft.onboarding&&(!draft.onboarding.country||!draft.providers.length))throw new Error("RCV3_FORM_REQUIRED");
  if (!draft.name || draft.plan !== "paid" || !secretarySetupValid(draft) ||

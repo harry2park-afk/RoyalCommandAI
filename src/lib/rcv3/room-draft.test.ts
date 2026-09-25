@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { newRoomDraft, changePurpose, draftInputSchema, readDraftRegistry, saveRoomDraft, roomPurposes, selectSecretary, secretarySetupValid } from "./room-draft";
+import { newRoomDraft, changePurpose, draftInputSchema, readDraftRegistry, saveRoomDraft, cancelRoomDraft, roomPurposes, selectSecretary, secretarySetupValid } from "./room-draft";
 import type { CloudStore } from "./cloud-state";
 const id = "10000000-0000-4000-8000-000000000001";
 function memoryStore(): CloudStore {
@@ -47,10 +47,10 @@ describe("account room drafts", () => {
     expect(draftInputSchema.safeParse({...input,answers:{customRequest:["x".repeat(301)]}}).success).toBe(false);
     expect(draftInputSchema.safeParse({...input,purpose:"accounting"}).success).toBe(false);
   });
-  it("requires a description when another legal practice area is selected",()=>{
+  it("allows an incomplete draft for another legal practice area",()=>{
     const draft={...newRoomDraft(),purpose:"legal",answers:{practice:["Other"],otherPractice:["Employment law"]}};
     expect(draftInputSchema.safeParse(draft).success).toBe(true);
-    expect(draftInputSchema.safeParse({...draft,answers:{practice:["Other"]}}).success).toBe(false);
+    expect(draftInputSchema.safeParse({...draft,answers:{practice:["Other"]}}).success).toBe(true);
     expect(draftInputSchema.safeParse({...draft,answers:{practice:["Other"],otherPractice:["x".repeat(301)]}}).success).toBe(false);
   });
   it("persists an unpaid draft and restores purpose, design and paid wishes", async () => {
@@ -79,6 +79,15 @@ describe("account room drafts", () => {
     await saveRoomDraft(store, { id: second, expectedRevision: 1, input: { ...newRoomDraft(), name: "Second" } });
     await saveRoomDraft(store, { id, expectedRevision: 2, input: { ...newRoomDraft(), name: "Renamed" } });
     expect((await readDraftRegistry(store)).drafts.map(d => d.input.name)).toEqual(["Renamed", "Second"]);
+  });
+  it("cancels only the selected draft and rejects a stale cancellation",async()=>{
+    const store=memoryStore();const second="10000000-0000-4000-8000-000000000002";
+    await saveRoomDraft(store,{id,expectedRevision:0,input:{...newRoomDraft(),name:"First"}});
+    await saveRoomDraft(store,{id:second,expectedRevision:1,input:{...newRoomDraft(),name:"Second"}});
+    await expect(cancelRoomDraft(store,{id,expectedRevision:1})).rejects.toThrow("RCV3_CONFLICT");
+    const result=await cancelRoomDraft(store,{id,expectedRevision:2});
+    expect(result.drafts.map(d=>d.input.name)).toEqual(["Second"]);
+    expect((await readDraftRegistry(store)).drafts.map(d=>d.input.name)).toEqual(["Second"]);
   });
   it("clears obsolete purpose fields without changing the design", () => {
     const input = { ...newRoomDraft(), purpose: "legal", answers: { practice: ["Family"] }, tasks: ["Research"] };
