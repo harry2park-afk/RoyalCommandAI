@@ -7,6 +7,7 @@ const messages = {
  legalOtherPractice:["Describe your other legal practice area","기타 법률 업무 분야를 적어 주세요"],
  legalRoles:["Choose AI roles for this legal room","법률 방에 필요한 AI 역할을 선택하세요"],
  legalAiPriority:["Choose legal AI quality","법률 AI 수준을 선택하세요"],
+ legalAiDefault:["Highest available reasoning requested; RC will confirm the model when connected.","사용 가능한 최고 수준의 추론 AI를 요청합니다. 실제 모델은 연결할 때 RC가 확인합니다."],
  legalProviders:["Choose AI providers to connect later","나중에 연결할 AI를 선택하세요"],
  legalSearch:["Search legal features","법률 기능 찾기"], legalNotFound:["No matching feature. Describe what you need below.","일치하는 기능이 없습니다. 아래에 필요한 기능을 적어 주세요."],
  legalCustomRequest:["Can't find it? Describe one feature RC should source and connect","찾는 기능이 없나요? RC가 찾아 연결할 기능을 적어 주세요"],
