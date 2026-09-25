@@ -36,7 +36,7 @@ describe("account room drafts", () => {
   });
   it("retains the existing 40 purposes and removes unnecessary questions", () => {
     expect(roomPurposes).toHaveLength(40);
-    expect(roomPurposes.find(p => p.id === "legal")?.fields.map(f => f.id)).toEqual(["practice", "advancedRequests"]);
+    expect(roomPurposes.find(p => p.id === "legal")?.fields.map(f => f.id)).toEqual(["practice", "legalAiPriority", "advancedRequests"]);
   });
   it("persists an unpaid draft and restores purpose, design and paid wishes", async () => {
     const store = memoryStore(); const input = { ...newRoomDraft(), name: "My legal room", purpose: "legal", answers: { practice: ["Family"] }, secretary: true, plan: "paid" as const, providers: ["openai" as const] };

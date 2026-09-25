@@ -5,9 +5,11 @@ const messages = {
  example:["For example: teach English or manage customer enquiries","예: 영어 공부를 하거나 고객 문의를 관리하고 싶어요"],
  legalPractice:["Choose your legal practice areas","법률 업무 분야를 선택하세요"],
  legalRoles:["Choose AI roles for this legal room","법률 방에 필요한 AI 역할을 선택하세요"],
+ legalAiPriority:["Choose legal AI quality","법률 AI 수준을 선택하세요"],
+ legalProviders:["Choose AI providers to connect later","나중에 연결할 AI를 선택하세요"],
  legalAdvanced:["Specialist AI option","고급 전문 AI 선택"],
  legalAdvancedRequests:["Advanced features (connection pending)","고급 기능 (연결 대기)"],
- legalSetupNotice:["Advanced selections are saved as requests. They cannot be used until RC connects and activates them.","고급 기능 선택은 요청으로 저장됩니다. RC가 연결하고 활성화하기 전에는 사용할 수 없습니다."],
+ legalSetupNotice:["AI quality and advanced features are saved as requests. Actual model, legal tools and price require a separate verified connection; no legal advice is enabled by these choices.","AI 수준과 고급 기능은 요청으로 저장됩니다. 실제 모델·법률 도구·금액은 연결 후 확인해야 하며, 선택만으로 법률 자문이 활성화되지 않습니다."],
  design:["3. Choose your room design","3. 룸 디자인 선택"],
  options:["4. Your room features","4. 자동으로 준비한 기능 선택"], payment:["5. Review and pay","5. 금액 확인 및 결제"],
  recommended:["Suggested for your purpose. Change any selection below.","용도에 맞춰 준비했습니다. 필요한 항목을 선택하거나 해제하세요."],
@@ -43,5 +45,7 @@ const ko:Record<string,string> = {
  "Customer Support":"고객 지원", "Orders":"주문", "Returns":"반품", "Scheduling":"일정 관리", "Project Coordinator":"프로젝트 관리",
  "Family":"가족법", "Property":"부동산", "Compensation":"손해배상", "Commercial":"상사·기업", "Criminal":"형사", "Immigration":"이민", "General":"일반 법률",
  "Case timeline":"사건 경과표", "Evidence organisation":"증거 정리", "Document comparison":"문서 비교", "Contract review":"계약서 검토", "Citation research":"판례·법령 조사", "Client intake summary":"고객 상담 요약", "Deadline tracking":"기한 추적", "Bilingual drafts":"이중 언어 초안",
+ "Highest available reasoning":"사용 가능한 최고 수준 추론", "Balanced speed and quality":"속도와 품질 균형", "Use my connected AI":"내가 연결한 AI 사용",
+ "Jurisdiction and source checks":"관할과 출처 확인", "Conflicting evidence review":"상충 증거 검토", "Privilege and confidentiality review":"비밀유지·특권 검토", "Court filing checklist":"법원 제출 확인 목록",
 };
 export function roomFeatureLabel(value:string, language:string) { return language.toLowerCase().startsWith("ko") ? ko[value] || value : value; }
