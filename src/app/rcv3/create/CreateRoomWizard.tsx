@@ -198,7 +198,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
           <section className={styles.verticalSection}>
             <h2>{t("payment")}</h2>
             {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
-            <PreviewTokenPanel key={`${draftId}:${registry.revision}`} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!explicitlySaved||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
+            <PreviewTokenPanel key={`${draftId}:${registry.revision}`} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
           </section>
         </>}
       </fieldset>

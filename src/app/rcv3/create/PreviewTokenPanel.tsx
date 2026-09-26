@@ -14,6 +14,16 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
  useEffect(()=>{let active=true;fetch("/api/rcv3/token-room",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active)setAccount(v);}).catch(()=>{}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
  useEffect(()=>{let active=true;fetch("/api/rcv3/checkout/bank-start",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active&&v?.customerNumber)setBankNumber(v.customerNumber);}).catch(()=>{});return()=>{active=false;};},[]);
+ useEffect(()=>{
+  if(disabled)return;
+  let active=true;
+  setBankBusy(true);setBankError("");
+  fetch("/api/rcv3/checkout/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({draftId,expectedRevision:revision})})
+   .then(async r=>{const v=await r.json();if(!r.ok)throw new Error(v.code||"RCV3_ERROR");return v;})
+   .then(v=>{if(active)setQuote(v);}).catch(e=>{if(active)setBankError(e instanceof Error?e.message:"RCV3_ERROR");})
+   .finally(()=>{if(active)setBankBusy(false);});
+  return()=>{active=false;};
+ },[disabled,draftId,revision]);
  async function requestBankQuote() {
   if(disabled||bankBusy)return;
   setBankBusy(true);setBankError("");
@@ -59,8 +69,9 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
    {account&&<><p>{account.customerNumber} · {t("tokenBalance")}: <strong>{account.balance.toLocaleString(language)}</strong></p><p>{t("tokenPreviewTerms")}</p><label><input type="checkbox" checked={agreed} disabled={busy||!!url} onChange={e=>setAgreed(e.target.checked)}/>{t("tokenAgree")}</label></>}
    {!bankSigned?<><label><input type="checkbox" checked={bankAgreed} onChange={e=>setBankAgreed(e.target.checked)}/>{t("bankConsent")}</label>
    <label>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} onChange={e=>setBankSignature(e.target.value)}/></label>
-   <button type="button" disabled={disabled||bankBusy||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(agreed&&account?(language.startsWith("ko")?"방 만들기 · 테스트 토큰 30개 사용":"Create Room · Use 30 test tokens"):(language.startsWith("ko")?"방 만들기":"Create Room"))}</button></>:<p role="status">{url?(language.startsWith("ko")?"테스트 토큰 30개가 차감되고 방이 열렸습니다.":"30 test tokens were charged and your room is open."):(language.startsWith("ko")?"방이 만들어졌습니다. 확인 전까지 연결 기능은 잠겨 있습니다. 입금 확인까지 기다려 주세요.":"Your room is created. Connections remain locked until payment is confirmed. Please wait for confirmation.")} <a href={url||pendingRoomUrl}>{t("open")}</a></p>}
+   </>:<p role="status">{url?(language.startsWith("ko")?"테스트 토큰 30개가 차감되고 방이 열렸습니다.":"30 test tokens were charged and your room is open."):(language.startsWith("ko")?"방이 만들어졌습니다. 확인 전까지 연결 기능은 잠겨 있습니다. 입금 확인까지 기다려 주세요.":"Your room is created. Connections remain locked until payment is confirmed. Please wait for confirmation.")} <a href={url||pendingRoomUrl}>{t("open")}</a></p>}
   </>}
+  {!bankSigned&&<button type="button" disabled={disabled||bankBusy||!quote||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(agreed&&account?(language.startsWith("ko")?"방 만들기 · 테스트 토큰 30개 사용":"Create Room · Use 30 test tokens"):(language.startsWith("ko")?"방 만들기":"Create Room"))}</button>}
   {bankError&&<p role="alert">{bankError==="RCV3_CONFLICT"?t("tokenConflict"):(language.startsWith("ko")?`방을 만들 수 없습니다 (${bankError}). 저장한 방과 요금 설정을 확인하세요.`:`Could not create the room (${bankError}). Check your saved room and pricing setup.`)}</p>}
   <p>{language.startsWith("ko")?"보유 토큰으로 사용하면 별도 송금이 필요 없습니다. 토큰이 부족하면 방은 만들어져도 연결은 입금 확인까지 잠깁니다.":"You can use available tokens without a transfer. If tokens are insufficient, the room remains created and connections stay locked until payment is confirmed."}</p>
   <button type="button" disabled>{t("cardChoice")} · Not Connected</button>{" "}
