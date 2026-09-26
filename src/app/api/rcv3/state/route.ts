@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const order = canManageToolbox(a.user) ? null : await orderLedger().one('room_id',a.room.id,a.user.id);
     const baseIds = a.entitlement ? new Map(customerToolCapabilities(a.entitlement).map(tool=>[stableId(a.room.id,tool),tool])) : undefined;
     const background = state.design.backgroundAssetId ? await a.store.read(`assets/${state.design.backgroundAssetId}.txt`) : null;
-    return reply({ state: canManageToolbox(a.user) ? state : customerToolState(state,a.entitlement,order?.snapshot.toolGrants,baseIds), paymentRequired:a.paymentRequired, background, language: a.user.defaultLanguage, country: a.user.countryCode });
+    return reply({ state: canManageToolbox(a.user) ? state : customerToolState(state,a.entitlement,order?.snapshot.toolGrants,baseIds), paymentRequired:a.paymentRequired, bankPending:a.bankPending, background, language: a.user.defaultLanguage, country: a.user.countryCode });
   } catch(e) { return failure(e); }
 }
 export async function PUT(request: Request) {

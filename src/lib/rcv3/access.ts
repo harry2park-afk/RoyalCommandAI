@@ -25,15 +25,18 @@ export async function access(roomId: string, options: { allowUnpaidRead?: boolea
   if (!result.data || result.data.household_id !== stableId(ctx.user.id,"household")) throw new Error("RCV3_NOT_FOUND");
   let entitlement;
   let paymentRequired = false;
+  let bankPending = false;
   try { entitlement = await paidRoomEntitlement(ctx.user.id,id); }
   catch(error) {
     if (!options.allowUnpaidRead || !(error instanceof Error) || error.message !== 'RCV3_PAYMENT_REQUIRED') throw error;
     const order = await orderLedger().one('room_id',id,ctx.user.id);
-    if (!order?.activated_at) throw error;
+    if (!order?.activated_at && order?.snapshot.paymentMethod !== "bank") throw error;
+    if (!order) throw error;
     entitlement = order.snapshot.draft;
     paymentRequired = true;
+    bankPending = order.snapshot.paymentMethod === "bank";
   }
-  return { ...ctx, entitlement, paymentRequired, room: result.data, store: cloudStore(ctx.db, ctx.user.id, id) };
+  return { ...ctx, entitlement, paymentRequired, bankPending, room: result.data, store: cloudStore(ctx.db, ctx.user.id, id) };
 }
 export function reply(body: unknown, status = 200, timing?: number) {
   return Response.json(body, { status, headers: { "Cache-Control": "no-store", ...(timing === undefined ? {} : { "Server-Timing": `rcv3;dur=${timing.toFixed(1)}` }) } });

@@ -9,6 +9,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
  const [account,setAccount]=useState<Balance|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const [signature,setSignature]=useState(""),[agreed,setAgreed]=useState(false),[url,setUrl]=useState("");
  const [showBank,setShowBank]=useState(false);
+ const [pendingRoomUrl,setPendingRoomUrl]=useState("");
  const [bankNumber,setBankNumber]=useState(""),[quote,setQuote]=useState<Quote|null>(null),[bankError,setBankError]=useState(""),[bankBusy,setBankBusy]=useState(false),[bankAgreed,setBankAgreed]=useState(false),[bankSignature,setBankSignature]=useState(""),[bankSigned,setBankSigned]=useState(false);
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
  useEffect(()=>{let active=true;fetch("/api/rcv3/token-room",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active)setAccount(v);}).catch(()=>{}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
@@ -32,7 +33,8 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
    const result=await response.json();
    if(!response.ok)throw new Error(result.code||"RCV3_ERROR");
    if(result.status!=="pending")throw new Error("RCV3_ERROR");
-   setBankSigned(true);
+   if(!/^\/rcv3\?room=[a-f0-9-]+$/.test(result.url))throw new Error("RCV3_ERROR");
+   setPendingRoomUrl(result.url);setBankSigned(true);
   } catch(e) {setBankError(e instanceof Error?e.message:"RCV3_ERROR");}
   finally{setBankBusy(false);}
  }
@@ -60,11 +62,11 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
     <details><summary>{t("terms")} · {quote.terms.version}</summary><div style={{whiteSpace:"pre-wrap",maxHeight:260,overflowY:"auto"}}>{quote.terms.text}</div></details>
     {!bankSigned?<><label><input type="checkbox" checked={bankAgreed} onChange={e=>setBankAgreed(e.target.checked)}/>{t("bankConsent")}</label>
     <label>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} onChange={e=>setBankSignature(e.target.value)}/></label>
-    <button type="button" disabled={disabled||bankBusy||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(language.startsWith("ko")?"송금 신청 저장":"Save transfer request")}</button></>:<p role="status">{language.startsWith("ko")?"송금 신청이 저장됐습니다. 실제 입금 확인 전까지 방은 초안으로 보관됩니다.":"Transfer request saved. The room remains a draft until the incoming payment is verified."}</p>}
+    <button type="button" disabled={disabled||bankBusy||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(language.startsWith("ko")?"방 만들기 · 송금 신청 저장":"Create room · Save transfer request")}</button></>:<p role="status">{language.startsWith("ko")?"방이 만들어졌습니다. 입금 확인 전까지 유료 기능은 잠겨 있습니다.":"Your room is created. Paid features stay locked until the deposit is verified."} <a href={pendingRoomUrl}>{t("open")}</a></p>}
    </>}
    {bankError&&<p role="alert">{bankError==="RCV3_CONFLICT"?t("tokenConflict"):(language.startsWith("ko")?`금액을 확인할 수 없습니다 (${bankError}). 저장한 방과 요금 설정을 확인하세요.`:`Could not confirm the amount (${bankError}). Check your saved room and pricing setup.`)}</p>}
    <BankPicker customerNumber={bankNumber||account?.customerNumber||""} language={language}/>
-   <p role="status">{language.startsWith("ko")?"은행 사이트에서 직접 로그인하고 수취인 계좌와 본인의 RC 번호를 입력하세요. RC는 은행 비밀번호를 받지 않습니다. 월 이용료와 실제 입금을 확인하기 전에는 방이 열리지 않습니다. 현재 RC는 은행 거래내역을 조회할 수 없습니다.":"Sign in on the bank's own site and enter the recipient account and your RC number yourself. RC never receives your bank password. Your room cannot open until the monthly amount and actual deposit are verified. RC currently has no access to the bank's incoming transaction feed."}</p>
+   <p role="status">{language.startsWith("ko")?"은행 사이트에서 직접 로그인하고 수취인 계좌와 본인의 RC 번호를 입력하세요. RC는 은행 비밀번호를 받지 않습니다. 입금 확인 또는 보유 토큰 결제 후 유료 기능이 열립니다. 현재 RC는 은행 거래내역을 조회할 수 없습니다.":"Sign in on your bank's site and enter the recipient account and your RC number. RC never receives your bank password. Paid features unlock after the deposit is verified or you pay with available tokens. RC currently has no access to the bank's incoming transaction feed."}</p>
   </div>}
   {!loading&&!account&&<p role="status">{t("tokenAccountUnavailable")}</p>}
   {account&&<div>

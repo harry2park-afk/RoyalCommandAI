@@ -5,9 +5,6 @@ import { readDraftRegistry } from "@/lib/rcv3/room-draft";
 import { previewStripe, bundleForDraft, validateStripePrices, draftFingerprint, termsFingerprint, quoteFingerprint } from "@/lib/rcv3/stripe-checkout";
 
 import { checkoutRuntime, validateCreationDraft } from "@/lib/rcv3/checkout-ledger";
-import { verifyCustomerSetup } from "@/lib/rcv3/customer-setup";
-import { reserve } from "@/lib/rcv3/execution";
-import { randomUUID } from "node:crypto";
 export const maxDuration = 120;
 
 // Read-only quote. This route neither creates a Stripe session nor activates a
@@ -23,7 +20,8 @@ export async function POST(request: Request) {
     validateCreationDraft(draft.input);
     const { key, catalog } = checkoutRuntime();
     const bundle = bundleForDraft(catalog, draft.input);
-    await verifyCustomerSetup(user.id,draft.id,draft.input,()=>reserve({user,db},randomUUID(),"onboarding"));
+    // A pending room can be created before its requested connections work.
+    // Activation retains its separate owner-scoped setup checks.
     await validateStripePrices(previewStripe(key), catalog, bundle.lines);
     return reply({ draftId: draft.id, draftHash: draftFingerprint(draft.input), catalogVersion: catalog.version,
       currency: catalog.currency, interval: "month", tax: catalog.tax,

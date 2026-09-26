@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { stableId } from "./access";
 import { cloudStore, readState, revisionFile } from "./cloud-state";
 import { readDraftRegistry, draftInputSchema } from "./room-draft";
-import { initialPaidState, validateCreationDraft } from "./checkout-ledger";
+import { initialPaidState, validateCreationDraft, orderLedger } from "./checkout-ledger";
 import { verifyCustomerSetup } from "./customer-setup";
 import { roomTemplates, templateImage } from "./templates";
 
@@ -49,7 +49,9 @@ export async function openPreviewTokenRoom(ownerId:string,db:Awaited<ReturnType<
   // Tokens only activate verified customer-owned services. They cannot enable
   // an unconnected requested feature, an email account or a phone number.
   await verifyCustomerSetup(ownerId,draftId,draft);
-  const roomId=stableId(ownerId,`token-room:${draftId}`);
+  const bankOrder=await orderLedger().one("draft_id",draftId,ownerId);
+  if(bankOrder?.snapshot.paymentMethod!=="bank"&&bankOrder)throw new Error("RCV3_ORDER_LOCKED");
+  const roomId=bankOrder?.room_id??stableId(ownerId,`token-room:${draftId}`);
   const charged=previous.data?{data:previous.data,error:null}:await service.rpc("rcv3_open_preview_token_room",{p_owner:ownerId,p_draft:draftId,p_room:roomId,p_snapshot:draft,p_tokens:COST,p_name:signature,p_version:"rcv3-preview-token-20260925"});
   if(charged.error)throw new Error(/INSUFFICIENT_TOKENS/.test(charged.error.message)?"RCV3_LIMIT":/DRAFT_CHANGED/.test(charged.error.message)?"RCV3_CONFLICT":"RCV3_STORAGE");
   const householdId=stableId(ownerId,"household");

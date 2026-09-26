@@ -50,7 +50,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
   const [toolNotice,setToolNotice]=useState("");
   const [emailReviewOpen,setEmailReviewOpen]=useState(false);
   const [requestsOpen,setRequestsOpen]=useState(false);
-  const [paymentRequired,setPaymentRequired]=useState(true),[paymentOpen,setPaymentOpen]=useState(false);
+  const [paymentRequired,setPaymentRequired]=useState(true),[bankPending,setBankPending]=useState(false),[paymentOpen,setPaymentOpen]=useState(false);
   const [pendingTool,setPendingTool]=useState<ToolId|null>(null);
   const [toolPointer,setToolPointer]=useState<{x:number;y:number}|null>(null);
   const galleryTitle=({Rooms:"Create Room",Connections:"AI List",Tools:"Toolbox",Help:"AI Helper",MyRooms:"My Rooms",Personal:"My AI account"} as Record<string,string>)[galleryTab]??"Toolbox";
@@ -97,7 +97,7 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
     audioRef.current?.pause();continuousVoice.current=false;
     const billingRequested=new URLSearchParams(window.location.search).get("billing")==="1";
     try { const result=await api(`state?room=${encodeURIComponent(id)}`); if(token!==generation.current)return;
-      setPaymentRequired(result.paymentRequired===true); if(billingRequested)setPaymentOpen(true); setState(result.state); saved.current=result.state; setBackground(result.background?.data??"");
+      setPaymentRequired(result.paymentRequired===true);setBankPending(result.bankPending===true); if(billingRequested)setPaymentOpen(true); setState(result.state); saved.current=result.state; setBackground(result.background?.data??"");
       window.history.replaceState(null,"",`/rcv3?room=${encodeURIComponent(id)}`);
     } catch(e){if(token===generation.current)setError((e as Error).message);}
   },[]);
@@ -280,8 +280,8 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
     {toolboxManager&&emailReviewOpen&&<EmailReview onClose={()=>setEmailReviewOpen(false)}/>}
     {state&&<button onClick={()=>setRequestsOpen(true)}>{toolboxManager?'RC Requests':'Request a Tool'}</button>}
     {requestsOpen&&roomId&&<ToolRequests roomId={roomId} manager={toolboxManager} onClose={()=>setRequestsOpen(false)}/>}
-    {paymentOpen&&roomId&&<PaymentGate roomId={roomId} onClose={()=>setPaymentOpen(false)} onCheck={()=>openRoom(roomId)}/>}
-    {paymentRequired&&state&&<p role="status"><HelpText helpKey="toolPaymentRequired"/> <button onClick={()=>setPaymentOpen(true)}>Pay</button></p>}
+    {paymentOpen&&roomId&&<PaymentGate roomId={roomId} bankPending={bankPending} language={language} onClose={()=>setPaymentOpen(false)} onCheck={()=>openRoom(roomId)}/>}
+    {paymentRequired&&state&&<p role="status">{bankPending?(language.startsWith("ko")?"방이 만들어졌습니다. 입금 확인까지 기다려 주세요. 연결 기능은 확인 후 열립니다.":"Your room is created. Please wait for payment confirmation. Connections will unlock afterward."):<HelpText helpKey="toolPaymentRequired"/>} <button onClick={()=>setPaymentOpen(true)}>{bankPending?"Check Payment":"Pay"}</button></p>}
     {toolNotice&&<p role="status">{toolNotice}</p>}
     {saving&&<span className={styles.saveStatus} role="status">Saving…</span>}
     {error&&<div className={styles.error} role="alert">{error}</div>}
