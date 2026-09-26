@@ -40,7 +40,7 @@ const messages = {
  bankAccount:["Account name","계좌명"], bankReference:["Payment reference","입금 내용"],
  bankInstructions:["Enter your RC customer number as the payment reference when transferring. Your room remains a saved draft until the actual deposit and amount are verified. Bank transfer verification is not connected yet.","송금할 때 입금 내용에 본인의 RC 고객번호를 입력하세요. 실제 입금액과 번호가 확인될 때까지 방은 저장된 초안으로 남습니다. 은행 입금 자동 확인은 아직 연결되지 않았습니다."],
  bankNoQuote:["Do not transfer until the monthly amount is shown and confirmed.","월 결제 금액이 표시되고 확인되기 전에는 송금하지 마세요."],
- bankConsent:["I agree to the displayed RC terms and monthly amount. I understand bank transfers require verification and future months require another payment.","표시된 RC 규정과 월 금액에 동의합니다. 은행 송금은 입금 확인이 필요하며 다음 달에도 별도 결제가 필요함을 이해합니다."],
+ bankConsent:["I agree to the displayed RC terms and amount. I understand room creation does not confirm payment; paid connections require verified payment or a separate token charge.","표시된 RC 규정과 금액에 동의합니다. 방 생성만으로 결제가 확인되지 않으며, 유료 연결에는 입금 확인 또는 별도 토큰 차감이 필요함을 이해합니다."],
  bankSign:["Sign and show bank details","서명하고 송금 계좌 보기"],
  bankSigned:["Agreement saved. Bank deposit matching is not connected; do not transfer money yet. Your room stays a draft until RC verifies the actual deposit.","동의와 서명이 저장됐습니다. 은행 입금 대조가 아직 연결되지 않았으니 지금은 송금하지 마세요. 실제 입금이 확인될 때까지 방은 초안으로 남습니다."],
 } as const;

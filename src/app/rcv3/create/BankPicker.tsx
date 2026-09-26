@@ -8,16 +8,15 @@ export default function BankPicker({customerNumber,language}:{customerNumber:str
  const ko=language.toLowerCase().startsWith("ko"),[recent,setRecent]=useState<string[]>([]),[ready,setReady]=useState(false);
  const [query,setQuery]=useState(""),[foreignName,setForeignName]=useState(""),[country,setCountry]=useState("");
  const key=customerNumber?`rcv3-banks:${customerNumber.replace(/[^\d]/g,"")}`:"";
- useEffect(()=>{if(!key)return;try{const x=JSON.parse(localStorage.getItem(key)||"[]");setRecent(Array.isArray(x)?x.filter((v):v is string=>typeof v==="string").slice(0,6):[]);}catch{setRecent([]);}setReady(true);},[key]);
- function save(next:string[]) {setRecent(next);if(key)try{localStorage.setItem(key,JSON.stringify(next.slice(0,6)));}catch{}}
- function go(id:string) {if(!key)return;window.open(destination(id),"_blank","noopener,noreferrer");save([id,...recent.filter(x=>x!==id)].slice(0,6));}
- function move(index:number,by:number) {const next=[...recent],target=index+by;if(target<0||target>=next.length)return;[next[index],next[target]]=[next[target],next[index]];save(next);}
+ useEffect(()=>{if(!key)return;try{const x=JSON.parse(localStorage.getItem(key)||"[]");setRecent(Array.isArray(x)?x.filter((v):v is string=>typeof v==="string").slice(0,3):[]);}catch{setRecent([]);}setReady(true);},[key]);
+ function save(next:string[]) {setRecent(next);if(key)try{localStorage.setItem(key,JSON.stringify(next.slice(0,3)));}catch{}}
+ function go(id:string) {if(!key)return;window.open(destination(id),"_blank","noopener,noreferrer");save([id,...recent.filter(x=>x!==id)].slice(0,3));}
  const results=useMemo(()=>orderedAustralianBanks.filter(name=>name.toLowerCase().includes(query.trim().toLowerCase())||(bankNames[name]||"").toLowerCase().includes(query.trim().toLowerCase())),[query]);
- const button=(id:string)=> <button type="button" key={id} onClick={()=>go(id)} disabled={!key} style={{textAlign:"left",padding:"10px 14px",minHeight:44}}>{label(id)} → {verifiedBankSites[id]?(ko?"은행 웹사이트 열기":"Open bank website"):(ko?"공식 사이트 검색":"Find official site")}</button>;
+ const button=(id:string)=> <button type="button" key={id} onClick={()=>go(id)} disabled={!key} style={{textAlign:"left",padding:"10px 14px",minHeight:44}}>{label(id)} · {verifiedBankSites[id]?(ko?"은행 웹사이트 열기":"Open bank website"):(ko?"공식 사이트 검색":"Find official site")}</button>;
+ const shown=ready?[...recent,...majorAustralianBanks.filter(id=>!recent.includes(id))].slice(0,3):majorAustralianBanks.slice(0,3);
  return <div>
-  <p><strong>{ko?"주요 호주 은행":"Major Australian banks"}</strong></p>
-  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{majorAustralianBanks.map(button)}</div>
-  {ready&&recent.length>0&&<><p><strong>{ko?"최근 사용한 은행":"Recently used banks"}</strong></p><div>{recent.map((id,i)=><div key={id} style={{display:"flex",gap:6,alignItems:"center",marginBottom:6}}>{button(id)}<button type="button" aria-label={`${label(id)} ${ko?"위로":"move up"}`} disabled={i===0} onClick={()=>move(i,-1)}>↑</button><button type="button" aria-label={`${label(id)} ${ko?"아래로":"move down"}`} disabled={i===recent.length-1} onClick={()=>move(i,1)}>↓</button></div>)}</div></>}
+  <p><strong>{ko?"최근 은행 · 최대 3개":"Recent banks · up to 3"}</strong></p>
+  <div style={{display:"flex",flexWrap:"wrap",gap:6}}>{shown.map(button)}</div>
   <details style={{marginTop:12}}><summary>{ko?"호주 은행 전체 목록에서 찾기":"Find an Australian bank"}</summary>
    <label>{ko?"은행 이름 검색":"Search bank name"}<input value={query} onChange={e=>setQuery(e.target.value)} autoComplete="off"/></label>
    <div style={{maxHeight:300,overflowY:"auto",display:"grid",gap:4}}>{results.map(button)}</div>

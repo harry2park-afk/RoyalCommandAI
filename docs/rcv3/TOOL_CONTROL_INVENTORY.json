@@ -270,26 +270,12 @@
     {
       "controlId": "src/app/rcv3/create/BankPicker.tsx#1",
       "toolId": "create-room",
-      "sourceHash": "ea3376f375e7f7663ded36de4d05085572c41082f2561b4a9c60c901a2078834",
+      "sourceHash": "97c89ce65a1671689f0e2b988893a21ada15cf39f1769e3d5a3bb1e20b3bcdbd",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/BankPicker.tsx#2",
-      "toolId": "create-room",
-      "sourceHash": "c444b9e4eb75ea80f48cd1c51f4be4fa841442150223fdf414c583bdd2a31d58",
-      "mode": "context-bound",
-      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
-    },
-    {
-      "controlId": "src/app/rcv3/create/BankPicker.tsx#3",
-      "toolId": "create-room",
-      "sourceHash": "512171acbc47ac379427f1ab197ec933f5246dcb2b5973dfa295adad7bf7228d",
-      "mode": "context-bound",
-      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
-    },
-    {
-      "controlId": "src/app/rcv3/create/BankPicker.tsx#4",
       "toolId": "create-room",
       "sourceHash": "87ab79763302f122c92d06be7a5600198d5c74c61d92f3cfa122f13ac9bd5534",
       "mode": "context-bound",
@@ -438,35 +424,35 @@
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#1",
       "toolId": "create-room",
-      "sourceHash": "780525586983ab520a6c62c94a99db60911022934d28c51936f1bb7922868d28",
+      "sourceHash": "5e9493f7894bbedcf80bba43f3e3ca8b6c0cdd67997227bd7e661f62f3d204be",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#2",
       "toolId": "create-room",
-      "sourceHash": "765a0fd9f600c5409e39160073b37e1c530acdc8a0089e530de7500aef36de05",
+      "sourceHash": "0390d5193177a97e25105661594efd646f4b3d6568b4509d631fcba325006015",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#3",
       "toolId": "create-room",
-      "sourceHash": "deca21c2b262a6d5253aa988e322e9da7d7332062126d4c138665bd703110820",
+      "sourceHash": "780525586983ab520a6c62c94a99db60911022934d28c51936f1bb7922868d28",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#4",
       "toolId": "create-room",
-      "sourceHash": "9ef389eef6fa281fda6af04d026055d0f1b6f302f95939f3bbc9ba6e4c98373c",
+      "sourceHash": "765a0fd9f600c5409e39160073b37e1c530acdc8a0089e530de7500aef36de05",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#5",
       "toolId": "create-room",
-      "sourceHash": "9372bb2177cd01fd59df3e3c7d21fb84d83f7873f95f80d94636f391d3eeb47b",
+      "sourceHash": "5b541d29fd40e91187c655bd323e8c5326378de28a05208694f29642e3987e32",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
