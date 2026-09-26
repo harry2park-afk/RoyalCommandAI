@@ -424,35 +424,35 @@
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#1",
       "toolId": "create-room",
-      "sourceHash": "5e9493f7894bbedcf80bba43f3e3ca8b6c0cdd67997227bd7e661f62f3d204be",
+      "sourceHash": "e27216a1f5c1edd5841cc74edd2b7fa9b67c29a00dbd0f908dbb867ba77437d2",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#2",
       "toolId": "create-room",
-      "sourceHash": "0cadb83ad0f0df667d4afb26f1f997d3d5a1c97b6c02269d0f7d9c36686f9b13",
+      "sourceHash": "5e9493f7894bbedcf80bba43f3e3ca8b6c0cdd67997227bd7e661f62f3d204be",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#3",
       "toolId": "create-room",
-      "sourceHash": "780525586983ab520a6c62c94a99db60911022934d28c51936f1bb7922868d28",
+      "sourceHash": "0cadb83ad0f0df667d4afb26f1f997d3d5a1c97b6c02269d0f7d9c36686f9b13",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#4",
       "toolId": "create-room",
-      "sourceHash": "765a0fd9f600c5409e39160073b37e1c530acdc8a0089e530de7500aef36de05",
+      "sourceHash": "780525586983ab520a6c62c94a99db60911022934d28c51936f1bb7922868d28",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#5",
       "toolId": "create-room",
-      "sourceHash": "e70bec021d826311e39d7b6a636c8c790528ec157297d602bcc432d685dd0ed1",
+      "sourceHash": "765a0fd9f600c5409e39160073b37e1c530acdc8a0089e530de7500aef36de05",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
