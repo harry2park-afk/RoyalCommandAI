@@ -5,12 +5,12 @@ import BankPicker from "./BankPicker";
 
 type Balance={customerNumber:string;balance:number;cost:number};
 type Quote={currency:string;totalMinor:number;lines:{serviceId:string;label:string;amountMinor:number}[];quoteHash:string;terms:{version:string;text:string};termsHash:string};
-export default function PreviewTokenPanel({draftId,revision,disabled,language}:{draftId:string;revision:number;disabled:boolean;language:string}) {
+export default function PreviewTokenPanel({draftId,revision,disabled,language,accountName}:{draftId:string;revision:number;disabled:boolean;language:string;accountName:string}) {
  const [account,setAccount]=useState<Balance|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const [agreed,setAgreed]=useState(false),[url,setUrl]=useState("");
  const [showBank,setShowBank]=useState(false);
  const [pendingRoomUrl,setPendingRoomUrl]=useState("");
- const [bankNumber,setBankNumber]=useState(""),[quote,setQuote]=useState<Quote|null>(null),[bankError,setBankError]=useState(""),[bankBusy,setBankBusy]=useState(false),[bankAgreed,setBankAgreed]=useState(false),[bankSignature,setBankSignature]=useState(""),[bankSigned,setBankSigned]=useState(false);
+ const [bankNumber,setBankNumber]=useState(""),[quote,setQuote]=useState<Quote|null>(null),[bankError,setBankError]=useState(""),[bankBusy,setBankBusy]=useState(false),[bankAgreed,setBankAgreed]=useState(false),[bankSignature,setBankSignature]=useState(accountName.trim().slice(0,160)),[bankSigned,setBankSigned]=useState(false);
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
  useEffect(()=>{let active=true;fetch("/api/rcv3/token-room",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active)setAccount(v);}).catch(()=>{}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
  useEffect(()=>{let active=true;fetch("/api/rcv3/checkout/bank-start",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active&&v?.customerNumber)setBankNumber(v.customerNumber);}).catch(()=>{});return()=>{active=false;};},[]);
@@ -57,7 +57,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language}:{
    <p>{account.customerNumber} · {t("tokenBalance")}: <strong>{account.balance.toLocaleString(language)}</strong></p>
    <p>{t("tokenPreviewTerms")}</p>
    {!url&&<><label><input type="checkbox" checked={agreed} disabled={busy} onChange={e=>setAgreed(e.target.checked)}/>{t("tokenAgree")}</label>
-   <label>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} disabled={busy} onChange={e=>setBankSignature(e.target.value)}/></label>
+   <label style={{display:"block",marginTop:10}}>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} disabled={busy} onChange={e=>setBankSignature(e.target.value)}/></label>
    <button type="button" disabled={busy||disabled||!agreed||bankSignature.trim().length<2} onClick={()=>void chargeTokens()}>{busy?t("wait"):(language.startsWith("ko")?"방 만들기 · 테스트 토큰 30개 사용":"Create Room · Use 30 test tokens")}</button></>}
    {url&&<p role="status">{language.startsWith("ko")?"테스트 토큰 30개가 차감되고 방이 열렸습니다.":"30 test tokens were charged and your room is open."} <a href={url}>{t("open")}</a></p>}
   </div>}

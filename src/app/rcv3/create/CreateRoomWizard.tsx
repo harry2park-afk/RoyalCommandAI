@@ -29,8 +29,8 @@ async function cancelDraftRequest(id:string,expectedRevision:number):Promise<Dra
   if(!response.ok)throw new Error(data.code||"RCV3_STORAGE");
   return data;
 }
-export default function CreateRoomWizard({ language, providers, accountEmail, country }: {
-  helperAvailable: boolean; accountEmail: string; country: string; language: string; providers: { id: AIProviderId; label: string }[];
+export default function CreateRoomWizard({ language, providers, accountEmail, accountName, country }: {
+  helperAvailable: boolean; accountEmail: string; accountName: string; country: string; language: string; providers: { id: AIProviderId; label: string }[];
 }) {
   const defaultInput = useCallback((): RoomDraftInput => ({...newRoomDraft(),onboarding:{country:COUNTRY_ROOM_PRESETS.some(c=>c.id===country)?country:"",aiSources:{},emailEnabled:false,phoneRequested:false,phoneOfferId:""},providers:providers.some(p=>p.id==="openai")?["openai"]:providers[0]?[providers[0].id]:[]}),[providers,country]);
   const [input, setInput] = useState<RoomDraftInput>(defaultInput);
@@ -198,12 +198,13 @@ export default function CreateRoomWizard({ language, providers, accountEmail, co
           <section className={styles.verticalSection}>
             <h2>{t("payment")}</h2>
             {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
-            <PreviewTokenPanel key={`${draftId}:${registry.revision}`} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
+            <PreviewTokenPanel key={`${draftId}:${registry.revision}`} draftId={draftId} revision={registry.revision} accountName={accountName} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
           </section>
         </>}
       </fieldset>
     </section>
     <details className={styles.sidebar}><summary>{t("drafts")}</summary>
+      <p>{language.startsWith("ko")?"자동 저장된 방 초안입니다. 아직 생성된 방이 아닙니다.":"These are automatically saved drafts, not created rooms."}</p>
       <button disabled={busy||dirty||!loaded} onClick={()=>{setPurposeChosen(false);const fresh=defaultInput();latestInput.current=fresh;setInput(fresh);setExplicitlySaved(false);setDraftId(crypto.randomUUID());setStatus("");setError("");setShowAllDesigns(false);const url=new URL(window.location.href);url.searchParams.delete("draft");url.searchParams.delete("checkout");url.searchParams.set("new","1");window.history.replaceState(null,"",url);}}>{t("new")}</button>
       {registry.drafts.map(d=><button key={d.id} disabled={busy||dirty} aria-pressed={draftId===d.id} onClick={()=>loadDraft(d.id)}>{d.input.name||t("title")}</button>)}
     </details></div>
