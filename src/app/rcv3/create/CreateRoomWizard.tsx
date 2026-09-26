@@ -58,7 +58,9 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
       setRegistry(result);
       const params = new URLSearchParams(window.location.search);
       const requestedId = params.get("draft");
-      const resumed = result.drafts.find(d => d.id === requestedId) || (!requestedId && !params.has("new") ? result.drafts[0] : undefined);
+      // A fresh Create Room visit must never reuse an old draft and charge
+      // tokens for a room name or design the customer did not just select.
+      const resumed = requestedId ? result.drafts.find(d => d.id === requestedId) : undefined;
       if (resumed) { setPurposeChosen(resumed.input.brief === undefined || !!resumed.input.brief.trim()); setInput({...resumed.input,plan:"paid"}); latestInput.current = {...resumed.input,plan:"paid"}; if(resumed.input.plan!=="paid")setDirty(true); setDraftId(resumed.id); }
       else { const templateId = new URLSearchParams(window.location.search).get("template");
         if(roomTemplates.some(t=>t.id===templateId)) {const fresh={...defaultInput(),templateId:templateId!};setInput(fresh);latestInput.current=fresh;}
@@ -190,7 +192,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
           <section className={styles.verticalSection}>
             <h2>{t("payment")}</h2>
             {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
-            <PreviewTokenPanel key={`${draftId}:${registry.revision}`} draftId={draftId} revision={registry.revision} accountName={accountName} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
+            <PreviewTokenPanel key={`${draftId}:${registry.revision}`} draftId={draftId} revision={registry.revision} accountName={accountName} roomName={input.name} designName={selectedDesign.name} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
           </section>
         </>}
       </fieldset>

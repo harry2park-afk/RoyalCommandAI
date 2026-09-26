@@ -5,7 +5,7 @@ import BankPicker from "./BankPicker";
 
 type Balance={customerNumber:string;balance:number;cost:number};
 type Quote={currency:string;totalMinor:number;lines:{serviceId:string;label:string;amountMinor:number}[];quoteHash:string;terms:{version:string;text:string};termsHash:string};
-export default function PreviewTokenPanel({draftId,revision,disabled,language,accountName}:{draftId:string;revision:number;disabled:boolean;language:string;accountName:string}) {
+export default function PreviewTokenPanel({draftId,revision,disabled,language,accountName,roomName,designName}:{draftId:string;revision:number;disabled:boolean;language:string;accountName:string;roomName:string;designName:string}) {
  const [account,setAccount]=useState<Balance|null>(null),[loading,setLoading]=useState(true),[busy,setBusy]=useState(false),[error,setError]=useState("");
  const [agreed,setAgreed]=useState(false),[url,setUrl]=useState("");
  const [showBank,setShowBank]=useState(false);
@@ -56,6 +56,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
  return <section aria-label={t("payment")}>
   {account&&<div>
    <p>{account.customerNumber} · {t("tokenBalance")}: <strong>{account.balance.toLocaleString(language)}</strong></p>
+   <p>{language.startsWith("ko")?"만들 방":"Room to create"}: <strong>{roomName}</strong> · {language.startsWith("ko")?"디자인":"Design"}: <strong>{designName}</strong></p>
    <p>{t("tokenPreviewTerms")}</p>
    {!url&&<><label><input type="checkbox" checked={agreed} disabled={busy} onChange={e=>setAgreed(e.target.checked)}/>{t("tokenAgree")}</label>
    <label style={{display:"block",marginTop:10}}>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} disabled={busy} onChange={e=>setBankSignature(e.target.value)}/></label>
