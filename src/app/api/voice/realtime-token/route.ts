@@ -1,3 +1,4 @@
+import { guardRoomVoice } from "@/lib/rcv3/paid-service-guard";
 import { getCurrentUser } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 
@@ -18,6 +19,7 @@ export async function GET(request: Request) {
     const user = await getCurrentUser();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+    await guardRoomVoice(user.id,new URL(request.url).searchParams.get("room"));
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 503 });
 

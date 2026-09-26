@@ -1,0 +1,775 @@
+{
+  "scope": "RC V3 and its shared toolbox/help controls; legacy RC remains isolated",
+  "entries": [
+    {
+      "controlId": "src/app/rcv3/AnswerCards.tsx#1",
+      "toolId": "speaker",
+      "sourceHash": "19d9a221f641b86fa787185dbb813e6489572c77fd026d329ee81d3086eeff99",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/AnswerCards.tsx#2",
+      "toolId": "speaker",
+      "sourceHash": "43f5be5c72069178414f8b1184e960e70749b9b41d6307dd76b1496a557446c1",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/AnswerCards.tsx#3",
+      "toolId": "speaker",
+      "sourceHash": "2e5619aa0db32811efab0008246094919ae75bfe13d40d01e665838555c1182a",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/AnswerCards.tsx#4",
+      "toolId": "speaker",
+      "sourceHash": "e80fe3cd2b91e8abb17a061c8119d8a24f2826afb98d4ed99a91febfaa83ea79",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/AnswerCards.tsx#5",
+      "toolId": "speaker",
+      "sourceHash": "b32877eef23cfc0451af062980dd1e96ccda4ffdf3d157d94eeb651926c331d4",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/MobileInstall.tsx#1",
+      "toolId": "room-list",
+      "sourceHash": "a0edab6f1ca4d88cbc7e2ba80bd2203a65be14a1dde5a2eb162e78ec4efb8618",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/PersonalAI.tsx#1",
+      "toolId": "personal-ai",
+      "sourceHash": "e0840e5ddbc04980ba92e7c4011b026f828bf6e5baae8ae888fe78317ff97105",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#1",
+      "toolId": "toolbox",
+      "sourceHash": "d7531493c661f63f3bd9552776ba0c11b4d0c3118755b537239df18c7682535a",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#2",
+      "toolId": "toolbox",
+      "sourceHash": "0b327c6f4034aced2bfec3c80bceb2a8e2702c7cf6437da7a6a4ada14c138546",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#3",
+      "toolId": "toolbox",
+      "sourceHash": "5aca253e78aca08aaee00c2131d42b25d5077924fede1649e234195ee40f5d54",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#4",
+      "toolId": "toolbox",
+      "sourceHash": "722a7711fa143ba4865c87e15088690996604713da71dabca0f261d15cd4154c",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#5",
+      "toolId": "toolbox",
+      "sourceHash": "ca9b5a7796291529f7f34028d3b65e53510f9204b34f32743b3cdb0d30ab1fd0",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#6",
+      "toolId": "toolbox",
+      "sourceHash": "c9276312f4cdac2e2dbc392a59fef951248883d0a14b1f32d4b30d540ad9d432",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#7",
+      "toolId": "toolbox",
+      "sourceHash": "8740aeafa6b450cc336679eb5560ef55d724e63b0193aa8d9f3932de82725763",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#8",
+      "toolId": "toolbox",
+      "sourceHash": "c23aecc80629216201fef4083141f9a8e69abc61a57e53cdaf0c4e28295a6b22",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#9",
+      "toolId": "toolbox",
+      "sourceHash": "52675ce6db5854890a4259351968c8421ad8bb01d739ec1c3a34b2c510a03af1",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#10",
+      "toolId": "toolbox",
+      "sourceHash": "be70b7444955a2cee91d0626762172217cc5da19306aa32fe0bf4c0f2bb46b9c",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#11",
+      "toolId": "toolbox",
+      "sourceHash": "54324c8d6fc4fa50c063d470cc00c330cc121827c4de7e7d55e79b966440d6f3",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#12",
+      "toolId": "toolbox",
+      "sourceHash": "20f7065c748428a3106b1d9ea5f0628385af7e73702f2de54360cfff5b161d8b",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#13",
+      "toolId": "toolbox",
+      "sourceHash": "35d4f4dbfd353c18497d1e3dcdda836140c83a8764285ce756ccd3aeb4f27f54",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#14",
+      "toolId": "toolbox",
+      "sourceHash": "93c723ad2e2a06146343a5cef7c5cc4261bf576ba99a1dab41aca631e714a039",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#15",
+      "toolId": "toolbox",
+      "sourceHash": "c2e069d0a8d86341a37293b7a6e5b6d60f1306ad56e00ef309e31b5febb03339",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#16",
+      "toolId": "toolbox",
+      "sourceHash": "b1917d93c4b42f2b11d6646fb319a321fd53359b579b3a74c2b255d8546c7099",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#17",
+      "toolId": "toolbox",
+      "sourceHash": "d02af0abbd9cabb0d9e77113e4dbc4f15d23e1fc4b31967f7ad15eb267902b7c",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#18",
+      "toolId": "toolbox",
+      "sourceHash": "44672ba4bcc1c54cc745a028bb0fa2f05d1d4338139fee12802d3e1076c07fb1",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#19",
+      "toolId": "toolbox",
+      "sourceHash": "c1b9a92ce8232e57736d82495e7e5653901dc7768c198f4b1ddf38df116dcf4f",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#20",
+      "toolId": "toolbox",
+      "sourceHash": "9b8d61247419919e6efe33a0c50dbdf67301c6f5ce14d6d949a0c172cb3403be",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#21",
+      "toolId": "toolbox",
+      "sourceHash": "ca64fd8a4d891d198d53327df4a5b773961c0027ae32344e14397e44fccf422d",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#22",
+      "toolId": "toolbox",
+      "sourceHash": "4c805c1702046abb9a8270f3b889b2f91adc4f33345b96a20ff79eb939eb7877",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#23",
+      "toolId": "toolbox",
+      "sourceHash": "a043701332a3428358f3b17de876f92015084cc8e5ae29a96817c601cc5916b4",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#24",
+      "toolId": "toolbox",
+      "sourceHash": "b301de31f6aafaa5b4b571b94cf70389752b77e657ea957a476184858e0f197c",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#25",
+      "toolId": "toolbox",
+      "sourceHash": "2df3b710f8b5c34e431d7fd2f2d76765f88312d9eedb60d0acfed2ca0dca8ec0",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#26",
+      "toolId": "toolbox",
+      "sourceHash": "725a3dc922ecec178b4edd58b020ecbc1de64c1d075b8302a0388124ebcaa365",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/RoomCatalog.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "b4992ac7afd0746af958324ff1390c8aa6d7db4c8ba61278ca6e857777adec14",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/RoomCatalog.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "7a1ddb5d05c9e8668d36d0fedd963c4125f969b2ceabbc1798cde46ffb108fea",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/RoomCatalog.tsx#3",
+      "toolId": "create-room",
+      "sourceHash": "14b03b88b12fa629c44626fb5b3293770b5fa46bd052a13c94d5a6d5773b1cd8",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/RoomCatalog.tsx#4",
+      "toolId": "create-room",
+      "sourceHash": "540aafdbf62fe90414255a48011188f764503256e8d436f9b56316f600a711a4",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/RoomCatalog.tsx#5",
+      "toolId": "create-room",
+      "sourceHash": "85a8ab2a2b4f15f9d3624237feddbc47944ef740781c92b68b3517740157a188",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/BankPicker.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "97c89ce65a1671689f0e2b988893a21ada15cf39f1769e3d5a3bb1e20b3bcdbd",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/BankPicker.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "87ab79763302f122c92d06be7a5600198d5c74c61d92f3cfa122f13ac9bd5534",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CheckoutPanel.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "3e87126e3225f7947aae669ae6c37554365114ca10821d268e2d594afd8e172c",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CheckoutPanel.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "6ad6e67fe4bdd368c30dd8d517719c899a6a299afe05e4c1d8d860876bd7e3db",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CheckoutPanel.tsx#3",
+      "toolId": "create-room",
+      "sourceHash": "252757c2a3c1d0f5385ba75324f17d5fba88212bf2e924ed5866e20c359b8016",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CheckoutPanel.tsx#4",
+      "toolId": "create-room",
+      "sourceHash": "47e20680aa3956e2181171a3ed6ce1794713121661bf9a83ec33749ed8efe8c3",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CheckoutPanel.tsx#5",
+      "toolId": "create-room",
+      "sourceHash": "6ee1cf77838acdc8e11fb5119e20227bd7c5ad90020f193742a322e5a4c0ccab",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CheckoutPanel.tsx#6",
+      "toolId": "create-room",
+      "sourceHash": "2022b4e1d4b382d1bd10a082526b86c2df1ea0d8a756c0d37526735457e0829d",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "37331953c3d8c955130ec594b096bc8cb84b8170ed357ea92a2d854202724818",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "c5b5845873a47a8c25930efbc6447a32f0d22222278e9ea1015e19e35833209d",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#3",
+      "toolId": "create-room",
+      "sourceHash": "1f136819cc83bb843573e422dc1783be9edd271ac110e3f5c7b6982e78bfca08",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#4",
+      "toolId": "create-room",
+      "sourceHash": "ea168ec88caf240f64a0ae57834e6becbf0072bfd03fddade61228fb588fbe11",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#5",
+      "toolId": "create-room",
+      "sourceHash": "085841b63fdcedecdb17d2cf7bbbecbabaaf019b319b62b0069db97f65a54115",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CustomerConnections.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "e10fb522fc76f0aa83343eeacfd3ed6a2ffab8259f5dd1800965b84bfe5dbb0c",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CustomerConnections.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "00c3970a82fdf6189656fad60077987bd28df1666ffcc5912b80931624cf27fa",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CustomerConnections.tsx#3",
+      "toolId": "create-room",
+      "sourceHash": "1e2b0b71db85392d0e7429fcbed98319239a43ab31e0a8a689d8bbe9cfb9d786",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CustomerConnections.tsx#4",
+      "toolId": "create-room",
+      "sourceHash": "777fb84739b8ec46e06a2aa66e7618f590011cc3660855fa27f1e613b879e621",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CustomerConnections.tsx#5",
+      "toolId": "create-room",
+      "sourceHash": "3e9958c2c5718068015006a43dfb7051302ade8a1e77159763724df4ecf197db",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CustomerPhoneSetup.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "dd39b883d5ad194449a70c6b7d249d811d64a39b0f50660707f8934100aa483d",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CustomerPhoneSetup.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "c62ae824f35d45a165780894e201904d88c1f577582410e988eb51b445768208",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "e27216a1f5c1edd5841cc74edd2b7fa9b67c29a00dbd0f908dbb867ba77437d2",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#2",
+      "toolId": "create-room",
+      "sourceHash": "5e9493f7894bbedcf80bba43f3e3ca8b6c0cdd67997227bd7e661f62f3d204be",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#3",
+      "toolId": "create-room",
+      "sourceHash": "0cadb83ad0f0df667d4afb26f1f997d3d5a1c97b6c02269d0f7d9c36686f9b13",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#4",
+      "toolId": "create-room",
+      "sourceHash": "780525586983ab520a6c62c94a99db60911022934d28c51936f1bb7922868d28",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#5",
+      "toolId": "create-room",
+      "sourceHash": "765a0fd9f600c5409e39160073b37e1c530acdc8a0089e530de7500aef36de05",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#1",
+      "toolId": "learning",
+      "sourceHash": "c79ad583de820861ca4b929d3e164c5db924204faacedcce4d49e62a4aa73a59",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#2",
+      "toolId": "learning",
+      "sourceHash": "e18ed185d916f4a0d75008b472ce02629af243eb988d6564d6fe26b6a50983e7",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#3",
+      "toolId": "learning",
+      "sourceHash": "4d8f02043c55cc50ab9615998fcf4525f2d252b6cf2a065e506134ab2ebc0d96",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#4",
+      "toolId": "learning",
+      "sourceHash": "f21db1622cccff0ed178eb334d5a4f358bb7f9f802db9afd67c70adcc45962c5",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#5",
+      "toolId": "learning",
+      "sourceHash": "f439e11b592c56ba4fecd2d6e320780d15cd14475d72a283281bea3970f052a9",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#6",
+      "toolId": "learning",
+      "sourceHash": "6a19e67bd228371aaa42f173d18d9ac93d3d3564dc6fd509184f18cf5969fe4e",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#7",
+      "toolId": "learning",
+      "sourceHash": "df74f13060bea2135c9eab77946bac5b0c736909103d2e496e1c4963e5226b96",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/certificate/PrintButton.tsx#1",
+      "toolId": "learning",
+      "sourceHash": "34145d8a10b9e969c529dbcc560991b1728ce45deb89716b43f8c531c0739414",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#1",
+      "toolId": "meetings",
+      "sourceHash": "8a1f2361cb9485e4e1f686229e19171f6c06b7ddbefe18919658a8cb5bb9a51f",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#2",
+      "toolId": "meetings",
+      "sourceHash": "ab70e1ea4066162e3e04ba8713fe290a7551fe09094c9393155d54048ed74de3",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#3",
+      "toolId": "meetings",
+      "sourceHash": "03090a220dc29b83b6368cfda3951f26c2ed43d054014585b24cb7602fb29447",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#4",
+      "toolId": "meetings",
+      "sourceHash": "6e4e3a910b95731fbc3d851c0080fdc27d06b4e0291ce232ef54d35e58b27e28",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingTranslation.tsx#1",
+      "toolId": "meetings",
+      "sourceHash": "3b5c04eeaa1275d42c347701474e77a5eccd146f9e5c38a2f48e8f85e8aa71d8",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingTranslation.tsx#2",
+      "toolId": "meetings",
+      "sourceHash": "d7eb45dc203e9ec6a001a7fec11da5d37db4ef0481b14301f2d8096f2a9c7ca5",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingTranslation.tsx#3",
+      "toolId": "meetings",
+      "sourceHash": "3882a76c327dff5ef9d42fc97b60d5b6202efa2598940e6e4d991dab65e4b582",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingTranslation.tsx#4",
+      "toolId": "meetings",
+      "sourceHash": "bc8fbda6f169d4dc18b864b0b44a2829c366b84ee4dc7382f17d179f064ed064",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingTranslation.tsx#5",
+      "toolId": "meetings",
+      "sourceHash": "399d6135ea43b310f432176dbbeb02c9c85dbe8861d5038e58c0cd66b5149915",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingTranslation.tsx#6",
+      "toolId": "meetings",
+      "sourceHash": "3624e23679a65f53a4273fbb204e54a6e19d117a5839ee06ff9e46c647a3cb4b",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/help/HelpText.tsx#1",
+      "toolId": "helper",
+      "sourceHash": "f162e6acf5c7dc6dcdd5f27bc1fa82b1054433230db663531809bb63958bb3a0",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ConfirmDeleteButton.tsx#1",
+      "toolId": "room-list",
+      "sourceHash": "ec5ea7d9e5638c0cd5baa07d919ee26d269a492720b6c0cf3cc62883ae389b99",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ConfirmDeleteButton.tsx#2",
+      "toolId": "room-list",
+      "sourceHash": "42f5544f856d0cb86b1fe818b746a79d9c07ca73bc6df23581fd165949f70cbc",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ConfirmDeleteButton.tsx#3",
+      "toolId": "room-list",
+      "sourceHash": "9da109ba59b09e4b162402b086f25b76473b12874207c7f23119cb85f9031d25",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/CopyText.tsx#1",
+      "toolId": "copy-answer",
+      "sourceHash": "51645991c15807a995682ccb0ef999b4dd19fc98b0efb78fc9e3659695b3d715",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/EmailReview.tsx#1",
+      "toolId": "toolbox",
+      "sourceHash": "5d49e31ee9f56e727f322292cd1f5eae258fcc2bb7bf5bdd2d62c0c401a9dca5",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/EmailReview.tsx#2",
+      "toolId": "toolbox",
+      "sourceHash": "2a91647e2b636dbd61efa3ef9485c64a07958da9dbc61e6ecb5c0ea0e8537b31",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/EmailReview.tsx#3",
+      "toolId": "toolbox",
+      "sourceHash": "a2459e61c096ff674b9cb515cce85721a4c4fb7d078f8e4420502a6ecbd310a3",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/EmailReview.tsx#4",
+      "toolId": "toolbox",
+      "sourceHash": "a85e4a78a1d8dd996f8f528dec65529a332f8b1af3f2be3e96c6c03fcbaaf502",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/EmailReview.tsx#5",
+      "toolId": "toolbox",
+      "sourceHash": "5b911d923c86781496e56cf05ad2b5e35e798e88204be8481c0dba513598350f",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ExplicitSaveButton.tsx#1",
+      "toolId": "create-room",
+      "sourceHash": "c7b3bb5a5c1d80f6beba0169fe2834a78fb67ce66aa9bedab6487829e9179cec",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/PaymentGate.tsx#1",
+      "toolId": "payment",
+      "sourceHash": "6c10fcb6ce5f8f8b96b259969b283fe62443090ea1ac90625346035c55ce7fc0",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/PaymentGate.tsx#2",
+      "toolId": "payment",
+      "sourceHash": "7c8921ee6897749919daedf2d991db6f903e8f6a5d96556689ecb518acb8ba12",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/PaymentGate.tsx#3",
+      "toolId": "payment",
+      "sourceHash": "1e91f79ad808402ad0e9f07a03c2df18b2d2c9cd1bebd186acee93a8f3a19fbc",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/PaymentGate.tsx#4",
+      "toolId": "payment",
+      "sourceHash": "5d49e31ee9f56e727f322292cd1f5eae258fcc2bb7bf5bdd2d62c0c401a9dca5",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#1",
+      "toolId": "room-list",
+      "sourceHash": "8e6bec05349717fd92139dfd95f91054647173bbfea845bdb7affb69d4ac89a2",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#2",
+      "toolId": "room-list",
+      "sourceHash": "503bd5242713294a455d4edf669091a795e66e9b317a6ae094e9f39e96214428",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#3",
+      "toolId": "room-list",
+      "sourceHash": "c5e0a5e82ec4e8122158aa4079bb46a68ae14974c75498c97fbaeff30f97b44e",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#4",
+      "toolId": "room-list",
+      "sourceHash": "8c25a6c2b47b0838781a586daa62c191287d2806b198aa56cc399dcd4a44afa9",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#5",
+      "toolId": "room-list",
+      "sourceHash": "064cd382e4438b2efcb69f0657539043b81b778489e5a9804eb4f1d4411d0813",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#6",
+      "toolId": "room-list",
+      "sourceHash": "df8e835543f2c5c42e1ae10307565f44231baf084ff4cadc3751c124c2027abb",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ToolButton.tsx#1",
+      "toolId": "toolbox",
+      "sourceHash": "64a38c1573f5d3cae75e59273533c32aec8a5440bdf4d54b36be14f870dbcbcd",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ToolRequests.tsx#1",
+      "toolId": "toolbox",
+      "sourceHash": "5d49e31ee9f56e727f322292cd1f5eae258fcc2bb7bf5bdd2d62c0c401a9dca5",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ToolRequests.tsx#2",
+      "toolId": "toolbox",
+      "sourceHash": "cdbc3ae6e95ef53641658e4f708c99b2980027f0ef8d7e8a9c43ced5a8db869c",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ToolRequests.tsx#3",
+      "toolId": "toolbox",
+      "sourceHash": "24acd34e552bb7b6218899a60213d152e52f41f962c5ad0c8b7fbb2e09b26c41",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ToolRequests.tsx#4",
+      "toolId": "toolbox",
+      "sourceHash": "e7dedb3a4491c3b8270d694077805ef783456666d0c68d1617a52a7e3c020180",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/Toolbox.tsx#1",
+      "toolId": "toolbox",
+      "sourceHash": "259e9ef8b1a0fcd2c4553cc3143bf4f26ec6b07f56fd2ba87bdeab5bfdd37d72",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/Toolbox.tsx#2",
+      "toolId": "toolbox",
+      "sourceHash": "d9d1326d75d50dde9ccfaa80ab1fb3b0d7dfde4f2d95fb7c4c814e6dc8ec176d",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "rcv3/voice-control.mjs#toggle",
+      "toolId": "microphone",
+      "sourceHash": "5710038ecde68ca44d68f0f1339d1e8c527ddf63501130cb9008e720662fdaf3",
+      "mode": "shared-custom-element",
+      "note": "Reuse rc-voice-control.toggle(); do not bypass its events."
+    }
+  ]
+}

@@ -1,4 +1,6 @@
 {
+  "packId": "country-au",
+  "status": "READY",
   "countryCode": "AU",
   "locale": "en-AU",
   "secondaryLocale": null,

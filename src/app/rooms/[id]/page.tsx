@@ -5,12 +5,18 @@ import ServerConversationBridge from "./ServerConversationBridge";
 import RightMenuPasteFix from "./RightMenuPasteFix";
 import SpeakerTtsBridge from "./SpeakerTtsBridge";
 import NativeSynthesisButton from "./NativeSynthesisButton";
+import { notFound } from "next/navigation";
+import { DomainRuntimeProvider } from "@/components/DomainRuntimeProvider";
+import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
+import { toPublicDomainRuntimeContext } from "@/config/countryResolver";
 
 const ROOM_UI_VERSION = "20260906-rca-fixed-dev-team-v2";
 
-export default function RoomPage() {
+export default async function RoomPage() {
+  const runtimeContext = await getServerDomainRuntimeContext();
+  if (!runtimeContext) notFound();
   return (
-    <>
+    <DomainRuntimeProvider value={toPublicDomainRuntimeContext(runtimeContext)}>
       <style>{`
         .royal-room-main main {
           padding-top: 72px !important;
@@ -161,6 +167,6 @@ export default function RoomPage() {
       <Script id="rc-room-enhanced-marker" strategy="afterInteractive">
         {`document.documentElement.setAttribute("data-rc-room-enhanced", "1");`}
       </Script>
-    </>
+    </DomainRuntimeProvider>
   );
 }

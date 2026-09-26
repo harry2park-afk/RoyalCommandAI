@@ -1,3 +1,4 @@
+import { guardRoomVoice } from "@/lib/rcv3/paid-service-guard";
 import { getCurrentUser } from "@/lib/auth";
 import { logger } from "@/lib/logger";
 
@@ -16,21 +17,48 @@ function normaliseLanguage(value: string | null) {
   return "en";
 }
 
-const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+class StageTimeout extends Error {
+  constructor(public stage: string) { super("Voice stage timeout"); }
+}
+
+async function bounded<T>(stage: string, ms: number, operation: () => Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      operation(),
+      new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new StageTimeout(stage)), ms); }),
+    ]);
+  } finally { clearTimeout(timer); }
+}
 
 export async function POST(request: Request) {
+  const started = Date.now();
+  const trace = request.headers.get("x-rc-voice-trace") || "";
+  const requestId = /^[a-f0-9-]{36}$/.test(trace) ? trace : crypto.randomUUID();
+  let stage = "auth";
+  const mark = (name: string) => logger.info("voice.realtime.stage", { requestId, stage: name, elapsedMs: Date.now() - started });
+  const fail = (code: string, status: number, providerStatus?: number) => {
+    logger.warn("voice.realtime.failed", { requestId, stage, code, status, providerStatus, elapsedMs: Date.now() - started });
+    return Response.json({ error: "실시간 음성 연결에 실패했습니다.", code, requestId }, { status, headers: { "Cache-Control": "no-store" } });
+  };
   try {
-    const user = await getCurrentUser();
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    mark("auth_started");
+    const user = await bounded("auth", 5000, () => getCurrentUser());
+    if (!user) return fail("VOICE_AUTH", 401);
+    mark("auth_completed");
 
+    await guardRoomVoice(user.id,new URL(request.url).searchParams.get("room"));
     const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) return Response.json({ error: "Voice service is not configured" }, { status: 503 });
+    if (!apiKey) return fail("VOICE_CONFIG", 503);
 
-    const sdp = await request.text();
+    stage = "sdp";
+    mark("sdp_started");
+    const sdp = await bounded("sdp", 2000, () => request.text());
     if (!sdp || !sdp.includes("v=0")) {
-      return Response.json({ error: "Valid SDP is required" }, { status: 400 });
+      return fail("VOICE_SDP", 400);
     }
 
+    mark("sdp_completed");
     const url = new URL(request.url);
     const primaryLanguage = normaliseLanguage(url.searchParams.get("lang"));
     const languages = primaryLanguage === "en" ? ["en"] : [primaryLanguage, "en"];
@@ -56,36 +84,38 @@ export async function POST(request: Request) {
       },
     };
 
-    const callRealtime = async () => {
-      const form = new FormData();
-      form.set("sdp", sdp);
-      form.set("session", JSON.stringify(session));
-      return fetch("https://api.openai.com/v1/realtime/calls", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${apiKey}` },
-        body: form,
-        cache: "no-store",
-      });
-    };
-
-    let response = await callRealtime();
-    if ([502, 503, 504].includes(response.status)) {
-      await sleep(500);
-      response = await callRealtime();
+    stage = "provider";
+    mark("provider_started");
+    const controller = new AbortController();
+    const abort = () => controller.abort();
+    request.signal.addEventListener("abort", abort, { once: true });
+    if (request.signal.aborted) controller.abort();
+    let response: Response;
+    let answer: string;
+    try {
+      ({ response, answer } = await bounded("provider", 15000, async () => {
+        const form = new FormData();
+        form.set("sdp", sdp);
+        form.set("session", JSON.stringify(session));
+        const response = await fetch("https://api.openai.com/v1/realtime/calls", {
+          method: "POST", headers: { Authorization: `Bearer ${apiKey}` },
+          body: form, cache: "no-store", signal: controller.signal,
+        });
+        mark("provider_headers_received");
+        return { response, answer: await response.text() };
+      }));
+    } finally {
+      controller.abort();
+      request.signal.removeEventListener("abort", abort);
     }
-
-    const answer = await response.text();
     if (!response.ok) {
-      logger.error("voice.realtime_session.openai_failed", {
-        status: response.status,
-        body: answer.slice(0, 1000),
-      });
-      const transient = [502, 503, 504].includes(response.status);
-      return Response.json(
-        { error: transient ? "실시간 음성 서버 연결이 지연되고 있습니다. 잠시 후 마이크를 다시 눌러 주세요." : "실시간 음성 연결에 실패했습니다." },
-        { status: transient ? 503 : 502 },
-      );
+      const code = [401, 403].includes(response.status) ? "VOICE_PROVIDER_AUTH"
+        : response.status === 429 ? "VOICE_PROVIDER_LIMIT"
+        : response.status >= 500 ? "VOICE_PROVIDER_UNAVAILABLE" : "VOICE_PROVIDER_REQUEST";
+      return fail(code, 502, response.status);
     }
+    if (!answer.startsWith("v=0")) return fail("VOICE_PROVIDER_RESPONSE", 502, response.status);
+    mark("connected");
 
     return new Response(answer, {
       status: 200,
@@ -95,9 +125,8 @@ export async function POST(request: Request) {
       },
     });
   } catch (error) {
-    logger.error("voice.realtime_session.failed", {
-      error: error instanceof Error ? error.message : error,
-    });
-    return Response.json({ error: "실시간 음성 연결에 실패했습니다." }, { status: 500 });
+    if (error instanceof StageTimeout) return fail(`VOICE_${error.stage.toUpperCase()}_TIMEOUT`, 504);
+    if (request.signal.aborted) return fail("VOICE_CANCELLED", 499);
+    return fail("VOICE_CONNECTION", 502);
   }
 }
