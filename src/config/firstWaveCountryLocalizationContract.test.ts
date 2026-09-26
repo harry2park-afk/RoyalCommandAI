@@ -58,8 +58,11 @@ const FIRST_WAVE = {
 const REVIEW_FIELDS = ["legal", "tax", "medical", "investment", "privacy"] as const;
 
 describe("October first-wave country localization contract", () => {
-  it("keeps the configured country set limited to the evidence-first rollout wave", () => {
-    expect(getConfiguredCountryCodes()).toEqual(["AU", "CA", "GB", "JP", "KR", "US"]);
+  it("keeps every first-wave country configured without removing staged next-wave country configs", () => {
+    const configuredCountryCodes = getConfiguredCountryCodes();
+    for (const countryCode of Object.keys(FIRST_WAVE)) {
+      expect(configuredCountryCodes, countryCode).toContain(countryCode);
+    }
   });
 
   it.each(Object.entries(FIRST_WAVE))(
