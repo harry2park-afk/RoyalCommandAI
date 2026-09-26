@@ -49,6 +49,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
    if(!response.ok)throw new Error(result.code||"RCV3_ERROR");
    if(!/^\/rcv3\?room=[a-f0-9-]+$/.test(result.url))throw new Error("RCV3_ERROR");
    setAccount(prev=>prev?{...prev,balance:result.balance}:prev);setUrl(result.url);
+   window.location.assign(result.url);
   } catch(e) {setError(e instanceof Error?e.message:"RCV3_ERROR");}
   finally{setBusy(false);}
  }

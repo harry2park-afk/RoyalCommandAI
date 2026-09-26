@@ -359,20 +359,6 @@
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
-      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#6",
-      "toolId": "create-room",
-      "sourceHash": "3ab595789745c73797ff330b66741849db37a70886278e5a4274c137eba3167f",
-      "mode": "context-bound",
-      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
-    },
-    {
-      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#7",
-      "toolId": "create-room",
-      "sourceHash": "5f505fba864ffffa95ad3293a2e824321034234d5d40b3e26d3896a3c39664be",
-      "mode": "context-bound",
-      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
-    },
-    {
       "controlId": "src/app/rcv3/create/CustomerConnections.tsx#1",
       "toolId": "create-room",
       "sourceHash": "e10fb522fc76f0aa83343eeacfd3ed6a2ffab8259f5dd1800965b84bfe5dbb0c",

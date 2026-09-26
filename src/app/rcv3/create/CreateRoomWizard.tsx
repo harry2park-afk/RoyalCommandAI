@@ -118,14 +118,6 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
       setError(e instanceof Error&&e.message==="RCV3_CONFLICT"?"conflict":"error");
     } finally {saving.current=false;setBusy(false);}
   }
-  function loadDraft(id: string) {
-    const draft = registry.drafts.find(d => d.id === id);
-    if (dirty || !draft) return;
-    setPurposeChosen(draft.input.brief === undefined || !!draft.input.brief.trim());
-    latestInput.current = {...draft.input,plan:"paid"}; setInput({...draft.input,plan:"paid"}); if(draft.input.plan!=="paid")setDirty(true); setExplicitlySaved(false); setDraftId(id); setStatus(""); setError("");
-    const url = new URL(window.location.href); url.searchParams.set("draft", id); url.searchParams.delete("checkout");
-    window.history.replaceState(null, "", url);
-  }
   const providerToggle = (id: AIProviderId) => {
     const selected = input.providers.includes(id) ? input.providers.filter(p => p !== id) : [...input.providers, id];
     const aiSources = Object.fromEntries(Object.entries(setup.aiSources).filter(([key])=>selected.includes(key as AIProviderId)));
@@ -203,10 +195,6 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
         </>}
       </fieldset>
     </section>
-    <details className={styles.sidebar}><summary>{t("drafts")}</summary>
-      <p>{language.startsWith("ko")?"자동 저장된 방 초안입니다. 아직 생성된 방이 아닙니다.":"These are automatically saved drafts, not created rooms."}</p>
-      <button disabled={busy||dirty||!loaded} onClick={()=>{setPurposeChosen(false);const fresh=defaultInput();latestInput.current=fresh;setInput(fresh);setExplicitlySaved(false);setDraftId(crypto.randomUUID());setStatus("");setError("");setShowAllDesigns(false);const url=new URL(window.location.href);url.searchParams.delete("draft");url.searchParams.delete("checkout");url.searchParams.set("new","1");window.history.replaceState(null,"",url);}}>{t("new")}</button>
-      {registry.drafts.map(d=><button key={d.id} disabled={busy||dirty} aria-pressed={draftId===d.id} onClick={()=>loadDraft(d.id)}>{d.input.name||t("title")}</button>)}
-    </details></div>
+    </div>
   </main>;
 }
