@@ -129,10 +129,53 @@ export const australianBanks = [
 export const verifiedBankSites: Record<string,string> = {
  "Australia and New Zealand Banking Group Limited":"https://www.anz.com.au/personal/internet-banking/",
  "Commonwealth Bank of Australia":"https://www.my.commbank.com.au/netbank/Logon/Logon.aspx",
- "Westpac Banking Corporation":"https://banking.westpac.com.au/"
+ "Westpac Banking Corporation":"https://banking.westpac.com.au/",
+ "National Australia Bank Limited":"https://www.nab.com.au/personal/online-banking/nab-internet-banking",
+ "Macquarie Bank Limited":"https://www.macquarie.com.au/digital-banking/online-banking.html",
+ "St.George Bank":"https://www.stgeorge.com.au/online-services/internet-banking",
+ "Bank of Melbourne":"https://www.bankofmelbourne.com.au/online-services/internet-banking",
+ "BankSA":"https://www.banksa.com.au/online-services/internet-banking",
+ "ING Bank (Australia) Limited (trading as ING)":"https://www.ing.com.au/online-banking.html",
+ "Bendigo and Adelaide Bank Limited":"https://www.bendigobank.com.au/ways-to-bank/internet-banking/",
+ "Norfina Limited (trading as Suncorp Bank)":"https://www.suncorpbank.com.au/",
+ "Bank of Queensland Limited":"https://www.boq.com.au/personal/online-banking/internet-banking",
+ "HSBC Bank Australia Limited":"https://www.hsbc.com.au/"
 };
 export const bankNames: Record<string,string> = {
  "Australia and New Zealand Banking Group Limited":"ANZ",
  "Commonwealth Bank of Australia":"CBA (CommBank)",
- "Westpac Banking Corporation":"Westpac"
+ "Westpac Banking Corporation":"Westpac",
+ "National Australia Bank Limited":"NAB",
+ "Macquarie Bank Limited":"Macquarie Bank",
+ "St.George Bank":"St.George Bank (Westpac group)",
+ "Bank of Melbourne":"Bank of Melbourne (Westpac group)",
+ "BankSA":"BankSA (Westpac group)",
+ "ING Bank (Australia) Limited (trading as ING)":"ING",
+ "Bendigo and Adelaide Bank Limited":"Bendigo Bank",
+ "Norfina Limited (trading as Suncorp Bank)":"Suncorp Bank",
+ "Bank of Queensland Limited":"Bank of Queensland (BOQ)",
+ "HSBC Bank Australia Limited":"HSBC Australia"
 };
+
+// The major retail banks are placed first for selection. St.George and its
+// sister brands are customer-facing Westpac brands, not separate APRA ADIs.
+export const majorAustralianBanks = [
+ "Commonwealth Bank of Australia",
+ "Westpac Banking Corporation",
+ "National Australia Bank Limited",
+ "Australia and New Zealand Banking Group Limited",
+ "Macquarie Bank Limited",
+ "ING Bank (Australia) Limited (trading as ING)",
+ "Bendigo and Adelaide Bank Limited",
+ "Norfina Limited (trading as Suncorp Bank)",
+ "Bank of Queensland Limited",
+ "HSBC Bank Australia Limited",
+ "St.George Bank",
+ "Bank of Melbourne",
+ "BankSA"
+] as const;
+const major = new Set<string>(majorAustralianBanks);
+export const orderedAustralianBanks: string[] = [
+ ...majorAustralianBanks,
+ ...australianBanks.filter(name=>!major.has(name)).sort((a,b)=>a.localeCompare(b,'en-AU'))
+];
