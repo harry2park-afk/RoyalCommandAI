@@ -21,7 +21,10 @@ export async function POST(request: Request) {
           data: {
             full_name: data.fullName,
             default_language: data.defaultLanguage,
-            country_code: data.countryCode,
+            // Signup country is a user preference/request only. Keep it under a
+            // distinct key so it cannot be mistaken for trusted app_metadata
+            // country_code, which controls legal/commercial/payment routing.
+            requested_country_code: data.countryCode,
           },
         },
       });
