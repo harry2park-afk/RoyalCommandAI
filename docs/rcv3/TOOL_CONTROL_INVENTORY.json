@@ -711,12 +711,19 @@
     {
       "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#5",
       "toolId": "room-list",
-      "sourceHash": "064cd382e4438b2efcb69f0657539043b81b778489e5a9804eb4f1d4411d0813",
+      "sourceHash": "0fd2810f2aa7ecab92a6685b58d5a861c568be4e732ff54e7e3a7c2e9e816d1f",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#6",
+      "toolId": "room-list",
+      "sourceHash": "3882937a9862803641af8e8b047fce57fc70843486aedc0a4da990e53cf1b0c0",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/RoomNavigation.tsx#7",
       "toolId": "room-list",
       "sourceHash": "df8e835543f2c5c42e1ae10307565f44231baf084ff4cadc3751c124c2027abb",
       "mode": "context-bound",

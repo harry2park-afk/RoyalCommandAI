@@ -11,7 +11,8 @@ export type RoomNavigationHandle={open:()=>void};
 export default function RoomNavigation({language,currentRoomId,basicRoom,disabled=false,onOpen,ref}:{language:string;currentRoomId?:string;basicRoom?:NavigationRoom|null;disabled?:boolean;onOpen?:(id:string)=>void;ref?:Ref<RoomNavigationHandle>}) {
  const [open,setOpen]=useState(false),[rooms,setRooms]=useState<NavigationRoom[]>([]),[query,setQuery]=useState("");
  const [loading,setLoading]=useState(false),[failed,setFailed]=useState(false),[offset,setOffset]=useState(0),[more,setMore]=useState(false),[retry,setRetry]=useState(0);
- function show(){if(disabled)return;setOffset(0);setQuery("");setRooms([]);setMore(false);setLoading(true);setOpen(true);}
+ const [actionError,setActionError]=useState("");
+ function show(){if(disabled)return;setOffset(0);setQuery("");setRooms([]);setMore(false);setActionError("");setLoading(true);setOpen(true);}
  useImperativeHandle(ref,()=>({open:show}));
  const dialog=useRef<HTMLDialogElement>(null),trigger=useRef<HTMLButtonElement>(null);
  const t=(key:Parameters<typeof navigationText>[0])=>navigationText(key,language);
@@ -34,6 +35,15 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
   setRooms(previous=>previous.filter(item=>item.id!==room.id));
   if(room.id===currentRoomId){close();window.location.assign("/rcv3");}
  }
+ async function restore(room:NavigationRoom){
+  setActionError("");
+  try {
+   const response=await fetch(`/api/rcv3/rooms/${encodeURIComponent(room.id)}`,{method:"PATCH",signal:AbortSignal.timeout(20000)});
+   if(!response.ok)throw new Error("restore");
+   setRooms(previous=>previous.map(item=>item.id===room.id?{...item,status:"draft"}:item));
+   go({...room,status:"draft"});
+  } catch {setActionError(t("restoreError"));}
+ }
  const base=basicNavigationRoom(basicRoom?[basicRoom]:[],basicRoom?.id);
  return <nav className={styles.navigation} aria-label={t("list")}>
   {base&&base.id!==currentRoomId&&<ToolButton toolId="room-list" disabled={disabled} onClick={()=>go(base)}>← {base.name}</ToolButton>}
@@ -43,10 +53,11 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
    <label>{t("search")}<input autoFocus value={query} maxLength={80} onChange={event=>{setLoading(true);setMore(false);setQuery(event.target.value);setOffset(0);setRooms([]);}}/></label>
    {loading&&<p role="status">{t("loading")}</p>}
    {failed&&<p role="alert">{t("error")} <ToolButton toolId="room-list" onClick={()=>{setLoading(true);setRetry(value=>value+1);}}>{t("retry")}</ToolButton></p>}
+   {actionError&&<p role="alert">{actionError}</p>}
    {!loading&&!failed&&!rooms.length&&<p>{t("empty")}</p>}
    <div className={styles.rooms}>{rooms.map(room=><div className={styles.roomRow} key={room.id}>
-    <ToolButton toolId="room-list" className={styles.roomOpen} disabled={disabled||room.id===currentRoomId} aria-current={room.id===currentRoomId?"page":undefined} onClick={()=>go(room)}>{room.name}{room.id===currentRoomId?` · ${t("current")}`:""}</ToolButton>
-    {room.kind!=="existing"&&<ConfirmDeleteButton disabled={disabled} className={styles.deleteButton} labels={{trigger:t("delete"),title:room.name,body:t("deleteQuestion"),cancel:t("cancel"),confirm:t("confirmDelete"),busy:t("deleting"),error:t("deleteError")}} onConfirm={()=>remove(room)}/>}
+    <ToolButton toolId="room-list" className={styles.roomOpen} disabled={disabled||room.id===currentRoomId||room.status==="archived"} aria-current={room.id===currentRoomId?"page":undefined} onClick={()=>go(room)}>{room.name}{room.status==="archived"?` · ${t("archived")}`:""}{room.id===currentRoomId?` · ${t("current")}`:""}</ToolButton>
+    {room.status==="archived"?<ToolButton toolId="room-list" disabled={disabled} onClick={()=>void restore(room)}>{t("restore")}</ToolButton>:room.kind!=="existing"&&<ConfirmDeleteButton disabled={disabled} className={styles.deleteButton} labels={{trigger:t("delete"),title:room.name,body:t("deleteQuestion"),cancel:t("cancel"),confirm:t("confirmDelete"),busy:t("deleting"),error:t("deleteError")}} onConfirm={()=>remove(room)}/>}
    </div>)}</div>
    {more&&!failed&&<ToolButton toolId="room-list" disabled={loading} onClick={()=>{if(loading)return;setLoading(true);setOffset(value=>value+100);}}>{t("more")}</ToolButton>}
   </dialog>

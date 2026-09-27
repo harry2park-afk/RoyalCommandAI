@@ -16,14 +16,15 @@ describe("owned room navigation directory",()=>{
  function setup(count=101){
   const query={select:vi.fn(),eq:vi.fn(),or:vi.fn(),order:vi.fn(),ilike:vi.fn(),range:vi.fn()};
   for(const key of ["select","eq","or","order","ilike"] as const)query[key].mockReturnValue(query);
-  query.range.mockResolvedValue({data:Array.from({length:count},(_,n)=>({id:String(n),name:"Room",description:"rcv3-private-preview-v1"})),error:null});
+  query.range.mockResolvedValue({data:Array.from({length:count},(_,n)=>({id:String(n),name:"Room",description:"rcv3-private-preview-v1",status:n===0?"archived":"draft"})),error:null});
   const from=vi.fn().mockReturnValue(query);mock.session.mockResolvedValue({user:{id:"owner"},db:{from}});return {query,from};
  }
  it("scopes every page to the authenticated owner and excludes archived rooms",async()=>{
   const {query}=setup();const response=await GET(new Request("https://preview.test/api/rcv3/rooms?offset=100&q=hello%25"));
   const body=await response.json();expect(body.rooms).toHaveLength(100);expect(body.hasMore).toBe(true);
   expect(query.eq).toHaveBeenCalledWith("room_owner_id","owner");
-  expect(query.or).toHaveBeenCalledWith("status.eq.active,and(description.eq.rcv3-private-preview-v1,status.eq.draft)");
+  expect(query.or).toHaveBeenCalledWith("status.eq.active,and(description.eq.rcv3-private-preview-v1,status.in.(draft,archived))");
+  expect(body.rooms[0]).toMatchObject({kind:"rcv3",status:"archived"});
   expect(query.range).toHaveBeenCalledWith(100,200);expect(query.ilike).toHaveBeenCalledWith("name","%hello\\%%");
  });
  it("returns empty state and rejects malformed page indexes before querying",async()=>{
