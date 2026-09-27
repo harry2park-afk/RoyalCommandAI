@@ -33,9 +33,10 @@ jobs:
       - name: Install dependencies reproducibly
         run: npm ci --no-audit --no-fund
 
-      - name: Lint changed code
+      - name: Lint RC V3 and changed code
         shell: bash
         run: |
+          npx eslint src/app/rcv3 src/app/api/rcv3 src/lib/rcv3 src/components/rcv3-toolbox rcv3/tool-registry.mjs
           if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.head_ref }}" != "feat/independent-ai-rooms-v1-20260906" ]; then
             mapfile -t files < <(git diff --name-only --diff-filter=ACMR origin/master...HEAD -- '*.js' '*.jsx' '*.ts' '*.tsx')
           elif [ "${{ github.event_name }}" = "pull_request" ]; then

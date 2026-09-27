@@ -10,8 +10,9 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
  const [agreed,setAgreed]=useState(false),[url,setUrl]=useState("");
  const [showBank,setShowBank]=useState(false);
  const [pendingRoomUrl,setPendingRoomUrl]=useState("");
- const [bankNumber,setBankNumber]=useState(""),[quote,setQuote]=useState<Quote|null>(null),[bankError,setBankError]=useState(""),[bankBusy,setBankBusy]=useState(false),[bankAgreed,setBankAgreed]=useState(false),[bankSignature,setBankSignature]=useState(accountName.trim().slice(0,160)),[bankSigned,setBankSigned]=useState(false);
+ const [bankNumber,setBankNumber]=useState(""),[quote,setQuote]=useState<(Quote & {revision:number})|null>(null),[bankError,setBankError]=useState(""),[bankBusy,setBankBusy]=useState(false),[bankAgreed,setBankAgreed]=useState(false),[bankSignature,setBankSignature]=useState(accountName.trim().slice(0,160)),[bankSigned,setBankSigned]=useState(false);
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
+ const currentQuote=quote?.revision===revision?quote:null;
  useEffect(()=>{let active=true;fetch("/api/rcv3/token-room",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active)setAccount(v);}).catch(()=>{}).finally(()=>{if(active)setLoading(false);});return()=>{active=false;};},[]);
  useEffect(()=>{let active=true;fetch("/api/rcv3/checkout/bank-start",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(v=>{if(active&&v?.customerNumber)setBankNumber(v.customerNumber);}).catch(()=>{});return()=>{active=false;};},[]);
  async function requestBankQuote() {
@@ -21,15 +22,15 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
    const response=await fetch("/api/rcv3/checkout/quote",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({draftId,expectedRevision:revision})});
    const result=await response.json();
    if(!response.ok)throw new Error(result.code||"RCV3_ERROR");
-   setQuote(result);
+   setQuote({...result,revision});
   } catch(e) {setBankError(e instanceof Error?e.message:"RCV3_ERROR");}
   finally{setBankBusy(false);}
  }
  async function signBankRequest() {
-  if(!quote||!bankNumber||disabled||bankBusy||!bankAgreed||bankSignature.trim().length<2)return;
+  if(!currentQuote||!bankNumber||disabled||bankBusy||!bankAgreed||bankSignature.trim().length<2)return;
   setBankBusy(true);setBankError("");
   try {
-   const response=await fetch("/api/rcv3/checkout/bank-start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({draftId,expectedRevision:revision,quoteHash:quote.quoteHash,termsHash:quote.termsHash,signature:bankSignature,termsConsent:true})});
+   const response=await fetch("/api/rcv3/checkout/bank-start",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({draftId,expectedRevision:revision,quoteHash:currentQuote.quoteHash,termsHash:currentQuote.termsHash,signature:bankSignature,termsConsent:true})});
    const result=await response.json();
    if(!response.ok)throw new Error(result.code||"RCV3_ERROR");
    if(result.status!=="pending")throw new Error("RCV3_ERROR");
@@ -66,14 +67,14 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
   {!loading&&!account&&<p role="status">{t("tokenAccountUnavailable")}</p>}
   {error&&<p role="alert">{error==="RCV3_LIMIT"?t("tokenInsufficient"):error==="RCV3_CONFLICT"?t("tokenConflict"):t("tokenFailed")}</p>}
   <details style={{marginTop:16}}><summary>{language.startsWith("ko")?"은행 송금 또는 카드 결제":"Bank transfer or card payment"}</summary>
-  {!quote?<button type="button" disabled={disabled||bankBusy} onClick={()=>void requestBankQuote()}>{bankBusy?t("wait"):(language.startsWith("ko")?"금액 확인":"Check amount")}</button>:<>
-   <p><strong>{language.startsWith("ko")?"이용 금액":"Amount"}: {new Intl.NumberFormat(language||"en",{style:"currency",currency:quote.currency}).format(quote.totalMinor/100)}</strong></p>
-   <details><summary>{t("terms")} · {quote.terms.version}</summary><div style={{whiteSpace:"pre-wrap",maxHeight:260,overflowY:"auto"}}>{quote.terms.text}</div></details>
+  {!currentQuote?<button type="button" disabled={disabled||bankBusy} onClick={()=>void requestBankQuote()}>{bankBusy?t("wait"):(language.startsWith("ko")?"금액 확인":"Check amount")}</button>:<>
+   <p><strong>{language.startsWith("ko")?"이용 금액":"Amount"}: {new Intl.NumberFormat(language||"en",{style:"currency",currency:currentQuote.currency}).format(currentQuote.totalMinor/100)}</strong></p>
+   <details><summary>{t("terms")} · {currentQuote.terms.version}</summary><div style={{whiteSpace:"pre-wrap",maxHeight:260,overflowY:"auto"}}>{currentQuote.terms.text}</div></details>
    {!bankSigned?<><label><input type="checkbox" checked={bankAgreed} onChange={e=>setBankAgreed(e.target.checked)}/>{t("bankConsent")}</label>
    <label>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} onChange={e=>setBankSignature(e.target.value)}/></label>
    </>:<p role="status">{url?(language.startsWith("ko")?"테스트 토큰 30개가 차감되고 방이 열렸습니다.":"30 test tokens were charged and your room is open."):(language.startsWith("ko")?"방이 만들어졌습니다. 확인 전까지 연결 기능은 잠겨 있습니다. 입금 확인까지 기다려 주세요.":"Your room is created. Connections remain locked until payment is confirmed. Please wait for confirmation.")} <a href={url||pendingRoomUrl}>{t("open")}</a></p>}
   </>}
-  {!bankSigned&&<button type="button" disabled={disabled||bankBusy||!quote||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(agreed&&account?(language.startsWith("ko")?"방 만들기 · 테스트 토큰 30개 사용":"Create Room · Use 30 test tokens"):(language.startsWith("ko")?"방 만들기":"Create Room"))}</button>}
+  {!bankSigned&&<button type="button" disabled={disabled||bankBusy||!currentQuote||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(agreed&&account?(language.startsWith("ko")?"방 만들기 · 테스트 토큰 30개 사용":"Create Room · Use 30 test tokens"):(language.startsWith("ko")?"방 만들기":"Create Room"))}</button>}
   {bankError&&<p role="alert">{bankError==="RCV3_CONFLICT"?t("tokenConflict"):(language.startsWith("ko")?`방을 만들 수 없습니다 (${bankError}). 저장한 방과 요금 설정을 확인하세요.`:`Could not create the room (${bankError}). Check your saved room and pricing setup.`)}</p>}
   <p>{language.startsWith("ko")?"보유 토큰으로 사용하면 별도 송금이 필요 없습니다. 토큰이 부족하면 방은 만들어져도 연결은 입금 확인까지 잠깁니다.":"You can use available tokens without a transfer. If tokens are insufficient, the room remains created and connections stay locked until payment is confirmed."}</p>
   <button type="button" disabled>{t("cardChoice")} · Not Connected</button>{" "}
@@ -82,7 +83,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
    <p>{t("bankAccount")}: <strong>ROYAL COMMAND PTY LTD</strong></p>
    <p>BSB: <strong>032070</strong> · {language.startsWith("ko")?"계좌번호":"Account number"}: <strong>914904</strong></p>
    <p>{t("bankReference")}: <strong>{bankNumber||account?.customerNumber||(language.startsWith("ko")?"로그인 후 RC 번호 확인":"Sign in to view RC number")}</strong></p>
-   {quote&&<p><strong>{language.startsWith("ko")?"송금할 금액":"Transfer amount"}: {new Intl.NumberFormat(language||"en",{style:"currency",currency:quote.currency}).format(quote.totalMinor/100)}</strong></p>}
+   {currentQuote&&<p><strong>{language.startsWith("ko")?"송금할 금액":"Transfer amount"}: {new Intl.NumberFormat(language||"en",{style:"currency",currency:currentQuote.currency}).format(currentQuote.totalMinor/100)}</strong></p>}
    <BankPicker customerNumber={bankNumber||account?.customerNumber||""} language={language}/>
    <p role="status">{language.startsWith("ko")?"은행 사이트에서 직접 로그인하고 수취인 계좌와 본인의 RC 번호를 입력하세요. RC는 은행 비밀번호를 받지 않습니다. 입금 확인 또는 보유 토큰 결제 후 유료 기능이 열립니다. 현재 RC는 은행 거래내역을 조회할 수 없습니다.":"Sign in on your bank's site and enter the recipient account and your RC number. RC never receives your bank password. Paid features unlock after the deposit is verified or you pay with available tokens. RC currently has no access to the bank's incoming transaction feed."}</p>
   </div>}
