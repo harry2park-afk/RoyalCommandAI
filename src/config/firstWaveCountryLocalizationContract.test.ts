@@ -3,6 +3,7 @@ import {
   getConfiguredCountryCodes,
   getCountryConfigByCountryCode,
 } from "./countryResolver";
+import { createRoomCopy } from "../lib/rooms/create-room-i18n";
 
 const FIRST_WAVE = {
   AU: {
@@ -91,6 +92,14 @@ describe("October first-wave country localization contract", () => {
     const canada = getCountryConfigByCountryCode("CA");
     expect(canada?.locale).toBe("en-CA");
     expect(canada?.secondaryLocale).toBe("fr-CA");
+  });
+
+
+  it("does not expose an unreviewed Australia-dollar website threshold through first-wave Create Room copy", () => {
+    for (const locale of ["en", "fr", "ko", "ja"] as const) {
+      const copy = createRoomCopy(locale);
+      expect(copy.websiteBenefit, locale).not.toMatch(/A\$\s*\d/i);
+    }
   });
 
   it.each(Object.keys(FIRST_WAVE))(
