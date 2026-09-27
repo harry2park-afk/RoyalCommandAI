@@ -13,6 +13,29 @@ export type CountryOperationalEvidence = {
   requiredIntegrations: OperationalEvidenceStatus;
   previewSmokeTest: OperationalEvidenceStatus;
   rollbackPath: OperationalEvidenceStatus;
+  nonProductionStaging?: OperationalEvidenceStatus;
+  securityRegression?: OperationalEvidenceStatus;
+  deploymentProvenance?: OperationalEvidenceStatus;
+  roomFactoryTemplates?: OperationalEvidenceStatus;
+  roomFactoryRuntime?: OperationalEvidenceStatus;
+  roomFactoryWriteAuthority?: OperationalEvidenceStatus;
+  tenantIsolation?: OperationalEvidenceStatus;
+  profileRoleAuthority?: OperationalEvidenceStatus;
+  customerAccountAuthority?: OperationalEvidenceStatus;
+  legalMatterAssignmentAuthority?: OperationalEvidenceStatus;
+  countryCommercialCatalog?: OperationalEvidenceStatus;
+  commercialReviewAuthority?: OperationalEvidenceStatus;
+  recordingReviewAuthority?: OperationalEvidenceStatus;
+  paymentCommercialAuthority?: OperationalEvidenceStatus;
+  paymentOperations?: OperationalEvidenceStatus;
+  paymentProviderSandbox?: OperationalEvidenceStatus;
+  legalEvidence?: OperationalEvidenceStatus;
+  privacyEvidence?: OperationalEvidenceStatus;
+  dataResidencyEvidence?: OperationalEvidenceStatus;
+  taxEvidence?: OperationalEvidenceStatus;
+  taxStructureEvidence?: OperationalEvidenceStatus;
+  complianceReviewAuthority?: OperationalEvidenceStatus;
+  complianceEvidence?: OperationalEvidenceStatus;
 };
 
 export type CountryOperationalBlockerCode =
@@ -24,7 +47,30 @@ export type CountryOperationalBlockerCode =
   | "LOCALIZATION_NOT_VERIFIED"
   | "REQUIRED_INTEGRATIONS_NOT_VERIFIED"
   | "PREVIEW_SMOKE_TEST_NOT_VERIFIED"
-  | "ROLLBACK_PATH_NOT_VERIFIED";
+  | "ROLLBACK_PATH_NOT_VERIFIED"
+  | "NON_PRODUCTION_STAGING_NOT_VERIFIED"
+  | "SECURITY_REGRESSION_NOT_VERIFIED"
+  | "DEPLOYMENT_PROVENANCE_NOT_VERIFIED"
+  | "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED"
+  | "ROOM_FACTORY_RUNTIME_NOT_VERIFIED"
+  | "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED"
+  | "TENANT_ISOLATION_NOT_VERIFIED"
+  | "PROFILE_ROLE_AUTHORITY_NOT_VERIFIED"
+  | "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED"
+  | "LEGAL_MATTER_ASSIGNMENT_AUTHORITY_NOT_VERIFIED"
+  | "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED"
+  | "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED"
+  | "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED"
+  | "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED"
+  | "PAYMENT_OPERATIONS_NOT_VERIFIED"
+  | "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED"
+  | "LEGAL_EVIDENCE_NOT_VERIFIED"
+  | "PRIVACY_EVIDENCE_NOT_VERIFIED"
+  | "DATA_RESIDENCY_EVIDENCE_NOT_VERIFIED"
+  | "TAX_EVIDENCE_NOT_VERIFIED"
+  | "TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED"
+  | "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED"
+  | "COMPLIANCE_EVIDENCE_NOT_VERIFIED";
 
 export type CountryOperationalLaunchGate = {
   launchable: boolean;
@@ -45,15 +91,94 @@ const OPERATIONAL_REQUIREMENTS: ReadonlyArray<{
   { key: "requiredIntegrations", blocker: "REQUIRED_INTEGRATIONS_NOT_VERIFIED" },
   { key: "previewSmokeTest", blocker: "PREVIEW_SMOKE_TEST_NOT_VERIFIED" },
   { key: "rollbackPath", blocker: "ROLLBACK_PATH_NOT_VERIFIED" },
+  { key: "nonProductionStaging", blocker: "NON_PRODUCTION_STAGING_NOT_VERIFIED" },
+  { key: "securityRegression", blocker: "SECURITY_REGRESSION_NOT_VERIFIED" },
+  { key: "deploymentProvenance", blocker: "DEPLOYMENT_PROVENANCE_NOT_VERIFIED" },
+  { key: "roomFactoryTemplates", blocker: "ROOM_FACTORY_TEMPLATES_NOT_VERIFIED" },
+  { key: "roomFactoryRuntime", blocker: "ROOM_FACTORY_RUNTIME_NOT_VERIFIED" },
+  { key: "roomFactoryWriteAuthority", blocker: "ROOM_FACTORY_WRITE_AUTHORITY_NOT_VERIFIED" },
+  { key: "tenantIsolation", blocker: "TENANT_ISOLATION_NOT_VERIFIED" },
+  { key: "profileRoleAuthority", blocker: "PROFILE_ROLE_AUTHORITY_NOT_VERIFIED" },
+  { key: "customerAccountAuthority", blocker: "CUSTOMER_ACCOUNT_AUTHORITY_NOT_VERIFIED" },
+  { key: "legalMatterAssignmentAuthority", blocker: "LEGAL_MATTER_ASSIGNMENT_AUTHORITY_NOT_VERIFIED" },
+  { key: "countryCommercialCatalog", blocker: "COUNTRY_COMMERCIAL_CATALOG_NOT_VERIFIED" },
+  { key: "commercialReviewAuthority", blocker: "COMMERCIAL_REVIEW_AUTHORITY_NOT_VERIFIED" },
+  { key: "recordingReviewAuthority", blocker: "RECORDING_REVIEW_AUTHORITY_NOT_VERIFIED" },
+  { key: "paymentCommercialAuthority", blocker: "PAYMENT_COMMERCIAL_AUTHORITY_NOT_VERIFIED" },
+  { key: "paymentOperations", blocker: "PAYMENT_OPERATIONS_NOT_VERIFIED" },
+  { key: "paymentProviderSandbox", blocker: "PAYMENT_PROVIDER_SANDBOX_NOT_VERIFIED" },
+  { key: "legalEvidence", blocker: "LEGAL_EVIDENCE_NOT_VERIFIED" },
+  { key: "privacyEvidence", blocker: "PRIVACY_EVIDENCE_NOT_VERIFIED" },
+  { key: "dataResidencyEvidence", blocker: "DATA_RESIDENCY_EVIDENCE_NOT_VERIFIED" },
+  { key: "taxEvidence", blocker: "TAX_EVIDENCE_NOT_VERIFIED" },
+  { key: "taxStructureEvidence", blocker: "TAX_STRUCTURE_EVIDENCE_NOT_VERIFIED" },
+  { key: "complianceReviewAuthority", blocker: "COMPLIANCE_REVIEW_AUTHORITY_NOT_VERIFIED" },
+  { key: "complianceEvidence", blocker: "COMPLIANCE_EVIDENCE_NOT_VERIFIED" },
 ] as const;
 
 /**
  * Second-stage country activation gate.
  *
- * The existing country launch gate covers legal/tax/payment readiness. This
- * gate adds the operational evidence required by the 100-country onboarding
- * contract without changing any existing production routing or activation.
- * Every item fails closed until evidence is explicitly VERIFIED.
+ * The existing country launch gate covers configured legal/tax/payment
+ * readiness. This gate requires independent operational evidence for the
+ * launch-critical runtime path without changing production routing or country
+ * activation. Newly added evidence keys are optional at the type boundary so
+ * older evidence producers still compile, but missing values fail closed.
+ * Every item must be explicitly VERIFIED before a country can be launchable.
+ *
+ * Controlled non-Production staging is independent from preview smoke and
+ * rollback proof. A country must not become launchable until the database and
+ * integration changes intended for rollout have been exercised on an isolated
+ * non-Production target with production-like migrations, negative-write tests,
+ * tenant-isolation checks, and rollback/denial paths. This prevents a green web
+ * preview from being treated as evidence that database/auth/payment changes are
+ * safe to apply to Hosted Production.
+ * Security/regression proof is independent from preview smoke and rollback
+ * proof: a country must not become launchable while the exact release candidate
+ * lacks verified QA/security regression evidence or while known Hosted security
+ * findings remain unreviewed. Deployment provenance is also independent from
+ * preview smoke/rollback proof: a country must not become launchable while the
+ * Hosted migration ledger contains an unresolved or unreviewed deployment whose
+ * exact source cannot be tied to the approved repository history. Room Factory
+ * template proof, runtime creation proof, and write-authority proof are
+ * deliberately separate. Static templates are not enough: the country must also
+ * prove a real non-null encounter-backed manifest with its exact runtime locale
+ * through the controlled Room Factory path, and direct client manifest writes
+ * must be blocked. Profile role authority is independent from general tenant
+ * isolation: authenticated users must not be able to grant themselves privileged
+ * roles through profile updates or signup metadata, and any role-change path must
+ * be constrained to a verified trusted authority before launch. Customer account
+ * authority is also independent from broad tenant-isolation evidence so a country
+ * cannot launch while authenticated clients retain unsafe direct writes or
+ * customer-number allocation is not verified through the controlled account path.
+ * Legal matter assignment authority is independent again: authenticated clients
+ * and ordinary staff must not be able to rewrite matter tenant ownership or staff
+ * assignment columns directly, and the approved assignment path must prove its
+ * caller authority and assigned-staff role before a country can launch.
+ * Country commercial catalog proof is independent from commercial-review
+ * authority: a country must have reviewed, available positive-priced terms and
+ * provider offers, and the authority/provenance of the human commercial reviewer
+ * must itself be independently verified before launch. Recording/consent reviewer
+ * authority is independent from general communications-rules evidence: a country
+ * must not launch merely because a recording policy row says approved when the
+ * human reviewer identity and review chronology have not been independently
+ * verified. Payment commercial authority is independent from payment operations
+ * so launch cannot proceed while a client can author amount/currency/terms
+ * snapshots even if checkout/webhook mechanics are otherwise operational.
+ * Payment provider sandbox proof is independent again: disposable
+ * schema/idempotency tests are not evidence that a real provider sandbox has
+ * passed signed-webhook verification, replay/idempotency rejection, exact
+ * amount/currency checks, cancel/refund, settlement/terminal-state handling,
+ * observability, and rollback. Legal, privacy, and data-residency evidence are
+ * required independently because a generic compliance flag or an operational
+ * routing check must not substitute for current reviewer-backed evidence of each
+ * launch-critical evidence kind. Tax and tax-structure evidence are independent
+ * from static READY flags and provider connectivity: the rollout evidence registry
+ * must contain independently reviewed current proof for both evidence kinds before
+ * a country can become launchable. Compliance evidence and the
+ * authority/provenance of the human compliance reviewer are also independent: a
+ * country cannot launch solely because a compliance row says VERIFIED when reviewer
+ * identity and review chronology have not themselves been verified.
  */
 export function evaluateCountryOperationalLaunch(
   config: CountryConfig,
