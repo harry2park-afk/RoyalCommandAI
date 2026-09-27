@@ -57,7 +57,8 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
    {!loading&&!failed&&!rooms.length&&<p>{t("empty")}</p>}
    <div className={styles.rooms}>{rooms.map(room=><div className={styles.roomRow} key={room.id}>
     <ToolButton toolId="room-list" className={styles.roomOpen} disabled={disabled||room.id===currentRoomId||room.status==="archived"} aria-current={room.id===currentRoomId?"page":undefined} onClick={()=>go(room)}>{room.name}{room.status==="archived"?` · ${t("archived")}`:""}{room.id===currentRoomId?` · ${t("current")}`:""}</ToolButton>
-    {room.status==="archived"?<ToolButton toolId="room-list" disabled={disabled} onClick={()=>void restore(room)}>{t("restore")}</ToolButton>:room.kind!=="existing"&&<ConfirmDeleteButton disabled={disabled} className={styles.deleteButton} labels={{trigger:t("delete"),title:room.name,body:t("deleteQuestion"),cancel:t("cancel"),confirm:t("confirmDelete"),busy:t("deleting"),error:t("deleteError")}} onConfirm={()=>remove(room)}/>}
+    {room.status==="archived"&&<ToolButton toolId="room-list" disabled={disabled} onClick={()=>void restore(room)}>{t("restore")}</ToolButton>}
+    {room.kind!=="existing"&&<ConfirmDeleteButton disabled={disabled} className={styles.deleteButton} labels={{trigger:t("delete"),title:room.name,body:t("deleteQuestion"),cancel:t("cancel"),confirm:t("confirmDelete"),busy:t("deleting"),error:t("deleteError")}} onConfirm={()=>remove(room)}/>}
    </div>)}</div>
    {more&&!failed&&<ToolButton toolId="room-list" disabled={loading} onClick={()=>{if(loading)return;setLoading(true);setOffset(value=>value+100);}}>{t("more")}</ToolButton>}
   </dialog>
