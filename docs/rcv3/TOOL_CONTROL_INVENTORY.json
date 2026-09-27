@@ -130,7 +130,7 @@
     {
       "controlId": "src/app/rcv3/Room.tsx#12",
       "toolId": "toolbox",
-      "sourceHash": "20f7065c748428a3106b1d9ea5f0628385af7e73702f2de54360cfff5b161d8b",
+      "sourceHash": "9230f8071b42230721266f0c049b077095d4ad1fb8a187d8c6a978487fea6f11",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

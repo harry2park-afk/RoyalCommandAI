@@ -27,7 +27,7 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
   return()=>{clearTimeout(timer);controller.abort();};
  },[open,query,offset,retry]);
  function close(){setOpen(false);trigger.current?.focus();}
- function go(room:NavigationRoom){if(disabled)return;const target=roomNavigationTarget([room],room.id);close();if(onOpen)onOpen(room.id);else window.location.assign(target);}
+ function go(room:NavigationRoom){if(disabled)return;const target=roomNavigationTarget([room],room.id);close();if(room.kind!=="existing"&&onOpen)onOpen(room.id);else window.location.assign(target);}
  async function remove(room:NavigationRoom){
   const response=await fetch(`/api/rcv3/rooms/${encodeURIComponent(room.id)}`,{method:"DELETE",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(20000)});
   if(!response.ok)throw new Error("delete");
@@ -46,7 +46,7 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
    {!loading&&!failed&&!rooms.length&&<p>{t("empty")}</p>}
    <div className={styles.rooms}>{rooms.map(room=><div className={styles.roomRow} key={room.id}>
     <ToolButton toolId="room-list" className={styles.roomOpen} disabled={disabled||room.id===currentRoomId} aria-current={room.id===currentRoomId?"page":undefined} onClick={()=>go(room)}>{room.name}{room.id===currentRoomId?` · ${t("current")}`:""}</ToolButton>
-    <ConfirmDeleteButton disabled={disabled} className={styles.deleteButton} labels={{trigger:t("delete"),title:room.name,body:t("deleteQuestion"),cancel:t("cancel"),confirm:t("confirmDelete"),busy:t("deleting"),error:t("deleteError")}} onConfirm={()=>remove(room)}/>
+    {room.kind!=="existing"&&<ConfirmDeleteButton disabled={disabled} className={styles.deleteButton} labels={{trigger:t("delete"),title:room.name,body:t("deleteQuestion"),cancel:t("cancel"),confirm:t("confirmDelete"),busy:t("deleting"),error:t("deleteError")}} onConfirm={()=>remove(room)}/>}
    </div>)}</div>
    {more&&!failed&&<ToolButton toolId="room-list" disabled={loading} onClick={()=>{if(loading)return;setLoading(true);setOffset(value=>value+100);}}>{t("more")}</ToolButton>}
   </dialog>
