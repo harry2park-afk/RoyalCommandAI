@@ -9,9 +9,102 @@
 --   * clients cannot self-assign staff while creating a matter
 --   * documents/messages/chat reads follow the parent matter boundary
 --
+-- SECURITY ORDERING PRECONDITION:
+-- This migration introduces authorization decisions that trust profiles.role.
+-- Hosted evidence shows the current profile bootstrap accepts user-controlled
+-- raw_user_meta_data.role and the current SQL grants allow authenticated users
+-- to update their own role. Supabase applies timestamped migrations sequentially,
+-- so waiting for the later profile-role migration would create a privilege-
+-- escalation window between migrations. Reassert the role-authority hardening
+-- here before creating any role-gated helper/RPC/policy. The later dedicated
+-- profile-role migration intentionally repeats these idempotent protections as
+-- defense in depth.
+--
 -- Deployment remains blocked until the unassigned-intake / assignment workflow is
 -- explicitly approved and authenticated regression tests pass. This file is a
 -- candidate only; do not treat its presence in a PR as production approval.
+
+create or replace function private.guard_profile_role_change()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $$
+begin
+  if auth.uid() is not null then
+    if tg_op = 'INSERT' and new.role is distinct from 'client' then
+      raise exception using
+        errcode = '42501',
+        message = 'Profile role inserts require trusted administrative context.';
+    elsif tg_op = 'UPDATE' and new.role is distinct from old.role then
+      raise exception using
+        errcode = '42501',
+        message = 'Profile role changes require trusted administrative context.';
+    end if;
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function private.guard_profile_role_change() from public, anon, authenticated;
+
+drop trigger if exists guard_profile_role_change on public.profiles;
+create trigger guard_profile_role_change
+before insert or update of role on public.profiles
+for each row
+execute function private.guard_profile_role_change();
+
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = pg_catalog
+as $$
+begin
+  insert into public.profiles (id, email, full_name, default_language, role)
+  values (
+    new.id,
+    new.email,
+    coalesce(new.raw_user_meta_data->>'full_name', split_part(new.email, '@', 1)),
+    coalesce(new.raw_user_meta_data->>'default_language', 'en-AU'),
+    'client'
+  )
+  on conflict (id) do update set
+    email = excluded.email,
+    full_name = coalesce(excluded.full_name, public.profiles.full_name),
+    default_language = coalesce(excluded.default_language, public.profiles.default_language),
+    updated_at = now();
+
+  return new;
+end;
+$$;
+
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
+
+revoke insert, delete, truncate, references, trigger on table public.profiles from anon, authenticated;
+revoke update on table public.profiles from anon, authenticated;
+grant update (full_name, default_language, avatar_url, ui_preferences, updated_at)
+on table public.profiles
+to authenticated;
+
+-- Hosted read-only evidence showed anon/authenticated inherited broad table ACLs,
+-- including TRUNCATE / REFERENCES / TRIGGER on the Legal Matter data plane.
+-- Those control-plane privileges are not required by browser/API clients. Reset
+-- the four Matter tables to an explicit least-privilege DML contract before any
+-- role-gated policy is installed. service_role is deliberately left untouched.
+revoke select, insert, update, delete, truncate, references, trigger
+on table public.matters, public.matter_documents, public.matter_messages, public.matter_chat_reads
+from anon;
+
+revoke all privileges
+on table public.matters, public.matter_documents, public.matter_messages, public.matter_chat_reads
+from authenticated;
+
+grant select, insert on table public.matters to authenticated;
+grant select, insert, update on table public.matter_documents to authenticated;
+grant select, insert on table public.matter_messages to authenticated;
+grant select, insert, update on table public.matter_chat_reads to authenticated;
 
 create or replace function private.is_admin()
 returns boolean
@@ -138,11 +231,11 @@ with check (
 
 -- Protect tenant ownership and staff assignment at the SQL privilege boundary.
 -- RLS WITH CHECK cannot compare OLD and NEW rows, so relying on RLS alone would
--- let an allowed updater rewrite client_id or assigned_staff_id. Authenticated
--- users keep UPDATE only on mutable matter fields. Assignment/transfer must use a
--- separately reviewed privileged workflow (or service_role) rather than direct
--- authenticated table updates.
-revoke update on table public.matters from authenticated;
+-- let an allowed updater rewrite client_id or assigned_staff_id. Untrusted API
+-- roles lose broad table UPDATE; authenticated users keep UPDATE only on mutable
+-- matter fields. Assignment/transfer must use a separately reviewed privileged
+-- workflow (or service_role) rather than direct client-table updates.
+revoke update on table public.matters from anon, authenticated;
 grant update (service_line, title, summary, status, updated_at)
 on table public.matters
 to authenticated;
