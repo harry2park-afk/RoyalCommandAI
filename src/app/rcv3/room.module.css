@@ -71,6 +71,9 @@ main.root{width:100%!important;max-width:100%!important;padding:0;box-sizing:bor
 @keyframes flowerOfficePan{from{background-size:103.5% auto;background-position:40% 50%}to{background-size:106.5% auto;background-position:60% 50%}}
 @media(prefers-reduced-motion:reduce){.flowerMotion{animation:none}}
 
+/* Owner actions belong inside the Toolbox, away from the customer's room bar. */
+.managementActions{display:flex;flex-wrap:wrap;gap:12px;padding:8px 0 20px}
+
 /* Canonical current-room nameplate: source is the same server room list used by My Rooms. */
 .header .productTitle{margin-right:0;white-space:nowrap}
 .header .roomNamePlate{

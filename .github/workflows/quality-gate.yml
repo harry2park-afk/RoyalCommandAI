@@ -2,9 +2,9 @@ name: Royal Command Quality Gate
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, feat/independent-ai-rooms-v1-20260906]
   push:
-    branches: [master]
+    branches: [master, feat/independent-ai-rooms-v1-20260906]
 
 permissions:
   contents: read
