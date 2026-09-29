@@ -417,7 +417,7 @@
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#1",
       "toolId": "create-room",
-      "sourceHash": "9f2fc29b535ee9420f72b6ca26528098513039c5cd4055a280892a90c632a7e6",
+      "sourceHash": "c3a004fdeac33cdbfdbb99e71c98d9a8a0f1963071dee067272ba4aaa637363f",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

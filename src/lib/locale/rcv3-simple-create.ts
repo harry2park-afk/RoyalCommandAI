@@ -38,6 +38,7 @@ const messages = {
  card:["Card details are entered securely on the payment page.","카드 정보는 다음 결제 화면에서 안전하게 입력합니다."],
  cardChoice:["Pay by card","카드로 결제"], bankChoice:["Pay by bank transfer","은행 계좌로 송금"],
  balanceChoice:["Pay with RC balance","RC 잔액으로 결제"],
+ tokenCreate:["Create Room","방 만들기"],
  tokenBalance:["RC test tokens","RC 테스트 토큰"],tokenPreviewTerms:["This Preview room costs 30 test tokens for 30 days. No cash is charged. It does not renew automatically.","이 미리보기 방은 테스트 토큰 30개로 30일 동안 이용합니다. 현금은 차감되지 않고 자동 갱신되지 않습니다."],
  tokenAgree:["I agree to deduct 30 test tokens.","테스트 토큰 30개 차감에 동의합니다."],tokenOpen:["Use 30 tokens and open room","토큰 30개로 방 열기"],tokenInsufficient:["Not enough tokens.","토큰이 부족합니다."],tokenConflict:["This draft changed. Save and try again.","초안이 변경됐습니다. 저장 후 다시 시도하세요."],tokenFailed:["Could not open the room. No extra tokens will be charged when retrying this draft.","방을 열지 못했습니다. 같은 초안을 다시 시도해도 토큰은 중복 차감되지 않습니다."],
  tokenAccountUnavailable:["No RC test token account is available for this sign-in. Check your account and reload.","현재 로그인 계정에 RC 테스트 토큰을 확인할 수 없습니다. 계정을 확인한 뒤 새로고침하세요."],

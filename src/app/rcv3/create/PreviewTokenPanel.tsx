@@ -57,16 +57,17 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
   finally{setBusy(false);}
  }
  return <section aria-label={t("payment")}>
-  {account&&<div>
-   <p>{account.customerNumber} · {t("tokenBalance")}: <strong>{account.balance.toLocaleString(language)}</strong></p>
+  <div>
+   {account&&<p>{account.customerNumber} · {t("tokenBalance")}: <strong>{account.balance.toLocaleString(language)}</strong></p>}
+   {loading&&<p role="status">{t("loading")}</p>}
    <p>{language.startsWith("ko")?"만들 방":"Room to create"}: <strong>{roomName}</strong> · {language.startsWith("ko")?"디자인":"Design"}: <strong>{designName}</strong></p>
    <p>{t("tokenPreviewTerms")}</p>
-   {account.balance<account.cost?<p role="status">{t("tokenInsufficient")}</p>:disabled?<p role="status">{t("tokenSetupRequired")}</p>:!agreed?<p role="status">{t("tokenConsentRequired")}</p>:bankSignature.trim().length<2?<p role="status">{t("tokenSignatureRequired")}</p>:null}
+   {!account?null:account.balance<account.cost?<p role="status">{t("tokenInsufficient")}</p>:disabled?<p role="status">{t("tokenSetupRequired")}</p>:!agreed?<p role="status">{t("tokenConsentRequired")}</p>:bankSignature.trim().length<2?<p role="status">{t("tokenSignatureRequired")}</p>:null}
    {!url&&<><label><input type="checkbox" checked={agreed} disabled={busy} onChange={e=>setAgreed(e.target.checked)}/>{t("tokenAgree")}</label>
    <label style={{display:"block",marginTop:10}}>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} disabled={busy} onChange={e=>setBankSignature(e.target.value)}/></label>
-   <button type="button" disabled={busy||disabled||account.balance<account.cost} onClick={()=>void chargeTokens()}>{busy?t("wait"):(language.startsWith("ko")?"방 만들기 · 테스트 토큰 30개 사용":"Create Room · Use 30 test tokens")}</button></>}
+   <button type="button" disabled={busy||loading||disabled||!account||account.balance<account.cost||!agreed||bankSignature.trim().length<2} onClick={()=>void chargeTokens()}>{busy?t("wait"):t("tokenCreate")}</button></>}
    {url&&<p role="status">{language.startsWith("ko")?"테스트 토큰 30개가 차감되고 방이 열렸습니다.":"30 test tokens were charged and your room is open."} <a href={url}>{t("open")}</a></p>}
-  </div>}
+  </div>
   {!loading&&!account&&<p role="status">{t("tokenAccountUnavailable")}</p>}
   {error&&<p role="alert">{error==="RCV3_TOKEN_CONSENT"?t("tokenConsentRequired"):error==="RCV3_TOKEN_SIGNATURE"?t("tokenSignatureRequired"):error==="RCV3_FORM_REQUIRED"?t("tokenSetupRequired"):error==="RCV3_AI_NOT_CONNECTED"?t("tokenAiRequired"):error==="RCV3_LIMIT"?t("tokenInsufficient"):error==="RCV3_CONFLICT"?t("tokenConflict"):t("tokenFailed")}</p>}
   <details style={{marginTop:16}}><summary>{language.startsWith("ko")?"은행 송금 또는 카드 결제":"Bank transfer or card payment"}</summary>
