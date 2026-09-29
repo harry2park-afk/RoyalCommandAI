@@ -417,7 +417,7 @@
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#1",
       "toolId": "create-room",
-      "sourceHash": "e27216a1f5c1edd5841cc74edd2b7fa9b67c29a00dbd0f908dbb867ba77437d2",
+      "sourceHash": "9f2fc29b535ee9420f72b6ca26528098513039c5cd4055a280892a90c632a7e6",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
@@ -431,7 +431,7 @@
     {
       "controlId": "src/app/rcv3/create/PreviewTokenPanel.tsx#3",
       "toolId": "create-room",
-      "sourceHash": "13cd328ea510357d8c2abdbedb05ad517a76611aa01b1523bdc030090db126fc",
+      "sourceHash": "010761d4f5abd48eb7042ab9fc330fad946ca0630d1b1b86ecf0264acb2c0a68",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
@@ -677,6 +677,13 @@
       "controlId": "src/components/rcv3-toolbox/PaymentGate.tsx#4",
       "toolId": "payment",
       "sourceHash": "5d49e31ee9f56e727f322292cd1f5eae258fcc2bb7bf5bdd2d62c0c401a9dca5",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/ProviderChoices.tsx#1",
+      "toolId": "ai-list",
+      "sourceHash": "439c5a4edefe8d5be699d411c9de16658320b14b3a7566c12c4c06cad156639c",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

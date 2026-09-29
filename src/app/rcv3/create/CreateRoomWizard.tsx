@@ -10,6 +10,7 @@ import RoomNavigation from "@/components/rcv3-toolbox/RoomNavigation";
 import ExplicitSaveButton from "@/components/rcv3-toolbox/ExplicitSaveButton";
 import PreviewTokenPanel from "./PreviewTokenPanel";
 import CustomerConnections from "./CustomerConnections";
+import ProviderChoices from "@/components/rcv3-toolbox/ProviderChoices";
 import SearchableChoices from "@/components/rcv3-toolbox/SearchableChoices";
 import { COUNTRY_ROOM_PRESETS } from "@/lib/rooms/countryPresets";
 import styles from "./create.module.css";
@@ -156,7 +157,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
             <p>{t("secretaryDescription")}</p>
             {input.secretary&&<label>{t("email")}<input type="email" maxLength={254} value={input.secretarySetup.email} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,email:e.target.value}})}/></label>}
             <strong>{t("legalProviders")}</strong>
-            <div className={styles.choices}>{providers.map(provider=><label key={provider.id}><input type="checkbox" checked={input.providers.includes(provider.id)} onChange={()=>providerToggle(provider.id)}/>{provider.label}</label>)}</div>
+            <ProviderChoices providers={providers} selected={input.providers} onToggle={providerToggle} language={language}/>
             <label><input type="checkbox" checked={input.specialAI} onChange={e=>{const {advancedRequests,...answers}=input.answers;update({...input,specialAI:e.target.checked,answers:e.target.checked?input.answers:answers});}}/>{t("legalAdvanced")}</label>
             {input.specialAI && purpose.fields.filter(field=>field.id==="advancedRequests"&&field.options).map(field=><div key={field.id}>
               <strong>{t("legalAdvancedRequests")}</strong>
@@ -182,7 +183,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
               <label>{t("category")}<select value={input.purpose} onChange={e=>{const next=changePurpose(input,e.target.value);const p=roomPurposes.find(p=>p.id===e.target.value)!;update({...next,tasks:[...p.suggestedAgents],answers:p.id==="custom"&&input.brief?{purpose:[input.brief]}:{},templateId:recommendedDesigns(p.id)[0].id});}}>{roomPurposes.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label>
               {purpose.fields.filter(f=>f.options && !(input.purpose==="legal"&&(f.id==="practice"||f.id==="advancedRequests"||f.id==="legalAiPriority"))).map(field=><div key={field.id}><strong>{field.label}</strong><div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];update({...input,answers:{...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]}});}}/>{option}</label>)}</div></div>)}
               <label>{t("country")}<select value={setup.country} onChange={e=>update({...input,onboarding:{...setup,country:e.target.value,phoneOfferId:"",phoneNumberId:"",phoneConsent:false}})}><option value="">—</option>{COUNTRY_ROOM_PRESETS.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
-              {input.purpose!=="legal"&&<div className={styles.choices}>{providers.map(p=><label key={p.id}><input type="checkbox" checked={input.providers.includes(p.id)} onChange={()=>providerToggle(p.id)}/>{p.label}</label>)}</div>}
+              {input.purpose!=="legal"&&<ProviderChoices providers={providers} selected={input.providers} onToggle={providerToggle} language={language}/>}
               {input.purpose!=="legal"&&<div className={styles.choices}><label><input type="checkbox" checked={input.secretary} onChange={e=>{const next=selectSecretary({...input,onboarding:setup},e.target.checked);if(e.target.checked&&!next.secretarySetup.email)next.secretarySetup.email=accountEmail;update(next);}}/>{t("secretary")}</label><label><input type="checkbox" checked={input.specialAI} onChange={e=>update({...input,specialAI:e.target.checked})}/>{t("specialist")}</label></div>}
               {input.purpose!=="legal"&&<p>{t("secretaryDescription")}</p>}
               {input.secretary && <>{input.purpose!=="legal"&&<label>{t("email")}<input type="email" maxLength={254} value={input.secretarySetup.email} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,email:e.target.value}})}/></label>}<label>{t("phone")}<input type="tel" maxLength={40} value={input.secretarySetup.phone} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,phone:e.target.value}})}/></label></>}

@@ -5,6 +5,7 @@ import {readdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {TOOL_REGISTRY} from '../rcv3/tool-registry.mjs';
 const owners={
+ 'src/components/rcv3-toolbox/ProviderChoices.tsx':'ai-list',
  'src/components/rcv3-toolbox/RoomNavigation.tsx':'room-list',
  'src/components/rcv3-toolbox/ConfirmDeleteButton.tsx':'room-list',
  'src/components/rcv3-toolbox/ExplicitSaveButton.tsx':'create-room',
