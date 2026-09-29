@@ -4,11 +4,15 @@ import HelpText from '@/components/help/HelpText';
 import {lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
 import {learningLabel,type LearningLabel} from "@/lib/locale/learning";
 import styles from './learn.module.css';
+import {readLearningDraft,saveLearningDraft,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
 type Message={role:'user'|'assistant';content:string};
-export default function LearningRoom({language}:{language:string}){
+export default function LearningRoom({language,ownerId}:{language:string;ownerId:string}){
  const [state,setState]=useState<LearningState>({completed:[],certificate:null}),[practice,setPractice]=useState<Question[]>([]);
  const [day,setDay]=useState(1),[artifact,setArtifact]=useState(''),[clock,setClock]=useState(()=>Date.now()),[offset,setOffset]=useState(0);
  const drafts=useRef<Record<string,string>>({});
+ const localDrafts=useRef<Record<string,LearningDraft>>({});
+ const [draftReady,setDraftReady]=useState(false),[draftError,setDraftError]=useState(false);
+ useEffect(()=>{try{for(const l of lessons){try{const saved=readLearningDraft(window.localStorage,ownerId,l.id);if(saved){localDrafts.current[l.id]=saved;drafts.current[l.id]=saved.artifact;}}catch{setDraftError(true);}}const first=localDrafts.current[lessons[0].id];if(first){setMessage(first.message);setArtifact(first.artifact);}}catch{setDraftError(true);}finally{setDraftReady(true);}},[ownerId]);
  const conversations=useRef<Record<string,{messages:Message[];message:string;answer:number|null}>>({});
  const [unit,setUnit]=useState(0),[messages,setMessages]=useState<Message[]>([]),[message,setMessage]=useState(''),[answer,setAnswer]=useState<number|null>(null);
  const [busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
@@ -32,9 +36,14 @@ export default function LearningRoom({language}:{language:string}){
   conversations.current[lesson.id]={messages,message,answer};
   drafts.current[lesson.id]=artifact;
   const next=lessons[index],saved=conversations.current[next.id];
-  setUnit(index);setMessages(saved?.messages??[]);setMessage(saved?.message??'');setAnswer(saved?.answer??null);
+  setUnit(index);setMessages(saved?.messages??[]);setMessage(saved?.message??localDrafts.current[next.id]?.message??'');setAnswer(saved?.answer??null);
   setArtifact(drafts.current[next.id]??state.work?.[next.id]?.artifact??'');setNotice('');
  }
+ function keepDraft(nextMessage:string,nextArtifact:string){
+  const draft={message:nextMessage,artifact:nextArtifact};localDrafts.current[lesson.id]=draft;drafts.current[lesson.id]=nextArtifact;
+  try{saveLearningDraft(window.localStorage,ownerId,lesson.id,draft);setDraftError(false);}catch{setDraftError(true);}
+ }
+ const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
  return <main className={styles.page}>
   <header><a href="/rcv3">← My Rooms</a><span className={styles.free}>PAID COURSE · 100 LESSONS · 30 DAYS</span><h1>AI Learning Room</h1><p><HelpText helpKey="learnOverview"/></p></header>
@@ -43,20 +52,22 @@ export default function LearningRoom({language}:{language:string}){
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>Retry</button>}</div>}
   <p>{t("topicHelp")}</p>
   <div className={styles.layout}>
-   <label>Study day<select value={day} disabled={!loaded||busy} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>l.day===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>Day {i+1} · {lessons.filter(l=>l.day===i+1&&state.completed.includes(l.id)).length}/{lessons.filter(l=>l.day===i+1).length}</option>)}</select></label>
+   <label>Study day<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>l.day===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>Day {i+1} · {lessons.filter(l=>l.day===i+1&&state.completed.includes(l.id)).length}/{lessons.filter(l=>l.day===i+1).length}</option>)}</select></label>
    {lessons.map((l,i)=>l.day===day&&<section className={styles.unit} key={l.id}>
-    <button type="button" className={styles.unitButton} disabled={!loaded||busy} aria-expanded={unit===i} aria-controls={`lesson-${l.id}`} onClick={()=>selectUnit(i)}><span>{l.id}</span><strong>{l.title}</strong>{ko&&<small>{l.koTitle}</small>}{state.completed.includes(l.id)&&<small>✓ {t("m5")}</small>}</button>
+    <button type="button" className={styles.unitButton} disabled={!loaded||busy||!draftReady} aria-expanded={unit===i} aria-controls={`lesson-${l.id}`} onClick={()=>selectUnit(i)}><span>{l.id}</span><strong>{l.title}</strong>{ko&&<small>{l.koTitle}</small>}{state.completed.includes(l.id)&&<small>✓ {t("m5")}</small>}</button>
     {unit===i&&<article id={`lesson-${l.id}`} aria-label={l.title}>
 
-    <h2>{lesson.id}. {lesson.title}</h2><p className={styles.lesson}><HelpText helpKey={`learn.${lesson.id}`}/></p>
+    <h2>{lesson.id}. {lesson.title}</h2><p>{t(unit<50?"quizCompletion":"projectCompletion")}</p><p className={styles.lesson}><HelpText helpKey={`learn.${lesson.id}`}/></p>
     <section className={styles.tutor} aria-label="AI tutor"><h3>Learn with AI</h3><p><HelpText helpKey="learnTutor"/></p>
      <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?'You':'AI Tutor'}</strong><br/>{m.content}</p>)}</div>
-     <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>setMessage(e.target.value)} disabled={busy}/></label>
-     <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{setMessages([...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}]);setMessage('');})}>{busy?t("m7"):'Send'}</button>
+     <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>{setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={busy||!draftReady}/></label>
+     <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{setMessages([...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}]);setMessage('');keepDraft('',artifact);})}>{busy?t("m7"):'Send'}</button>
     </section>
     {question&&unit<50&&<section className={styles.check} aria-label="Lesson check"><h3>{t("m8")}</h3><p>{ko?question.ko:question.text}</p>{question.options.map((option,i)=><label className={styles.option} key={option}><input type="radio" name="practice" disabled={busy} checked={answer===i} onChange={()=>setAnswer(i)}/>{ko?question.koOptions[i]:option}</label>)}<button disabled={busy||!loaded||answer===null} onClick={()=>void run({action:'practice',lesson:lesson.id,answer},d=>{if(d.correct){setState(d as unknown as LearningState);setNotice(t("m9"));}else setNotice(t("m10"));})}>{t("m11")}</button></section>}
-    {unit>=50&&<section className={styles.check} aria-label="Practical assignment"><h3>Practical Assignment</h3><p><HelpText helpKey="learnProject"/></p><label>Report, code or project evidence<textarea rows={10} maxLength={6000} value={artifact} disabled={busy} onChange={e=>{setArtifact(e.target.value);drafts.current[lesson.id]=e.target.value;}}/></label><small>{artifact.trim().length} / 6000</small><button disabled={!loaded||busy||state.completed.includes(lesson.id)||artifact.trim().length<150} onClick={()=>void run({action:'project',lesson:lesson.id,artifact},d=>{setState(d as unknown as LearningState);setNotice(`${d.projectScore} / 100 — ${d.feedback}`);})}>Submit for feedback</button>{state.work?.[lesson.id]&&<div><strong>{state.work[lesson.id].score} / 100</strong><p>{state.work[lesson.id].feedback}</p></div>}</section>}
+    {unit>=50&&<section className={styles.check} aria-label="Practical assignment"><h3>Practical Assignment</h3><p><HelpText helpKey="learnProject"/></p><label>Report, code or project evidence<textarea rows={10} maxLength={6000} value={artifact} disabled={busy||!draftReady} onChange={e=>{setArtifact(e.target.value);keepDraft(message,e.target.value);}}/></label><small>{artifact.trim().length} / 6000</small><button disabled={!loaded||busy||state.completed.includes(lesson.id)||artifact.trim().length<150} onClick={()=>void run({action:'project',lesson:lesson.id,artifact},d=>{setState(d as unknown as LearningState);setNotice(`${d.projectScore} / 100 — ${d.feedback}`);})}>Submit for feedback</button>{state.work?.[lesson.id]&&<div><strong>{t(state.completed.includes(lesson.id)?"passedWork":"reviseWork")} · {state.work[lesson.id].score} / 100</strong><p>{state.work[lesson.id].feedback}</p></div>}</section>}
+    {draftReady&&<p role="status">{t(draftError?'draftError':'draftSaved')}</p>}
     {notice&&<p role="status">{notice}</p>}
+    {state.completed.includes(lesson.id)&&<div role="status"><strong>✓ {t("m5")}</strong>{nextLesson&&<button type="button" disabled={busy||!draftReady} onClick={()=>{setDay(nextLesson.day);selectUnit(unit+1);requestAnimationFrame(()=>document.getElementById(`lesson-${nextLesson.id}`)?.scrollIntoView({block:"start"}));}}>{t("nextLesson")} · {nextLesson.id}</button>}</div>}
    </article>}</section>)}
   </div>
   <section className={styles.exam} aria-label="Final exam"><h2>Final Exam &amp; Certificate</h2><p><HelpText helpKey="learnExam"/></p>

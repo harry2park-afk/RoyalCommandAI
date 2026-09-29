@@ -1,4 +1,11 @@
 const labels = {
+ draftSaved:{en:'Draft saved on this browser. Submitted assignments and progress are saved to your account.',ko:'작성 내용은 이 브라우저에 저장됩니다. 제출한 과제와 진도는 계정에 저장됩니다.'},
+ draftError:{en:'Could not save or restore this browser draft. Keep this page open and copy your input before leaving.',ko:'이 브라우저에서 작성 내용을 저장하거나 복원하지 못했습니다. 나가기 전에 입력 내용을 복사해 주세요.'},
+ nextLesson:{en:'Next lesson',ko:'다음 과목'},
+ passedWork:{en:'Passed · lesson completed',ko:'통과 · 수업 완료'},
+ reviseWork:{en:'Needs revision · edit and submit again',ko:'수정 필요 · 보완 후 다시 제출하세요'},
+ quizCompletion:{en:'Answer the lesson check correctly to complete this lesson. Tutor chat does not mark completion.',ko:'확인 문제를 맞히면 이 수업이 완료됩니다. AI와의 질문 대화만으로는 완료되지 않습니다.'},
+ projectCompletion:{en:'Submit your assignment below. A score of 70/100 or above completes this lesson.',ko:'아래에 실습 과제를 제출하세요. 평가 점수 70점 이상이면 수업이 완료됩니다.'},
  topicHelp:{en:"Select a topic to read the lesson directly below it. Ask a question in the same section for AI help.",ko:"과목 버튼을 누르면 바로 아래에 수업이 펼쳐집니다. 같은 과목 안에서 질문하면 AI가 답합니다."},
  startLesson:{en:'Start Lesson',ko:'Start Lesson · 수업 시작'},
  startLessonHelp:{en:'Select a topic, then Start Lesson. The AI will explain it and give you a practice task; no typed question is needed.',ko:'과목을 선택한 뒤 Start Lesson을 누르세요. 질문을 쓰지 않아도 AI가 설명하고 실습을 안내합니다.'},
