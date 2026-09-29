@@ -1,0 +1,464 @@
+{
+  "draftSaved": {
+    "en": "Draft saved on this browser. Submitted assignments and progress are saved to your account.",
+    "ko": "작성 내용은 이 브라우저에 저장됩니다. 제출한 과제와 진도는 계정에 저장됩니다.",
+    "ja": "下書きはこのブラウザーに保存されます。提出済み課題と進捗はアカウントに保存されます。",
+    "zh": "草稿保存在此浏览器中，已提交的作业和进度保存在账户中。",
+    "hi": "प्रारूप इस ब्राउज़र में सहेजा जाता है। जमा किए गए कार्य और प्रगति खाते में सहेजे जाते हैं।"
+  },
+  "draftError": {
+    "en": "Could not save or restore this browser draft. Keep this page open and copy your input before leaving.",
+    "ko": "이 브라우저에서 작성 내용을 저장하거나 복원하지 못했습니다. 나가기 전에 입력 내용을 복사해 주세요.",
+    "ja": "下書きを保存・復元できませんでした。ページを離れる前に入力内容をコピーしてください。",
+    "zh": "无法保存或恢复草稿，离开前请复制输入内容。",
+    "hi": "प्रारूप सहेजा या पुनर्स्थापित नहीं हो सका। जाने से पहले अपना पाठ कॉपी करें।"
+  },
+  "nextLesson": {
+    "en": "Next lesson",
+    "ko": "다음 과목",
+    "ja": "次の課",
+    "zh": "下一课",
+    "hi": "अगला पाठ"
+  },
+  "passedWork": {
+    "en": "Passed · lesson completed",
+    "ko": "통과 · 수업 완료",
+    "ja": "合格 · 修了",
+    "zh": "通过 · 已完成",
+    "hi": "उत्तीर्ण · पाठ पूरा"
+  },
+  "reviseWork": {
+    "en": "Needs revision · edit and submit again",
+    "ko": "수정 필요 · 보완 후 다시 제출하세요",
+    "ja": "修正が必要 · 修正して再提出",
+    "zh": "需要修改 · 修改后重新提交",
+    "hi": "संशोधन आवश्यक · सुधारकर फिर जमा करें"
+  },
+  "quizCompletion": {
+    "en": "Answer the lesson check correctly to complete this lesson. Tutor chat does not mark completion.",
+    "ko": "확인 문제를 맞히면 이 수업이 완료됩니다. AI와의 질문 대화만으로는 완료되지 않습니다.",
+    "ja": "確認問題に正解すると修了です。講師との会話だけでは修了になりません。",
+    "zh": "答对本课测验即可完成，导师对话本身不计为完成。",
+    "hi": "पाठ की जाँच का सही उत्तर देने पर पाठ पूरा होगा। शिक्षक से बातचीत मात्र से पाठ पूरा नहीं होता।"
+  },
+  "projectCompletion": {
+    "en": "Submit your assignment below. A score of 70/100 or above completes this lesson.",
+    "ko": "아래에 실습 과제를 제출하세요. 평가 점수 70점 이상이면 수업이 완료됩니다.",
+    "ja": "下の課題を提出してください。70点以上で修了です。",
+    "zh": "请在下方提交作业，达到70分即可完成。",
+    "hi": "नीचे कार्य जमा करें। 100 में से 70 या अधिक अंक पर पाठ पूरा होगा।"
+  },
+  "topicHelp": {
+    "en": "Select a topic to read the lesson directly below it. Ask a question in the same section for AI help.",
+    "ko": "과목 버튼을 누르면 바로 아래에 수업이 펼쳐집니다. 같은 과목 안에서 질문하면 AI가 답합니다.",
+    "ja": "課を選ぶと直下に教材が開きます。同じ場所でAIに質問できます。",
+    "zh": "选择课题后，内容会在下方展开，可在同一区域向AI提问。",
+    "hi": "पाठ चुनें; सामग्री नीचे खुलेगी। उसी भाग में AI से प्रश्न पूछें।"
+  },
+  "startLesson": {
+    "en": "Start Lesson",
+    "ko": "수업 시작",
+    "ja": "授業を開始",
+    "zh": "开始学习",
+    "hi": "पाठ शुरू करें"
+  },
+  "startLessonHelp": {
+    "en": "Select a topic, then Start Lesson. The AI will explain it and give you a practice task; no typed question is needed.",
+    "ko": "과목을 선택한 뒤 수업 시작을 누르세요. 질문을 쓰지 않아도 AI가 설명하고 실습을 안내합니다.",
+    "ja": "課を選んで授業を開始してください。AIが説明し、実習を案内します。質問の入力は不要です。",
+    "zh": "选择课题并开始学习，AI会讲解并布置练习，无需先输入问题。",
+    "hi": "पाठ चुनकर शुरू करें। AI समझाएगा और अभ्यास देगा; पहले प्रश्न लिखना आवश्यक नहीं है।"
+  },
+  "loadingProgress": {
+    "en": "Loading your learning progress…",
+    "ko": "학습 기록을 불러오는 중입니다…",
+    "ja": "学習記録を読み込み中…",
+    "zh": "正在加载学习进度…",
+    "hi": "आपकी प्रगति लोड हो रही है…"
+  },
+  "m0": {
+    "en": "Could not load your progress. Retry.",
+    "ko": "학습 기록을 불러오지 못했습니다. 다시 시도해 주세요.",
+    "ja": "学習記録を読み込めませんでした。再試行してください。",
+    "zh": "无法加载学习进度，请重试。",
+    "hi": "प्रगति लोड नहीं हुई। पुनः प्रयास करें।"
+  },
+  "m1": {
+    "en": "Daily allowance reached. Try again tomorrow (UTC).",
+    "ko": "오늘의 이용 한도에 도달했습니다. 내일(UTC 기준) 다시 이용하세요.",
+    "ja": "本日の利用上限です。明日（UTC）再試行してください。",
+    "zh": "已达到今日限额，请明天（UTC）再试。",
+    "hi": "आज की सीमा पूरी हो गई। कल (UTC) पुनः प्रयास करें।"
+  },
+  "m2": {
+    "en": "This exam expired. Start a new exam.",
+    "ko": "시험 유효기간이 지났습니다. 새 시험을 시작하세요.",
+    "ja": "試験時間が終了しました。新しい試験を開始してください。",
+    "zh": "考试时间已结束，请开始新考试。",
+    "hi": "परीक्षा का समय समाप्त हुआ। नई परीक्षा शुरू करें।"
+  },
+  "m3": {
+    "en": "Could not complete this request. Your input is kept; please retry.",
+    "ko": "처리하지 못했습니다. 입력은 유지됩니다. 다시 시도하세요.",
+    "ja": "処理できませんでした。入力は保持されています。再試行してください。",
+    "zh": "处理失败，输入内容已保留，请重试。",
+    "hi": "अनुरोध पूरा नहीं हुआ। आपका पाठ बना हुआ है; पुनः प्रयास करें।"
+  },
+  "m4": {
+    "en": "lessons completed",
+    "ko": "수업 완료",
+    "ja": "課修了",
+    "zh": "课已完成",
+    "hi": "पाठ पूरे"
+  },
+  "m5": {
+    "en": "Completed",
+    "ko": "완료",
+    "ja": "修了",
+    "zh": "已完成",
+    "hi": "पूरा"
+  },
+  "m6": {
+    "en": "Your question or practice answer",
+    "ko": "질문 또는 실습 답변",
+    "ja": "質問または実習の回答",
+    "zh": "问题或练习回答",
+    "hi": "आपका प्रश्न या अभ्यास उत्तर"
+  },
+  "m7": {
+    "en": "Please wait…",
+    "ko": "처리 중…",
+    "ja": "処理中…",
+    "zh": "处理中…",
+    "hi": "कृपया प्रतीक्षा करें…"
+  },
+  "m8": {
+    "en": "Check your understanding",
+    "ko": "배운 내용 확인",
+    "ja": "理解度を確認",
+    "zh": "检查理解",
+    "hi": "अपनी समझ जाँचें"
+  },
+  "m9": {
+    "en": "Correct. This lesson is saved as completed.",
+    "ko": "정답입니다. 이 수업을 완료로 저장했습니다.",
+    "ja": "正解です。この課は修了として保存されました。",
+    "zh": "回答正确，本课已保存为完成。",
+    "hi": "सही उत्तर। यह पाठ पूरा के रूप में सहेजा गया है।"
+  },
+  "m10": {
+    "en": "Not yet. Review the lesson and try again.",
+    "ko": "아직 정답이 아닙니다. 수업을 다시 읽고 도전하세요.",
+    "ja": "不正解です。教材を復習して再試行してください。",
+    "zh": "尚未答对，请复习后重试。",
+    "hi": "अभी सही नहीं है। पाठ दोहराकर फिर प्रयास करें।"
+  },
+  "m11": {
+    "en": "Check answer",
+    "ko": "답 확인",
+    "ja": "答えを確認",
+    "zh": "检查答案",
+    "hi": "उत्तर जाँचें"
+  },
+  "m12": {
+    "en": "Complete all 100 lessons and assignments to unlock the final exam.",
+    "ko": "100개 과목의 확인 문제와 실습 과제를 마치면 최종시험이 열립니다.",
+    "ja": "全100課と課題を修了すると最終試験が開きます。",
+    "zh": "完成全部100课及作业后可参加期末考试。",
+    "hi": "सभी 100 पाठ और कार्य पूरे होने पर अंतिम परीक्षा खुलेगी।"
+  },
+  "m13": {
+    "en": "Submit exam",
+    "ko": "시험 제출",
+    "ja": "試験を提出",
+    "zh": "提交考试",
+    "hi": "परीक्षा जमा करें"
+  },
+  "m14": {
+    "en": "Passed",
+    "ko": "합격",
+    "ja": "合格",
+    "zh": "通过",
+    "hi": "उत्तीर्ण"
+  },
+  "m15": {
+    "en": "Review the lessons and try again.",
+    "ko": "수업을 복습한 후 다시 도전하세요.",
+    "ja": "復習して再挑戦してください。",
+    "zh": "请复习后重试。",
+    "hi": "पाठ दोहराकर पुनः प्रयास करें।"
+  },
+  "m16": {
+    "en": "Your completion certificate is ready",
+    "ko": "수료증이 준비되었습니다",
+    "ja": "修了証ができました",
+    "zh": "结业证书已生成",
+    "hi": "आपका प्रमाणपत्र तैयार है"
+  },
+  "m17": {
+    "en": "Open certificate",
+    "ko": "수료증 보기",
+    "ja": "修了証を開く",
+    "zh": "打开证书",
+    "hi": "प्रमाणपत्र खोलें"
+  },
+  "resumeExam": {
+    "en": "Resume / restart exam",
+    "ko": "시험 다시 열기",
+    "ja": "試験を再開",
+    "zh": "重新打开考试",
+    "hi": "परीक्षा फिर खोलें"
+  },
+  "startExam": {
+    "en": "Start exam",
+    "ko": "시험 시작",
+    "ja": "試験を開始",
+    "zh": "开始考试",
+    "hi": "परीक्षा शुरू करें"
+  },
+  "title": {
+    "en": "AI Learning Room",
+    "ko": "AI 교육방",
+    "ja": "AI学習ルーム",
+    "zh": "AI学习室",
+    "hi": "AI शिक्षण कक्ष"
+  },
+  "myRooms": {
+    "en": "My Rooms",
+    "ko": "내 방 목록",
+    "ja": "マイルーム",
+    "zh": "我的房间",
+    "hi": "मेरे कक्ष"
+  },
+  "courseBadge": {
+    "en": "PAID COURSE · 100 LESSONS · 30 DAYS",
+    "ko": "유료 교육 · 100개 과목 · 30일",
+    "ja": "有料講座 · 全100課 · 30日間",
+    "zh": "付费课程 · 100课 · 30天",
+    "hi": "सशुल्क पाठ्यक्रम · 100 पाठ · 30 दिन"
+  },
+  "studyDay": {
+    "en": "Study day",
+    "ko": "학습 일차",
+    "ja": "学習日",
+    "zh": "学习日",
+    "hi": "अध्ययन दिवस"
+  },
+  "day": {
+    "en": "Day",
+    "ko": "일차",
+    "ja": "日目",
+    "zh": "天",
+    "hi": "दिन"
+  },
+  "retry": {
+    "en": "Retry",
+    "ko": "다시 시도",
+    "ja": "再試行",
+    "zh": "重试",
+    "hi": "पुनः प्रयास"
+  },
+  "send": {
+    "en": "Send",
+    "ko": "보내기",
+    "ja": "送信",
+    "zh": "发送",
+    "hi": "भेजें"
+  },
+  "you": {
+    "en": "You",
+    "ko": "나",
+    "ja": "あなた",
+    "zh": "你",
+    "hi": "आप"
+  },
+  "tutor": {
+    "en": "AI Tutor",
+    "ko": "AI 선생님",
+    "ja": "AI講師",
+    "zh": "AI导师",
+    "hi": "AI शिक्षक"
+  },
+  "learnWithAi": {
+    "en": "Learn with AI",
+    "ko": "AI와 함께 배우기",
+    "ja": "AIと学ぶ",
+    "zh": "与AI一起学习",
+    "hi": "AI के साथ सीखें"
+  },
+  "assignment": {
+    "en": "Practical Assignment",
+    "ko": "실습 과제",
+    "ja": "実習課題",
+    "zh": "实践作业",
+    "hi": "व्यावहारिक कार्य"
+  },
+  "evidence": {
+    "en": "Report, code or project evidence",
+    "ko": "보고서·코드·실습 결과",
+    "ja": "レポート・コード・実習結果",
+    "zh": "报告、代码或项目成果",
+    "hi": "रिपोर्ट, कोड या परियोजना के प्रमाण"
+  },
+  "submitFeedback": {
+    "en": "Submit for feedback",
+    "ko": "평가받기",
+    "ja": "評価を依頼",
+    "zh": "提交评估",
+    "hi": "मूल्यांकन के लिए जमा करें"
+  },
+  "finalExam": {
+    "en": "Final Exam & Certificate",
+    "ko": "최종시험과 수료증",
+    "ja": "最終試験・修了証",
+    "zh": "期末考试与结业证书",
+    "hi": "अंतिम परीक्षा और प्रमाणपत्र"
+  },
+  "timeRemaining": {
+    "en": "Time remaining",
+    "ko": "남은 시간",
+    "ja": "残り時間",
+    "zh": "剩余时间",
+    "hi": "शेष समय"
+  },
+  "sources": {
+    "en": "Course sources · checked 21 September 2026",
+    "ko": "교육 자료 출처 · 2026년 9월 21일 확인",
+    "ja": "教材の出典 · 2026年9月21日確認",
+    "zh": "课程来源 · 2026年9月21日核查",
+    "hi": "पाठ्यक्रम के स्रोत · 21 सितंबर 2026 को जाँचे गए"
+  },
+  "sourceNote": {
+    "en": "Current capabilities are a dated snapshot; future scenarios are not guarantees.",
+    "ko": "현재 기술 설명은 확인일 기준이며 미래 전망은 보장이 아닙니다.",
+    "ja": "現在の能力は確認日時点のものです。将来の予測は保証ではありません。",
+    "zh": "当前能力以核查日期为准，未来展望不代表保证。",
+    "hi": "वर्तमान क्षमताएँ जाँच की तारीख पर आधारित हैं; भविष्य के अनुमान गारंटी नहीं हैं।"
+  },
+  "sourceHistory": {
+    "en": "Dartmouth · AI history",
+    "ko": "다트머스 · AI 역사",
+    "ja": "ダートマス · AIの歴史",
+    "zh": "达特茅斯 · AI历史",
+    "hi": "डार्टमाउथ · AI का इतिहास"
+  },
+  "sourceProposal": {
+    "en": "Dartmouth proposal · 31 August 1955",
+    "ko": "다트머스 제안서 · 1955년 8월 31일",
+    "ja": "ダートマス提案書 · 1955年8月31日",
+    "zh": "达特茅斯提案 · 1955年8月31日",
+    "hi": "डार्टमाउथ प्रस्ताव · 31 अगस्त 1955"
+  },
+  "sourceTransformer": {
+    "en": "Original Transformer paper",
+    "ko": "트랜스포머 원논문",
+    "ja": "Transformer原論文",
+    "zh": "Transformer原始论文",
+    "hi": "मूल Transformer शोधपत्र"
+  },
+  "sourceIndex": {
+    "en": "Stanford AI Index 2026 · capabilities and society",
+    "ko": "스탠퍼드 AI 지수 2026 · 기술과 사회",
+    "ja": "スタンフォードAI Index 2026 · 技術と社会",
+    "zh": "斯坦福AI指数2026 · 技术与社会",
+    "hi": "स्टैनफोर्ड AI सूचकांक 2026 · क्षमताएँ और समाज"
+  },
+  "sourceRisk": {
+    "en": "NIST · AI risk management",
+    "ko": "미국 국립표준기술연구소 · AI 위험 관리",
+    "ja": "NIST · AIリスク管理",
+    "zh": "NIST · AI风险管理",
+    "hi": "NIST · AI जोखिम प्रबंधन"
+  },
+  "translating": {
+    "en": "Loading course translation…",
+    "ko": "과목 번역을 불러오는 중입니다…",
+    "ja": "教材の翻訳を読み込み中…",
+    "zh": "正在加载课程翻译…",
+    "hi": "पाठ्यक्रम का अनुवाद लोड हो रहा है…"
+  },
+  "translationError": {
+    "en": "Could not load the course translation. Retry.",
+    "ko": "과목 번역을 불러오지 못했습니다. 다시 시도해 주세요.",
+    "ja": "教材の翻訳を読み込めませんでした。再試行してください。",
+    "zh": "无法加载课程翻译，请重试。",
+    "hi": "पाठ्यक्रम का अनुवाद लोड नहीं हुआ। पुनः प्रयास करें।"
+  },
+  "autoTranslation": {
+    "en": "Course text is automatically translated.",
+    "ko": "교육 내용은 자동 번역됩니다.",
+    "ja": "教材は自動翻訳されます。",
+    "zh": "课程内容采用自动翻译。",
+    "hi": "पाठ्यक्रम का पाठ स्वतः अनुवादित है।"
+  },
+  "certificateTitle": {
+    "en": "Certificate of Completion",
+    "ko": "교육 수료증",
+    "ja": "修了証",
+    "zh": "结业证书",
+    "hi": "पाठ्यक्रम पूर्णता प्रमाणपत्र"
+  },
+  "certificateCourse": {
+    "en": "AI Literacy · 100 Lessons · 30-Day Programme",
+    "ko": "AI 활용 교육 · 100개 과목 · 30일 과정",
+    "ja": "AIリテラシー · 全100課 · 30日間講座",
+    "zh": "AI素养 · 100课 · 30天课程",
+    "hi": "AI साक्षरता · 100 पाठ · 30 दिवसीय कार्यक्रम"
+  },
+  "certifies": {
+    "en": "This certifies that",
+    "ko": "아래 수강생의 수료를 확인합니다.",
+    "ja": "次の受講者の修了を証明します。",
+    "zh": "兹证明以下学员",
+    "hi": "यह प्रमाणित किया जाता है कि"
+  },
+  "certificateBody": {
+    "en": "Completed 100 AI theory and applied learning topics, including AI-assessed assignments, and passed the final assessment.",
+    "ko": "AI 평가 실습을 포함한 이론·활용 100개 과목을 완료하고 최종시험에 합격했습니다.",
+    "ja": "AI評価課題を含む理論・応用の全100課を修了し、最終試験に合格しました。",
+    "zh": "已完成含AI评估作业的100个理论与应用课题，并通过最终考核。",
+    "hi": "AI द्वारा मूल्यांकित कार्यों सहित सिद्धांत और अनुप्रयोग के 100 पाठ पूरे किए तथा अंतिम परीक्षा उत्तीर्ण की।"
+  },
+  "finalScore": {
+    "en": "Final score",
+    "ko": "최종 점수",
+    "ja": "最終得点",
+    "zh": "最终成绩",
+    "hi": "अंतिम अंक"
+  },
+  "passMark": {
+    "en": "Pass mark",
+    "ko": "합격 기준",
+    "ja": "合格点",
+    "zh": "及格分数",
+    "hi": "उत्तीर्ण अंक"
+  },
+  "issued": {
+    "en": "Issued",
+    "ko": "발급일",
+    "ja": "発行日",
+    "zh": "颁发日期",
+    "hi": "जारी करने की तारीख"
+  },
+  "certificateId": {
+    "en": "Certificate ID",
+    "ko": "수료증 번호",
+    "ja": "修了証番号",
+    "zh": "证书编号",
+    "hi": "प्रमाणपत्र संख्या"
+  },
+  "certificateNote": {
+    "en": "Issued by Royal Command. Self-paced, unproctored course. The 30 days are a study plan, not verified attendance. This is a completion record, not an accredited qualification or professional licence. The name is taken from the account profile.",
+    "ko": "로열 커맨드 발급. 자율 학습·비감독 과정입니다. 30일은 학습 계획이며 출석 기간의 증명이 아닙니다. 이 수료증은 교육 이수 기록으로 공인 자격이나 전문 면허가 아닙니다. 이름은 계정 정보에서 가져옵니다.",
+    "ja": "Royal Command発行。自主学習・監督なしの講座です。30日間は学習計画であり、出席期間の証明ではありません。修了記録であり、公認資格や専門免許ではありません。氏名はアカウント情報に基づきます。",
+    "zh": "Royal Command颁发。本课程为自主学习、无监考课程。30天是学习计划，并非出勤证明。本证书为结业记录，不是认可资质或专业执照。姓名取自账户资料。",
+    "hi": "Royal Command द्वारा जारी। यह स्वगति, बिना निगरानी का पाठ्यक्रम है। 30 दिन अध्ययन योजना हैं, सत्यापित उपस्थिति नहीं। यह पूर्णता का रिकॉर्ड है, मान्यता प्राप्त योग्यता या पेशेवर लाइसेंस नहीं। नाम खाते की प्रोफ़ाइल से लिया गया है।"
+  },
+  "print": {
+    "en": "Print / Save PDF",
+    "ko": "인쇄 / PDF 저장",
+    "ja": "印刷 / PDF保存",
+    "zh": "打印 / 保存PDF",
+    "hi": "प्रिंट / PDF सहेजें"
+  }
+}

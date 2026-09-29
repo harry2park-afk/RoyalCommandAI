@@ -1,2 +1,3 @@
 'use client';
-export default function PrintButton(){return <button onClick={()=>window.print()}>Print / Save PDF</button>;}
+import {learningLabel} from '@/lib/locale/learning';
+export default function PrintButton({language='en'}:{language?:string}){return <button onClick={()=>window.print()}>{learningLabel('print',language)}</button>;}
