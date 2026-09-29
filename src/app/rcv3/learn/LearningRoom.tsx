@@ -37,7 +37,7 @@ export default function LearningRoom({language}:{language:string}){
  }
  const finish=state.completed.length===lessons.length;
  return <main className={styles.page}>
-  <header><a href="/rcv3">← My Rooms</a><span className={styles.free}>FREE · 100 LESSONS · 30 DAYS</span><h1>AI Learning Room</h1><p><HelpText helpKey="learnOverview"/></p></header>
+  <header><a href="/rcv3">← My Rooms</a><span className={styles.free}>PAID COURSE · 100 LESSONS · 30 DAYS</span><h1>AI Learning Room</h1><p><HelpText helpKey="learnOverview"/></p></header>
   {!loaded&&!error&&<p role="status">{t("loadingProgress")}</p>}
   <div className={styles.progress}><strong>{state.completed.length} / {lessons.length} {t("m4")}</strong><progress max={100} value={state.completed.length}/></div>
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>Retry</button>}</div>}
