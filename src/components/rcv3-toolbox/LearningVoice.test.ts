@@ -48,6 +48,8 @@ it('moves the existing stop handler into the V4 answer target without static tut
  m.effects.map(f=>f());
  expect(tree.some(n=>n.type==='strong'||n.type==='small')).toBe(false);
  expect(tree.some(n=>n.type==='span'&&n.props.role==='status')).toBe(false);
+ expect(tree.some(n=>n.type==='details'||n.type==='summary')).toBe(false);
+ expect(tree.some(n=>n.type==='button'&&n.props.children==='마이크')).toBe(false);
  tree.find(n=>n.type==='button'&&n.props.children==='스톱')!.props.onClick();
  expect(m.stop).toHaveBeenCalled();expect(onActiveChange).toHaveBeenCalledWith(false);
 });

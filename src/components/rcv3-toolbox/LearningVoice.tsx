@@ -103,7 +103,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   </div>
   {dayMicError&&<p role="status">{t('dayMicUnavailable')}</p>}
   {!talking&&draft.trim()&&<p>{t('voiceDraftFirst')}</p>}
-  <details className={styles.options}><summary>{t('teacherMore')}</summary>
+  {!compact&&<details className={styles.options}><summary>{t('teacherMore')}</summary>
   {onQuestion&&<button type="button" disabled={(disabled||Boolean(draft.trim()))&&!talking} aria-pressed={talking} onClick={()=>startConversation()}>{t(talking?'voiceConversationStop':'voiceConversationStart')}</button>}
   <p>{t('voiceConversationHint')}</p>
   <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
@@ -115,6 +115,6 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   <label><input type="checkbox" disabled={talking} checked={listenOnly} onChange={e=>{stop();background.current=e.target.checked;setListenOnly(e.target.checked);setAuto(false);}}/> {t('voiceListenOnly')}</label><br/>
   <label><input type="checkbox" disabled={listenOnly||talking} checked={auto} onChange={e=>{setAuto(e.target.checked);if(e.target.checked){speaker.current?.prime();avatar.current?.prime();}else speaker.current?.stop();}}/> {t('voiceAuto')}</label>
   <p>{t('voiceHint')}</p>
-  </details>
+  </details>}
  </div>;
 }
