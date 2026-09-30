@@ -10,6 +10,10 @@ class AudioMock {
 }
 const flush = async () => { for(let i=0;i<8;i++) await Promise.resolve(); };
 const blob = new Blob(["audio"],{type:"audio/mpeg"});
+it('video transport replaces local audio and Stop cancels the video transport',async()=>{
+ const play=vi.fn(async()=>true),stopPlayback=vi.fn(),status=vi.fn();const speaker=new AnswerSpeaker({load:async()=>blob,play,stopPlayback,status});
+ speaker.enqueue({id:'teacher',text:'lesson'});await flush();expect(play).toHaveBeenCalled();expect(URL.createObjectURL).not.toHaveBeenCalled();expect(status).toHaveBeenCalledWith('teacher','idle');speaker.stop();expect(stopPlayback).toHaveBeenCalled();
+});
 beforeEach(()=>{AudioMock.instances=[];vi.stubGlobal("Audio",AudioMock);vi.spyOn(URL,"createObjectURL").mockReturnValue("blob:test");vi.spyOn(URL,"revokeObjectURL").mockImplementation(()=>{});});
 afterEach(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});
 it("reads every chunk and serializes different AI replies on the same audio element",async()=>{

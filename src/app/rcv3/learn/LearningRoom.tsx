@@ -20,8 +20,10 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const localDrafts=useRef<Record<string,LearningDraft>>({});
  const [draftReady,setDraftReady]=useState(false),[draftError,setDraftError]=useState(false);
 
+ const chatScroll=useRef<HTMLDivElement|null>(null);
  const conversations=useRef<Record<string,{messages:Message[];message:string;answer:number|null}>>({});
  const [unit,setUnit]=useState(0),[messages,setMessages]=useState<Message[]>([]),[message,setMessage]=useState(''),[answer,setAnswer]=useState<number|null>(null);
+ useEffect(()=>{const el=chatScroll.current;if(el)el.scrollTop=el.scrollHeight;},[messages]);
  const [requestBusy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [exam,setExam]=useState<{attempt:string;questions:Question[];expiresAt:string;serverNow:string}|null>(null),[answers,setAnswers]=useState<Record<string,number>>({}),[score,setScore]=useState<number|null>(null);
  useEffect(()=>{if(!exam)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[exam]);
@@ -185,7 +187,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    <aside className={styles.teacherColumn} aria-label={t("tutor")}>
   <LearningVoice key={locale} ref={voice} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
     <section className={styles.tutor} aria-label={t("tutor")}><h3>{t("chatWithTeacher")}</h3>
-     <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
+     <div ref={chatScroll} aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
      {voiceTranscript&&<p aria-live="polite">{voiceTranscript}</p>}
      <label>{t("m6")}<textarea maxLength={2000} rows={3} value={message} onChange={e=>{voice.current?.stopDictation();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={requestBusy||!draftReady||Boolean(exam)}/></label>
      <button disabled={!loaded||requestBusy||!draftReady||Boolean(exam)||!message.trim()} onClick={()=>{if(voiceActive){voice.current?.start(message,true);return;}void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{const history:Message[]=[...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}];setMessages(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);});}}>{requestBusy?t("m7"):t("send")}</button>

@@ -1,6 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,useImperativeHandle,type Ref} from 'react';
-import Image from 'next/image';
+import LearningAvatar,{type LearningAvatarHandle} from './LearningAvatar';
 import styles from './LearningVoice.module.css';
 import {createDictation} from '../../../rcv3/live-dictation.mjs';
 import {LearningDayPlayer,teachingStopCommand,type TeachingSegment} from '@/lib/client/learning-day-player';
@@ -10,6 +10,7 @@ import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
 export type LearningVoiceHandle={startDay:()=>void;stop:()=>void;stopDictation:()=>void;start:(question?:string,typed?:boolean)=>void};
 type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onDayPlan?:(signal:AbortSignal)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void};
 export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange,onDayPlan,onDaySegment,onDayComplete}:Props){
+ const avatar=useRef<LearningAvatarHandle|null>(null);
  const dayPlayer=useRef<LearningDayPlayer|null>(null),dayLoad=useRef<AbortController|null>(null),dayMic=useRef<ReturnType<typeof createDictation>|null>(null),dayRetry=useRef<ReturnType<typeof setTimeout>|null>(null);
  const [dayMicError,setDayMicError]=useState(false);
  const conversation=useRef<LearningConversation|null>(null),speechDone=useRef<{resolve:()=>void;reject:()=>void}|null>(null);
@@ -28,7 +29,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   const player=new AnswerSpeaker({load:async(_job,text,signal)=>{
    const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language}),signal});
    if(!r.ok)throw Error('SPEECH');return r.blob();
-  },status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle')speechDone.current?.resolve();if(value==='error')speechDone.current?.reject();}});
+  },play:(blob,signal)=>avatar.current?.play(blob,signal)??Promise.resolve(false),stopPlayback:()=>avatar.current?.stop(),status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle')speechDone.current?.resolve();if(value==='error')speechDone.current?.reject();}});
   speaker.current=player;
   const halt=()=>{cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};
   const hide=()=>{if(document.hidden){cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;setListening(false);if(!background.current){player.stop();setStatus(null);}}};
@@ -48,7 +49,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   speechDone.current={resolve:()=>finish(),reject:()=>finish(true)};signal.addEventListener('abort',abort,{once:true});speaker.current?.enqueue({id:'conversation',text});
  });}
  async function startDay(){
-  if(disabled||!latest.current.onDayPlan)return;stop();setDayMicError(false);setAuto(false);background.current=false;setListenOnly(false);speaker.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);setStatus('voicePreparing');
+  if(disabled||!latest.current.onDayPlan)return;stop();setDayMicError(false);setAuto(false);background.current=false;setListenOnly(false);speaker.current?.prime();avatar.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);setStatus('voicePreparing');
   const abort=new AbortController();dayLoad.current=abort;
   try{
    const plan=await latest.current.onDayPlan(AbortSignal.any([abort.signal,AbortSignal.timeout(65000)]));if(abort.signal.aborted)return;
@@ -68,7 +69,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   if(talking&&!opening){stop();return;}
   if(disabled||(!opening&&draft.trim()))return;
   stop();setAuto(false);background.current=false;setListenOnly(false);
-  speaker.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);
+  speaker.current?.prime();avatar.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);
   let typedTurn=typed;
   const engine=new LearningConversation({
    listen:(onText,onEnd,onError)=>{const w=window as unknown as {SpeechRecognition?:new()=>unknown;webkitSpeechRecognition?:new()=>unknown};return createDictation(w.SpeechRecognition||w.webkitSpeechRecognition,{language,onText,onEnd,onError:(_message:string,reason?:string)=>onError(reason)});},
@@ -80,7 +81,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   });
   conversation.current=engine;engine.start(opening||t(resume?'voiceContinueOpening':'voiceOpening'));
  }
- function read(text:string){stop();speaker.current?.prime();speaker.current?.enqueue({id:'tutor',text});}
+ function read(text:string){stop();speaker.current?.prime();avatar.current?.prime();speaker.current?.enqueue({id:'tutor',text});}
  function microphone(){
   if(listening){recognition.current?.stop();recognition.current=null;setListening(false);return;}
   stop();
@@ -94,9 +95,9 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  function touchTeacher(){if(dayPlayer.current||dayLoad.current){stop();return;}if(!talking){void startDay();return;}if(paused)conversation.current?.resume();else conversation.current?.pause();}
  return <div className={styles.voice} aria-label={t('voiceTitle')}>
   <div className={styles.teacher}>
-   <button className={styles.portrait} type="button" disabled={!talking&&(disabled||Boolean(draft.trim()))} onClick={touchTeacher} aria-label={t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}><Image src="/images/katie-avatar.png" alt="" width={80} height={92}/><span aria-hidden="true">{talking?(paused?'▶':'Ⅱ'):'▶'}</span></button>
+   <LearningAvatar ref={avatar} language={language} disabled={!talking&&(disabled||Boolean(draft.trim()))} onTouch={touchTeacher} label={t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}/>
    <div className={styles.caption}><strong>{t('teacherReady')}</strong><small>{lessonTitle}</small><span role="status" aria-live="polite">{status?t(status):t('teacherHint')}</span></div>
-   <div className={styles.actions}><button type="button" onClick={stop} disabled={!talking&&!listening&&status!=='voiceReading'}>{t('teacherStop')}</button>{talking&&<button type="button" onClick={touchTeacher}>{t(paused?'teacherResume':'teacherPause')}</button>}</div>
+   <div className={styles.actions}><button type="button" onClick={stop}>{t('teacherStop')}</button>{talking&&<button type="button" onClick={touchTeacher}>{t(paused?'teacherResume':'teacherPause')}</button>}</div>
   </div>
   {dayMicError&&<p role="status">{t('dayMicUnavailable')}</p>}
   {!talking&&draft.trim()&&<p>{t('voiceDraftFirst')}</p>}
@@ -110,7 +111,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
    <button type="button" onClick={stop}>{t('voiceStop')}</button>
   </div>
   <label><input type="checkbox" disabled={talking} checked={listenOnly} onChange={e=>{stop();background.current=e.target.checked;setListenOnly(e.target.checked);setAuto(false);}}/> {t('voiceListenOnly')}</label><br/>
-  <label><input type="checkbox" disabled={listenOnly||talking} checked={auto} onChange={e=>{setAuto(e.target.checked);if(e.target.checked)speaker.current?.prime();else speaker.current?.stop();}}/> {t('voiceAuto')}</label>
+  <label><input type="checkbox" disabled={listenOnly||talking} checked={auto} onChange={e=>{setAuto(e.target.checked);if(e.target.checked){speaker.current?.prime();avatar.current?.prime();}else speaker.current?.stop();}}/> {t('voiceAuto')}</label>
   <p>{t('voiceHint')}</p>
   </details>
  </div>;

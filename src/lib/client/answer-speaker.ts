@@ -4,8 +4,11 @@ type Playback = { job: SpeechJob; abort: AbortController; finish?: () => void; u
 type Options = {
   load: (job: SpeechJob, text: string, signal: AbortSignal) => Promise<Blob>;
   status: (id: string, state: "preparing" | "reading" | "idle" | "error") => void;
+  play?: (blob: Blob, signal: AbortSignal) => Promise<boolean>;
+  stopPlayback?: () => void;
 };
 const SILENCE = "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQIAAACAgA==";
+export function primeSpeechElement(audio:HTMLMediaElement){audio.src=SILENCE;void audio.play().catch(()=>{});}
 export class AnswerSpeaker {
   private audio: HTMLAudioElement | null = null;
   private queue: SpeechJob[] = [];
@@ -15,8 +18,7 @@ export class AnswerSpeaker {
   prime() {
     if (!this.audio) { this.audio = new Audio(); this.audio.preload = "auto"; }
     if (this.current) return;
-    this.audio.src = SILENCE;
-    void this.audio.play().catch(() => {});
+    primeSpeechElement(this.audio);
   }
   enqueue(job: SpeechJob) {
     if (!job.text.trim()) return;
@@ -24,6 +26,7 @@ export class AnswerSpeaker {
     void this.next();
   }
   stop(id?: string) {
+    if(!id||!this.current||this.current.job.id===id)this.options.stopPlayback?.();
     this.queue = id ? this.queue.filter(job => job.id !== id) : [];
     const current = this.current;
     if (current && (!id || current.job.id === id)) {
@@ -49,6 +52,12 @@ export class AnswerSpeaker {
         this.options.status(job.id, "preparing");
         const blob = await this.options.load(job, job.text.slice(offset, offset + 3500), AbortSignal.any([current.abort.signal, AbortSignal.timeout(35000)]));
         if (this.current !== current) return;
+        if(this.options.play){
+          this.options.status(job.id,"reading");
+          const played=await this.options.play(blob,current.abort.signal);
+          if(this.current!==current)return;
+          if(played)continue;
+        }
         current.url = URL.createObjectURL(blob);
         audio.src = current.url;
         await new Promise<void>((resolve, reject) => {
