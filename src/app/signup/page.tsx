@@ -1,5 +1,6 @@
 "use client";
 
+import {learningSignupReturn} from '@/lib/rcv3/learning/entry';
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
@@ -92,7 +93,7 @@ export default function SignupPage() {
     }));
     setAudioStatus(micPermission === "granted" ? "AI voice and microphone are ready." : "AI voice is ready. You can still use text if the microphone is unavailable.");
     window.setTimeout(() => {
-      router.push("/dashboard");
+      router.push(learningSignupReturn(window.location.search));
       router.refresh();
     }, 900);
   }
@@ -107,7 +108,7 @@ export default function SignupPage() {
       micPermission: "not-requested",
       setupAt: new Date().toISOString(),
     }));
-    router.push("/dashboard");
+    router.push(learningSignupReturn(window.location.search));
     router.refresh();
   }
 

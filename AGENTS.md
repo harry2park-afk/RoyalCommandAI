@@ -68,7 +68,7 @@ For Room creation, tool catalog, tool installation, entitlement or removal work,
 
 ## RC V3 customer platform and AI education
 
-For V3 room, access, shortcut or education work, follow [RC V3 Platform and Learning Rules](docs/rcv3/PLATFORM_AND_AI_EDUCATION_RULES.md). Reuse the common frame; customers configure their own rooms. Education is free, 100 numbered topics over a recommended 30 days, increasingly practical after topic 050. Distinguish approved targets from implemented, verified features.
+For V3 room, access, shortcut or education work, follow [RC V3 Platform and Learning Rules](docs/rcv3/PLATFORM_AND_AI_EDUCATION_RULES.md). Reuse the common frame; customers configure their own rooms. Education targets a paid 30-day access pass with 60 grouped lessons; regional prices and renewal policy follow docs/rcv3/LEARNING_60_VOICE_DESIGN_20260930.md. Preserve original learning records while migrating the existing 100 source units. Distinguish approved targets from implemented, verified features.
 
 ## RC V3 toolbox-first development — mandatory
 

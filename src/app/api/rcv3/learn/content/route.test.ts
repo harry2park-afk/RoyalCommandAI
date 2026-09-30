@@ -1,0 +1,10 @@
+import {beforeEach,expect,it,vi} from 'vitest';
+const m=vi.hoisted(()=>({session:vi.fn(),translate:vi.fn(),source:vi.fn()}));
+vi.mock('@/lib/rcv3/access',()=>({session:m.session,input:async(r:Request)=>{if(r.headers.get('origin')&&r.headers.get('origin')!==new URL(r.url).origin)throw Error('RCV3_ORIGIN');return r.json();},reply:(d:unknown)=>Response.json(d),failure:(e:Error)=>Response.json({code:e.message},{status:400})}));
+vi.mock('@/lib/rcv3/answer-language',()=>({accountAnswerLanguage:async()=> 'ko'}));
+vi.mock('@/lib/rcv3/learning/content',()=>({publicLearningContent:m.source,translatedLearningContent:m.translate}));
+import {POST} from './route';
+const req=(body:unknown,origin='https://preview.test')=>new Request('https://preview.test/api/rcv3/learn/content',{method:'POST',headers:{origin},body:JSON.stringify(body)});
+beforeEach(()=>{vi.clearAllMocks();m.session.mockResolvedValue({user:{id:'owner'}});m.source.mockReturnValue({'body.001':'public'});m.translate.mockResolvedValue({'body.001':'translated'});});
+it('uses session identity and server catalog for the supported language',async()=>{const r=await POST(req({day:1,language:'hi'}));expect(r.status).toBe(200);expect(m.source).toHaveBeenCalledWith(1,[],'hi');expect(m.translate).toHaveBeenCalledWith('owner','hi',{'body.001':'public'});});
+it('rejects unauthenticated, foreign origin and arbitrary source text',async()=>{expect((await POST(req({day:1,text:'private'}))).status).toBe(400);expect((await POST(req({day:1},'https://foreign.test'))).status).toBe(400);m.session.mockRejectedValue(Error('RCV3_AUTH'));expect((await POST(req({day:1}))).status).toBe(400);expect(m.translate).not.toHaveBeenCalled();});

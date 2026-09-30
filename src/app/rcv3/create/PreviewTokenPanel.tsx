@@ -36,12 +36,14 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
    if(result.status!=="pending")throw new Error("RCV3_ERROR");
    if(!/^\/rcv3\?room=[a-f0-9-]+$/.test(result.url))throw new Error("RCV3_ERROR");
    setPendingRoomUrl(result.url);setBankSigned(true);
-   if(agreed&&account)await chargeTokens();
   } catch(e) {setBankError(e instanceof Error?e.message:"RCV3_ERROR");}
   finally{setBankBusy(false);}
  }
  async function chargeTokens() {
-  if(!account||!agreed||bankSignature.trim().length<2)return;
+  if(busy||!account)return;
+  if(disabled){setError("RCV3_FORM_REQUIRED");return;}
+  if(!agreed){setError("RCV3_TOKEN_CONSENT");return;}
+  if(bankSignature.trim().length<2){setError("RCV3_TOKEN_SIGNATURE");return;}
   if(account.balance<account.cost){setError("RCV3_LIMIT");return;}
   setBusy(true);setError("");
   try {
@@ -55,17 +57,19 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
   finally{setBusy(false);}
  }
  return <section aria-label={t("payment")}>
-  {account&&<div>
-   <p>{account.customerNumber} · {t("tokenBalance")}: <strong>{account.balance.toLocaleString(language)}</strong></p>
+  <div>
+   {account&&<p>{account.customerNumber} · {t("tokenBalance")}: <strong>{account.balance.toLocaleString(language)}</strong></p>}
+   {loading&&<p role="status">{t("loading")}</p>}
    <p>{language.startsWith("ko")?"만들 방":"Room to create"}: <strong>{roomName}</strong> · {language.startsWith("ko")?"디자인":"Design"}: <strong>{designName}</strong></p>
    <p>{t("tokenPreviewTerms")}</p>
+   {!account?null:account.balance<account.cost?<p role="status">{t("tokenInsufficient")}</p>:disabled?<p role="status">{t("tokenSetupRequired")}</p>:!agreed?<p role="status">{t("tokenConsentRequired")}</p>:bankSignature.trim().length<2?<p role="status">{t("tokenSignatureRequired")}</p>:null}
    {!url&&<><label><input type="checkbox" checked={agreed} disabled={busy} onChange={e=>setAgreed(e.target.checked)}/>{t("tokenAgree")}</label>
    <label style={{display:"block",marginTop:10}}>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} disabled={busy} onChange={e=>setBankSignature(e.target.value)}/></label>
-   <button type="button" disabled={busy||disabled||!agreed||bankSignature.trim().length<2} onClick={()=>void chargeTokens()}>{busy?t("wait"):(language.startsWith("ko")?"방 만들기 · 테스트 토큰 30개 사용":"Create Room · Use 30 test tokens")}</button></>}
+   <button type="button" disabled={busy||loading||disabled||!account||account.balance<account.cost||!agreed||bankSignature.trim().length<2} onClick={()=>void chargeTokens()}>{busy?t("wait"):t("tokenCreate")}</button></>}
    {url&&<p role="status">{language.startsWith("ko")?"테스트 토큰 30개가 차감되고 방이 열렸습니다.":"30 test tokens were charged and your room is open."} <a href={url}>{t("open")}</a></p>}
-  </div>}
+  </div>
   {!loading&&!account&&<p role="status">{t("tokenAccountUnavailable")}</p>}
-  {error&&<p role="alert">{error==="RCV3_LIMIT"?t("tokenInsufficient"):error==="RCV3_CONFLICT"?t("tokenConflict"):t("tokenFailed")}</p>}
+  {error&&<p role="alert">{error==="RCV3_TOKEN_CONSENT"?t("tokenConsentRequired"):error==="RCV3_TOKEN_SIGNATURE"?t("tokenSignatureRequired"):error==="RCV3_FORM_REQUIRED"?t("tokenSetupRequired"):error==="RCV3_AI_NOT_CONNECTED"?t("tokenAiRequired"):error==="RCV3_LIMIT"?t("tokenInsufficient"):error==="RCV3_CONFLICT"?t("tokenConflict"):t("tokenFailed")}</p>}
   <details style={{marginTop:16}}><summary>{language.startsWith("ko")?"은행 송금 또는 카드 결제":"Bank transfer or card payment"}</summary>
   {!currentQuote?<button type="button" disabled={disabled||bankBusy} onClick={()=>void requestBankQuote()}>{bankBusy?t("wait"):(language.startsWith("ko")?"금액 확인":"Check amount")}</button>:<>
    <p><strong>{language.startsWith("ko")?"이용 금액":"Amount"}: {new Intl.NumberFormat(language||"en",{style:"currency",currency:currentQuote.currency}).format(currentQuote.totalMinor/100)}</strong></p>
@@ -74,7 +78,7 @@ export default function PreviewTokenPanel({draftId,revision,disabled,language,ac
    <label>{t("signature")}<input maxLength={160} autoComplete="name" value={bankSignature} onChange={e=>setBankSignature(e.target.value)}/></label>
    </>:<p role="status">{url?(language.startsWith("ko")?"테스트 토큰 30개가 차감되고 방이 열렸습니다.":"30 test tokens were charged and your room is open."):(language.startsWith("ko")?"방이 만들어졌습니다. 확인 전까지 연결 기능은 잠겨 있습니다. 입금 확인까지 기다려 주세요.":"Your room is created. Connections remain locked until payment is confirmed. Please wait for confirmation.")} <a href={url||pendingRoomUrl}>{t("open")}</a></p>}
   </>}
-  {!bankSigned&&<button type="button" disabled={disabled||bankBusy||!currentQuote||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(agreed&&account?(language.startsWith("ko")?"방 만들기 · 테스트 토큰 30개 사용":"Create Room · Use 30 test tokens"):(language.startsWith("ko")?"방 만들기":"Create Room"))}</button>}
+  {!bankSigned&&<button type="button" disabled={disabled||bankBusy||!currentQuote||!bankNumber||!bankAgreed||bankSignature.trim().length<2} onClick={()=>void signBankRequest()}>{bankBusy?t("wait"):(language.startsWith("ko")?"입금 대기 방 만들기":"Create pending-payment room")}</button>}
   {bankError&&<p role="alert">{bankError==="RCV3_CONFLICT"?t("tokenConflict"):(language.startsWith("ko")?`방을 만들 수 없습니다 (${bankError}). 저장한 방과 요금 설정을 확인하세요.`:`Could not create the room (${bankError}). Check your saved room and pricing setup.`)}</p>}
   <p>{language.startsWith("ko")?"보유 토큰으로 사용하면 별도 송금이 필요 없습니다. 토큰이 부족하면 방은 만들어져도 연결은 입금 확인까지 잠깁니다.":"You can use available tokens without a transfer. If tokens are insufficient, the room remains created and connections stay locked until payment is confirmed."}</p>
   <button type="button" disabled>{t("cardChoice")} · Not Connected</button>{" "}
