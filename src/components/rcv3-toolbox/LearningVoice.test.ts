@@ -22,3 +22,10 @@ it('keeps playback on hide only after explicit listen-only selection, but stops 
  m.stop.mockClear();hide();expect(m.stop).not.toHaveBeenCalled();
  device();expect(m.stop).toHaveBeenCalled();
 });
+it('visible teacher start opens a spoken lesson through the shared question handler',async()=>{
+ const onQuestion=vi.fn(async()=> 'teacher explanation');const onActiveChange=vi.fn();
+ const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonTitle:'1. 첫 수업',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onQuestion,onActiveChange}));
+ const cleanup=m.effects.map(f=>f());tree.find(n=>n.type==='button'&&n.props.children==='수업 시작')!.props.onClick();await Promise.resolve();
+ expect(m.prime).toHaveBeenCalled();expect(onQuestion).toHaveBeenCalledWith(expect.any(String),expect.any(AbortSignal));expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'teacher explanation'});expect(onActiveChange).toHaveBeenCalledWith(true);
+ for(const c of cleanup)if(typeof c==='function')c();
+});

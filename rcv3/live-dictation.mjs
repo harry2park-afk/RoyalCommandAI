@@ -15,7 +15,7 @@ export function createDictation(Recognition, {language, onText, onEnd, onError})
  recognition.onerror = event => {
   if (closed) return;
   closed = true;
-  onError(event.error === 'not-allowed' ? 'Allow microphone access in your browser.' : event.error === 'audio-capture' ? 'No microphone found.' : event.error === 'no-speech' ? 'No speech detected. Your draft is preserved.' : 'Dictation disconnected. Your draft is preserved. Try again.');
+  onError(event.error === 'not-allowed' ? 'Allow microphone access in your browser.' : event.error === 'audio-capture' ? 'No microphone found.' : event.error === 'no-speech' ? 'No speech detected. Your draft is preserved.' : 'Dictation disconnected. Your draft is preserved. Try again.',event.error);
   recognition.abort();
  };
  recognition.onend = () => { if (!closed) {closed=true;onEnd();} };

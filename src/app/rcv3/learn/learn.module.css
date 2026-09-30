@@ -23,3 +23,8 @@
 .curriculum{min-width:0;display:flex;flex-direction:column;gap:18px}
 .layout>.tutor{position:sticky;top:16px;max-height:calc(100dvh - 32px);overflow:auto}
 @media(max-width:760px){.layout{display:flex;flex-direction:column}.curriculum{width:100%}.layout>.tutor{order:-1;position:static;max-height:none;overflow:visible;box-sizing:border-box;width:100%}}
+
+/* The teacher remains visible above the lesson on desktop and mobile. */
+.layout>.tutor{position:static;max-height:none;overflow:visible}
+@media(max-width:760px){.layout>.tutor{order:0}.page{padding-top:8px}}
+.unit>article{scroll-margin-top:170px}

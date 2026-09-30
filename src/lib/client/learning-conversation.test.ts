@@ -16,3 +16,17 @@ it('keeps listening after a spoken lesson command and routes the next question t
  x.text('다시 설명해 줘');await vi.advanceTimersByTimeAsync(3000);
  expect(x.ask).toHaveBeenCalledTimes(2);expect(x.speak.mock.calls.at(-1)?.[0]).toBe('lesson 3');expect(x.start).toHaveBeenCalledTimes(3);x.engine.stop();
 });
+it('touch pause aborts playback and resume replays the explanation without another AI request',async()=>{
+ const x=setup();let finish:()=>void=()=>{};x.speak.mockImplementationOnce(()=>new Promise<void>(r=>finish=r));
+ x.engine.start('teach');await Promise.resolve();expect(x.speak).toHaveBeenCalledTimes(1);
+ const signal=x.speak.mock.calls[0][1];x.engine.pause();expect(signal.aborted).toBe(true);expect(x.phase).toHaveBeenLastCalledWith('paused');
+ finish();await Promise.resolve();expect(x.phase).toHaveBeenLastCalledWith('paused');
+ x.engine.resume();await Promise.resolve();expect(x.ask).toHaveBeenCalledTimes(1);expect(x.speak).toHaveBeenCalledTimes(2);x.engine.stop();
+});
+it('spoken wait and resume are local controls and never become AI questions',async()=>{
+ vi.useFakeTimers();const x=setup();x.engine.start();x.text('잠깐 기다려');await vi.advanceTimersByTimeAsync(3000);expect(x.phase).toHaveBeenLastCalledWith('paused');
+ x.text('시작해');await vi.advanceTimersByTimeAsync(3000);expect(x.phase).toHaveBeenLastCalledWith('listening');expect(x.ask).not.toHaveBeenCalled();x.engine.stop();
+});
+it('quiet listening restarts without sending a question and stop cancels that restart',async()=>{
+ vi.useFakeTimers();const x=setup();x.engine.start();x.end();await vi.advanceTimersByTimeAsync(300);expect(x.start).toHaveBeenCalledTimes(2);expect(x.ask).not.toHaveBeenCalled();x.end();x.engine.stop();await vi.advanceTimersByTimeAsync(300);expect(x.start).toHaveBeenCalledTimes(2);
+});

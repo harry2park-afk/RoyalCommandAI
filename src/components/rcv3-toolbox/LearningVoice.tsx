@@ -1,14 +1,16 @@
 'use client';
 import {useEffect,useRef,useState,useImperativeHandle,type Ref} from 'react';
+import Image from 'next/image';
+import styles from './LearningVoice.module.css';
 import {createDictation} from '../../../rcv3/live-dictation.mjs';
 import {LearningConversation} from '@/lib/client/learning-conversation';
 import {AnswerSpeaker} from '@/lib/client/answer-speaker';
 import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
-export type LearningVoiceHandle={stop:()=>void};
-type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal)=>Promise<string>;onActiveChange?:(active:boolean)=>void};
-export default function LearningVoice({ref,language,lessonId,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange}:Props){
+export type LearningVoiceHandle={stop:()=>void;start:()=>void};
+type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal)=>Promise<string>;onActiveChange?:(active:boolean)=>void};
+export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange}:Props){
  const conversation=useRef<LearningConversation|null>(null),speechDone=useRef<{resolve:()=>void;reject:()=>void}|null>(null);
- const [talking,setTalking]=useState(false);
+ const [talking,setTalking]=useState(false),[paused,setPaused]=useState(false);
  const background=useRef(false);
  const [listenOnly,setListenOnly]=useState(false);
  const [listening,setListening]=useState(false),[status,setStatus]=useState<LearningLabel|null>(null),[auto,setAuto]=useState(false);
@@ -16,21 +18,23 @@ export default function LearningVoice({ref,language,lessonId,lessonText,answerTe
  const latest=useRef({draft,onTranscript,onQuestion,onActiveChange});latest.current={draft,onTranscript,onQuestion,onActiveChange};
  const seenAnswer=useRef(answerText);
  const t=(key:LearningLabel)=>learningLabel(key,language);
- const stop=()=>{conversation.current?.stop();conversation.current=null;setTalking(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(null);};
- useImperativeHandle(ref,()=>({stop}));
+ const stop=()=>{conversation.current?.stop();conversation.current=null;setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(null);};
+ useImperativeHandle(ref,()=>({stop,start:()=>{if(!talking)startConversation();}}));
  useEffect(()=>{
   const player=new AnswerSpeaker({load:async(_job,text,signal)=>{
    const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language}),signal});
    if(!r.ok)throw Error('SPEECH');return r.blob();
   },status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle')speechDone.current?.resolve();if(value==='error')speechDone.current?.reject();}});
   speaker.current=player;
-  const halt=()=>{conversation.current?.stop();setTalking(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};
-  const hide=()=>{if(document.hidden){conversation.current?.stop();setTalking(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;setListening(false);if(!background.current){player.stop();setStatus(null);}}};
+  const halt=()=>{conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};
+  const hide=()=>{if(document.hidden){conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;setListening(false);if(!background.current){player.stop();setStatus(null);}}};
   document.addEventListener('visibilitychange',hide);
   navigator.mediaDevices?.addEventListener('devicechange',halt);
   return()=>{conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();speaker.current=null;};
  },[language]);
- useEffect(()=>{if(disabled){recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);}},[disabled]);
+ // External speech sessions must stop immediately when access or exam state disables voice.
+ // eslint-disable-next-line react-hooks/set-state-in-effect
+ useEffect(()=>{if(disabled){conversation.current?.stop();recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);}},[disabled]);
  useEffect(()=>{seenAnswer.current=answerText;if(!conversation.current){recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(null);}},[lessonId]); // eslint-disable-line react-hooks/exhaustive-deps
  useEffect(()=>{if(answerText===seenAnswer.current)return;seenAnswer.current=answerText;if(!conversation.current&&auto&&answerText&&!document.hidden&&!recognition.current)speaker.current?.enqueue({id:'tutor',text:answerText});},[answerText,auto]);
  function startConversation(){
@@ -39,18 +43,18 @@ export default function LearningVoice({ref,language,lessonId,lessonText,answerTe
   stop();setAuto(false);background.current=false;setListenOnly(false);
   speaker.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);
   const engine=new LearningConversation({
-   listen:(onText,onEnd,onError)=>{const w=window as unknown as {SpeechRecognition?:new()=>unknown;webkitSpeechRecognition?:new()=>unknown};return createDictation(w.SpeechRecognition||w.webkitSpeechRecognition,{language,onText,onEnd,onError});},
+   listen:(onText,onEnd,onError)=>{const w=window as unknown as {SpeechRecognition?:new()=>unknown;webkitSpeechRecognition?:new()=>unknown};return createDictation(w.SpeechRecognition||w.webkitSpeechRecognition,{language,onText,onEnd,onError:(_message:string,reason?:string)=>onError(reason)});},
    draft:text=>latest.current.onTranscript(text),
    ask:(text,signal)=>{if(!latest.current.onQuestion)throw Error('UNAVAILABLE');return latest.current.onQuestion(text,signal);},
    speak:(text,signal)=>new Promise<void>((resolve,reject)=>{
-    const finish=(failed=false)=>{signal.removeEventListener('abort',abort);speechDone.current=null;failed?reject(Error('VOICE')):resolve();};
+    const finish=(failed=false)=>{signal.removeEventListener('abort',abort);speechDone.current=null;if(failed)reject(Error('VOICE'));else resolve();};
     const abort=()=>finish(true);if(signal.aborted){abort();return;}
     speechDone.current={resolve:()=>finish(),reject:()=>finish(true)};signal.addEventListener('abort',abort,{once:true});speaker.current?.enqueue({id:'conversation',text});
    }),
    stopAudio:()=>speaker.current?.stop(),
-   phase:value=>{if(value!=='idle'&&value!=='error'){setTalking(true);latest.current.onActiveChange?.(true);}setStatus(value==='listening'?'voiceListening':value==='thinking'?'voicePreparing':value==='speaking'?'voiceReading':value==='error'?'voiceError':null);if(value==='idle'||value==='error'){conversation.current=null;setTalking(false);latest.current.onActiveChange?.(false);}},
+   phase:value=>{setPaused(value==='paused');if(value!=='idle'&&value!=='error'){setTalking(true);latest.current.onActiveChange?.(true);}setStatus(value==='paused'?'teacherPaused':value==='listening'?'voiceListening':value==='thinking'?'voicePreparing':value==='speaking'?'voiceReading':value==='error'?'voiceError':null);if(value==='idle'||value==='error'){conversation.current=null;setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);}},
   });
-  conversation.current=engine;engine.start(t('voiceOpening'));
+  conversation.current=engine;engine.start(t(resume?'voiceContinueOpening':'voiceOpening'));
  }
  function read(text:string){stop();speaker.current?.prime();speaker.current?.enqueue({id:'tutor',text});}
  function microphone(){
@@ -63,10 +67,17 @@ export default function LearningVoice({ref,language,lessonId,lessonText,answerTe
    recognition.current=session;session.start();setListening(true);setStatus('voiceListening');
   }catch{recognition.current?.cancel();recognition.current=null;setListening(false);setStatus('voiceMicError');}
  }
- return <div aria-label={t('voiceTitle')}>
+ function touchTeacher(){if(!talking){startConversation();return;}if(paused)conversation.current?.resume();else conversation.current?.pause();}
+ return <div className={styles.voice} aria-label={t('voiceTitle')}>
+  <div className={styles.teacher}>
+   <button className={styles.portrait} type="button" disabled={!talking&&(disabled||Boolean(draft.trim()))} onClick={touchTeacher} aria-label={t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}><Image src="/images/katie-avatar.png" alt="" width={80} height={92}/><span aria-hidden="true">{talking?(paused?'▶':'Ⅱ'):'▶'}</span></button>
+   <div className={styles.caption}><strong>{t('teacherReady')}</strong><small>{lessonTitle}</small><span role="status" aria-live="polite">{status?t(status):t('teacherHint')}</span></div>
+   <div className={styles.actions}><button type="button" disabled={!talking&&(disabled||Boolean(draft.trim()))} onClick={touchTeacher}>{t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}</button>{talking&&<button type="button" onClick={stop}>{t('voiceStop')}</button>}</div>
+  </div>
+  {!talking&&draft.trim()&&<p>{t('voiceDraftFirst')}</p>}
+  <details className={styles.options}><summary>{t('teacherMore')}</summary>
   {onQuestion&&<button type="button" disabled={(disabled||Boolean(draft.trim()))&&!talking} aria-pressed={talking} onClick={startConversation}>{t(talking?'voiceConversationStop':'voiceConversationStart')}</button>}
   <p>{t('voiceConversationHint')}</p>
-  {!talking&&draft.trim()&&<p>{t('voiceDraftFirst')}</p>}
   <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
    <button type="button" disabled={disabled||listenOnly||talking} aria-pressed={listening} onClick={microphone}>{t(listening?'voiceFinish':'voiceMic')}</button>
    <button type="button" disabled={disabled||talking||!lessonText} onClick={()=>read(lessonText)}>{t('voiceLesson')}</button>
@@ -76,6 +87,6 @@ export default function LearningVoice({ref,language,lessonId,lessonText,answerTe
   <label><input type="checkbox" disabled={talking} checked={listenOnly} onChange={e=>{stop();background.current=e.target.checked;setListenOnly(e.target.checked);setAuto(false);}}/> {t('voiceListenOnly')}</label><br/>
   <label><input type="checkbox" disabled={listenOnly||talking} checked={auto} onChange={e=>{setAuto(e.target.checked);if(e.target.checked)speaker.current?.prime();else speaker.current?.stop();}}/> {t('voiceAuto')}</label>
   <p>{t('voiceHint')}</p>
-  {status&&<p role="status" aria-live="polite">{t(status)}</p>}
+  </details>
  </div>;
 }

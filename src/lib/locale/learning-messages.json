@@ -705,5 +705,68 @@
     "ja": "まだ前の回答がありません。質問をどうぞ。",
     "zh": "还没有上一个回答。您想问什么？",
     "hi": "अभी पिछला उत्तर नहीं है। आप क्या पूछना चाहेंगे?"
+  },
+  "teacherStart": {
+    "en": "Start lesson",
+    "ko": "수업 시작",
+    "ja": "授業を始める",
+    "zh": "开始上课",
+    "hi": "पाठ शुरू करें"
+  },
+  "teacherPause": {
+    "en": "Pause",
+    "ko": "잠시 멈춤",
+    "ja": "一時停止",
+    "zh": "暂停",
+    "hi": "विराम"
+  },
+  "teacherResume": {
+    "en": "Continue lesson",
+    "ko": "이어서 듣기",
+    "ja": "授業を再開",
+    "zh": "继续上课",
+    "hi": "पाठ जारी रखें"
+  },
+  "teacherReady": {
+    "en": "Your AI teacher",
+    "ko": "말로 함께 배우는 AI 선생님",
+    "ja": "会話で学ぶAI先生",
+    "zh": "与您对话的AI老师",
+    "hi": "आपके AI शिक्षक"
+  },
+  "teacherHint": {
+    "en": "Listen, then ask aloud. Touch the teacher to pause.",
+    "ko": "설명을 들은 뒤 말로 질문하세요. 튜터를 누르면 잠시 멈춥니다.",
+    "ja": "説明の後に声で質問できます。先生をタップすると一時停止します。",
+    "zh": "听完讲解后可以语音提问。点击老师可暂停。",
+    "hi": "समझाने के बाद बोलकर पूछें। रोकने के लिए शिक्षक को छुएँ।"
+  },
+  "teacherPaused": {
+    "en": "Paused. Say “resume” or touch the teacher. The explanation restarts.",
+    "ko": "잠시 멈췄어요. “시작해”라고 말하거나 튜터를 누르면 설명을 다시 들려드립니다.",
+    "ja": "一時停止中。「再開」と言うか先生をタップすると説明を再生します。",
+    "zh": "已暂停。说“继续”或点击老师可重播讲解。",
+    "hi": "विराम। “शुरू करो” कहें या शिक्षक को छुएँ; समझाना फिर शुरू होगा।"
+  },
+  "teacherMore": {
+    "en": "Audio options",
+    "ko": "음성 설정",
+    "ja": "音声設定",
+    "zh": "语音设置",
+    "hi": "आवाज़ विकल्प"
+  },
+  "voiceContinueOpening": {
+    "en": "Continue teaching this lesson from our last conversation. Briefly recap, then teach the next idea and ask one question.",
+    "ko": "지난 대화에서 배우던 내용을 짧게 복습한 뒤 다음 내용을 선생님처럼 설명하고 질문 하나를 해 주세요.",
+    "ja": "前回の会話を短く復習し、次の内容を教えて質問を一つしてください。",
+    "zh": "简短回顾上次对话，继续讲解下一点并提一个问题。",
+    "hi": "पिछली बातचीत का संक्षिप्त दोहराव करें, अगली बात सिखाएँ और एक प्रश्न पूछें।"
+  },
+  "teacherResumeSaved": {
+    "en": "Last lesson on this browser restored.",
+    "ko": "이 브라우저에서 배우던 수업을 불러왔습니다.",
+    "ja": "このブラウザの前回の授業を復元しました。",
+    "zh": "已恢复此浏览器上次的课程。",
+    "hi": "इस ब्राउज़र का पिछला पाठ बहाल हुआ।"
   }
 }
