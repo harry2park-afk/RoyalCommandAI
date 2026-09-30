@@ -1,6 +1,7 @@
 import 'server-only';
 import {createHash} from 'node:crypto';
 import {z} from 'zod';
+import {sourceDay} from './groups';
 import {lessons,COURSE} from './course';
 import {practiceQuestion,questionById,publicQuestion} from './questions';
 import {helpCatalog} from '@/lib/locale/help-catalog';
@@ -14,7 +15,7 @@ export function publicLearningContent(day:number,questionIds:string[]=[],languag
  const addQuestion=(id:string)=>{const source=questionById(id);if(!source)throw Error('RCV3_NOT_FOUND');const q=publicQuestion(source);out[`q.${q.id}`]=ko?q.ko:q.text;q.options.forEach((v,i)=>{out[`q.${q.id}.${i}`]=ko?q.koOptions[i]:v;});};
  if(questionIds.length){questionIds.forEach(addQuestion);return out;}
  for(const key of ['learnOverview','learnTutor','learnProject','learnExam'])out[key]=(ko?helpCatalog[key].ko:helpCatalog[key].en)!;
- for(const l of lessons.filter(l=>l.day===day)){out[`title.${l.id}`]=ko?l.koTitle:l.title;out[`body.${l.id}`]=ko?l.ko:l.body;addQuestion(practiceQuestion(l.id).id);}
+ for(const l of lessons.filter(l=>sourceDay(l.id)===day)){out[`title.${l.id}`]=ko?l.koTitle:l.title;out[`body.${l.id}`]=ko?l.ko:l.body;addQuestion(practiceQuestion(l.id).id);}
  return out;
 }
 export function validateTranslation(source:Record<string,string>,candidate:unknown){

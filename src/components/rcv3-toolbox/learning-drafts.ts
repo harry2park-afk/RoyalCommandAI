@@ -1,4 +1,5 @@
 import {z} from 'zod';
+import {sourceDay} from '@/lib/rcv3/learning/groups';
 import {COURSE,lessons} from '@/lib/rcv3/learning/course';
 const draftSchema=z.object({message:z.string().max(2000),artifact:z.string().max(6000)}).strict();
 export type LearningDraft=z.infer<typeof draftSchema>;
@@ -14,4 +15,4 @@ export function readLearningDraft(storage:StoragePort,owner:string,lesson:string
 export function saveLearningDraft(storage:StoragePort,owner:string,lesson:string,draft:LearningDraft){
  storage.setItem(key(owner,lesson),JSON.stringify(draftSchema.parse(draft)));
 }
-export function nextLearningLesson(index:number){return lessons[index+1]??null;}
+export function nextLearningLesson(index:number){const next=lessons[index+1];return next?{...next,day:sourceDay(next.id)}:null;}
