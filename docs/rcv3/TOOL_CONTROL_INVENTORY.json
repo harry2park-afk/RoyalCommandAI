@@ -669,7 +669,7 @@
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#1",
       "toolId": "learning",
-      "sourceHash": "fb21f3199c0576c46b7a65a44e11df7d7e8bd4e68f714ba99bb03add58fa17e3",
+      "sourceHash": "4828927bd07d861591c737668c4251ad6973c1395771eb42485bb12f1071a899",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

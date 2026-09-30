@@ -6,6 +6,8 @@ import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
 export type LearningVoiceHandle={stop:()=>void};
 type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void};
 export default function LearningVoice({ref,language,lessonText,answerText,draft,disabled,onTranscript}:Props){
+ const background=useRef(false);
+ const [listenOnly,setListenOnly]=useState(false);
  const [listening,setListening]=useState(false),[status,setStatus]=useState<LearningLabel|null>(null),[auto,setAuto]=useState(false);
  const recognition=useRef<ReturnType<typeof createDictation>|null>(null),speaker=useRef<AnswerSpeaker|null>(null);
  const latest=useRef({draft,onTranscript});latest.current={draft,onTranscript};
@@ -20,7 +22,7 @@ export default function LearningVoice({ref,language,lessonText,answerText,draft,
   },status:(_id,value)=>setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null)});
   speaker.current=player;
   const halt=()=>{recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};
-  const hide=()=>{if(document.hidden)halt();};
+  const hide=()=>{if(document.hidden){recognition.current?.cancel();recognition.current=null;setListening(false);if(!background.current){player.stop();setStatus(null);}}};
   document.addEventListener('visibilitychange',hide);
   navigator.mediaDevices?.addEventListener('devicechange',halt);
   return()=>{document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();speaker.current=null;};
@@ -40,12 +42,13 @@ export default function LearningVoice({ref,language,lessonText,answerText,draft,
  }
  return <div aria-label={t('voiceTitle')}>
   <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
-   <button type="button" disabled={disabled} aria-pressed={listening} onClick={microphone}>{t(listening?'voiceFinish':'voiceMic')}</button>
+   <button type="button" disabled={disabled||listenOnly} aria-pressed={listening} onClick={microphone}>{t(listening?'voiceFinish':'voiceMic')}</button>
    <button type="button" disabled={disabled||!lessonText} onClick={()=>read(lessonText)}>{t('voiceLesson')}</button>
    <button type="button" disabled={disabled||!answerText} onClick={()=>read(answerText)}>{t('voiceAnswer')}</button>
    <button type="button" onClick={stop}>{t('voiceStop')}</button>
   </div>
-  <label><input type="checkbox" checked={auto} onChange={e=>{setAuto(e.target.checked);if(e.target.checked)speaker.current?.prime();else speaker.current?.stop();}}/> {t('voiceAuto')}</label>
+  <label><input type="checkbox" checked={listenOnly} onChange={e=>{stop();background.current=e.target.checked;setListenOnly(e.target.checked);setAuto(false);}}/> {t('voiceListenOnly')}</label><br/>
+  <label><input type="checkbox" disabled={listenOnly} checked={auto} onChange={e=>{setAuto(e.target.checked);if(e.target.checked)speaker.current?.prime();else speaker.current?.stop();}}/> {t('voiceAuto')}</label>
   <p>{t('voiceHint')}</p>
   {status&&<p role="status" aria-live="polite">{t(status)}</p>}
  </div>;
