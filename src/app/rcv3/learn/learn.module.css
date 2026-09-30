@@ -48,3 +48,22 @@
 }
 
 .dayStart{display:flex;align-items:end;gap:10px}.dayStart label{flex:1;min-width:0}.dayStart select{margin-bottom:0}.dayStart>button{flex:none;min-height:48px}
+
+.teacherViewport,.legacyComposer{display:contents}
+@media(max-width:760px){.teacherViewport>div{order:-2;width:100%;box-sizing:border-box}}
+.composer{position:relative;flex:none}
+.composer label{display:block}
+.composer textarea{margin:0;padding-right:64px;resize:none}
+.page .composer .send{position:absolute;right:10px;bottom:10px;display:grid;place-items:center;width:44px;height:44px;padding:0;background:#285747;border-color:#9ce4cb}
+/* Only the V4 desktop right column owns this viewport sizing. */
+@media(min-width:761px){
+ .v4Desktop .teacherColumn{display:flex;flex-direction:column;gap:12px;overflow:hidden;padding:16px;--rc-learning-avatar-height:clamp(120px,calc(100dvh - 430px),580px)}
+ .v4Desktop .teacherViewport{display:block;min-height:0;flex:0 1 auto;max-height:calc(100% - 156px);overflow:auto;scrollbar-width:none}
+ .v4Desktop .teacherViewport::-webkit-scrollbar,.v4Desktop .messages::-webkit-scrollbar,.v4Desktop .transcript::-webkit-scrollbar{display:none}
+ .v4Desktop .teacherViewport>div{margin-bottom:0}
+ .v4Desktop .teacherColumn>.tutor{display:flex;flex-direction:column;gap:8px;flex:1 0 144px;min-height:0;padding:12px;box-sizing:border-box}
+ .v4Desktop .teacherColumn>.tutor:has(.transcript){flex-basis:208px}
+ .v4Desktop .messages{flex:1;min-height:0;max-height:none;overflow:auto;scrollbar-width:none;overflow-wrap:anywhere}
+ .v4Desktop .transcript{max-height:56px;flex:none;overflow:auto;margin:0;scrollbar-width:none}
+ .v4Desktop .composer textarea{height:108px;min-height:0}
+}

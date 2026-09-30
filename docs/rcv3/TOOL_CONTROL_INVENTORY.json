@@ -522,7 +522,14 @@
     {
       "controlId": "src/app/rcv3/learn/LearningRoom.tsx#11",
       "toolId": "learning",
-      "sourceHash": "b3861bf7afba402a76137afa967686ba36ac135b73accd15deceadfb5564918f",
+      "sourceHash": "4aeba16a8afac5108135f3fc14ea5a1982dbbfb55d386685e3cdf0af75ba3913",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#12",
+      "toolId": "learning",
+      "sourceHash": "acf1ac19f65e7470ec364c3c17e372db57db67584501c30e409b0a76839a3b0a",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

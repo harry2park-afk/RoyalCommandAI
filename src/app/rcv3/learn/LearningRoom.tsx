@@ -1,5 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
+import {Send} from 'lucide-react';
+import ToolButton from '@/components/rcv3-toolbox/ToolButton';
 import {findHelp} from '@/lib/locale/help-catalog';
 import {COURSE,lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
 import {learningLabel,learningLanguage,type LearningLabel} from "@/lib/locale/learning";
@@ -150,7 +152,16 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const voice=useRef<LearningVoiceHandle|null>(null);
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
- return <main className={styles.page} lang={locale}>
+ const v4=entryPath==='/rcv4/learn';
+ function sendMessage(){
+  if(voiceActive){voice.current?.start(message,true);return;}
+  void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{
+   const history:Message[]=[...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}];
+   setMessages(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);
+  });
+ }
+ const sendDisabled=!loaded||requestBusy||!draftReady||Boolean(exam)||!message.trim();
+ return <main className={`${styles.page}${v4?` ${styles.v4Desktop}`:''}`} lang={locale}>
 
   <div className={styles.layout}>
    <div className={styles.curriculum}>
@@ -185,12 +196,16 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   <details className={styles.exam}><summary>{t("sources")}</summary><p>{t("sourceNote")}</p><ul><li><a href="https://home.dartmouth.edu/about/artificial-intelligence-ai-coined-dartmouth" target="_blank" rel="noreferrer">{t("sourceHistory")}</a></li><li><a href="https://doi.org/10.1609/aimag.v27i4.1904" target="_blank" rel="noreferrer">{t("sourceProposal")}</a></li><li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">{t("sourceTransformer")}</a></li><li><a href="https://hai.stanford.edu/ai-index/2026-ai-index-report" target="_blank" rel="noreferrer">{t("sourceIndex")}</a></li><li><a href="https://www.nist.gov/itl/ai-risk-management-framework" target="_blank" rel="noreferrer">{t("sourceRisk")}</a></li></ul></details>
    </div>
    <aside className={styles.teacherColumn} aria-label={t("tutor")}>
+  <div className={styles.teacherViewport}>
   <LearningVoice key={locale} ref={voice} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
-    <section className={styles.tutor} aria-label={t("tutor")}><h3>{t("chatWithTeacher")}</h3>
+  </div>
+    <section className={styles.tutor} aria-label={t("tutor")}>{!v4&&<h3>{t("chatWithTeacher")}</h3>}
      <div ref={chatScroll} aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
-     {voiceTranscript&&<p aria-live="polite">{voiceTranscript}</p>}
-     <label>{t("m6")}<textarea maxLength={2000} rows={3} value={message} onChange={e=>{voice.current?.stopDictation();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={requestBusy||!draftReady||Boolean(exam)}/></label>
-     <button disabled={!loaded||requestBusy||!draftReady||Boolean(exam)||!message.trim()} onClick={()=>{if(voiceActive){voice.current?.start(message,true);return;}void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{const history:Message[]=[...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}];setMessages(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);});}}>{requestBusy?t("m7"):t("send")}</button>
+     {voiceTranscript&&<p className={styles.transcript} aria-live="polite">{voiceTranscript}</p>}
+     <div className={v4?styles.composer:styles.legacyComposer}>
+     <label>{!v4&&t("m6")}<textarea aria-label={t("m6")} maxLength={2000} rows={3} value={message} onChange={e=>{voice.current?.stopDictation();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={requestBusy||!draftReady||Boolean(exam)}/></label>
+     {v4?<ToolButton toolId="send" className={styles.send} aria-label={requestBusy?t("m7"):t("send")} title={requestBusy?t("m7"):t("send")} disabled={sendDisabled} onClick={sendMessage}><Send size={20} aria-hidden="true"/></ToolButton>:<button disabled={sendDisabled} onClick={sendMessage}>{requestBusy?t("m7"):t("send")}</button>}
+     </div>
     </section>
    </aside>
   </div>
