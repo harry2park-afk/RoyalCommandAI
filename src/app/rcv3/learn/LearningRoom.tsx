@@ -1,7 +1,7 @@
 'use client';
 import {useEffect,useRef,useState} from 'react';
 import {findHelp} from '@/lib/locale/help-catalog';
-import {lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
+import {COURSE,lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
 import {learningLabel,learningLanguage,type LearningLabel} from "@/lib/locale/learning";
 import styles from './learn.module.css';
 import LearningVoice,{type LearningVoiceHandle} from '@/components/rcv3-toolbox/LearningVoice';
@@ -18,13 +18,15 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  useEffect(()=>{try{for(const l of lessons){try{const saved=readLearningDraft(window.localStorage,ownerId,l.id);if(saved){localDrafts.current[l.id]=saved;drafts.current[l.id]=saved.artifact;}}catch{setDraftError(true);}}const first=localDrafts.current[lessons[0].id];if(first){setMessage(first.message);setArtifact(first.artifact);}}catch{setDraftError(true);}finally{setDraftReady(true);}},[ownerId]);
  const conversations=useRef<Record<string,{messages:Message[];message:string;answer:number|null}>>({});
  const [unit,setUnit]=useState(0),[messages,setMessages]=useState<Message[]>([]),[message,setMessage]=useState(''),[answer,setAnswer]=useState<number|null>(null);
- const [busy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [requestBusy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [exam,setExam]=useState<{attempt:string;questions:Question[];expiresAt:string;serverNow:string}|null>(null),[answers,setAnswers]=useState<Record<string,number>>({}),[score,setScore]=useState<number|null>(null);
  useEffect(()=>{if(!exam)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[exam]);
  const remaining=exam?Math.max(0,Math.ceil((Date.parse(exam.expiresAt)-(clock-offset))/1000)):EXAM_MINUTES*60;
  const controller=useRef<AbortController|null>(null),flight=useRef(false);
  const [content,setContent]=useState<{day:number;language:string;text:Record<string,string>}|null>(null),[translationError,setTranslationError]=useState(false),[translationRetry,setTranslationRetry]=useState(0);
  const [chosenLanguage,setChosenLanguage]=useState(initialLanguage),[chosenCountry,setChosenCountry]=useState(initialCountry);
+ const [voiceActive,setVoiceActive]=useState(false);
+ const busy=requestBusy||Boolean(voiceActive);
  const language=chosenLanguage??initialLanguage,country=chosenCountry??initialCountry;
  const locale=learningLanguage(language),ko=locale==='ko',lesson=lessons[unit],question=practice.find(q=>q.lesson===lesson.id);
  const t=(key:LearningLabel)=>learningLabel(key,language);
@@ -84,7 +86,11 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
     <h2>{lesson.id}. {title(lesson)}</h2><p>{t(unit<50?"quizCompletion":"projectCompletion")}</p><p className={styles.lesson}>{translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)}</p>
     <section className={styles.tutor} aria-label={t("tutor")}><h3>{t("learnWithAi")}</h3><p>{help("learnTutor")}</p>
      <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
-     <LearningVoice key={`${lesson.id}:${locale}`} ref={voice} language={locale} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={busy||!loaded||!draftReady||Boolean(exam)} onTranscript={text=>{setMessage(text);keepDraft(text,artifact);}}/>
+     <LearningVoice key={`${lesson.id}:${locale}`} ref={voice} language={locale} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onActiveChange={setVoiceActive} onQuestion={async(text,signal)=>{
+      const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat',course:COURSE,voice:true,lesson:lesson.id,language:locale,message:text,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))}),signal});
+      if(!r.ok)throw Error('VOICE');const d=await r.json();if(signal.aborted)throw Error('CANCELLED');
+      const answer=String(d.answer);setMessages(old=>[...old,{role:'user',content:text},{role:'assistant',content:answer}]);setMessage('');keepDraft('',artifact);return answer;
+     }} onTranscript={text=>{setMessage(text);keepDraft(text,artifact);}}/>
      <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>{voice.current?.stop();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={busy||!draftReady}/></label>
      <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{setMessages([...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}]);setMessage('');keepDraft('',artifact);})}>{busy?t("m7"):t("send")}</button>
     </section>

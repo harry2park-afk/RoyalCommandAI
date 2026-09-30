@@ -1,0 +1,5 @@
+import {expect,it} from 'vitest';
+import {coursePackSchema,courseTutorInstruction} from './course-pack';
+import {registeredCourse} from './catalog';
+it('uses the same validated format for different teaching subjects',()=>{for(const subject of ['Guitar','Mathematics']){const pack=coursePackSchema.parse({id:subject.toLowerCase(),version:'1',title:{en:subject},audience:'general',subject,lessons:[{id:'001',title:{en:'Introduction'},content:{en:'Approved teaching content'},objectives:['Understand the introduction'],sources:[]}]});const prompt=courseTutorInstruction(pack,'001','ko',true);expect(prompt).toContain(subject);expect(prompt).toContain('Approved teaching content');expect(prompt).toContain('four short sentences');}});
+it('rejects duplicate lessons and unregistered courses',()=>{const pack=registeredCourse();expect(()=>coursePackSchema.parse({...pack,lessons:[pack.lessons[0],pack.lessons[0]]})).toThrow();expect(()=>registeredCourse('unreviewed')).toThrow();expect(()=>courseTutorInstruction(pack,'missing','en')).toThrow();});

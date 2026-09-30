@@ -17,3 +17,9 @@
 .lesson{white-space:pre-line}
 .messages{max-height:none;overflow:visible}
 @media(max-width:760px){.unit>article{padding:14px}.page .unitButton{padding:14px}}
+
+/* Shared teaching layout: lesson and practice on the left, voice tutor on the right. */
+.unit>article{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(280px,1fr);gap:16px 24px;align-items:start}
+.unit>article>*{grid-column:1;min-width:0}
+.unit>article>.tutor{grid-column:2;grid-row:1 / span 12;position:sticky;top:16px;max-height:calc(100dvh - 32px);overflow:auto}
+@media(max-width:760px){.unit>article{display:block}.unit>article>.tutor{position:static;max-height:none;overflow:visible}}

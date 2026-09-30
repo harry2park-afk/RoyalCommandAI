@@ -8,6 +8,8 @@ import { practiceQuestion, publicQuestion, grade, examQuestions, questionById } 
 import { learningDB, learningState, reserveLearning, tables } from '@/lib/rcv3/learning/store';
 import {learningLanguages,learningLanguage} from '@/lib/locale/learning';
 import {publicLearningContent,translatedLearningContent} from '@/lib/rcv3/learning/content';
+import {registeredCourse} from '@/lib/rcv3/learning/catalog';
+import {courseTutorInstruction} from '@/lib/rcv3/learning/course-pack';
 export const maxDuration=60;
 const selectedLanguage=z.enum(learningLanguages).optional();
 async function examTranslation(owner:string,language:string,questions:Question[]){
@@ -18,7 +20,7 @@ async function examTranslation(owner:string,language:string,questions:Question[]
 const lesson=z.string().refine(id=>lessons.some(l=>l.id===id));
 const schema=z.discriminatedUnion('action',[
  z.object({language:selectedLanguage,action:z.literal('practice'),lesson,answer:z.number().int().min(0).max(2)}).strict(),
- z.object({language:selectedLanguage,action:z.literal('chat'),lesson,message:z.string().trim().min(1).max(2000),history:z.array(z.object({role:z.enum(['user','assistant']),content:z.string().max(3000)}).strict()).max(8).default([])}).strict(),
+ z.object({language:selectedLanguage,action:z.literal('chat'),course:z.string().max(80).optional(),voice:z.boolean().optional(),lesson:z.string().min(1).max(40),message:z.string().trim().min(1).max(2000),history:z.array(z.object({role:z.enum(['user','assistant']),content:z.string().max(3000)}).strict()).max(8).default([])}).strict(),
  z.object({language:selectedLanguage,action:z.literal('project'),lesson,artifact:z.string().trim().min(150).max(6000)}).strict(),
  z.object({language:selectedLanguage,action:z.literal('start')}).strict(),
  z.object({language:selectedLanguage,action:z.literal('submit'),attempt:z.string().uuid(),answers:z.array(z.number().int().min(0).max(2)).length(EXAM_QUESTIONS)}).strict(),
@@ -52,11 +54,13 @@ export async function POST(request:Request){try{
   return reply({projectScore:stored?.score??score,feedback:stored?.feedback??assessment.feedback,...updated});
  }
  if(body.action==='chat'){
+  const course=registeredCourse(body.course??COURSE);
+  if(!course.lessons.some(l=>l.id===body.lesson))throw Error('RCV3_NOT_FOUND');
   const available=getAvailableProviderIds(),provider=available.includes('openai')?'openai':available[0];
   if(!provider)throw new Error('RCV3_UNAVAILABLE');
   await reserveLearning(owner,'chat');
   const language=body.language??await accountAnswerLanguage(ctx),unit=lessons.find(l=>l.id===body.lesson)!;
-  const response=await getConnector(provider).complete({model:provider==='openai'?'gpt-4.1-mini':undefined,maxTokens:1600,temperature:0.3,messages:[{role:'system',content:`You are the Royal Command AI foundations tutor. Teach the actual subject in the supplied lesson, not a generic statement about why studying it matters. Explain its mechanisms or dated milestones, show a concrete present-day work example, identify a limitation, and then give one practice task. For history, the term artificial intelligence was already in the 1955 Dartmouth proposal; the meeting happened in 1956. Never say it was first used or coined at the 1956 meeting. Do not claim today’s assistants are based on the Turing test; it was a proposed conversational evaluation, not their model architecture. Treat historical methods as overlapping approaches, not a strict replacement timeline. Reply in ${language}. Teach AI history, theory, present capabilities, practical construction and future scenarios. For lessons051 onward demand progressively deeper deliverables: company reports, analysis, code, tests and a capstone. Distinguish fact, inference and forecast. Do not promise mastery from completing a course. For current claims cite the dated course sources and acknowledge you cannot browse live sources. Politely redirect unrelated requests to the course. Never claim to complete lessons, grade the final exam or issue certificates: only the server does that. Do not request private information. Course lesson: ${unit.title}. ${unit.body}. Dated reference for current capabilities: Stanford AI Index2026 https://hai.stanford.edu/ai-index/2026-ai-index-report ; Transformer paper https://arxiv.org/abs/1706.03762 ; historical reference https://home.dartmouth.edu/about/artificial-intelligence-ai-coined-dartmouth . Source snapshot checked2026-09-21; never invent newer news.`},...body.history,{role:'user',content:body.message}]});
+  const response=await getConnector(provider).complete({model:provider==='openai'?'gpt-4.1-mini':undefined,maxTokens:1600,temperature:0.3,messages:[{role:'system',content:courseTutorInstruction(course,body.lesson,language,body.voice)},...body.history,{role:'user',content:body.message}]});
   if(response.error||!response.content.trim())throw new Error('RCV3_UNAVAILABLE');
   return reply({answer:response.content.slice(0,6000)});
  }

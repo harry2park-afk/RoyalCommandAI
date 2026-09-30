@@ -669,26 +669,33 @@
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#1",
       "toolId": "learning",
-      "sourceHash": "4828927bd07d861591c737668c4251ad6973c1395771eb42485bb12f1071a899",
+      "sourceHash": "4e6f09a0107339c46f721cd5d7300547d8ecc70c5b43c330354228e7ae824218",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#2",
       "toolId": "learning",
-      "sourceHash": "0ba22a9b22fcef1222a2661f13cb2c9f4952e9bb79178a340f047f839fee1b27",
+      "sourceHash": "9153697271d5133923079c83f6f3108ff5e99116509435c0485399d1d353b443",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#3",
       "toolId": "learning",
-      "sourceHash": "a63e9606dbf7320ecd477ac175b2d3d64c8e4ca883dd4d8361f9e29097fd9448",
+      "sourceHash": "83d1f255be6b01f0ce7524277427f27a0ca3253187bb58c8b613b8a0f7ec481a",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#4",
+      "toolId": "learning",
+      "sourceHash": "3694978cf0710ade6da8b5ee58eaad3686340bf8dee5e2b0e4300b193950b7e4",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#5",
       "toolId": "learning",
       "sourceHash": "a29a316e051b6879c533612d324309063c3f4532d627b21621d54deca94c86eb",
       "mode": "context-bound",

@@ -649,5 +649,40 @@
     "ja": "聞くだけモード・出発前に授業を選んで再生してください。画面ロック中の再生は端末によります。",
     "zh": "仅收听模式 · 出发前选择并播放课程。锁屏播放取决于手机。",
     "hi": "केवल सुनने का मोड · यात्रा से पहले पाठ चुनकर चलाएँ। स्क्रीन लॉक में चलना फ़ोन पर निर्भर है।"
+  },
+  "voiceConversationStart": {
+    "en": "Start voice conversation",
+    "ko": "음성 대화 시작",
+    "ja": "音声会話を開始",
+    "zh": "开始语音对话",
+    "hi": "वॉइस बातचीत शुरू करें"
+  },
+  "voiceConversationStop": {
+    "en": "End voice conversation",
+    "ko": "음성 대화 종료",
+    "ja": "音声会話を終了",
+    "zh": "结束语音对话",
+    "hi": "वॉइस बातचीत समाप्त करें"
+  },
+  "voiceConversationHint": {
+    "en": "Voice conversation sends your question automatically after a pause, reads the answer, then listens again. This version takes turns; it does not support interrupting playback or locked-screen conversation.",
+    "ko": "음성 대화는 말을 마치고 잠시 쉬면 질문을 보내고, 답변을 읽은 뒤 다시 들어요. 현재는 번갈아 대화하며, 재생 중 끼어들기와 화면 잠금 중 대화는 지원하지 않아요.",
+    "ja": "音声会話は間を置くと質問を送信し、回答を読み上げてから再び聞き取ります。現在は交互の会話で、再生中の割り込みや画面ロック中の会話には対応していません。",
+    "zh": "语音对话会在停顿后自动发送问题，朗读回答后再次聆听。当前为轮流对话，不支持播放中打断或锁屏对话。",
+    "hi": "रुकने के बाद प्रश्न अपने आप भेजा जाएगा, उत्तर सुनाकर फिर सुना जाएगा। अभी बारी-बारी बातचीत है; बोलते उत्तर को बीच में रोकना और लॉक स्क्रीन पर बातचीत समर्थित नहीं है।"
+  },
+  "voiceOpening": {
+    "en": "Please introduce this lesson briefly, then ask me one question.",
+    "ko": "이 수업을 짧게 설명한 뒤 질문 하나를 해주세요.",
+    "ja": "この授業を短く説明してから、一つ質問してください。",
+    "zh": "请简短介绍本课，然后问我一个问题。",
+    "hi": "कृपया इस पाठ का संक्षिप्त परिचय दें, फिर मुझसे एक प्रश्न पूछें।"
+  },
+  "voiceDraftFirst": {
+    "en": "Send or clear your typed question before starting voice conversation.",
+    "ko": "입력 중인 질문을 보내거나 지운 뒤 음성 대화를 시작해 주세요.",
+    "ja": "入力中の質問を送信または消去してから音声会話を開始してください。",
+    "zh": "请先发送或清除输入中的问题，再开始语音对话。",
+    "hi": "वॉइस बातचीत शुरू करने से पहले लिखा प्रश्न भेजें या हटाएँ।"
   }
 }
