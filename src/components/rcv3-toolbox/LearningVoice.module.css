@@ -7,3 +7,5 @@
 .actions{display:flex;flex-wrap:wrap;gap:8px}.actions button{min-height:44px}
 .options{padding:0 14px 8px}.options summary{cursor:pointer;font-size:13px}.options[open]{max-height:45dvh;overflow:auto}
 @media(max-width:600px){.teacher{gap:8px;padding:8px}.teacher .portrait{width:58px;height:72px}.caption{font-size:14px}.caption>span{font-size:12px}.actions{flex-direction:column;max-width:105px}.actions button{font-size:13px;padding:8px}.options{padding-bottom:5px}}
+
+@media(min-width:761px){.teacher{display:grid;grid-template-columns:136px minmax(0,1fr);padding:14px}.teacher .portrait{width:136px;height:156px}.actions{grid-column:1/-1;justify-content:center}.caption{align-self:center}}

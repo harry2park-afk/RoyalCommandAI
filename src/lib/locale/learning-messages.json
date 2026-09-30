@@ -768,5 +768,40 @@
     "ja": "このブラウザの前回の授業を復元しました。",
     "zh": "已恢复此浏览器上次的课程。",
     "hi": "इस ब्राउज़र का पिछला पाठ बहाल हुआ।"
+  },
+  "lessonList": {
+    "en": "Lessons 1–60",
+    "ko": "교육 목록 1–60",
+    "ja": "授業一覧 1–60",
+    "zh": "课程列表 1–60",
+    "hi": "पाठ सूची 1–60"
+  },
+  "lessonListHint": {
+    "en": "Choose a number to start teaching that lesson.",
+    "ko": "번호를 누르면 튜터가 해당 수업을 시작합니다.",
+    "ja": "番号を押すと、その授業を始めます。",
+    "zh": "点击编号，老师就会开始讲解该课。",
+    "hi": "नंबर चुनें और उस पाठ की पढ़ाई शुरू होगी।"
+  },
+  "lessonNumber": {
+    "en": "Lesson",
+    "ko": "수업",
+    "ja": "授業",
+    "zh": "课程",
+    "hi": "पाठ"
+  },
+  "chatWithTeacher": {
+    "en": "Talk or type to your teacher",
+    "ko": "튜터와 말하고 글로 대화하기",
+    "ja": "先生と音声・文字で話す",
+    "zh": "与老师语音或文字交流",
+    "hi": "शिक्षक से बोलकर या लिखकर बात करें"
+  },
+  "lessonStartRequest": {
+    "en": "start lesson {number}",
+    "ko": "{number}번 수업 시작해",
+    "ja": "{number}課を始めて",
+    "zh": "第{number}课开始",
+    "hi": "पाठ {number} शुरू करो"
   }
 }

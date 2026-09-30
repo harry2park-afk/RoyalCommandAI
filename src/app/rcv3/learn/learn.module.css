@@ -28,3 +28,18 @@
 .layout>.tutor{position:static;max-height:none;overflow:visible}
 @media(max-width:760px){.layout>.tutor{order:0}.page{padding-top:8px}}
 .unit>article{scroll-margin-top:170px}
+
+/* Desktop: textbook left, teacher and shared conversation right. */
+.layout{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:24px;align-items:start}
+.teacherColumn{min-width:0;position:sticky;top:12px;max-height:calc(100dvh - 24px);overflow:auto;scrollbar-gutter:stable}
+.teacherColumn>.tutor{margin-bottom:0;padding:16px}.teacherColumn>.tutor h3{margin:0 0 8px}
+.teacherColumn .messages{max-height:260px;overflow:auto}.teacherColumn .messages:empty{display:none}
+.curriculum{width:100%}.lesson{font-size:18px;line-height:1.9;overflow-wrap:anywhere}
+@media(max-width:760px){
+ .layout{display:flex;flex-direction:column;gap:14px}
+ .teacherColumn{display:contents}
+ .teacherColumn>:first-child{order:-2;width:100%;box-sizing:border-box}
+ .teacherColumn>.tutor{order:-1;width:100%;box-sizing:border-box}
+ .curriculum{order:0}
+ .teacherColumn .messages{max-height:220px}
+}

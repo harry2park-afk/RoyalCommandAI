@@ -1,7 +1,7 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
-const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn()}));
-vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>({current:v}),useImperativeHandle:()=>{}}));
+const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn()}));
+vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>({current:v}),useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
 vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
 import LearningVoice from './LearningVoice';
 function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
@@ -26,6 +26,18 @@ it('visible teacher start opens a spoken lesson through the shared question hand
  const onQuestion=vi.fn(async()=> 'teacher explanation');const onActiveChange=vi.fn();
  const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonTitle:'1. 첫 수업',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onQuestion,onActiveChange}));
  const cleanup=m.effects.map(f=>f());tree.find(n=>n.type==='button'&&n.props.children==='수업 시작')!.props.onClick();await Promise.resolve();
- expect(m.prime).toHaveBeenCalled();expect(onQuestion).toHaveBeenCalledWith(expect.any(String),expect.any(AbortSignal));expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'teacher explanation'});expect(onActiveChange).toHaveBeenCalledWith(true);
+ expect(m.prime).toHaveBeenCalled();expect(onQuestion).toHaveBeenCalledWith(expect.any(String),expect.any(AbortSignal),false);expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'teacher explanation'});expect(onActiveChange).toHaveBeenCalledWith(true);
+ for(const c of cleanup)if(typeof c==='function')c();
+});
+it('number selection starts the requested lesson and typed questions interrupt stale speech without losing the draft',async()=>{
+ const onQuestion=vi.fn(async()=> 'answer');const onTranscript=vi.fn();
+ LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'keep this',disabled:false,onTranscript,onQuestion});const cleanup=m.effects.map(f=>f());
+ m.handle!.start('start lesson 60');await Promise.resolve();expect(onQuestion).toHaveBeenLastCalledWith('start lesson 60',expect.any(AbortSignal),false);
+ m.handle!.start('typed question',true);await Promise.resolve();expect(onQuestion).toHaveBeenLastCalledWith('typed question',expect.any(AbortSignal),true);expect(onTranscript).not.toHaveBeenCalled();expect(m.stop).toHaveBeenCalled();
+ for(const c of cleanup)if(typeof c==='function')c();
+});
+it('typing cancels standalone dictation so delayed transcript cannot overwrite manual edits',()=>{
+ const {tree,onTranscript,cleanup}=setup();tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick();
+ m.handle!.stopDictation();recog.onresult({results:[[{transcript:'late dictation'}]]});expect(onTranscript).not.toHaveBeenCalled();expect(recog.abort).toHaveBeenCalled();
  for(const c of cleanup)if(typeof c==='function')c();
 });

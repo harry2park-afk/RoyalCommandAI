@@ -7,6 +7,7 @@ import styles from './learn.module.css';
 import {groups,sourceDay,groupForSource,groupComplete,completedGroupCount} from '@/lib/rcv3/learning/groups';
 import {learningVoiceCommand,voiceLessonIndex} from '@/lib/client/learning-voice-command';
 import LearningVoice,{type LearningVoiceHandle} from '@/components/rcv3-toolbox/LearningVoice';
+import LearningLessonList from '@/components/rcv3-toolbox/LearningLessonList';
 import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
 import {readLearningDraft,saveLearningDraft,readLearningResume,saveLearningResume,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
@@ -75,17 +76,17 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   }catch(e){if(!abort.signal.aborted)setError(e instanceof Error?e.message:t("m3"));}finally{flight.current=false;setBusy(false);}
  }
  function selectUnit(index:number){
-  conversations.current[lesson.id]={messages,message,answer};
+  conversations.current[lesson.id]={messages,message:localDrafts.current[lesson.id]?.message??message,answer};
   drafts.current[lesson.id]=artifact;
   const next=lessons[index],saved=conversations.current[next.id];
-  setUnit(index);setMessages(saved?.messages??[]);setMessage(saved?.message??localDrafts.current[next.id]?.message??'');setAnswer(saved?.answer??null);
+  setUnit(index);setMessages(saved?.messages??[]);setMessage(localDrafts.current[next.id]?.message??saved?.message??'');setAnswer(saved?.answer??null);
   setArtifact(drafts.current[next.id]??state.work?.[next.id]?.artifact??'');setNotice('');setResumed(false);savePosition(next.id,saved?.messages??[]);
  }
  function keepDraft(nextMessage:string,nextArtifact:string){
   const draft={message:nextMessage,artifact:nextArtifact};localDrafts.current[lesson.id]=draft;drafts.current[lesson.id]=nextArtifact;
   try{saveLearningDraft(window.localStorage,ownerId,lesson.id,draft);setDraftError(false);}catch{setDraftError(true);}
  }
- async function voiceQuestion(text:string,signal:AbortSignal):Promise<string>{
+ async function voiceQuestion(text:string,signal:AbortSignal,typed=false):Promise<string>{
   const command=learningVoiceCommand(text),currentGroup=groups.indexOf(groupForSource(lesson.id));
   const targetGroup=command?voiceLessonIndex(command,currentGroup,groups.length):currentGroup;
   if(targetGroup===null)return t('voiceLessonMissing');
@@ -113,13 +114,22 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   setVoiceTranscript('');
   const history:Message[]=[...prior,{role:'user',content:text},{role:'assistant',content:spoken}];
   setMessages(history);savePosition(target.id,history);
+  if(typed){
+   const saved=localDrafts.current[lesson.id];
+   if(saved?.message.trim()===text.trim()){
+    const next={...saved,message:''};localDrafts.current[lesson.id]=next;
+    try{saveLearningDraft(window.localStorage,ownerId,lesson.id,next);}catch{setDraftError(true);}
+    if(target.id===lesson.id)setMessage('');
+    const cached=conversations.current[lesson.id];if(cached)cached.message='';
+   }
+  }
   return spoken;
  }
  const voice=useRef<LearningVoiceHandle|null>(null);
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
  return <main className={styles.page} lang={locale}>
-  <LearningVoice key={locale} ref={voice} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
+
   {resumed&&<p>{t('teacherResumeSaved')}</p>}
   <header><a href={homeHref}>← {t("myRooms")}</a><span className={styles.courseBadge}>{t("courseBadge")}</span><h1>{t("title")}</h1><p>{help("learnOverview")}</p><LearningRegion language={language} country={country} disabled={busy||Boolean(exam)} onChange={changeRegion}/></header>
   {!native&&<p role="status">{t('autoTranslation')} {!contentReady&&t(translationError?'translationError':'translating')}{translationError&&<button onClick={()=>setTranslationRetry(v=>v+1)}>{t('retry')}</button>}</p>}
@@ -128,7 +138,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>{t("retry")}</button>}</div>}
   <p>{t("topicHelp")}</p>
   <div className={styles.layout}>
-   <div className={styles.curriculum}><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label><button type="button" disabled={!loaded||busy||!draftReady||Boolean(exam)||Boolean(message.trim())} onClick={()=>voice.current?.start()}>{t('teacherStart')}</button>
+   <div className={styles.curriculum}><LearningLessonList language={locale} count={groups.length} selected={groups.indexOf(groupForSource(lesson.id))+1} completed={groups.flatMap((g,i)=>groupComplete(g,state.completed)?[i+1]:[])} disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onStart={number=>voice.current?.start(t('lessonStartRequest').replace('{number}',String(number)))}/><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label><button type="button" disabled={!loaded||busy||!draftReady||Boolean(exam)||Boolean(message.trim())} onClick={()=>voice.current?.start()}>{t('teacherStart')}</button>
    {groups.filter(g=>g.day===day).map(group=>{const units=group.sources.map(id=>lessons.find(l=>l.id===id)!);const active=group.sources.includes(lesson.id);const label=ko?group.koTitle:units.map(title).join(' · ');return <section className={styles.unit} key={group.id}>
     <button type="button" className={styles.unitButton} disabled={!loaded||busy||!draftReady} aria-expanded={active} aria-controls={`lesson-${active?lesson.id:group.sources[0]}`} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===(group.sources.find(id=>!state.completed.includes(id))??group.sources[0])))}><span>{group.id}</span><strong>{label}</strong>{groupComplete(group,state.completed)&&<small>✓ {t("m5")}</small>}</button>
     {active&&<article id={`lesson-${lesson.id}`} aria-label={label}>
@@ -142,12 +152,15 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
     {state.completed.includes(lesson.id)&&<div role="status"><strong>✓ {t("m5")}</strong>{nextLesson&&<button type="button" disabled={busy||!draftReady} onClick={()=>{setDay(nextLesson.day);selectUnit(unit+1);requestAnimationFrame(()=>document.getElementById(`lesson-${nextLesson.id}`)?.scrollIntoView({block:"start"}));}}>{t("nextLesson")}</button>}</div>}
    </article>}</section>})}
    </div>
-    <section className={styles.tutor} aria-label={t("tutor")}><h3>{t("learnWithAi")}</h3><p>{help("learnTutor")}</p>
+   <aside className={styles.teacherColumn} aria-label={t("tutor")}>
+  <LearningVoice key={locale} ref={voice} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
+    <section className={styles.tutor} aria-label={t("tutor")}><h3>{t("chatWithTeacher")}</h3>
      <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
      {voiceTranscript&&<p aria-live="polite">{voiceTranscript}</p>}
-     <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>{voice.current?.stop();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={busy||!draftReady}/></label>
-     <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{const history:Message[]=[...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}];setMessages(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);})}>{busy?t("m7"):t("send")}</button>
+     <label>{t("m6")}<textarea maxLength={2000} rows={3} value={message} onChange={e=>{voice.current?.stopDictation();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={requestBusy||!draftReady||Boolean(exam)}/></label>
+     <button disabled={!loaded||requestBusy||!draftReady||Boolean(exam)||!message.trim()} onClick={()=>{if(voiceActive){voice.current?.start(message,true);return;}void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{const history:Message[]=[...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}];setMessages(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);});}}>{requestBusy?t("m7"):t("send")}</button>
     </section>
+   </aside>
   </div>
   <section className={styles.exam} aria-label={t("finalExam")}><h2>{t("finalExam")}</h2><p>{help("learnExam")}</p>
    {!finish&&<p>{t("m12")}</p>}

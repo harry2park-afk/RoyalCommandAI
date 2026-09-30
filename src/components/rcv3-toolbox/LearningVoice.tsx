@@ -6,8 +6,8 @@ import {createDictation} from '../../../rcv3/live-dictation.mjs';
 import {LearningConversation} from '@/lib/client/learning-conversation';
 import {AnswerSpeaker} from '@/lib/client/answer-speaker';
 import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
-export type LearningVoiceHandle={stop:()=>void;start:()=>void};
-type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal)=>Promise<string>;onActiveChange?:(active:boolean)=>void};
+export type LearningVoiceHandle={stop:()=>void;stopDictation:()=>void;start:(question?:string,typed?:boolean)=>void};
+type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void};
 export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange}:Props){
  const conversation=useRef<LearningConversation|null>(null),speechDone=useRef<{resolve:()=>void;reject:()=>void}|null>(null);
  const [talking,setTalking]=useState(false),[paused,setPaused]=useState(false);
@@ -19,7 +19,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  const seenAnswer=useRef(answerText);
  const t=(key:LearningLabel)=>learningLabel(key,language);
  const stop=()=>{conversation.current?.stop();conversation.current=null;setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(null);};
- useImperativeHandle(ref,()=>({stop,start:()=>{if(!talking)startConversation();}}));
+ useImperativeHandle(ref,()=>({stop,stopDictation:()=>{if(recognition.current){recognition.current.cancel();recognition.current=null;setListening(false);setStatus(null);}},start:(question?:string,typed=false)=>{if(question||!talking)startConversation(question,typed);}}));
  useEffect(()=>{
   const player=new AnswerSpeaker({load:async(_job,text,signal)=>{
    const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language}),signal});
@@ -37,15 +37,16 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  useEffect(()=>{if(disabled){conversation.current?.stop();recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);}},[disabled]);
  useEffect(()=>{seenAnswer.current=answerText;if(!conversation.current){recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(null);}},[lessonId]); // eslint-disable-line react-hooks/exhaustive-deps
  useEffect(()=>{if(answerText===seenAnswer.current)return;seenAnswer.current=answerText;if(!conversation.current&&auto&&answerText&&!document.hidden&&!recognition.current)speaker.current?.enqueue({id:'tutor',text:answerText});},[answerText,auto]);
- function startConversation(){
-  if(talking){stop();return;}
-  if(disabled||draft.trim())return;
+ function startConversation(opening?:string,typed=false){
+  if(talking&&!opening){stop();return;}
+  if(disabled||(!opening&&draft.trim()))return;
   stop();setAuto(false);background.current=false;setListenOnly(false);
   speaker.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);
+  let typedTurn=typed;
   const engine=new LearningConversation({
    listen:(onText,onEnd,onError)=>{const w=window as unknown as {SpeechRecognition?:new()=>unknown;webkitSpeechRecognition?:new()=>unknown};return createDictation(w.SpeechRecognition||w.webkitSpeechRecognition,{language,onText,onEnd,onError:(_message:string,reason?:string)=>onError(reason)});},
    draft:text=>latest.current.onTranscript(text),
-   ask:(text,signal)=>{if(!latest.current.onQuestion)throw Error('UNAVAILABLE');return latest.current.onQuestion(text,signal);},
+   ask:(text,signal)=>{if(!latest.current.onQuestion)throw Error('UNAVAILABLE');const isTyped=typedTurn;typedTurn=false;return latest.current.onQuestion(text,signal,isTyped);},
    speak:(text,signal)=>new Promise<void>((resolve,reject)=>{
     const finish=(failed=false)=>{signal.removeEventListener('abort',abort);speechDone.current=null;if(failed)reject(Error('VOICE'));else resolve();};
     const abort=()=>finish(true);if(signal.aborted){abort();return;}
@@ -54,7 +55,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
    stopAudio:()=>speaker.current?.stop(),
    phase:value=>{setPaused(value==='paused');if(value!=='idle'&&value!=='error'){setTalking(true);latest.current.onActiveChange?.(true);}setStatus(value==='paused'?'teacherPaused':value==='listening'?'voiceListening':value==='thinking'?'voicePreparing':value==='speaking'?'voiceReading':value==='error'?'voiceError':null);if(value==='idle'||value==='error'){conversation.current=null;setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);}},
   });
-  conversation.current=engine;engine.start(t(resume?'voiceContinueOpening':'voiceOpening'));
+  conversation.current=engine;engine.start(opening||t(resume?'voiceContinueOpening':'voiceOpening'));
  }
  function read(text:string){stop();speaker.current?.prime();speaker.current?.enqueue({id:'tutor',text});}
  function microphone(){
@@ -76,7 +77,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   </div>
   {!talking&&draft.trim()&&<p>{t('voiceDraftFirst')}</p>}
   <details className={styles.options}><summary>{t('teacherMore')}</summary>
-  {onQuestion&&<button type="button" disabled={(disabled||Boolean(draft.trim()))&&!talking} aria-pressed={talking} onClick={startConversation}>{t(talking?'voiceConversationStop':'voiceConversationStart')}</button>}
+  {onQuestion&&<button type="button" disabled={(disabled||Boolean(draft.trim()))&&!talking} aria-pressed={talking} onClick={()=>startConversation()}>{t(talking?'voiceConversationStop':'voiceConversationStart')}</button>}
   <p>{t('voiceConversationHint')}</p>
   <div style={{display:'flex',flexWrap:'wrap',gap:8}}>
    <button type="button" disabled={disabled||listenOnly||talking} aria-pressed={listening} onClick={microphone}>{t(listening?'voiceFinish':'voiceMic')}</button>

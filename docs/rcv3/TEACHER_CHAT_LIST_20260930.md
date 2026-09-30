@@ -1,0 +1,9 @@
+# Existing classroom: conversation and numbered starts
+
+Owner scope: Harry requests a typing/conversation area below the teacher and numbered 1–60 lesson starts. Subsequent clarification: desktop left half textbook/list, right half teacher with typing below; mobile teacher, chat, then curriculum. No entry/form/route change. STANDARD; Codex Writer, review_rcv3 independent Reviewer; Preview branch only. Recovery tag recovery/teacher-chat-list-20260930 points to 72abff02; preserve all server progress and local drafts.
+
+Toolbox learning entry and inventory owner register LearningLessonList before release. Each number invokes the existing voice command parser and authenticated tutor API, then speech and listening. Language-specific request text is parsed for all 60 numbers in en/ko/ja/zh/hi. Teacher/listen engine remains shared; restart cancels superseded work.
+
+Existing conversation UI moved below the teacher. Textarea remains editable during spoken teaching. Send during voice switches to the typed question, displays and speaks its reply, then resumes listening. Plain text mode remains available. Typing cancels ordinary dictation only. Successful typed voice requests clear only the exact submitted draft; a newer draft remains. Navigation uses current local drafts rather than stale captured text. Completion and assessment logic unchanged.
+
+Evidence: 25 focused component/controller/draft/parser tests pass, plus added parser coverage for all 300 localized numbered starts. Typecheck and scoped component lint pass. Independent review passed after standalone dictation and stale-draft corrections. Build/deployment status is checked in the task execution. Actual browser responsive rendering and physical mobile audio remain unverified because signed-in Preview browser access was not permitted; no access-control bypass attempted.
