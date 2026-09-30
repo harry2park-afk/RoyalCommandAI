@@ -1,6 +1,7 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
 const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn()}));
+vi.mock('react-dom',()=>({createPortal:(children:unknown)=>children}));
 vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>({current:v}),useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
 vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
 import LearningVoice from './LearningVoice';
@@ -40,6 +41,15 @@ it('typing cancels standalone dictation so delayed transcript cannot overwrite m
  const {tree,onTranscript,cleanup}=setup();tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick();
  m.handle!.stopDictation();recog.onresult({results:[[{transcript:'late dictation'}]]});expect(onTranscript).not.toHaveBeenCalled();expect(recog.abort).toHaveBeenCalled();
  for(const c of cleanup)if(typeof c==='function')c();
+});
+it('moves the existing stop handler into the V4 answer target without static tutor guidance',()=>{
+ const onActiveChange=vi.fn();
+ const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonTitle:'Original lesson title',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onActiveChange,compact:true,controlsTarget:{} as HTMLElement}));
+ m.effects.map(f=>f());
+ expect(tree.some(n=>n.type==='strong'||n.type==='small')).toBe(false);
+ expect(tree.some(n=>n.type==='span'&&n.props.role==='status')).toBe(false);
+ tree.find(n=>n.type==='button'&&n.props.children==='스톱')!.props.onClick();
+ expect(m.stop).toHaveBeenCalled();expect(onActiveChange).toHaveBeenCalledWith(false);
 });
 it('starts continuous daily teaching and recognizes Stop after earlier microphone results',async()=>{
  const onDaySegment=vi.fn(),onDayComplete=vi.fn(),onActiveChange=vi.fn();

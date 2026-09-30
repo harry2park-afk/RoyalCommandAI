@@ -26,3 +26,18 @@ Risk: FAST, presentation change. Single Writer: Codex. Owner approval covers the
 Source recovery base: `1a2886e05e86d5c9c3ba1b72da49fba892011559`, branch `work/rcv3-provider-balance-20260929`, prior READY Preview deployment `dpl_Ho9hFDuMpX8XCaJ3JpTEAw2Tk9Rt`.
 
 Recheck the remote branch before reflection; do not overwrite concurrent work or force-push. Confirm READY Preview for the new exact commit before announcing publication. This record is local test evidence, not a claim that publication has already succeeded. Source recovery restores tracked source and existing basic assets only; it does not restore customer records, uploaded assets or external provider state. The prior source commit and deployment are retained.
+
+## Follow-up: automatic conversation sizing and moved Stop
+
+Harry approved the right-side follow-up through completion: remove idle avatar/teacher readiness, static lesson title and generic hint; move Stop to the right of the AI speaking text window; size AI text and customer typed/spoken text automatically. FAST scope remains the existing V4 right panel and existing Preview, with no provider, account, payment, left-curriculum or route changes.
+
+Recovery base for this follow-up: `0a741a945e601d622950b13734822ccbfdc06332`, READY Preview `dpl_5Ri8iEGvLyvSo6y7sRNGwVceWmui`. The initial repair and its prior recovery base are preserved.
+
+- The same toolbox LearningVoice Stop/Pause nodes and handlers are moved through a React portal into the answer window. No second speech cancellation implementation is introduced. V3 keeps its original placement and guidance.
+- V4 displays the latest assistant explanation, so the answer window grows for a longer explanation and shrinks for a shorter one. Full conversation state, request history, account-scoped resume/drafts and teaching bookmarks remain unchanged.
+- Shared `LearningAutoTextarea.tsx` sizes the existing value from measured content, with resize/width observation and cleanup. It never changes or submits customer text. It is documented in the existing learning registry, alongside the existing toolbox controls; the inventory checker is unchanged.
+- Answer, dictated transcript and textarea growth are bounded to the viewport. Long content remains scrollable with wheel/touch/keyboard. Avatar sizing adjusts to the remaining desktop area; mobile uses its existing portrait height.
+- Only idle/static guidance is suppressed in the V4 compact presentation. Actual voice failures, microphone unavailability and avatar errors still appear.
+- 25 focused room/voice/draft tests, typecheck, toolbox gate, changed toolbox-component lint and production build passed. Earlier unrelated room/test lint findings are unchanged and are not claimed as passing.
+- Actual Chromium/local-fixture checks verified four desktop viewports, empty-window Stop right alignment, short → long → short typed input, dictated input growth/shrink, latest AI reply growth/shrink, stopped dictation rejecting late results, and moved Stop aborting the existing pending speech request. Stop leaves typing usable. Send success, failed-send draft preservation, reload recovery, settings/input visibility, mobile order and the V3 presentation were checked. The agent-browser daemon remains unavailable; direct Playwright/Chromium supplied the rendering and interaction evidence.
+- Representative 1024×768 heights: typed/dictated input 72 → 168.95 → 72 px; latest AI reply window 84.78 → 230.39 → 84.78 px. This is test-fixture evidence, not an authenticated live provider call or proof of a configured real avatar.

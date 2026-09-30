@@ -1,7 +1,8 @@
 'use client';
-import {useEffect,useRef,useState} from 'react';
+import {useEffect,useRef,useState,type ChangeEvent} from 'react';
 import {Send} from 'lucide-react';
 import ToolButton from '@/components/rcv3-toolbox/ToolButton';
+import LearningAutoTextarea from '@/components/rcv3-toolbox/LearningAutoTextarea';
 import {findHelp} from '@/lib/locale/help-catalog';
 import {COURSE,lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
 import {learningLabel,learningLanguage,type LearningLabel} from "@/lib/locale/learning";
@@ -153,6 +154,8 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
  const v4=entryPath==='/rcv4/learn';
+ const visibleMessages=v4?messages.filter(m=>m.role==='assistant').slice(-1):messages;
+ const [voiceControlsTarget,setVoiceControlsTarget]=useState<HTMLDivElement|null>(null);
  function sendMessage(){
   if(voiceActive){voice.current?.start(message,true);return;}
   void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{
@@ -161,6 +164,11 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   });
  }
  const sendDisabled=!loaded||requestBusy||!draftReady||Boolean(exam)||!message.trim();
+ const messageField={
+  'aria-label':t('m6'),maxLength:2000,rows:v4?1:3,value:message,
+  onChange:(e:ChangeEvent<HTMLTextAreaElement>)=>{voice.current?.stopDictation();setMessage(e.target.value);keepDraft(e.target.value,artifact);},
+  disabled:requestBusy||!draftReady||Boolean(exam),
+ };
  return <main className={`${styles.page}${v4?` ${styles.v4Desktop}`:''}`} lang={locale}>
 
   <div className={styles.layout}>
@@ -197,13 +205,16 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    </div>
    <aside className={styles.teacherColumn} aria-label={t("tutor")}>
   <div className={styles.teacherViewport}>
-  <LearningVoice key={locale} ref={voice} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
+  <LearningVoice key={locale} ref={voice} compact={v4} controlsTarget={voiceControlsTarget} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
   </div>
     <section className={styles.tutor} aria-label={t("tutor")}>{!v4&&<h3>{t("chatWithTeacher")}</h3>}
-     <div ref={chatScroll} aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
+     <div className={v4?styles.answerWindow:styles.legacyAnswer}>
+     <div ref={chatScroll} aria-live="polite" className={styles.messages}>{visibleMessages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
+     {v4&&<div className={styles.voiceControls} ref={setVoiceControlsTarget}/>}
+     </div>
      {voiceTranscript&&<p className={styles.transcript} aria-live="polite">{voiceTranscript}</p>}
      <div className={v4?styles.composer:styles.legacyComposer}>
-     <label>{!v4&&t("m6")}<textarea aria-label={t("m6")} maxLength={2000} rows={3} value={message} onChange={e=>{voice.current?.stopDictation();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={requestBusy||!draftReady||Boolean(exam)}/></label>
+     <label>{!v4&&t("m6")}{v4?<LearningAutoTextarea {...messageField}/>:<textarea {...messageField}/>}</label>
      {v4?<ToolButton toolId="send" className={styles.send} aria-label={requestBusy?t("m7"):t("send")} title={requestBusy?t("m7"):t("send")} disabled={sendDisabled} onClick={sendMessage}><Send size={20} aria-hidden="true"/></ToolButton>:<button disabled={sendDisabled} onClick={sendMessage}>{requestBusy?t("m7"):t("send")}</button>}
      </div>
     </section>

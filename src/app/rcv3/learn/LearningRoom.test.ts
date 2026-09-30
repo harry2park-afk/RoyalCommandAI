@@ -5,6 +5,7 @@ const m=vi.hoisted(()=>({index:0,values:[] as unknown[],changes:[] as unknown[][
 vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:()=>{},useRef:(v:unknown)=>({current:v}),useState:()=>{const i=m.index++;return [m.values[i],(v:unknown)=>m.changes.push([i,v])];}}));
 vi.mock('@/components/help/HelpText',()=>({default:()=>null}));
 import LearningRoom from './LearningRoom';
+import LearningAutoTextarea from '@/components/rcv3-toolbox/LearningAutoTextarea';
 import {sourceDay} from '@/lib/rcv3/learning/groups';
 import {lessons} from '@/lib/rcv3/learning/course';
 function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
@@ -32,11 +33,22 @@ it('reuses the V4 toolbox send control inside the input without visible chat hea
  const n=render(0,[],{},'ko','/rcv4/learn');
  const send=n.find(e=>e.props.toolId==='send')!;
  expect(send.props.disabled).toBe(true);
- expect(n.find(e=>e.type==='textarea'&&e.props.maxLength===2000)?.props['aria-label']).toBeTruthy();
+ expect(n.find(e=>e.type===LearningAutoTextarea&&e.props.maxLength===2000)?.props['aria-label']).toBeTruthy();
  const html=renderToStaticMarkup(n[0]);
  expect(html).not.toContain('튜터와 말하고 글로 대화하기');
  expect(html).not.toContain('>질문 또는 실습 답변<');
  expect(html).toContain('data-rc-tool="send"');
+});
+
+it('shows the latest speaking answer in V4 while keeping full conversation history in V3',()=>{
+ const history=[{role:'assistant',content:'Previous answer'},{role:'user',content:'Question'},{role:'assistant',content:'Current answer'}];
+ for(const entryPath of ['/rcv3/learn','/rcv4/learn'] as const){
+  render(0,[]);m.index=0;m.values[9]=history;
+  const html=renderToStaticMarkup(LearningRoom({ownerId:'alice',language:'ko',entryPath}));
+  expect(html).toContain('Current answer');
+  expect(html.includes('Previous answer')).toBe(entryPath==='/rcv3/learn');
+  expect(m.values[9]).toEqual(history);
+ }
 });
 
 it('sends one V4 typed request, persists its answer, and clears only the successful draft',async()=>{
