@@ -460,5 +460,96 @@
     "ja": "印刷 / PDF保存",
     "zh": "打印 / 保存PDF",
     "hi": "प्रिंट / PDF सहेजें"
+  },
+  "regionSettings": {
+    "en": "Country and learning language",
+    "ko": "국가와 학습 언어",
+    "ja": "国と言語",
+    "zh": "国家和学习语言",
+    "hi": "देश और सीखने की भाषा"
+  },
+  "regionCountry": {
+    "en": "Country / region",
+    "ko": "국가 / 지역",
+    "ja": "国・地域",
+    "zh": "国家／地区",
+    "hi": "देश / क्षेत्र"
+  },
+  "regionChoose": {
+    "en": "Choose your country",
+    "ko": "국가를 선택하세요",
+    "ja": "国を選択",
+    "zh": "请选择国家",
+    "hi": "अपना देश चुनें"
+  },
+  "regionLanguage": {
+    "en": "Learning language",
+    "ko": "학습 언어",
+    "ja": "学習言語",
+    "zh": "学习语言",
+    "hi": "सीखने की भाषा"
+  },
+  "regionIndependent": {
+    "en": "Changing the learning language does not change the country or price.",
+    "ko": "학습 언어를 바꿔도 국가와 요금은 바뀌지 않아요.",
+    "ja": "学習言語を変更しても国や料金は変わりません。",
+    "zh": "更改学习语言不会改变国家或价格。",
+    "hi": "सीखने की भाषा बदलने से देश या शुल्क नहीं बदलता।"
+  },
+  "regionReference": {
+    "en": "USD reference",
+    "ko": "미국 달러 기준액",
+    "ja": "米ドル基準額",
+    "zh": "美元基准价",
+    "hi": "अमेरिकी डॉलर आधार राशि"
+  },
+  "regionPriceHeading": {
+    "en": "RC special member pricing · planned",
+    "ko": "RC 회원 특별 요금 · 예정",
+    "ja": "RC会員特別料金・予定",
+    "zh": "RC会员特别价格 · 计划",
+    "hi": "RC सदस्य विशेष शुल्क · प्रस्तावित"
+  },
+  "regionCourse": {
+    "en": "Education · 30-day access",
+    "ko": "교육 · 30일 이용",
+    "ja": "教育・30日間利用",
+    "zh": "课程 · 30天使用权",
+    "hi": "पाठ्यक्रम · 30 दिन की पहुँच"
+  },
+  "regionRoom": {
+    "en": "Basic room · monthly",
+    "ko": "기본방 · 월회비",
+    "ja": "基本ルーム・月額",
+    "zh": "基本房间 · 月费",
+    "hi": "बेसिक रूम · मासिक शुल्क"
+  },
+  "regionFxPending": {
+    "en": "Local-currency pricing is pending. Converted amounts round up to the next 0.50; whole-unit currencies round up to a whole unit.",
+    "ko": "현지 통화 요금은 확정 전이에요. 환산액은 0.50 단위로 올리고, 소수 결제가 불가능한 통화는 정수로 올려요.",
+    "ja": "現地通貨の料金は未確定です。換算額は0.50単位で切り上げ、小数決済不可の通貨は整数に切り上げます。",
+    "zh": "本地货币价格尚未确定。换算金额按0.50向上取整；不支持小数支付的货币按整数向上取整。",
+    "hi": "स्थानीय मुद्रा का शुल्क अभी तय नहीं है। रूपांतरण को अगले 0.50 तक और बिना दशमलव भुगतान वाली मुद्रा को अगले पूर्ण अंक तक बढ़ाया जाएगा।"
+  },
+  "regionPricePending": {
+    "en": "Pricing preview. Checkout, applicable taxes and access activation are not connected yet.",
+    "ko": "요금 미리보기예요. 결제·적용 세금·이용권 활성화는 아직 연결 전이에요.",
+    "ja": "料金のプレビューです。決済・適用税・利用権の有効化はまだ接続されていません。",
+    "zh": "价格预览。支付、适用税费及使用权激活尚未接入。",
+    "hi": "यह शुल्क का पूर्वावलोकन है। भुगतान, लागू कर और पहुँच सक्रिय करना अभी जुड़ा नहीं है।"
+  },
+  "regionTerm": {
+    "en": "Planned access: 30 days per education registration. After expiry, paid re-registration opens another 30 days with progress retained. Basic-room membership is separate.",
+    "ko": "이용 기준: 교육 등록마다 30일 이용하며, 만료 후 유료 재등록하면 진도를 유지한 채 다시 30일 이용해요. 기본방 월회비는 별도예요.",
+    "ja": "利用方針：教育登録ごとに30日間。期限後は有料再登録で進捗を保持して再び30日間利用できます。基本ルーム会費は別です。",
+    "zh": "使用规则：每次课程注册有效30天。到期后付费重新注册可保留进度并再使用30天。基本房间月费另计。",
+    "hi": "प्रस्तावित नियम: प्रत्येक पाठ्यक्रम पंजीकरण पर 30 दिन। समाप्ति के बाद भुगतान करके दोबारा पंजीकरण से प्रगति सुरक्षित रखते हुए 30 दिन और मिलेंगे। बेसिक रूम की सदस्यता अलग है।"
+  },
+  "regionCertificate": {
+    "en": "Complete the course and pass the final exam to receive a Royal Command course completion certificate.",
+    "ko": "교육 이수와 최종 시험 합격 시 Royal Command 수료증을 받아요.",
+    "ja": "全課程を修了し最終試験に合格すると、Royal Commandの修了証が発行されます。",
+    "zh": "完成课程并通过期末考试后，可获得Royal Command课程结业证书。",
+    "hi": "पाठ्यक्रम पूरा करने और अंतिम परीक्षा पास करने पर Royal Command का पाठ्यक्रम पूर्णता प्रमाणपत्र मिलेगा।"
   }
 }

@@ -15,3 +15,14 @@ it('shows revision status from server work and saves input under the current acc
 
 it('renders Korean lesson text directly without an English-first translate button',()=>{const html=renderToStaticMarkup(render(0,[])[0]);expect(html).toContain('AI 교육방');expect(html).toContain('AI 역사: 규칙 기반에서 오늘의 AI까지');expect(html).not.toContain('Learn with AI');expect(html).not.toContain('Translate');expect(html).not.toContain('PAID COURSE');});
 it('renders each requested language and restores English-only course labels',()=>{for(const [language,title] of [['en','AI Learning Room'],['ja','AI学習ルーム'],['zh','AI学习室'],['hi','AI शिक्षण कक्ष']]){const html=renderToStaticMarkup(render(0,[],{},language)[0]);expect(html).toContain(title);expect(html).not.toContain('AI 교육방');expect(html).not.toContain('AI 역사: 규칙 기반에서 오늘의 AI까지');}});
+
+it('changes country or language in place without clearing progress, drafts or conversation',()=>{
+ const replaceState=vi.fn();vi.stubGlobal('window',{history:{state:{},replaceState}});
+ const n=render(50,[],{'051':{score:60,feedback:'Keep',artifact:'Keep'}});
+ const region=n.find(e=>typeof e.type==='function'&&e.type.name==='LearningRegion')!;
+ region.props.onChange('ko','AU');
+ expect(replaceState).toHaveBeenLastCalledWith({},'', '/rcv3/learn?language=ko&country=AU');
+ expect(m.changes.every(([i])=>Number(i)>=22)).toBe(true);
+ region.props.onChange('en','AU');
+ expect(replaceState).toHaveBeenLastCalledWith({},'', '/rcv3/learn?language=en&country=AU');
+});

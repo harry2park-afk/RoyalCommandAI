@@ -4,9 +4,11 @@ import {findHelp} from '@/lib/locale/help-catalog';
 import {lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
 import {learningLabel,learningLanguage,type LearningLabel} from "@/lib/locale/learning";
 import styles from './learn.module.css';
+import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
+import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
 import {readLearningDraft,saveLearningDraft,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
 type Message={role:'user'|'assistant';content:string};
-export default function LearningRoom({language,ownerId}:{language:string;ownerId:string}){
+export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry=""}:{language:string;ownerId:string;country?:string}){
  const [state,setState]=useState<LearningState>({completed:[],certificate:null}),[practice,setPractice]=useState<Question[]>([]);
  const [day,setDay]=useState(1),[artifact,setArtifact]=useState(''),[clock,setClock]=useState(()=>Date.now()),[offset,setOffset]=useState(0);
  const drafts=useRef<Record<string,string>>({});
@@ -20,9 +22,17 @@ export default function LearningRoom({language,ownerId}:{language:string;ownerId
  useEffect(()=>{if(!exam)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[exam]);
  const remaining=exam?Math.max(0,Math.ceil((Date.parse(exam.expiresAt)-(clock-offset))/1000)):EXAM_MINUTES*60;
  const controller=useRef<AbortController|null>(null),flight=useRef(false);
+ const [content,setContent]=useState<{day:number;language:string;text:Record<string,string>}|null>(null),[translationError,setTranslationError]=useState(false),[translationRetry,setTranslationRetry]=useState(0);
+ const [chosenLanguage,setChosenLanguage]=useState(initialLanguage),[chosenCountry,setChosenCountry]=useState(initialCountry);
+ const language=chosenLanguage??initialLanguage,country=chosenCountry??initialCountry;
  const locale=learningLanguage(language),ko=locale==='ko',lesson=lessons[unit],question=practice.find(q=>q.lesson===lesson.id);
  const t=(key:LearningLabel)=>learningLabel(key,language);
- const [content,setContent]=useState<{day:number;language:string;text:Record<string,string>}|null>(null),[translationError,setTranslationError]=useState(false),[translationRetry,setTranslationRetry]=useState(0);
+ function changeRegion(nextLanguage:string,nextCountry:string){
+  if(busy||exam)return;
+  const safeLanguage=learningLanguage(nextLanguage),safeCountry=learningCountry(nextCountry)?.id??'';
+  setChosenLanguage(safeLanguage);setChosenCountry(safeCountry);
+  window.history.replaceState(window.history.state,'',learningRegionUrl(safeLanguage,safeCountry));
+ }
  const native=locale==='en'||locale==='ko',contentReady=native||(content?.day===day&&content?.language===locale);
  useEffect(()=>{
   if(native)return;const abort=new AbortController();setTranslationError(false);
@@ -57,7 +67,7 @@ export default function LearningRoom({language,ownerId}:{language:string;ownerId
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
  return <main className={styles.page} lang={locale}>
-  <header><a href="/rcv3">← {t("myRooms")}</a><span className={styles.free}>{t("courseBadge")}</span><h1>{t("title")}</h1><p>{help("learnOverview")}</p><label>{locale==='ko'?'언어':locale==='ja'?'言語':locale==='zh'?'语言':locale==='hi'?'भाषा':'Language'} <select value={locale} disabled={busy||Boolean(exam)} onChange={e=>window.location.assign(`/rcv3/learn?language=${e.target.value}`)}><option value="ko">한국어</option><option value="en">English</option><option value="ja">日本語</option><option value="zh">简体中文</option><option value="hi">हिन्दी</option></select></label></header>
+  <header><a href="/rcv3">← {t("myRooms")}</a><span className={styles.courseBadge}>{t("courseBadge")}</span><h1>{t("title")}</h1><p>{help("learnOverview")}</p><LearningRegion language={language} country={country} disabled={busy||Boolean(exam)} onChange={changeRegion}/></header>
   {!native&&<p role="status">{t('autoTranslation')} {!contentReady&&t(translationError?'translationError':'translating')}{translationError&&<button onClick={()=>setTranslationRetry(v=>v+1)}>{t('retry')}</button>}</p>}
   {!loaded&&!error&&<p role="status">{t("loadingProgress")}</p>}
   <div className={styles.progress}><strong>{state.completed.length} / {lessons.length} {t("m4")}</strong><progress max={100} value={state.completed.length}/></div>
