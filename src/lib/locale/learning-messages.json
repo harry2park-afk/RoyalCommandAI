@@ -551,5 +551,96 @@
     "ja": "全課程を修了し最終試験に合格すると、Royal Commandの修了証が発行されます。",
     "zh": "完成课程并通过期末考试后，可获得Royal Command课程结业证书。",
     "hi": "पाठ्यक्रम पूरा करने और अंतिम परीक्षा पास करने पर Royal Command का पाठ्यक्रम पूर्णता प्रमाणपत्र मिलेगा।"
+  },
+  "voiceTitle": {
+    "en": "Voice tutor",
+    "ko": "음성 튜터",
+    "ja": "音声チューター",
+    "zh": "语音导师",
+    "hi": "वॉइस ट्यूटर"
+  },
+  "voiceMic": {
+    "en": "Microphone",
+    "ko": "마이크",
+    "ja": "マイク",
+    "zh": "麦克风",
+    "hi": "माइक्रोफ़ोन"
+  },
+  "voiceFinish": {
+    "en": "Finish speaking",
+    "ko": "말하기 마침",
+    "ja": "話し終える",
+    "zh": "结束说话",
+    "hi": "बोलना समाप्त"
+  },
+  "voiceLesson": {
+    "en": "Listen to lesson",
+    "ko": "강의 듣기",
+    "ja": "授業を聞く",
+    "zh": "听课程",
+    "hi": "पाठ सुनें"
+  },
+  "voiceAnswer": {
+    "en": "Listen to answer",
+    "ko": "답변 듣기",
+    "ja": "回答を聞く",
+    "zh": "听回答",
+    "hi": "उत्तर सुनें"
+  },
+  "voiceStop": {
+    "en": "Stop audio",
+    "ko": "음성 중지",
+    "ja": "音声停止",
+    "zh": "停止语音",
+    "hi": "आवाज़ रोकें"
+  },
+  "voiceAuto": {
+    "en": "Read new tutor answers aloud",
+    "ko": "새 튜터 답변 자동 읽기",
+    "ja": "新しい回答を自動で読み上げる",
+    "zh": "自动朗读导师的新回答",
+    "hi": "ट्यूटर के नए उत्तर अपने आप पढ़ें"
+  },
+  "voicePreparing": {
+    "en": "Preparing audio…",
+    "ko": "음성을 준비하고 있어요…",
+    "ja": "音声を準備中…",
+    "zh": "正在准备语音…",
+    "hi": "आवाज़ तैयार हो रही है…"
+  },
+  "voiceReading": {
+    "en": "Reading aloud…",
+    "ko": "읽어주고 있어요…",
+    "ja": "読み上げ中…",
+    "zh": "正在朗读…",
+    "hi": "पढ़कर सुनाया जा रहा है…"
+  },
+  "voiceListening": {
+    "en": "Listening. Finish speaking, then review and send your question.",
+    "ko": "듣고 있어요. 말하기를 마친 뒤 질문을 확인하고 보내세요.",
+    "ja": "聞き取り中です。話し終えたら質問を確認して送信してください。",
+    "zh": "正在聆听。说完后请确认并发送问题。",
+    "hi": "सुन रहे हैं। बोलने के बाद प्रश्न जाँचकर भेजें।"
+  },
+  "voiceMicError": {
+    "en": "Microphone unavailable or disconnected. Allow microphone access in a supported browser, or type your question.",
+    "ko": "마이크가 연결되지 않았어요. 지원되는 브라우저에서 마이크를 허용하거나 질문을 입력하세요.",
+    "ja": "マイクを使用できません。対応ブラウザで許可するか、質問を入力してください。",
+    "zh": "麦克风不可用或已断开。请在支持的浏览器中允许麦克风，或输入问题。",
+    "hi": "माइक्रोफ़ोन उपलब्ध नहीं है। समर्थित ब्राउज़र में अनुमति दें या प्रश्न टाइप करें।"
+  },
+  "voiceError": {
+    "en": "Audio could not play. Check your connection and daily allowance, then tap Listen again.",
+    "ko": "음성을 재생하지 못했어요. 인터넷 연결과 하루 사용 한도를 확인하고 다시 듣기를 눌러주세요.",
+    "ja": "音声を再生できません。接続と1日の上限を確認し、再度再生してください。",
+    "zh": "无法播放语音。请检查网络和每日额度，然后再次点击收听。",
+    "hi": "आवाज़ नहीं चली। इंटरनेट और दैनिक सीमा जाँचकर फिर सुनें दबाएँ।"
+  },
+  "voiceHint": {
+    "en": "Connect earphones using your phone settings. Speech recognition depends on your browser and may use its speech service. Each audio segment uses one daily AI request.",
+    "ko": "휴대폰 설정에서 이어폰을 연결해 주세요. 음성 입력은 브라우저 지원에 따라 작동하며 브라우저 음성 서비스를 이용할 수 있어요. 읽어주기는 음성 구간마다 하루 AI 요청 1회를 사용해요.",
+    "ja": "端末設定でイヤホンを接続してください。音声入力はブラウザの対応状況により、その音声サービスを使用する場合があります。読み上げは音声区間ごとに1日のAIリクエストを1回使用します。",
+    "zh": "请在手机设置中连接耳机。语音输入取决于浏览器支持，可能使用其语音服务。每段朗读消耗一次每日AI请求额度。",
+    "hi": "फ़ोन की सेटिंग में इयरफ़ोन जोड़ें। वॉइस इनपुट ब्राउज़र पर निर्भर है और उसकी वॉइस सेवा इस्तेमाल कर सकता है। हर ऑडियो खंड एक दैनिक AI अनुरोध लेता है।"
   }
 }

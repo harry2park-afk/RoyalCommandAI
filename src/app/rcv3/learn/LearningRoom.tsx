@@ -4,6 +4,7 @@ import {findHelp} from '@/lib/locale/help-catalog';
 import {lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
 import {learningLabel,learningLanguage,type LearningLabel} from "@/lib/locale/learning";
 import styles from './learn.module.css';
+import LearningVoice,{type LearningVoiceHandle} from '@/components/rcv3-toolbox/LearningVoice';
 import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
 import {readLearningDraft,saveLearningDraft,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
@@ -64,6 +65,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   const draft={message:nextMessage,artifact:nextArtifact};localDrafts.current[lesson.id]=draft;drafts.current[lesson.id]=nextArtifact;
   try{saveLearningDraft(window.localStorage,ownerId,lesson.id,draft);setDraftError(false);}catch{setDraftError(true);}
  }
+ const voice=useRef<LearningVoiceHandle|null>(null);
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
  return <main className={styles.page} lang={locale}>
@@ -82,7 +84,8 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
     <h2>{lesson.id}. {title(lesson)}</h2><p>{t(unit<50?"quizCompletion":"projectCompletion")}</p><p className={styles.lesson}>{translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)}</p>
     <section className={styles.tutor} aria-label={t("tutor")}><h3>{t("learnWithAi")}</h3><p>{help("learnTutor")}</p>
      <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
-     <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>{setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={busy||!draftReady}/></label>
+     <LearningVoice key={`${lesson.id}:${locale}`} ref={voice} language={locale} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={busy||!loaded||!draftReady||Boolean(exam)} onTranscript={text=>{setMessage(text);keepDraft(text,artifact);}}/>
+     <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>{voice.current?.stop();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={busy||!draftReady}/></label>
      <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{setMessages([...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}]);setMessage('');keepDraft('',artifact);})}>{busy?t("m7"):t("send")}</button>
     </section>
     {question&&unit<50&&<section className={styles.check} aria-label={t("m8")}><h3>{t("m8")}</h3><p>{translated(`q.${question.id}`,ko?question.ko:question.text)}</p>{question.options.map((option,i)=><label className={styles.option} key={option}><input type="radio" name="practice" disabled={busy} checked={answer===i} onChange={()=>setAnswer(i)}/>{translated(`q.${question.id}.${i}`,ko?question.koOptions[i]:option)}</label>)}<button disabled={busy||!loaded||!contentReady||answer===null} onClick={()=>void run({action:'practice',lesson:lesson.id,answer},d=>{if(d.correct){setState(d as unknown as LearningState);setNotice(t("m9"));}else setNotice(t("m10"));})}>{t("m11")}</button></section>}

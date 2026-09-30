@@ -667,6 +667,34 @@
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
+      "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#1",
+      "toolId": "learning",
+      "sourceHash": "fb21f3199c0576c46b7a65a44e11df7d7e8bd4e68f714ba99bb03add58fa17e3",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#2",
+      "toolId": "learning",
+      "sourceHash": "0ba22a9b22fcef1222a2661f13cb2c9f4952e9bb79178a340f047f839fee1b27",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#3",
+      "toolId": "learning",
+      "sourceHash": "a63e9606dbf7320ecd477ac175b2d3d64c8e4ca883dd4d8361f9e29097fd9448",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#4",
+      "toolId": "learning",
+      "sourceHash": "a29a316e051b6879c533612d324309063c3f4532d627b21621d54deca94c86eb",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
       "controlId": "src/components/rcv3-toolbox/PaymentGate.tsx#1",
       "toolId": "payment",
       "sourceHash": "6c10fcb6ce5f8f8b96b259969b283fe62443090ea1ac90625346035c55ce7fc0",
