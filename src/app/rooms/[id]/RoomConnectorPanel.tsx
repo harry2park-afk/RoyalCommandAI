@@ -274,7 +274,7 @@ export default function RoomConnectorPanel() {
   );
 
   return <>
-    <button type="button" onClick={openPanel} title={text.dialogTitle} style={{ position: "fixed", right: 184, top: 52, zIndex: 355, height: 60, minWidth: 172, maxWidth: 240, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "2px solid #9f1d2d", borderRadius: 9, background: "linear-gradient(180deg,#f2d566,#d9b640)", color: "#3a2410", padding: "0 16px", fontSize: 14, fontWeight: 900, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,.32)", cursor: "pointer" }}><Plug size={18}/>{text.connectButton}</button>
+    <button id="rc-connect-to-room-button" type="button" onClick={openPanel} title={text.dialogTitle} style={{ position: "fixed", right: 184, top: 52, zIndex: 355, height: 60, minWidth: 172, maxWidth: 240, display: "flex", alignItems: "center", justifyContent: "center", gap: 8, border: "2px solid #9f1d2d", borderRadius: 9, background: "linear-gradient(180deg,#f2d566,#d9b640)", color: "#3a2410", padding: "0 16px", fontSize: 14, fontWeight: 900, whiteSpace: "nowrap", boxShadow: "0 4px 12px rgba(0,0,0,.32)", cursor: "pointer" }}><Plug size={18}/>{text.connectButton}</button>
 
     {open && <div role="dialog" aria-modal="true" aria-label={text.dialogTitle} dir={rtl ? "rtl" : "ltr"} style={{ position: "fixed", inset: 0, zIndex: 5000, background: "rgba(0,0,0,.62)", display: "grid", placeItems: "center", padding: 18 }}>
       <div style={{ width: "min(980px,95vw)", maxHeight: "84vh", overflow: "hidden", border: "1px solid #d6ad31", borderRadius: 14, background: "#07111f", color: "#f3f5f7" }}>

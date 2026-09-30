@@ -37,6 +37,7 @@ export const AI_CATALOG: AICatalogEntry[] = [
   { id: "zeroone", name: "01.AI", shortName: "01.AI", rank: 24, route: "openrouter", modelQuery: "Yi" },
   { id: "tencent", name: "Tencent Hunyuan", shortName: "Hunyuan", rank: 25, route: "openrouter", modelQuery: "Hunyuan" },
   { id: "codex", name: "OpenAI Codex", shortName: "Codex", rank: 26, route: "native", featured: true },
+  { id: "astra", name: "GPT-6 Astra Light", shortName: "Astra", rank: 27, route: "native", featured: true },
 ];
 
 export const AI_CATALOG_BY_ID = Object.fromEntries(

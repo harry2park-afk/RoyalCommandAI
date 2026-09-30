@@ -1,33 +1,20 @@
-# Royal Command Conflict Guard v1 — Ownership Registry
+# Royal Command Conflict Guard — Ownership Registry
 
-Status: **WARNING ONLY**
+Status: **ENFORCING in CI** (`CONFLICT_GUARD_STRICT=1`). Suspected ownership conflicts fail the check; scanner errors fail closed. It does not modify or auto-fix application code. Local diagnostic warning mode is not merge approval.
 
-Conflict Guard v1 observes pull requests and reports likely ownership conflicts. It does **not** modify runtime code, auto-fix code, or block merges.
-
-## Ownership rules
-
-| Surface | Primary owner(s) | Other code should not directly control |
+| Surface | Owner(s) | Protected behavior |
 |---|---|---|
-| Language picker | `public/rc-language-picker.js`, `public/rc-language-dock-fix.js` | `.rc-lang-picker`, language picker DOM placement, language menu DOM |
-| Compact AI dock | `public/rc-compact-ai-dock.js`, `src/app/rooms/[id]/RoomV3.tsx` | compact dock visibility/order, AI slot/selection state |
-| Right work sidebar | `src/app/rooms/[id]/RightWorkSidebar.tsx` | right-panel order and `rightPanelApps` persistence |
-| Conversation controls | `src/app/rooms/[id]/ChatHistorySidebar.tsx`, `public/rc-sidebar-actions-compact.js` | SAVE/DELETE/select conversation behavior |
-| Chat message scroll | `src/app/rooms/[id]/RoomV3.tsx`, `public/rc-chat-scroll-unlock.js` | message viewport scrolling/scroll forcing |
-| User UI preferences | `src/app/api/user/preferences/route.ts` | account-backed preference schema and merge semantics |
+| Language picker | `public/rc-language-picker.js`, `public/rc-language-dock-fix.js` | picker placement/menu DOM |
+| Compact AI Dock | `public/rc-compact-ai-dock.js`, `src/app/rooms/[id]/RoomV3.tsx` | visibility/order/selection |
+| Right work sidebar | `src/app/rooms/[id]/RightWorkSidebar.tsx` | panel order/preferences |
+| Conversation controls | `src/app/rooms/[id]/ChatHistorySidebar.tsx`, `public/rc-sidebar-actions-compact.js` | SAVE/DELETE/selection |
+| Chat scroll | `src/app/rooms/[id]/RoomV3.tsx`, `public/rc-chat-scroll-unlock.js` | viewport scrolling |
+| User preferences | `src/app/api/user/preferences/route.ts` | schema/merge semantics |
 
-## v1 rules
-
-1. A PR may touch an owner file when that surface is the stated task.
-2. If a non-owner file adds code that directly manipulates another surface, Conflict Guard emits a GitHub Actions warning.
-3. Adding a new `MutationObserver`, `appendChild`, `insertBefore`, or forced `scrollTo` in Command Room helper code emits a review warning because these operations can create hidden cross-module ownership.
-4. Warnings are advisory in v1. **Exit status remains success.**
-5. A warning becomes a blocking rule only after repeated real-world confirmation and explicit owner approval.
-
-## Promotion rule
-
-A warning rule may move to blocking mode only when:
-
-- it has caught at least two genuine conflicts,
-- false positives have been reviewed,
-- an automated regression test exists for the protected behavior, and
-- the owner explicitly approves the promotion.
+## Rules
+1. Owner files may change when their surface is explicitly in scope.
+2. Non-owner manipulation of another surface triggers a warning.
+3. New Command Room `MutationObserver`, `appendChild`, `insertBefore` or forced `scrollTo` triggers review.
+4. In CI, no findings = exit 0, ownership findings = exit 1, scanner failure = exit 2. Diagnose these separately.
+5. Review suspected conflicts against the actual owning component before changing an owner rule. Keep regression coverage; do not silence the guard merely to make a PR green.
+6. Large diffs are streamed, preserving the same ownership checks without the former 1 MiB process-output limit.

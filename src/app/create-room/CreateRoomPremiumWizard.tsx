@@ -1,5 +1,6 @@
 "use client";
 
+import HelpText from "@/components/help/HelpText";
 import { useMemo, useState } from "react";
 import {
   BASIC_TRIAL_DAYS,
@@ -246,7 +247,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
               </select>
             </label>
           </div>
-          <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "국가와 언어는 별개입니다. 국가에 따라 가격·공급업체·법적 사용 가능 범위를 따로 적용할 수 있습니다." : "Country and language are separate. Pricing, suppliers and legally available capabilities can be configured independently for each country."}</p>
+          <p className="mt-2 text-xs text-[var(--muted)]"><HelpText helpKey="country"/></p>
         </header>
 
         <div className="mt-5 rounded-[24px] border border-white/10 bg-black/20 p-4">
@@ -268,7 +269,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
         <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_380px]">
           <section className="rounded-[24px] border border-white/10 bg-black/20 p-4 md:p-5">
             <h2 className="text-xl font-semibold text-[var(--gold-soft)]">{categoryLabel(activeCategory, locale)}</h2>
-            <p className="mt-1 text-xs text-[var(--muted)]">{isKorean ? "필요한 서비스만 선택하세요. 세부분야가 표시되므로 같은 카테고리 안에서도 원하는 기능을 쉽게 찾을 수 있습니다." : "Select only what you need. Subcategories help you find the right capability inside each area."}</p>
+            <p className="mt-1 text-xs text-[var(--muted)]"><HelpText helpKey="services"/></p>
             <div className="mt-4 grid gap-3 md:grid-cols-2">
               {visibleItems.map((item) => {
                 const active = selected.includes(item.id);
@@ -303,7 +304,7 @@ export default function CreateRoomPremiumWizard({ initialLocale, initialRoomName
 
           <aside className="h-fit rounded-[28px] border border-[var(--gold)]/35 bg-black/35 p-5 shadow-[0_20px_70px_rgba(0,0,0,.3)] lg:sticky lg:top-6">
             <div className="text-sm font-semibold text-[var(--gold-soft)]">{isKorean ? "내 연결 선택 목록" : "My Connection Selection"}</div>
-            <p className="mt-1 text-xs leading-5 text-[var(--muted)]">{isKorean ? "선택한 연결 서비스만 여기에 표시됩니다. 다른 카테고리로 이동해도 선택은 유지됩니다." : "Only selected connections appear here. Your selections stay in place while browsing other categories."}</p>
+            <p className="mt-1 text-xs leading-5 text-[var(--muted)]"><HelpText helpKey="selectedServices"/></p>
 
             <div className="mt-4 space-y-2">
               {selectedItems.length ? selectedItems.map((item) => (

@@ -1,8 +1,14 @@
+import { guardPaidRoom } from "@/lib/rcv3/paid-service-guard";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 import { orchestrateRoom } from "@/lib/ai/orchestrateRoom";
 import { getAvailableProviderIds } from "@/lib/ai/connectors";
 import type { AIProviderId } from "@/lib/ai/types";
+import { resolveCustomerAI } from "@/lib/rcv3/customer-ai";
+import { accountAnswerLanguage, answerLanguageInstruction } from "@/lib/rcv3/answer-language";
+import { createClient } from "@/lib/supabase/server";
+import { reserve } from "@/lib/rcv3/execution";
+import { randomUUID } from "node:crypto";
 
 export const maxDuration = 120;
 
@@ -22,7 +28,22 @@ export async function POST(request: Request) {
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const data = schema.parse(await request.json());
-    const available = getAvailableProviderIds();
+    const entitlement = await guardPaidRoom(user.id,data.roomId,"secretary");
+    if (entitlement?.onboarding && user.mode === "supabase") {
+      const provider = entitlement.providers[0];
+      if (!provider) return Response.json({error:"No AI provider is connected."},{status:503});
+      const context={user,db:await createClient()};
+      const language=await accountAnswerLanguage(context);
+      const connector=await resolveCustomerAI(user.id,provider,entitlement.onboarding.aiSources[provider] || "platform");
+      await reserve(context,randomUUID(),"helper");
+      const result=await connector.complete({messages:[
+        {role:"system",content:`You are this customer's personal AI secretary. ${answerLanguageInstruction(language)} Answer directly. You cannot send, call, book or pay through this chat. Never claim actions you have not performed.`},
+        ...(data.history || []), {role:"user",content:data.message},
+      ],maxTokens:1500});
+      if(result.error || !result.content.trim())return Response.json({error:"Your selected AI could not answer. Check its connection and retry."},{status:503});
+      return Response.json({answer:result.content,provider});
+    }
+    const available = getAvailableProviderIds().filter(id=>!entitlement||entitlement.providers.includes(id));
     const preferred = (["openai", "anthropic", "google", "xai"] as AIProviderId[])
       .find((id) => available.includes(id)) || available[0];
 

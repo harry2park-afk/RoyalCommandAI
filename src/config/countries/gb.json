@@ -1,4 +1,6 @@
 {
+  "packId": "country-gb",
+  "status": "READY",
   "countryCode": "GB",
   "locale": "en-GB",
   "secondaryLocale": null,

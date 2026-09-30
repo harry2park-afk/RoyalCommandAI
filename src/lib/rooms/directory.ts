@@ -64,7 +64,7 @@ export const ROOM_DIRECTORY: RoomDirectoryItem[] = [
   r("cybersecurity", "Cybersecurity", "보안", "technology"),
   r("telecom-phone", "Telecom & Phone", "통신·전화", "telecom"),
   r("electronics-appliances", "Electronics & Appliances", "전자제품", "electronics"),
-  r("website-builder", "Website Builder", "웹사이트 제작", "technology"),
+  r("website-builder", "Website Studio", "웹사이트 제작", "website"),
   r("app-development", "App Development", "앱 개발", "technology"),
   r("coding-developer", "Coding & Developer", "개발자", "technology"),
   r("creative-studio", "Creative Studio", "디자인·콘텐츠", "marketing"),

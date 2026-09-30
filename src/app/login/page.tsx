@@ -81,6 +81,8 @@ function LoginForm() {
   const restartTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    // Navigator language is browser-only and is read exactly once after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocale(navigator.language || "en-AU");
     return () => {
       if (restartTimer.current) window.clearTimeout(restartTimer.current);

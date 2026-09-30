@@ -4,7 +4,7 @@ import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 import { resolveRoomRouteId } from "@/lib/rooms/resolve-room-id";
 
-const MAX_CONVERSATION_MESSAGES = 250;
+const MAX_CONVERSATION_MESSAGES = 650;
 
 function normaliseTitle(value: unknown) {
   if (typeof value !== "string") return undefined;
@@ -84,4 +84,21 @@ export async function PATCH(
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ conversation: data });
+}
+
+export async function DELETE(
+  _request: Request,
+  context: { params: Promise<{ id: string; conversationId: string }> },
+) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!isSupabaseConfigured()) return NextResponse.json({ error: "Server conversation persistence requires Supabase" }, { status: 503 });
+
+  const { id, conversationId } = await context.params;
+  const roomId = resolveRoomRouteId(id);
+  const supabase = await createClient();
+  const { error } = await supabase.from("conversations").delete()
+    .eq("id", conversationId).eq("room_id", roomId).eq("created_by", user.id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
 }

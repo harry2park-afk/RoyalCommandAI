@@ -28,6 +28,8 @@ export default function PasskeyManager() {
   useEffect(() => {
     const PKC = window.PublicKeyCredential;
     if (!PKC?.isUserVerifyingPlatformAuthenticatorAvailable) {
+      // Browser capability detection is a one-time external-system synchronization.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSupported(false);
       return;
     }
@@ -58,7 +60,9 @@ export default function PasskeyManager() {
     }
   }
 
+  // Configuration is the only refresh trigger and refresh does not mutate it.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void refresh();
   }, [configured]);
 

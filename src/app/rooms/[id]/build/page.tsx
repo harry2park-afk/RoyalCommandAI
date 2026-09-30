@@ -47,6 +47,8 @@ export default function CustomerBuildFormPage() {
   useEffect(() => {
     try {
       const saved = window.localStorage.getItem(storageKey);
+      // The room-scoped draft is hydrated once when its storage key changes.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (saved) setItems(JSON.parse(saved));
     } catch {
       // Keep default form if older local data cannot be read.

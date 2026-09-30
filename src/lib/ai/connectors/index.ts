@@ -1,4 +1,5 @@
 import { AnthropicConnector } from "./anthropic";
+import { AstraConnector } from "./astra";
 import { CodexConnector } from "./codex";
 import { DemoConnector } from "./demo";
 import { GoogleConnector } from "./google";
@@ -19,6 +20,7 @@ const nativeConnectors: Partial<Record<AIProviderId, AIConnector>> = {
   xai: new XAIConnector(),
   perplexity: new PerplexityConnector(),
   codex: new CodexConnector(),
+  astra: new AstraConnector(),
 };
 
 const catalogConnectors: Partial<Record<AIProviderId, AIConnector>> = {};
@@ -62,6 +64,13 @@ export function getConnector(id: AIProviderId): AIConnector {
 
 export function listConnectors(): AIConnector[] {
   return listRegisteredProviderIds().map(getConnector);
+}
+
+export function isProviderConfigured(id: AIProviderId): boolean {
+  if (id === "perplexity") {
+    return Boolean(nativeConnectors.perplexity?.isConfigured() || perplexityOpenRouterConnector.isConfigured());
+  }
+  return Boolean((nativeConnectors[id] || catalogConnectors[id])?.isConfigured());
 }
 
 export function getAvailableProviderIds(): AIProviderId[] {

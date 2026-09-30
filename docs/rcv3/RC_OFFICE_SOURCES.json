@@ -1,0 +1,122 @@
+[
+  {
+    "id": "rc-office-20260922-01",
+    "name": "RC Office 01",
+    "image": "/room-designs/rc-office-20260922-01.webp",
+    "source_name": "따뜻한 브라운 오피스와 시드니 항구 전망.png",
+    "library_file_id": "libfile_a43ba35da1888191a9d9cbbd371bdbc7",
+    "created_at": "2026-09-21T20:37:08.140713Z",
+    "source_sha256": "0b7afdf583f938a4d6f67bcd0667f2aaa3704d8c30c03837352648ab99136654",
+    "image_sha256": "53a4675b78cf73328dfc3ebfc672bf196fe1324713b53f3f5dc038f6baa07654",
+    "width": 1671,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-02",
+    "name": "RC Office 02",
+    "image": "/room-designs/rc-office-20260922-02.webp",
+    "source_name": "갈색 의자 사무실과 시드니 항구.png",
+    "library_file_id": "libfile_59cc9e1362548191ab13f7a4863a2387",
+    "created_at": "2026-09-21T20:37:10.544257Z",
+    "source_sha256": "90466a94926055c342a0b6c287c4f55e44373fa8758d14e0401ff879344bdce3",
+    "image_sha256": "4490f3786419493715984ff621417e3c3cc09428c939b1731d9d5e4aea61078c",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-03",
+    "name": "RC Office 03",
+    "image": "/room-designs/rc-office-20260922-03.webp",
+    "source_name": "브라운 오피스에서 바라본 시드니 하버.png",
+    "library_file_id": "libfile_f868e360374481919558668906d3b17f",
+    "created_at": "2026-09-21T20:37:12.842808Z",
+    "source_sha256": "cc89bf07371c9c13debbb406afacef98d2032d9d8f20fe670ab6c9196df5e31d",
+    "image_sha256": "9b01c58b2d846838b613518ea83678148419f4e9f02757405c014756a47ccf1e",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-04",
+    "name": "RC Office 04",
+    "image": "/room-designs/rc-office-20260922-04.webp",
+    "source_name": "시드니 항구가 보이는 브라운 오피스.png",
+    "library_file_id": "libfile_12fdb56e4730819192a441a1bd7f2f1e",
+    "created_at": "2026-09-21T20:37:15.264086Z",
+    "source_sha256": "a0ebf36cd4d71b1795961c2e46a1398e3bc3cc1e9b76f1474f1e1e5fa87b450a",
+    "image_sha256": "80db82fde010435c73f1296e08c3be9765cf8f8f01a6f3c4f9e5cf55d40d5fb7",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-05",
+    "name": "RC Office 05",
+    "image": "/room-designs/rc-office-20260922-05.webp",
+    "source_name": "노트북이 놓인 브라운 오피스와 시드니 항구.png",
+    "library_file_id": "libfile_0e1cc1f3426c81918ae29888f01bafb1",
+    "created_at": "2026-09-21T20:37:17.538246Z",
+    "source_sha256": "098e346a6fafb3aedca48ab5590f75fd3e4f3a8d734a9c4f866e6cb6c8b53848",
+    "image_sha256": "715762e6762ca865d047df04b70b0fc1ad3e929ba0cabe8a67a31de75fe248bc",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-06",
+    "name": "RC Office 06",
+    "image": "/room-designs/rc-office-20260922-06.webp",
+    "source_name": "브라운 오피스의 시드니 하버 전망.png",
+    "library_file_id": "libfile_00a3a56102c081919ab40c2618b32b9a",
+    "created_at": "2026-09-21T20:37:19.822163Z",
+    "source_sha256": "0bafc105c19693b20dca8e2d905f19a2684a1ce3d58914a8676df1dc683b18dc",
+    "image_sha256": "0e25a86bb2afaa9d96114d10cff91e93e79dce30d524ffc17109cd6743cea79f",
+    "width": 1671,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-07",
+    "name": "RC Office 07",
+    "image": "/room-designs/rc-office-20260922-07.webp",
+    "source_name": "갈색 의자 사무실과 시드니 항구(1).png",
+    "library_file_id": "libfile_9591bb16811c8191b933a44fe7dc40ee",
+    "created_at": "2026-09-21T20:37:22.311533Z",
+    "source_sha256": "8d47094230031f97fd8953c88d40cde0d5ec7a327313057ca7596c5d4d3fc19f",
+    "image_sha256": "07bcac80abbb03613250f5e280c21ea54423a0471a8aec83c4cccb9298964ed5",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-08",
+    "name": "RC Office 08",
+    "image": "/room-designs/rc-office-20260922-08.webp",
+    "source_name": "브라운 가죽 의자와 시드니 항구 전망.png",
+    "library_file_id": "libfile_fb46390b3d2c81918e23e4be30462a93",
+    "created_at": "2026-09-21T20:37:25.050207Z",
+    "source_sha256": "55bb279564de34d98cc1fc8de1235759b784b9808ca37e8a3948e5e1572628f9",
+    "image_sha256": "20fa244623a22a257907639fa91499367e1891d7549440b57ddbb747c736da5c",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-09",
+    "name": "RC Office 09",
+    "image": "/room-designs/rc-office-20260922-09.webp",
+    "source_name": "브라운 오피스 너머 시드니 항구.png",
+    "library_file_id": "libfile_60348d0647ec81919d1c5d09237db1d9",
+    "created_at": "2026-09-21T20:37:28.115293Z",
+    "source_sha256": "9de183413ec530401b378b7c474b35b673a31ee161d9ea3f3ff17ca610e187cf",
+    "image_sha256": "c9c7ee8ea6e4e7c6845aadeb04e94e4a409d378162b9542e00e7b226ad5edd71",
+    "width": 1672,
+    "height": 941
+  },
+  {
+    "id": "rc-office-20260922-10",
+    "name": "RC Office 10",
+    "image": "/room-designs/rc-office-20260922-10.webp",
+    "source_name": "갈색 가죽 오피스와 시드니 항구.png",
+    "library_file_id": "libfile_4053d9dc0a6c8191b1cd77fc15886dfd",
+    "created_at": "2026-09-21T20:37:30.620190Z",
+    "source_sha256": "a29f7c932fc431f644ba164c1fc1d19fc0766a7ecdb6037d9811fee5d27b735a",
+    "image_sha256": "d9eefc9af4766868e794f9d7e83620f1808c9c8139206a88f90141655ddfa1b7",
+    "width": 1671,
+    "height": 941
+  }
+]

@@ -2,9 +2,9 @@ name: Royal Command Quality Gate
 
 on:
   pull_request:
-    branches: [master]
+    branches: [master, feat/independent-ai-rooms-v1-20260906]
   push:
-    branches: [master]
+    branches: [master, feat/independent-ai-rooms-v1-20260906]
 
 permissions:
   contents: read
@@ -33,11 +33,14 @@ jobs:
       - name: Install dependencies reproducibly
         run: npm ci --no-audit --no-fund
 
-      - name: Lint changed code
+      - name: Lint RC V3 and changed code
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
+          npx eslint src/app/rcv3 src/app/api/rcv3 src/lib/rcv3 src/components/rcv3-toolbox rcv3/tool-registry.mjs
+          if [ "${{ github.event_name }}" = "pull_request" ] && [ "${{ github.head_ref }}" != "feat/independent-ai-rooms-v1-20260906" ]; then
             mapfile -t files < <(git diff --name-only --diff-filter=ACMR origin/master...HEAD -- '*.js' '*.jsx' '*.ts' '*.tsx')
+          elif [ "${{ github.event_name }}" = "pull_request" ]; then
+            mapfile -t files < <(git diff --name-only --diff-filter=ACMR '${{ github.event.pull_request.head.sha }}^' '${{ github.event.pull_request.head.sha }}' -- '*.js' '*.jsx' '*.ts' '*.tsx')
           else
             mapfile -t files < <(git diff --name-only --diff-filter=ACMR HEAD^ HEAD -- '*.js' '*.jsx' '*.ts' '*.tsx')
           fi

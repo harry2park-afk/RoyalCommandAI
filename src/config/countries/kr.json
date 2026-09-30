@@ -1,4 +1,6 @@
 {
+  "packId": "country-kr",
+  "status": "READY",
   "countryCode": "KR",
   "locale": "ko-KR",
   "secondaryLocale": null,

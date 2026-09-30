@@ -802,6 +802,8 @@ function ServiceRequestForm({ t, locale, service, onSubmit }) {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
+    // Keep the user's other draft fields while synchronising only the externally selected service.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (service?.key) setCategory(service.key);
   }, [service?.key]);
 

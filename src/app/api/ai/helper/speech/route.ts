@@ -1,9 +1,11 @@
+import { guardRoomVoice } from "@/lib/rcv3/paid-service-guard";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
 
 export const maxDuration = 30;
 
 const schema = z.object({
+  roomId: z.string().uuid().optional(),
   text: z.string().min(1).max(4000),
   language: z.string().optional(),
   greeting: z.boolean().optional(),
@@ -18,6 +20,7 @@ export async function POST(request: Request) {
     if (!key) return Response.json({ error: "OPENAI_API_KEY is not configured" }, { status: 503 });
 
     const data = schema.parse(await request.json());
+    await guardRoomVoice(user.id,data.roomId);
     const language = data.language || user.defaultLanguage || "en";
     const instructions = data.greeting
       ? [

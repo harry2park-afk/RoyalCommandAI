@@ -4,7 +4,7 @@ import { RCA_OPERATING_PROTOCOL, resolveRcMemberCommand } from "./rcMemberLayer"
 const five = ["openai", "anthropic", "google", "xai", "codex"] as const;
 
 describe("RC Member Layer", () => {
-  it("routes the real relay website order to EXECUTE with Codex as writer and four reviewers", () => {
+  it("routes a generic relay order to the first selected writer", () => {
     const prompt = [
       "RCA 홈페이지에 릴레이 개발 테스트를 실행하세요.",
       "목표: 홈페이지 하단 Footer 바로 위에 작은 테스트 문구 RCA Developer Relay Test를 추가하세요.",
@@ -16,21 +16,21 @@ describe("RC Member Layer", () => {
 
     const command = resolveRcMemberCommand(prompt, undefined, [...five]);
     expect(command.mode).toBe("execute");
-    expect(command.leadProviders).toEqual(["codex"]);
-    expect(command.reviewOnlyProviders).toEqual(["openai", "anthropic", "google", "xai"]);
+    expect(command.leadProviders).toEqual(["openai"]);
+    expect(command.reviewOnlyProviders).toEqual(["anthropic", "google", "xai", "codex"]);
     expect(command.gitWrite).toBe(true);
     expect(command.productionAllowed).toBe(false);
   });
 
-  it("prefers Codex as the writer whenever Codex is selected", () => {
+  it("keeps selected order when Codex is present but not explicitly assigned", () => {
     const command = resolveRcMemberCommand(
       "이 UI 코드를 수정하고 안전 브랜치에 반영하세요.",
       undefined,
       ["openai", "google", "codex", "xai"],
     );
     expect(command.mode).toBe("execute");
-    expect(command.leadProviders).toEqual(["codex"]);
-    expect(command.reviewOnlyProviders).toEqual(["openai", "google", "xai"]);
+    expect(command.leadProviders).toEqual(["openai"]);
+    expect(command.reviewOnlyProviders).toEqual(["google", "codex", "xai"]);
   });
 
   it("preserves selected-order fallback when Codex is not selected", () => {

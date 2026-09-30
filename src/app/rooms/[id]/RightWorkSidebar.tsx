@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useParams } from "next/navigation";
 import { File, LogOut, Search } from "lucide-react";
 import RightRoomFinder from "./RightRoomFinder";
 import {
@@ -18,6 +19,13 @@ const BRAND_ICON_OVERRIDES: Record<string, string> = {
   deepseek: "/brand-logos/deepseek.svg",
   kakaotalk: "/brand-logos/kakaotalk.svg",
 };
+
+const WEBSITE_STUDIO_APPS: AppItem[] = [
+  { id: "astra", title: "Astra Light", description: "Website Studio 독립 검토", url: "https://chatgpt.com", localLogo: "/rc-ai-logos/openai.svg", category: "ai", availability: "global" },
+  { id: "codex", title: "Codex", description: "Codex 열기", url: "https://chatgpt.com/codex", localLogo: "/rc-ai-logos/openai.svg", category: "developer", availability: "global" },
+  findAppById("github")!,
+  findAppById("vercel")!,
+];
 
 type LocalFile = { name: string; size: number; url: string };
 type SearchItem =
@@ -46,14 +54,10 @@ function iconSources(app: AppItem) {
   ].filter((source): source is string => Boolean(source))));
 }
 
-function AppIcon({ app }: { app: AppItem }) {
+function AppIconState({ app }: { app: AppItem }) {
   const sources = iconSources(app);
   const [sourceIndex, setSourceIndex] = useState(0);
   const src = sources[sourceIndex];
-
-  useEffect(() => {
-    setSourceIndex(0);
-  }, [app.id]);
 
   if (!src) {
     return (
@@ -74,15 +78,40 @@ function AppIcon({ app }: { app: AppItem }) {
   );
 }
 
+function AppIcon({ app }: { app: AppItem }) {
+  return <AppIconState key={app.id} app={app} />;
+}
+
 export default function RightWorkSidebar() {
+  const params = useParams<{ id: string }>();
+  const roomId = typeof params?.id === "string" ? params.id : "";
   const [query, setQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [localFiles, setLocalFiles] = useState<LocalFile[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [mobileExpanded, setMobileExpanded] = useState(false);
+  const [websiteStudioRoomId, setWebsiteStudioRoomId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const menuScrollRef = useRef<HTMLDivElement>(null);
   const preferencesReady = useRef(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const roomRequest = !roomId || roomId === "rca"
+      ? Promise.resolve({ rooms: [] })
+      : fetch("/api/room-factory/rooms", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : { rooms: [] })
+    void roomRequest
+      .then((data) => {
+        if (cancelled) return;
+        const rooms = Array.isArray(data?.rooms) ? data.rooms : [];
+        setWebsiteStudioRoomId(rooms.some((room: { roomId?: unknown; templateId?: unknown }) =>
+          room.roomId === roomId && room.templateId === "website"
+        ) ? roomId : null);
+      })
+      .catch(() => { if (!cancelled) setWebsiteStudioRoomId(null); });
+    return () => { cancelled = true; };
+  }, [roomId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -154,10 +183,14 @@ export default function RightWorkSidebar() {
     .map((id) => findAppById(id))
     .filter(Boolean) as AppItem[];
 
+  const isWebsiteStudio = websiteStudioRoomId === roomId;
   const visibleSelectedApps = useMemo(() => {
-    if (!cleanQuery) return selectedApps;
-    return selectedApps.filter((app) => appSearchText(app).includes(cleanQuery));
-  }, [selectedApps, cleanQuery]);
+    const roomApps = isWebsiteStudio
+      ? [...WEBSITE_STUDIO_APPS, ...selectedApps.filter((app) => !WEBSITE_STUDIO_APPS.some((item) => item.id === app.id))]
+      : selectedApps;
+    if (!cleanQuery) return roomApps;
+    return roomApps.filter((app) => appSearchText(app).includes(cleanQuery));
+  }, [selectedApps, isWebsiteStudio, cleanQuery]);
 
   const visibleLocalFiles = useMemo(() => {
     if (!cleanQuery) return localFiles;
@@ -298,9 +331,11 @@ export default function RightWorkSidebar() {
               <AppIcon app={app} />
               <span className="rc-right-app-title min-w-0 flex-1 truncate text-[10px] font-semibold leading-none">{app.title}</span>
             </button>
-            <button type="button" onClick={() => removeApp(app.id)} className="rc-right-remove mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
-              <LogOut size={15} />
-            </button>
+            {!isWebsiteStudio || !WEBSITE_STUDIO_APPS.some((item) => item.id === app.id) ? (
+              <button type="button" onClick={() => removeApp(app.id)} className="rc-right-remove mr-0.5 grid h-6 w-6 shrink-0 place-items-center bg-transparent text-white/55 hover:text-white/90" title="메뉴에서 빼기">
+                <LogOut size={15} />
+              </button>
+            ) : null}
           </div>
         ))}
 

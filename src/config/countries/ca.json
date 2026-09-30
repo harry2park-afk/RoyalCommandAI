@@ -1,4 +1,6 @@
 {
+  "packId": "country-ca",
+  "status": "READY",
   "countryCode": "CA",
   "locale": "en-CA",
   "secondaryLocale": "fr-CA",

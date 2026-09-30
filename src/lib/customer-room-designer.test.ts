@@ -19,13 +19,15 @@ describe("customer room designer config", () => {
           colourStrength: 99,
           textColor: "#fFaa00",
           borderWidth: 99,
+          borderRadius: 99,
+          visible: false,
         },
       },
     });
 
     expect(result?.elements["build-your-room"]).toEqual({
       offsetX: 1200,
-      offsetY: -92,
+      offsetY: -999,
       width: 520,
       height: 20,
       fontSize: 32,
@@ -35,14 +37,17 @@ describe("customer room designer config", () => {
       colourStrength: 10,
       textColor: "#FFAA00",
       borderWidth: 5,
+      borderRadius: 40,
+      visible: false,
     });
   });
 
-  it("drops unknown controls and unsafe colour values", () => {
+  it("accepts safe auto-discovered controls and drops unsafe ids and colours", () => {
     const result = sanitiseCustomerRoomDesignConfig({
       screenId: "ROOM_HEADER",
       elements: {
-        "customer-secret": { offsetX: 5 },
+        "auto-abc12345": { offsetX: 5, visible: true },
+        "unsafe selector[]": { offsetX: 10 },
         "ai-warehouse": {
           borderColor: "red",
           backgroundColor: "url(javascript:alert(1))",
@@ -51,7 +56,10 @@ describe("customer room designer config", () => {
       },
     });
 
-    expect(result?.elements).toEqual({ "ai-warehouse": {} });
+    expect(result?.elements).toEqual({
+      "auto-abc12345": { offsetX: 5, visible: true },
+      "ai-warehouse": {},
+    });
   });
 
   it("rejects configs for another surface", () => {
