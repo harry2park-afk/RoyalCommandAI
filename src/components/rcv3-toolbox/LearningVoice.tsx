@@ -5,8 +5,8 @@ import {LearningConversation} from '@/lib/client/learning-conversation';
 import {AnswerSpeaker} from '@/lib/client/answer-speaker';
 import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
 export type LearningVoiceHandle={stop:()=>void};
-type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal)=>Promise<string>;onActiveChange?:(active:boolean)=>void};
-export default function LearningVoice({ref,language,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange}:Props){
+type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal)=>Promise<string>;onActiveChange?:(active:boolean)=>void};
+export default function LearningVoice({ref,language,lessonId,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange}:Props){
  const conversation=useRef<LearningConversation|null>(null),speechDone=useRef<{resolve:()=>void;reject:()=>void}|null>(null);
  const [talking,setTalking]=useState(false);
  const background=useRef(false);
@@ -31,6 +31,7 @@ export default function LearningVoice({ref,language,lessonText,answerText,draft,
   return()=>{conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();speaker.current=null;};
  },[language]);
  useEffect(()=>{if(disabled){recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);}},[disabled]);
+ useEffect(()=>{seenAnswer.current=answerText;if(!conversation.current){recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(null);}},[lessonId]); // eslint-disable-line react-hooks/exhaustive-deps
  useEffect(()=>{if(answerText===seenAnswer.current)return;seenAnswer.current=answerText;if(!conversation.current&&auto&&answerText&&!document.hidden&&!recognition.current)speaker.current?.enqueue({id:'tutor',text:answerText});},[answerText,auto]);
  function startConversation(){
   if(talking){stop();return;}

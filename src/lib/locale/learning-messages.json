@@ -665,11 +665,11 @@
     "hi": "वॉइस बातचीत समाप्त करें"
   },
   "voiceConversationHint": {
-    "en": "Voice conversation sends your question automatically after a pause, reads the answer, then listens again. This version takes turns; it does not support interrupting playback or locked-screen conversation.",
-    "ko": "음성 대화는 말을 마치고 잠시 쉬면 질문을 보내고, 답변을 읽은 뒤 다시 들어요. 현재는 번갈아 대화하며, 재생 중 끼어들기와 화면 잠금 중 대화는 지원하지 않아요.",
-    "ja": "音声会話は間を置くと質問を送信し、回答を読み上げてから再び聞き取ります。現在は交互の会話で、再生中の割り込みや画面ロック中の会話には対応していません。",
-    "zh": "语音对话会在停顿后自动发送问题，朗读回答后再次聆听。当前为轮流对话，不支持播放中打断或锁屏对话。",
-    "hi": "रुकने के बाद प्रश्न अपने आप भेजा जाएगा, उत्तर सुनाकर फिर सुना जाएगा। अभी बारी-बारी बातचीत है; बोलते उत्तर को बीच में रोकना और लॉक स्क्रीन पर बातचीत समर्थित नहीं है।"
+    "ko": "시작 후 “3번 수업 시작해 줘”, “읽어줘”, “다시 설명해 줘”라고 말할 수 있어요. 튜터의 말이 끝나면 질문을 듣습니다. 화면 잠금 상태의 대화와 말 끼어들기는 아직 지원하지 않습니다.",
+    "en": "After starting, say “start lesson 3”, “read it”, or ask for another explanation. The tutor listens after speaking. Lock-screen conversation and interruption are not supported.",
+    "ja": "開始後「3課を始めて」「読んで」と話したり、説明を頼めます。講師が話し終えると質問を聞きます。画面ロック中の会話や割り込みは未対応です。",
+    "zh": "开始后可说“3课开始”“朗读”或要求重新解释。导师说完后会听您的问题。暂不支持锁屏对话或打断。",
+    "hi": "शुरू करने के बाद “पाठ 3 शुरू करो”, “पढ़कर सुनाओ” कहें या फिर समझाने को कहें। ट्यूटर बोलने के बाद सुनता है। लॉक स्क्रीन पर बातचीत या बीच में बोलना समर्थित नहीं है।"
   },
   "voiceOpening": {
     "en": "Please introduce this lesson briefly, then ask me one question.",
@@ -691,5 +691,19 @@
     "ja": "学習",
     "zh": "学习",
     "hi": "भाग"
+  },
+  "voiceLessonMissing": {
+    "ko": "해당 수업 번호가 없어요. 1번부터 60번 사이의 수업을 말씀해 주세요.",
+    "en": "That lesson is unavailable. Please choose a lesson from 1 to 60.",
+    "ja": "その授業はありません。1から60の授業を選んでください。",
+    "zh": "没有这节课。请选择第1至60课。",
+    "hi": "यह पाठ उपलब्ध नहीं है। कृपया 1 से 60 के बीच पाठ चुनें।"
+  },
+  "voiceNoAnswer": {
+    "ko": "아직 다시 들려드릴 답변이 없어요. 궁금한 점을 말씀해 주세요.",
+    "en": "There is no previous answer yet. What would you like to ask?",
+    "ja": "まだ前の回答がありません。質問をどうぞ。",
+    "zh": "还没有上一个回答。您想问什么？",
+    "hi": "अभी पिछला उत्तर नहीं है। आप क्या पूछना चाहेंगे?"
   }
 }

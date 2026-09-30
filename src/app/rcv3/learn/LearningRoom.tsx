@@ -4,7 +4,8 @@ import {findHelp} from '@/lib/locale/help-catalog';
 import {COURSE,lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
 import {learningLabel,learningLanguage,type LearningLabel} from "@/lib/locale/learning";
 import styles from './learn.module.css';
-import {groups,sourceDay,groupComplete,completedGroupCount} from '@/lib/rcv3/learning/groups';
+import {groups,sourceDay,groupForSource,groupComplete,completedGroupCount} from '@/lib/rcv3/learning/groups';
+import {learningVoiceCommand,voiceLessonIndex} from '@/lib/client/learning-voice-command';
 import LearningVoice,{type LearningVoiceHandle} from '@/components/rcv3-toolbox/LearningVoice';
 import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
@@ -26,7 +27,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const controller=useRef<AbortController|null>(null),flight=useRef(false);
  const [content,setContent]=useState<{day:number;language:string;text:Record<string,string>}|null>(null),[translationError,setTranslationError]=useState(false),[translationRetry,setTranslationRetry]=useState(0);
  const [chosenLanguage,setChosenLanguage]=useState(initialLanguage),[chosenCountry,setChosenCountry]=useState(initialCountry);
- const [voiceActive,setVoiceActive]=useState(false);
+ const [voiceActive,setVoiceActive]=useState(false),[voiceTranscript,setVoiceTranscript]=useState('');
  const busy=requestBusy||Boolean(voiceActive);
  const language=chosenLanguage??initialLanguage,country=chosenCountry??initialCountry;
  const locale=learningLanguage(language),ko=locale==='ko',lesson=lessons[unit],question=practice.find(q=>q.lesson===lesson.id);
@@ -68,6 +69,35 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   const draft={message:nextMessage,artifact:nextArtifact};localDrafts.current[lesson.id]=draft;drafts.current[lesson.id]=nextArtifact;
   try{saveLearningDraft(window.localStorage,ownerId,lesson.id,draft);setDraftError(false);}catch{setDraftError(true);}
  }
+ async function voiceQuestion(text:string,signal:AbortSignal):Promise<string>{
+  const command=learningVoiceCommand(text),currentGroup=groups.indexOf(groupForSource(lesson.id));
+  const targetGroup=command?voiceLessonIndex(command,currentGroup,groups.length):currentGroup;
+  if(targetGroup===null)return t('voiceLessonMissing');
+  const navigating=command?.kind==='lesson'||command?.kind==='next';
+  const target=navigating?lessons.find(l=>l.id===groups[targetGroup].sources[0])!:lesson;
+  const prior=target.id===lesson.id?messages:conversations.current[target.id]?.messages??[];
+  let spoken:string;
+  if(command?.kind==='repeat')spoken=[...prior].reverse().find(m=>m.role==='assistant')?.content??t('voiceNoAnswer');
+  else if(command?.kind==='read'){
+   if(native)spoken=ko?target.ko:target.body;
+   else{
+    const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:sourceDay(target.id),language:locale}),signal});
+    if(!r.ok)throw Error('VOICE');const d=await r.json();spoken=d.text?.[`body.${target.id}`];if(!spoken)throw Error('VOICE');
+   }
+  }else{
+   const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat',course:COURSE,voice:true,lesson:target.id,language:locale,message:navigating?t('voiceOpening'):text,history:navigating?[]:prior.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))}),signal});
+   if(!r.ok)throw Error('VOICE');const d=await r.json();spoken=String(d.answer??'');if(!spoken.trim())throw Error('VOICE');
+  }
+  if(signal.aborted)throw Error('CANCELLED');
+  // The voice controller stays mounted across curriculum changes. Preserve each lesson's work.
+  if(target.id!==lesson.id){
+   selectUnit(lessons.findIndex(l=>l.id===target.id));setDay(sourceDay(target.id));
+   const saved=localDrafts.current[target.id];setMessage(saved?.message??'');
+  }
+  setVoiceTranscript('');
+  setMessages([...prior,{role:'user',content:text},{role:'assistant',content:spoken}]);
+  return spoken;
+ }
  const voice=useRef<LearningVoiceHandle|null>(null);
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
@@ -79,28 +109,27 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>{t("retry")}</button>}</div>}
   <p>{t("topicHelp")}</p>
   <div className={styles.layout}>
-   <label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label>
+   <div className={styles.curriculum}><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label>
    {groups.filter(g=>g.day===day).map(group=>{const units=group.sources.map(id=>lessons.find(l=>l.id===id)!);const active=group.sources.includes(lesson.id);const label=ko?group.koTitle:units.map(title).join(' · ');return <section className={styles.unit} key={group.id}>
     <button type="button" className={styles.unitButton} disabled={!loaded||busy||!draftReady} aria-expanded={active} aria-controls={`lesson-${active?lesson.id:group.sources[0]}`} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===(group.sources.find(id=>!state.completed.includes(id))??group.sources[0])))}><span>{group.id}</span><strong>{label}</strong>{groupComplete(group,state.completed)&&<small>✓ {t("m5")}</small>}</button>
     {active&&<article id={`lesson-${lesson.id}`} aria-label={label}>
     {units.length>1&&<div>{units.map((part,n)=><button key={part.id} type="button" disabled={busy||!draftReady} aria-pressed={part.id===lesson.id} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===part.id))}>{t('lessonPart')} {n+1}{state.completed.includes(part.id)?' ✓':''}</button>)}</div>}
     <h2>{group.id}. {title(lesson)}</h2><p>{t(unit<50?"quizCompletion":"projectCompletion")}</p><p className={styles.lesson}>{translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)}</p>
-    <section className={styles.tutor} aria-label={t("tutor")}><h3>{t("learnWithAi")}</h3><p>{help("learnTutor")}</p>
-     <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
-     <LearningVoice key={`${lesson.id}:${locale}`} ref={voice} language={locale} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onActiveChange={setVoiceActive} onQuestion={async(text,signal)=>{
-      const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat',course:COURSE,voice:true,lesson:lesson.id,language:locale,message:text,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))}),signal});
-      if(!r.ok)throw Error('VOICE');const d=await r.json();if(signal.aborted)throw Error('CANCELLED');
-      const answer=String(d.answer);setMessages(old=>[...old,{role:'user',content:text},{role:'assistant',content:answer}]);setMessage('');keepDraft('',artifact);return answer;
-     }} onTranscript={text=>{setMessage(text);keepDraft(text,artifact);}}/>
-     <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>{voice.current?.stop();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={busy||!draftReady}/></label>
-     <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{setMessages([...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}]);setMessage('');keepDraft('',artifact);})}>{busy?t("m7"):t("send")}</button>
-    </section>
+
     {question&&unit<50&&<section className={styles.check} aria-label={t("m8")}><h3>{t("m8")}</h3><p>{translated(`q.${question.id}`,ko?question.ko:question.text)}</p>{question.options.map((option,i)=><label className={styles.option} key={option}><input type="radio" name="practice" disabled={busy} checked={answer===i} onChange={()=>setAnswer(i)}/>{translated(`q.${question.id}.${i}`,ko?question.koOptions[i]:option)}</label>)}<button disabled={busy||!loaded||!contentReady||answer===null} onClick={()=>void run({action:'practice',lesson:lesson.id,answer},d=>{if(d.correct){setState(d as unknown as LearningState);setNotice(t("m9"));}else setNotice(t("m10"));})}>{t("m11")}</button></section>}
     {unit>=50&&<section className={styles.check} aria-label={t("assignment")}><h3>{t("assignment")}</h3><p>{help("learnProject")}</p><label>{t("evidence")}<textarea rows={10} maxLength={6000} value={artifact} disabled={busy||!draftReady} onChange={e=>{setArtifact(e.target.value);keepDraft(message,e.target.value);}}/></label><small>{artifact.trim().length} / 6000</small><button disabled={!loaded||busy||state.completed.includes(lesson.id)||artifact.trim().length<150} onClick={()=>void run({action:'project',lesson:lesson.id,artifact},d=>{setState(d as unknown as LearningState);setNotice(`${d.projectScore} / 100 — ${d.feedback}`);})}>{t("submitFeedback")}</button>{state.work?.[lesson.id]&&<div><strong>{t(state.completed.includes(lesson.id)?"passedWork":"reviseWork")} · {state.work[lesson.id].score} / 100</strong><p>{state.work[lesson.id].feedback}</p></div>}</section>}
     {draftReady&&<p role="status">{t(draftError?'draftError':'draftSaved')}</p>}
     {notice&&<p role="status">{notice}</p>}
     {state.completed.includes(lesson.id)&&<div role="status"><strong>✓ {t("m5")}</strong>{nextLesson&&<button type="button" disabled={busy||!draftReady} onClick={()=>{setDay(nextLesson.day);selectUnit(unit+1);requestAnimationFrame(()=>document.getElementById(`lesson-${nextLesson.id}`)?.scrollIntoView({block:"start"}));}}>{t("nextLesson")}</button>}</div>}
    </article>}</section>})}
+   </div>
+    <section className={styles.tutor} aria-label={t("tutor")}><h3>{t("learnWithAi")}</h3><p>{help("learnTutor")}</p>
+     <div aria-live="polite" className={styles.messages}>{messages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
+     <LearningVoice key={locale} ref={voice} language={locale} lessonId={lesson.id} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
+     {voiceTranscript&&<p aria-live="polite">{voiceTranscript}</p>}
+     <label>{t("m6")}<textarea maxLength={2000} rows={4} value={message} onChange={e=>{voice.current?.stop();setMessage(e.target.value);keepDraft(e.target.value,artifact);}} disabled={busy||!draftReady}/></label>
+     <button disabled={!loaded||busy||!message.trim()} onClick={()=>void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{setMessages([...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}]);setMessage('');keepDraft('',artifact);})}>{busy?t("m7"):t("send")}</button>
+    </section>
   </div>
   <section className={styles.exam} aria-label={t("finalExam")}><h2>{t("finalExam")}</h2><p>{help("learnExam")}</p>
    {!finish&&<p>{t("m12")}</p>}
