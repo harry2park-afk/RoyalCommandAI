@@ -1,6 +1,6 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
-const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn()}));
+const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn()}));
 vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>({current:v}),useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
 vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
 import LearningVoice from './LearningVoice';
@@ -22,10 +22,10 @@ it('keeps playback on hide only after explicit listen-only selection, but stops 
  m.stop.mockClear();hide();expect(m.stop).not.toHaveBeenCalled();
  device();expect(m.stop).toHaveBeenCalled();
 });
-it('visible teacher start opens a spoken lesson through the shared question handler',async()=>{
+it('voice conversation still opens through the shared question handler',async()=>{
  const onQuestion=vi.fn(async()=> 'teacher explanation');const onActiveChange=vi.fn();
  const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonTitle:'1. 첫 수업',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onQuestion,onActiveChange}));
- const cleanup=m.effects.map(f=>f());tree.find(n=>n.type==='button'&&n.props.children==='수업 시작')!.props.onClick();await Promise.resolve();
+ const cleanup=m.effects.map(f=>f());tree.find(n=>n.type==='button'&&n.props.children==='음성 대화 시작')!.props.onClick();await Promise.resolve();
  expect(m.prime).toHaveBeenCalled();expect(onQuestion).toHaveBeenCalledWith(expect.any(String),expect.any(AbortSignal),false);expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'teacher explanation'});expect(onActiveChange).toHaveBeenCalledWith(true);
  for(const c of cleanup)if(typeof c==='function')c();
 });
@@ -39,5 +39,14 @@ it('number selection starts the requested lesson and typed questions interrupt s
 it('typing cancels standalone dictation so delayed transcript cannot overwrite manual edits',()=>{
  const {tree,onTranscript,cleanup}=setup();tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick();
  m.handle!.stopDictation();recog.onresult({results:[[{transcript:'late dictation'}]]});expect(onTranscript).not.toHaveBeenCalled();expect(recog.abort).toHaveBeenCalled();
+ for(const c of cleanup)if(typeof c==='function')c();
+});
+it('starts continuous daily teaching and recognizes Stop after earlier microphone results',async()=>{
+ const onDaySegment=vi.fn(),onDayComplete=vi.fn(),onActiveChange=vi.fn();
+ const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'preserve draft',disabled:false,onTranscript:vi.fn(),onActiveChange,onDayPlan:async()=>({parts:[{lesson:'001',paragraph:0,text:'first teaching'},{lesson:'002',paragraph:0,text:'second teaching'}],index:0}),onDaySegment,onDayComplete}));
+ const cleanup=m.effects.map(f=>f());m.handle!.startDay();await Promise.resolve();await Promise.resolve();expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'first teaching'});expect(onDaySegment).toHaveBeenCalledOnce();
+ const earlier=Object.assign([{transcript:'previous speech'}],{isFinal:true}),command=Object.assign([{transcript:'오늘은 그만 하자'}],{isFinal:true});
+ recog.onresult({resultIndex:1,results:[earlier,command,Object.assign([{transcript:'interim'}],{isFinal:false})]});await Promise.resolve();expect(onActiveChange).toHaveBeenLastCalledWith(false);expect(onDayComplete).not.toHaveBeenCalled();expect(m.enqueue).toHaveBeenCalledTimes(1);
+ expect(tree.some(n=>n.type==='button'&&n.props.children==='스톱')).toBe(true);expect(tree.some(n=>n.type==='button'&&n.props.children==='수업 시작')).toBe(false);
  for(const c of cleanup)if(typeof c==='function')c();
 });

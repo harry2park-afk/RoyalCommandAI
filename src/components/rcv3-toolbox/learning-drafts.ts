@@ -22,3 +22,8 @@ export type LearningResume=z.infer<typeof resumeSchema>;
 function resumeKey(owner:string,language:string){if(!owner||!['en','ko','ja','zh','hi'].includes(language))throw Error('INVALID_RESUME');return `rc-learning-resume:${encodeURIComponent(owner)}:${COURSE}:${language}`;}
 export function readLearningResume(storage:StoragePort,owner:string,language:string):LearningResume|null{const raw=storage.getItem(resumeKey(owner,language));return raw===null?null:resumeSchema.parse(JSON.parse(raw));}
 export function saveLearningResume(storage:StoragePort,owner:string,language:string,value:LearningResume){storage.setItem(resumeKey(owner,language),JSON.stringify(resumeSchema.parse(value)));}
+
+const teachingBookmarkSchema=z.object({day:z.number().int().min(1).max(30),lesson:z.string().refine(id=>lessons.some(l=>l.id===id)),paragraph:z.number().int().min(0).max(500),finished:z.boolean()}).strict().refine(v=>sourceDay(v.lesson)===v.day);
+export type TeachingBookmark=z.infer<typeof teachingBookmarkSchema>;
+export function readTeachingBookmark(storage:StoragePort,owner:string,language:string):TeachingBookmark|null{const raw=storage.getItem(`${resumeKey(owner,language)}:teaching`);return raw===null?null:teachingBookmarkSchema.parse(JSON.parse(raw));}
+export function saveTeachingBookmark(storage:StoragePort,owner:string,language:string,value:TeachingBookmark){storage.setItem(`${resumeKey(owner,language)}:teaching`,JSON.stringify(teachingBookmarkSchema.parse(value)));}

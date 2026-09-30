@@ -10,7 +10,9 @@ export function createDictation(Recognition, {language, onText, onEnd, onError})
  recognition.onresult = event => {
   if (closed) return;
   const text = Array.from(event.results, result => (result[0]?.transcript || '').trim()).filter(Boolean).join(' ');
-  onText(text);
+  const changed=Array.from(event.results).slice(event.resultIndex ?? 0);
+  const finalized=changed.filter(result=>result.isFinal).at(-1);
+  onText(text,finalized ? (finalized[0]?.transcript || '').trim() : undefined);
  };
  recognition.onerror = event => {
   if (closed) return;

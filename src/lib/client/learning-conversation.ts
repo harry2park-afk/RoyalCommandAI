@@ -1,3 +1,4 @@
+import {teachingStopCommand} from './learning-day-player';
 export type ConversationPhase='idle'|'listening'|'thinking'|'speaking'|'paused'|'error';
 type Recognition={start():void;cancel():void};
 type Options={
@@ -26,7 +27,7 @@ export class LearningConversation{
  private async turn(generation:number){
   if(!this.active||generation!==this.generation)return;
   this.generation++;const turn= this.generation;clearTimeout(this.timer);this.recognition?.cancel();this.recognition=undefined;
-  const text=this.text.trim();if(/^(stop|end conversation|음성 중지|대화 종료|停止|終了|रोकें)[.!?。\s]*$/i.test(text)){this.stop();return;}
+  const text=this.text.trim();if(teachingStopCommand(text)){this.stop();return;}if(/^(stop|end conversation|음성 중지|대화 종료|停止|終了|रोकें)[.!?。\s]*$/i.test(text)){this.stop();return;}
   if(/^(?:잠깐|잠간|잠시)(?:\s*기다려(?:\s*줘(?:요)?)?)?[.!?\s]*$|^(?:기다려|잠시 멈춰|pause|wait|ちょっと待って|暂停|等一下|रुको)[.!?。\s]*$/i.test(text)){this.pause();return;}
   if(this.paused){if(/^(?:시작해(?:\s*줘(?:요)?)?|다시 시작(?:해)?|계속해(?:\s*줘(?:요)?)?|이어(?:서)?(?:\s*시작해)?(?:\s*줘(?:요)?)?|resume|start|continue|再開|继续|शुरू करो)[.!?。\s]*$/i.test(text))this.resume();else this.listen();return;}
   this.abort=new AbortController();const signal=AbortSignal.any([this.abort.signal,AbortSignal.timeout(65000)]);

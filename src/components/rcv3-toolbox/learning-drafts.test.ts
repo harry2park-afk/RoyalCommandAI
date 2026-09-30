@@ -14,3 +14,7 @@ it('resumes a known lesson only for the same owner and language without mutating
  expect(readLearningResume(storage,'owner1','ko')).toEqual(value);expect(readLearningResume(storage,'owner2','ko')).toBeNull();expect(readLearningResume(storage,'owner1','en')).toBeNull();
  expect(()=>saveLearningResume(storage,'owner1','ko',{...value,lesson:'999'})).toThrow();expect(values.size).toBe(1);
 });
+it('teaching bookmarks preserve paragraph position separately for each owner and language',async()=>{
+ const {saveTeachingBookmark,readTeachingBookmark}=await import('./learning-drafts');const values=new Map<string,string>();const storage={getItem:(k:string)=>values.get(k)??null,setItem:(k:string,v:string)=>{values.set(k,v);}};
+ const value={day:1,lesson:'003',paragraph:2,finished:false};saveTeachingBookmark(storage,'owner1','ko',value);expect(readTeachingBookmark(storage,'owner1','ko')).toEqual(value);expect(readTeachingBookmark(storage,'owner2','ko')).toBeNull();expect(readTeachingBookmark(storage,'owner1','en')).toBeNull();expect(()=>saveTeachingBookmark(storage,'owner1','ko',{...value,day:30})).toThrow();
+});
