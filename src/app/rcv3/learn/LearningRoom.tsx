@@ -11,7 +11,7 @@ import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
 import {readLearningDraft,saveLearningDraft,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
 type Message={role:'user'|'assistant';content:string};
-export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry=""}:{language:string;ownerId:string;country?:string}){
+export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry="",entryPath="/rcv3/learn",homeHref="/rcv3"}:{language:string;ownerId:string;country?:string;entryPath?:"/rcv3/learn"|"/rcv4/learn";homeHref?:string}){
  const [state,setState]=useState<LearningState>({completed:[],certificate:null}),[practice,setPractice]=useState<Question[]>([]);
  const [day,setDay]=useState(1),[artifact,setArtifact]=useState(''),[clock,setClock]=useState(()=>Date.now()),[offset,setOffset]=useState(0);
  const drafts=useRef<Record<string,string>>({});
@@ -36,7 +36,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   if(busy||exam)return;
   const safeLanguage=learningLanguage(nextLanguage),safeCountry=learningCountry(nextCountry)?.id??'';
   setChosenLanguage(safeLanguage);setChosenCountry(safeCountry);
-  window.history.replaceState(window.history.state,'',learningRegionUrl(safeLanguage,safeCountry));
+  window.history.replaceState(window.history.state,'',learningRegionUrl(safeLanguage,safeCountry,entryPath));
  }
  const native=locale==='en'||locale==='ko',contentReady=native||(content?.day===day&&content?.language===locale);
  useEffect(()=>{
@@ -102,7 +102,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
  return <main className={styles.page} lang={locale}>
-  <header><a href="/rcv3">← {t("myRooms")}</a><span className={styles.courseBadge}>{t("courseBadge")}</span><h1>{t("title")}</h1><p>{help("learnOverview")}</p><LearningRegion language={language} country={country} disabled={busy||Boolean(exam)} onChange={changeRegion}/></header>
+  <header><a href={homeHref}>← {t("myRooms")}</a><span className={styles.courseBadge}>{t("courseBadge")}</span><h1>{t("title")}</h1><p>{help("learnOverview")}</p><LearningRegion language={language} country={country} disabled={busy||Boolean(exam)} onChange={changeRegion}/></header>
   {!native&&<p role="status">{t('autoTranslation')} {!contentReady&&t(translationError?'translationError':'translating')}{translationError&&<button onClick={()=>setTranslationRetry(v=>v+1)}>{t('retry')}</button>}</p>}
   {!loaded&&!error&&<p role="status">{t("loadingProgress")}</p>}
   <div className={styles.progress}><strong>{completedGroupCount(state.completed)} / {groups.length} {t("m4")}</strong><progress max={groups.length} value={completedGroupCount(state.completed)}/></div>
@@ -136,7 +136,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    <button disabled={!loaded||busy||!finish} onClick={()=>void run({action:'start'},d=>{setExam(d as unknown as {attempt:string;questions:Question[];expiresAt:string;serverNow:string});if(exam?.attempt!==d.attempt)setAnswers({});setScore(null);setClock(Date.now());setOffset(Date.now()-Date.parse(String(d.serverNow)));})}>{t(exam?'resumeExam':'startExam')}</button>
    {exam&&<div><p role="timer">{t("timeRemaining")}: {Math.floor(remaining/60)}:{String(remaining%60).padStart(2,'0')}</p>{remaining===0&&<p>{t("m2")}</p>}{exam.questions.map((q,n)=><fieldset key={q.id} disabled={busy||remaining===0}><legend>{n+1}. {ko?q.ko:q.text}</legend>{q.options.map((o,i)=><label className={styles.option} key={o}><input type="radio" name={q.id} checked={answers[q.id]===i} onChange={()=>setAnswers({...answers,[q.id]:i})}/>{ko?q.koOptions[i]:o}</label>)}</fieldset>)}<button disabled={busy||remaining===0||exam.questions.some(q=>answers[q.id]===undefined)} onClick={()=>void run({action:'submit',attempt:exam.attempt,answers:exam.questions.map(q=>answers[q.id])},d=>{setScore(Number(d.score));setState(d as unknown as LearningState);setExam(null);setAnswers({});})}>{t("m13")}</button></div>}
    {score!==null&&<p role="status">{score} / 100 — {score>=PASS_MARK?t("m14"):t("m15")}</p>}
-   {state.certificate&&<div className={styles.award}><h3>✓ {t("m16")}</h3><a href={`/rcv3/learn/certificate/${state.certificate.id}?language=${locale}`}>{t("m17")}</a></div>}
+   {state.certificate&&<div className={styles.award}><h3>✓ {t("m16")}</h3><a href={`/rcv3/learn/certificate/${state.certificate.id}?language=${locale}&country=${encodeURIComponent(country)}&entry=${entryPath==='/rcv4/learn'?'v4':'v3'}`}>{t("m17")}</a></div>}
   </section>
   <details className={styles.exam}><summary>{t("sources")}</summary><p>{t("sourceNote")}</p><ul><li><a href="https://home.dartmouth.edu/about/artificial-intelligence-ai-coined-dartmouth" target="_blank" rel="noreferrer">{t("sourceHistory")}</a></li><li><a href="https://doi.org/10.1609/aimag.v27i4.1904" target="_blank" rel="noreferrer">{t("sourceProposal")}</a></li><li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">{t("sourceTransformer")}</a></li><li><a href="https://hai.stanford.edu/ai-index/2026-ai-index-report" target="_blank" rel="noreferrer">{t("sourceIndex")}</a></li><li><a href="https://www.nist.gov/itl/ai-risk-management-framework" target="_blank" rel="noreferrer">{t("sourceRisk")}</a></li></ul></details>
  </main>;

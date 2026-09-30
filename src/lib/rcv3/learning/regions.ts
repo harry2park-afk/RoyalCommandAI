@@ -27,8 +27,8 @@ export function roundLearningPrice(decimal:string,zeroDecimal=false):string{
  const rounded=(value*units+scale-BigInt(1))/scale;
  return zeroDecimal?String(rounded):`${rounded/BigInt(2)}.${rounded%BigInt(2)?'50':'00'}`;
 }
-export function learningRegionUrl(language:string,country:unknown){
+export function learningRegionUrl(language:string,country:unknown,path:"/rcv3/learn"|"/rcv4/learn"="/rcv3/learn"){
  const query=new URLSearchParams({language:learningLanguage(language)}),region=learningCountry(country);
  if(region)query.set('country',region.id);
- return `/rcv3/learn?${query}`;
+ return `${path}?${query}`;
 }
