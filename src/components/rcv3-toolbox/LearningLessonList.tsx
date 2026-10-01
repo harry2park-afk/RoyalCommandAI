@@ -1,12 +1,15 @@
 'use client';
-import {useRef} from 'react';
+import {useRef,useImperativeHandle,type Ref} from 'react';
 import {learningLabel} from '@/lib/locale/learning';
 import styles from './LearningLessonList.module.css';
-export default function LearningLessonList({language,titles,selected,completed,disabled,onStart}:{language:string;titles:readonly string[];selected:number;completed:readonly number[];disabled:boolean;onStart:(number:number)=>void}){
+export type LearningLessonListHandle={open:()=>void};
+export default function LearningLessonList({ref,language,titles,selected,completed,disabled,onStart}:{ref?:Ref<LearningLessonListHandle>;language:string;titles:readonly string[];selected:number;completed:readonly number[];disabled:boolean;onStart:(number:number)=>void}){
  const dialog=useRef<HTMLDialogElement|null>(null);
+ const open=()=>{if(!disabled&&dialog.current&&!dialog.current.open)dialog.current.showModal();};
+ useImperativeHandle(ref,()=>({open}));
  const t=(key:Parameters<typeof learningLabel>[0])=>learningLabel(key,language);
  return <section className={styles.list} aria-label={t('lessonList')}>
-  <button type="button" disabled={disabled} aria-haspopup="dialog" onClick={()=>dialog.current?.showModal()}>{t('lessonList')}</button>
+  <button type="button" disabled={disabled} aria-haspopup="dialog" onClick={open}>{t('lessonList')}</button>
   <dialog ref={dialog} className={styles.dialog} aria-label={t('lessonList')}>
    <div className={styles.heading}><h2>{t('lessonList')}</h2><button type="button" onClick={()=>dialog.current?.close()}>Close</button></div>
    <p>{t('lessonListHint')}</p>

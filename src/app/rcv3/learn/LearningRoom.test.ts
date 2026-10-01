@@ -116,3 +116,17 @@ it('prepares the next teaching day without marking any assessment complete',asyn
  expect(m.changes.some(([i])=>i===0)).toBe(false);
  expect(values.get('rc-learning-resume:alice:ai-literacy-100-v1:ko:teaching')).toContain('"finished":true');
 });
+
+it('shows a numbered greeting only for V4 and prepends it to the selected source without extra requests',async()=>{
+ vi.stubGlobal('window',{localStorage:{getItem:()=>null}});const fetch=vi.fn();vi.stubGlobal('fetch',fetch);
+ for(const language of ['ko','en']){
+  const teacher=render(0,[],{},language,'/rcv4/learn').find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
+  expect(teacher.props.onChooseLesson).toEqual(expect.any(Function));
+  const plan=await teacher.props.onDayPlan(new AbortController().signal,'053');
+  expect(plan.parts[plan.index]).toMatchObject({lesson:'053',paragraph:0});
+  expect(plan.parts[plan.index].text.startsWith(language==='ko'?'안녕하세요. 오늘은 27번 수업을 시작하겠습니다.':'Hello. Today we will begin lesson 27.')).toBe(true);
+  expect(plan.parts[plan.index+1].text).not.toContain(language==='ko'?'안녕하세요.':'Hello.');
+ }
+ const legacy=render(0,[],{},'ko','/rcv3/learn').find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
+ expect(legacy.props.onChooseLesson).toBeUndefined();const plan=await legacy.props.onDayPlan(new AbortController().signal,'053');expect(plan.parts[plan.index].text).not.toContain('안녕하세요.');expect(fetch).not.toHaveBeenCalled();
+});

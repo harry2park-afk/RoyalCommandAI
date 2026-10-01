@@ -11,7 +11,7 @@ import {groups,sourceDay,groupForSource,groupComplete,completedGroupCount} from 
 import {learningVoiceCommand,voiceLessonIndex} from '@/lib/client/learning-voice-command';
 import LearningVoice,{type LearningVoiceHandle} from '@/components/rcv3-toolbox/LearningVoice';
 import {teachingParagraphs,type TeachingSegment} from '@/lib/client/learning-day-player';
-import LearningLessonList from '@/components/rcv3-toolbox/LearningLessonList';
+import LearningLessonList,{type LearningLessonListHandle} from '@/components/rcv3-toolbox/LearningLessonList';
 import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
 import {readLearningDraft,saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,readLearningResume,saveLearningResume,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
@@ -154,6 +154,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   });
   let index=v4?Math.max(0,parts.findIndex(p=>p.lesson===(requestedLesson??lesson.id))):0;
   try{const saved=readTeachingBookmark(window.localStorage,ownerId,locale);if(saved&&saved.day===planDay&&!saved.finished&&(!v4||(saved.lesson===lesson.id&&!requestedLesson))){const savedIndex=parts.findIndex(p=>p.lesson===saved.lesson&&p.paragraph===saved.paragraph);if(savedIndex>=0)index=savedIndex;}}catch{setDraftError(true);}
+  if(v4&&parts[index])parts[index]={...parts[index],text:`${lessonGreeting(parts[index].lesson)} ${parts[index].text}`};
   return {parts,index};
  }
  function teachingSegment(part:TeachingSegment){
@@ -165,12 +166,19 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  }
  function teachingFinished(){try{const saved=readTeachingBookmark(window.localStorage,ownerId,locale);if(saved){saveTeachingBookmark(window.localStorage,ownerId,locale,{...saved,finished:true});const next=v4?lessons.findIndex(l=>sourceDay(l.id)>saved.day):-1;if(next>=0){selectUnit(next);setDay(sourceDay(lessons[next].id));}}}catch{setDraftError(true);}}
  const voice=useRef<LearningVoiceHandle|null>(null);
+ const lessonList=useRef<LearningLessonListHandle|null>(null);
+ function lessonGreeting(id:string){return t('lessonGreeting').replace('{number}',String(groups.indexOf(groupForSource(id))+1).padStart(2,'0'));}
+ function chooseLesson(){if(v4&&!requestBusy&&loaded&&draftReady&&!exam)lessonList.current?.open();}
  function startListedLesson(number:number){
   if(!v4){voice.current?.start(t('lessonStartRequest').replace('{number}',String(number)));return;}
   const selected=groups[number-1];if(!selected||requestBusy||!loaded||!draftReady||exam)return;
-  const index=lessons.findIndex(l=>l.id===selected.sources[0]);
+  const continueCurrent=selected.sources.includes(lesson.id);
+  const index=continueCurrent?unit:lessons.findIndex(l=>l.id===selected.sources[0]);
   voice.current?.stop();selectUnit(index);setDay(selected.day);
-  if(!localDrafts.current[lessons[index].id]?.message.trim())voice.current?.startDay(lessons[index].id);
+  if(!localDrafts.current[lessons[index].id]?.message.trim()){
+   setBoardExplanation(lessonGreeting(lessons[index].id));
+   voice.current?.startDay(continueCurrent?undefined:lessons[index].id);
+  }
  }
  useEffect(()=>{
   if(v4&&voiceActive){const frame=requestAnimationFrame(()=>document.getElementById(`lesson-${lesson.id}`)?.scrollIntoView({block:'start'}));return()=>cancelAnimationFrame(frame);}
@@ -203,7 +211,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>{t("retry")}</button>}</div>}
   <p>{t("topicHelp")}</p>
 
-<LearningLessonList language={locale} titles={groups.map(g=>ko?g.koTitle:g.sources.map(id=>(content?.language===locale?content.text[`title.${id}`]:undefined)??lessons.find(l=>l.id===id)!.title).join(' · '))} selected={groups.indexOf(groupForSource(lesson.id))+1} completed={groups.flatMap((g,i)=>groupComplete(g,state.completed)?[i+1]:[])} disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onStart={startListedLesson}/><div className={styles.dayStart}><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label>{!v4&&<button type="button" disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onClick={()=>voice.current?.startDay()}>{t('teacherStart')}</button>}</div>
+<LearningLessonList ref={lessonList} language={locale} titles={groups.map(g=>ko?g.koTitle:g.sources.map(id=>(content?.language===locale?content.text[`title.${id}`]:undefined)??lessons.find(l=>l.id===id)!.title).join(' · '))} selected={groups.indexOf(groupForSource(lesson.id))+1} completed={groups.flatMap((g,i)=>groupComplete(g,state.completed)?[i+1]:[])} disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onStart={startListedLesson}/><div className={styles.dayStart}><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label>{!v4&&<button type="button" disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onClick={()=>voice.current?.startDay()}>{t('teacherStart')}</button>}</div>
    {groups.filter(g=>g.day===day).map(group=>{const units=group.sources.map(id=>lessons.find(l=>l.id===id)!);const active=group.sources.includes(lesson.id);const label=ko?group.koTitle:units.map(title).join(' · ');return <section className={styles.unit} key={group.id}>
     <button type="button" className={styles.unitButton} disabled={!loaded||busy||!draftReady} aria-expanded={active} aria-controls={`lesson-${active?lesson.id:group.sources[0]}`} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===(group.sources.find(id=>!state.completed.includes(id))??group.sources[0])))}><span>{group.id}</span><strong>{label}</strong>{groupComplete(group,state.completed)&&<small>✓ {t("m5")}</small>}</button>
     {active&&<article id={`lesson-${lesson.id}`} aria-label={label}>
@@ -227,7 +235,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    </div>
    <aside className={styles.teacherColumn} aria-label={t("tutor")}>
   <div className={styles.teacherViewport}>
-  <LearningVoice key={locale} ref={voice} compact={v4} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
+  <LearningVoice key={locale} ref={voice} compact={v4} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onChooseLesson={v4?chooseLesson:undefined} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
   </div>
     <section className={styles.tutor} aria-label={t("tutor")}>{!v4&&<h3>{t("chatWithTeacher")}</h3>}
      <div className={v4?styles.answerWindow:styles.legacyAnswer}>

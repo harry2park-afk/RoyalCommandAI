@@ -8,8 +8,8 @@ import {LearningConversation} from '@/lib/client/learning-conversation';
 import {AnswerSpeaker} from '@/lib/client/answer-speaker';
 import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
 export type LearningVoiceHandle={startDay:(lessonId?:string)=>void;stop:()=>void;stopDictation:()=>void;start:(question?:string,typed?:boolean)=>void};
-type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onDayPlan?:(signal:AbortSignal,lessonId?:string)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;compact?:boolean};
-export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange,onDayPlan,onDaySegment,onDayComplete,compact=false}:Props){
+type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onDayPlan?:(signal:AbortSignal,lessonId?:string)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;onChooseLesson?:()=>void;compact?:boolean};
+export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange,onDayPlan,onDaySegment,onDayComplete,onChooseLesson,compact=false}:Props){
  const avatar=useRef<LearningAvatarHandle|null>(null);
  const dayPlayer=useRef<LearningDayPlayer|null>(null),dayLoad=useRef<AbortController|null>(null),dayMic=useRef<ReturnType<typeof createDictation>|null>(null),dayRetry=useRef<ReturnType<typeof setTimeout>|null>(null);
  const [dayMicError,setDayMicError]=useState(false);
@@ -92,8 +92,9 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
    recognition.current=session;session.start();setListening(true);setStatus('voiceListening');
   }catch{recognition.current?.cancel();recognition.current=null;setListening(false);setStatus('voiceMicError');}
  }
- function touchTeacher(){if(dayPlayer.current||dayLoad.current){stop();return;}if(!talking){void startDay();return;}if(paused)conversation.current?.resume();else conversation.current?.pause();}
- const controls=<div className={styles.actions}>{compact&&<button type="button" disabled={disabled||talking||Boolean(draft.trim())||!onDayPlan} onClick={()=>void startDay()}>{t('teacherStart')}</button>}<button type="button" onClick={stop}>{t('teacherStop')}</button>{!compact&&talking&&<button type="button" onClick={touchTeacher}>{t(paused?'teacherResume':'teacherPause')}</button>}</div>;
+ function startLesson(){if(disabled)return;if(compact&&onChooseLesson){stop();onChooseLesson();}else void startDay();}
+ function touchTeacher(){if(dayPlayer.current||dayLoad.current){stop();return;}if(!talking){startLesson();return;}if(paused)conversation.current?.resume();else conversation.current?.pause();}
+ const controls=<div className={styles.actions}>{compact&&<button type="button" disabled={disabled||talking||(!onChooseLesson&&(Boolean(draft.trim())||!onDayPlan))} aria-haspopup={onChooseLesson?'dialog':undefined} onClick={startLesson}>{t('teacherStart')}</button>}<button type="button" onClick={stop}>{t('teacherStop')}</button>{!compact&&talking&&<button type="button" onClick={touchTeacher}>{t(paused?'teacherResume':'teacherPause')}</button>}</div>;
  return <div className={`${styles.voice}${compact?` ${styles.compact}`:''}`} aria-label={t('voiceTitle')}>
   <div className={styles.teacher}>
    <LearningAvatar ref={avatar} language={language} compact={compact} disabled={!talking&&(disabled||Boolean(draft.trim()))} onTouch={touchTeacher} label={t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}/>

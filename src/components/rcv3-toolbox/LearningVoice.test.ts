@@ -94,3 +94,15 @@ it('requests the fixed male profile only for V4 and preserves locale/text/cancel
   for(const c of cleanup)if(typeof c==='function')c();
  }
 });
+
+it('V4 Start opens the registered lesson selector immediately instead of starting speech or bypassing a draft',()=>{
+ const onChooseLesson=vi.fn(),onDayPlan=vi.fn();
+ const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'keep this question',disabled:false,onTranscript:vi.fn(),onChooseLesson,onDayPlan,compact:true}));
+ m.effects.map(f=>f());const start=tree.find(n=>n.type==='button'&&n.props.children==='수업 시작')!;
+ expect(start.props.disabled).toBe(false);expect(start.props['aria-haspopup']).toBe('dialog');start.props.onClick();
+ expect(onChooseLesson).toHaveBeenCalledOnce();expect(onDayPlan).not.toHaveBeenCalled();expect(m.enqueue).not.toHaveBeenCalled();
+});
+it('blocked access does not open the lesson selector',()=>{
+ const onChooseLesson=vi.fn();const tree=nodes(LearningVoice({language:'en',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:true,onTranscript:vi.fn(),onChooseLesson,compact:true}));
+ const start=tree.find(n=>n.type==='button'&&n.props.children==='Start lesson')!;expect(start.props.disabled).toBe(true);start.props.onClick();expect(onChooseLesson).not.toHaveBeenCalled();
+});

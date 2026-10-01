@@ -706,6 +706,13 @@
     "zh": "还没有上一个回答。您想问什么？",
     "hi": "अभी पिछला उत्तर नहीं है। आप क्या पूछना चाहेंगे?"
   },
+  "lessonGreeting": {
+    "en": "Hello. Today we will begin lesson {number}.",
+    "ko": "안녕하세요. 오늘은 {number}번 수업을 시작하겠습니다.",
+    "ja": "こんにちは。今日は第{number}課を始めます。",
+    "zh": "您好。今天我们开始第{number}课。",
+    "hi": "नमस्ते। आज हम पाठ {number} शुरू करेंगे।"
+  },
   "teacherStart": {
     "en": "Start lesson",
     "ko": "수업 시작",
