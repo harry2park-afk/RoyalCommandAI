@@ -1,8 +1,8 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
-const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn()}));
+const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>)}));
 vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>({current:v}),useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
-vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
+vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{constructor(options:{load:typeof m.load}){m.load=options.load;}enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
 import LearningVoice from './LearningVoice';
 function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
 let recog:any;
@@ -80,4 +80,17 @@ it('forwards an explicit listed source to the existing daily player and cancels 
  (m.handle as unknown as {startDay:(lesson:string)=>void}).startDay('005');await Promise.resolve();await Promise.resolve();
  expect(onDayPlan).toHaveBeenCalledWith(expect.any(AbortSignal),'005');expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'selected source teaching'});
  m.handle!.stop();expect(m.stop).toHaveBeenCalled();for(const c of cleanup)if(typeof c==='function')c();
+});
+
+it('requests the fixed male profile only for V4 and preserves locale/text/cancellation',async()=>{
+ for(const compact of [true,false]){
+  m.effects=[];vi.stubGlobal('fetch',vi.fn(async()=>new Response('audio')));
+  LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),compact});
+  const cleanup=m.effects.map(f=>f()),signal=new AbortController().signal;
+  await m.load!({},'original lesson or answer',signal);
+  const [url,options]=vi.mocked(fetch).mock.calls[0];
+  expect(url).toBe('/api/rcv3/learn/speech');expect(options!.signal).toBe(signal);
+  expect(JSON.parse(options!.body as string)).toEqual({text:'original lesson or answer',language:'ko',...(compact?{tutor:'v4-male'}:{})});
+  for(const c of cleanup)if(typeof c==='function')c();
+ }
 });

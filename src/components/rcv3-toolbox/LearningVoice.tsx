@@ -27,7 +27,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  useImperativeHandle(ref,()=>({stop,startDay:(lessonId?:string)=>{void startDay(lessonId);},stopDictation:()=>{if(recognition.current){recognition.current.cancel();recognition.current=null;setListening(false);setStatus(null);}},start:(question?:string,typed=false)=>{if(question||!talking)startConversation(question,typed);}}));
  useEffect(()=>{
   const player=new AnswerSpeaker({load:async(_job,text,signal)=>{
-   const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language}),signal});
+   const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language,...(compact?{tutor:'v4-male'}:{})}),signal});
    if(!r.ok)throw Error('SPEECH');return r.blob();
   },play:(blob,signal)=>avatar.current?.play(blob,signal)??Promise.resolve(false),stopPlayback:()=>avatar.current?.stop(),status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle')speechDone.current?.resolve();if(value==='error')speechDone.current?.reject();}});
   speaker.current=player;
@@ -36,7 +36,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   document.addEventListener('visibilitychange',hide);
   navigator.mediaDevices?.addEventListener('devicechange',halt);
   return()=>{cancelDay();conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();speaker.current=null;};
- },[language]);
+ },[language,compact]);
  // External speech sessions must stop immediately when access or exam state disables voice.
  // stop reads refs only; rerun this external cancellation only when disabled changes.
  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps

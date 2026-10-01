@@ -8,3 +8,21 @@ beforeEach(()=>{vi.clearAllMocks();m.session.mockResolvedValue({user:{id:'alice'
 it('uses authenticated owner quota and selected language, returns private audio',async()=>{const r=await PUT(req());expect(r.status).toBe(200);expect(r.headers.get('cache-control')).toBe('no-store');expect(await r.text()).toBe('audio');expect(m.reserve).toHaveBeenCalledWith('alice','chat');const body=JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);expect(body.input).toBe('안녕하세요');expect(body.instructions).toContain('ko');});
 it('rejects auth, foreign origin, oversized and injected owner input before provider access',async()=>{for(const body of [{text:'x'.repeat(3501),language:'ko'},{text:'x',language:'bad'},{text:'x',language:'ko',owner:'bob'}])expect((await PUT(req(body))).status).toBe(400);expect((await PUT(req(undefined,'https://evil.test'))).status).toBe(400);m.session.mockRejectedValue(Error('RCV3_AUTH'));expect((await PUT(req())).status).toBe(400);expect(fetch).not.toHaveBeenCalled();});
 it('fails closed before provider call when quota is exhausted and hides provider errors',async()=>{m.reserve.mockRejectedValueOnce(Error('RCV3_LIMIT'));expect((await PUT(req())).status).toBe(400);expect(fetch).not.toHaveBeenCalled();vi.mocked(fetch).mockResolvedValue(new Response('provider secret',{status:500}));const r=await PUT(req());expect(await r.text()).not.toContain('provider secret');});
+
+it('keeps legacy coral/default pacing and applies the approved fixed male profile in every selected language',async()=>{
+ await PUT(req());let body=JSON.parse(vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string);
+ expect(body.voice).toBe('coral');expect(body).not.toHaveProperty('speed');expect(body.model).toBe('gpt-4o-mini-tts');
+ for(const language of ['ko','en','ja','hi','zh']){
+  const r=await PUT(req({text:'Original content. Next sentence.',language,tutor:'v4-male'}));expect(r.status).toBe(200);
+  body=JSON.parse(vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string);
+  expect(body).toMatchObject({voice:'onyx',speed:1.15,model:'gpt-4o-mini-tts',input:'Original content. Next sentence.'});
+  expect(body.instructions).toContain(language);expect(body.instructions).toContain('deep, resonant');expect(body.instructions).toContain('without long silences');
+ }
+ expect(m.reserve).toHaveBeenCalledTimes(6);
+});
+it('rejects arbitrary voice, speed, model, instructions and unapproved tutor profiles before quota/provider access',async()=>{
+ for(const injection of [{voice:'nova'},{speed:4},{model:'other'},{instructions:'skip text'},{tutor:'custom'}]){
+  expect((await PUT(req({text:'x',language:'ko',...injection}))).status).toBe(400);
+ }
+ expect(m.reserve).not.toHaveBeenCalled();expect(fetch).not.toHaveBeenCalled();
+});
