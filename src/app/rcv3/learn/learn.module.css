@@ -71,8 +71,8 @@
  .v4Desktop .teacherViewport>div{margin-bottom:0}
  .v4Desktop .teacherColumn>.tutor{display:flex;flex-direction:column;gap:8px;flex:none;min-height:0;padding:12px;box-sizing:border-box}
  .v4Desktop .messages{overflow:auto;overflow-wrap:anywhere}
- /* Keep long explanations from taking the tutor's portrait space. */
- .v4Desktop .answerWindow{max-height:min(18dvh,180px)}
+ /* Return the former separate 44px tutor-control row to the conversation. */
+ .v4Desktop .answerWindow{min-height:100px;max-height:calc(min(18dvh,180px) + 44px)}
 }
 @media(min-width:1000px){
  /* Preserve the previous tutor width; give the reclaimed margins to study. */

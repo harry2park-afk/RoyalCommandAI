@@ -21,3 +21,11 @@
 .compact .actions{flex:none;justify-content:space-between;flex-wrap:nowrap}
 .compact .actions button{padding:8px 12px;min-height:44px}
 @media(min-width:761px){.compact .teacher>div:first-child{overflow:hidden}}
+/* V4 desktop: portrait and footer share a bottom baseline; errors retain a separate row. */
+@media(min-width:761px){
+ .compact .teacher{display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(80px,1fr) auto;gap:0}
+ .compact .teacher>div:first-child{grid-column:1;grid-row:1;height:100%}
+ .compact .actions{grid-column:1;grid-row:1;align-self:end;z-index:1;pointer-events:none}
+ .compact .actions button{pointer-events:auto}
+ .compact .caption{grid-column:1;grid-row:2;margin-top:8px}
+}
