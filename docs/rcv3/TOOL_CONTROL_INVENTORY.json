@@ -690,7 +690,7 @@
     {
       "controlId": "src/components/rcv3-toolbox/LearningAvatar.tsx#1",
       "toolId": "learning",
-      "sourceHash": "5f5ee2f2f10a3f0b358fe1fe50b3800a3b05013536a6af56e2e02228177f895d",
+      "sourceHash": "94570ff2009e54cecbe5e8514214f6a22b2d5030b09ee627f55d34d37e762329",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
