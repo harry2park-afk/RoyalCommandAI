@@ -27,3 +27,9 @@ const teachingBookmarkSchema=z.object({day:z.number().int().min(1).max(30),lesso
 export type TeachingBookmark=z.infer<typeof teachingBookmarkSchema>;
 export function readTeachingBookmark(storage:StoragePort,owner:string,language:string):TeachingBookmark|null{const raw=storage.getItem(`${resumeKey(owner,language)}:teaching`);return raw===null?null:teachingBookmarkSchema.parse(JSON.parse(raw));}
 export function saveTeachingBookmark(storage:StoragePort,owner:string,language:string,value:TeachingBookmark){storage.setItem(`${resumeKey(owner,language)}:teaching`,JSON.stringify(teachingBookmarkSchema.parse(value)));}
+
+// Separate key keeps old teaching records and V3 recovery readers compatible.
+const readingMarkerSchema=z.object({lesson:z.string().refine(id=>lessons.some(l=>l.id===id)),paragraph:z.number().int().min(0).max(500),source:z.string().min(1).max(3000),fraction:z.number().min(0).max(1)}).strict();
+export type ReadingMarker=z.infer<typeof readingMarkerSchema>;
+export function readReadingMarker(storage:StoragePort,owner:string,language:string):ReadingMarker|null{const raw=storage.getItem(`${resumeKey(owner,language)}:reading`);return raw===null?null:readingMarkerSchema.parse(JSON.parse(raw));}
+export function saveReadingMarker(storage:StoragePort,owner:string,language:string,value:ReadingMarker){storage.setItem(`${resumeKey(owner,language)}:reading`,JSON.stringify(readingMarkerSchema.parse(value)));}

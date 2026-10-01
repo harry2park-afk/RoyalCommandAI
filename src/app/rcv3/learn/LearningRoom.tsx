@@ -1,6 +1,6 @@
 'use client';
 import ReadingProgress from '@/components/rcv3-toolbox/ReadingProgress';
-import type {SpeechProgress} from '@/lib/client/speech-progress';
+import {speechProgressRatio,resumeSentenceOffset,type SpeechProgress} from '@/lib/client/speech-progress';
 import {useEffect,useRef,useState,type ChangeEvent} from 'react';
 import {Send} from 'lucide-react';
 import ToolButton from '@/components/rcv3-toolbox/ToolButton';
@@ -16,7 +16,7 @@ import {teachingParagraphs,type TeachingSegment} from '@/lib/client/learning-day
 import LearningLessonList,{type LearningLessonListHandle} from '@/components/rcv3-toolbox/LearningLessonList';
 import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
-import {readLearningDraft,saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,readLearningResume,saveLearningResume,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
+import {readLearningDraft,saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,readLearningResume,saveLearningResume,nextLearningLesson,readReadingMarker,saveReadingMarker,type ReadingMarker,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
 type Message={role:'user'|'assistant';content:string};
 type InitialLearning={state:LearningState;practice:Omit<Question,'answer'>[]};
 export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry="",entryPath="/rcv3/learn",homeHref="/rcv3",initialLearning}:{language:string;ownerId:string;country?:string;entryPath?:"/rcv3/learn"|"/rcv4/learn";homeHref?:string;initialLearning?:InitialLearning}){
@@ -48,6 +48,9 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const [boardExplanation,setBoardExplanation]=useState<string|null>(null);
  const [teachingCursor,setTeachingCursor]=useState<{lesson:string;paragraph:number}|null>(null);
  const [readingProgress,setReadingProgress]=useState<SpeechProgress|null>(null);
+ const [readingMarker,setReadingMarker]=useState<ReadingMarker|null>(null);
+ const markerRecord=useRef<{value:ReadingMarker;owner:string;language:string}|null>(null),markerTicks=useRef(0);
+ const activeReading=useRef<{lesson:string;paragraph:number;source:string;base:number}|null>(null);
  const [preparedPlan,setPreparedPlan]=useState<{language:string;lesson:string;text:string}|null>(null);
  useEffect(()=>{
   try{
@@ -60,6 +63,8 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    const index=lessons.findIndex(l=>l.id===id);
    setUnit(index);setDay(sourceDay(lessons[index].id));
    setBoardExplanation(null);
+   activeReading.current=null;markerRecord.current=null;setReadingMarker(null);
+   if(v4){try{const marker=readReadingMarker(window.localStorage,ownerId,learningLanguage(initialLanguage));if(marker){markerRecord.current={value:marker,owner:ownerId,language:learningLanguage(initialLanguage)};setReadingMarker(marker);}}catch{setDraftError(true);}}
    if(saved){setMessages(id===saved.lesson?saved.messages:[]);setResumed(true);}
    const draft=localDrafts.current[lessons[index].id];setMessage(draft?.message??'');setArtifact(draft?.artifact??'');
   }catch{setDraftError(true);}finally{setDraftReady(true);}
@@ -68,9 +73,28 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   try{saveLearningResume(window.localStorage,ownerId,locale,{lesson:id,messages:history.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))});}catch{setDraftError(true);}
  }
 
+ function persistReadingMarker(){
+  const record=markerRecord.current;if(!record)return;
+  try{saveReadingMarker(window.localStorage,record.owner,record.language,record.value);markerTicks.current=0;}catch{setDraftError(true);}
+ }
+ function rememberReadingMarker(value:ReadingMarker,force=false){
+  markerRecord.current={value,owner:ownerId,language:locale};setReadingMarker(value);
+  if(force||++markerTicks.current>=10||value.fraction===1)persistReadingMarker();
+ }
+ useEffect(()=>{const save=()=>{const record=markerRecord.current;if(record)try{saveReadingMarker(window.localStorage,record.owner,record.language,record.value);}catch{}};window.addEventListener('pagehide',save);return()=>window.removeEventListener('pagehide',save);},[]);
+ function teachingProgress(value:SpeechProgress){
+  const current=activeReading.current;if(!current)return;
+  const fraction=current.base+(1-current.base)*speechProgressRatio(value);
+  setReadingProgress({elapsed:fraction,duration:1});
+  rememberReadingMarker({lesson:current.lesson,paragraph:current.paragraph,source:current.source,fraction});
+ }
  function changeRegion(nextLanguage:string,nextCountry:string){
   if(busy||exam)return;
   const safeLanguage=learningLanguage(nextLanguage),safeCountry=learningCountry(nextCountry)?.id??'';
+  if(v4&&safeLanguage!==locale){
+   persistReadingMarker();activeReading.current=null;setTeachingCursor(null);setReadingProgress(null);markerRecord.current=null;setReadingMarker(null);
+   try{const marker=readReadingMarker(window.localStorage,ownerId,safeLanguage);if(marker){markerRecord.current={value:marker,owner:ownerId,language:safeLanguage};setReadingMarker(marker);}}catch{setDraftError(true);}
+  }
   setChosenLanguage(safeLanguage);setChosenCountry(safeCountry);
   window.history.replaceState(window.history.state,'',learningRegionUrl(safeLanguage,safeCountry,entryPath));
  }
@@ -159,14 +183,20 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   const planDay=requestedLesson?sourceDay(requestedLesson):day;
   let text:Record<string,string>={};
   if(!native){if(content?.day===planDay&&content.language===locale)text=content.text;else{const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:planDay,language:locale}),signal});if(!r.ok)throw Error('CONTENT');text=(await r.json()).text;}}
-  const parts=groups.filter(g=>g.day===planDay).flatMap(g=>g.sources).flatMap(id=>{
+  const parts:TeachingSegment[]=groups.filter(g=>g.day===planDay).flatMap(g=>g.sources).flatMap(id=>{
    const item=lessons.find(l=>l.id===id)!;const body=native?(ko?item.ko:item.body):text[`body.${id}`];
-   if(!body)throw Error('CONTENT');const paragraphs=teachingParagraphs(id,body);const name=native?(ko?item.koTitle:item.title):text[`title.${id}`]??item.title;
+   if(!body)throw Error('CONTENT');const paragraphs=teachingParagraphs(id,body).map(part=>v4?{...part,sourceText:part.text,startOffset:0}:part);const name=native?(ko?item.koTitle:item.title):text[`title.${id}`]??item.title;
    if(paragraphs[0])paragraphs[0].text=`${name}. ${paragraphs[0].text}`;return paragraphs;
   });
   let index=v4?Math.max(0,parts.findIndex(p=>p.lesson===(requestedLesson??lesson.id))):0;
   try{const saved=readTeachingBookmark(window.localStorage,ownerId,locale);if(saved&&saved.day===planDay&&!saved.finished&&(!v4||(saved.lesson===lesson.id&&!requestedLesson))){const savedIndex=parts.findIndex(p=>p.lesson===saved.lesson&&p.paragraph===saved.paragraph);if(savedIndex>=0)index=savedIndex;}}catch{setDraftError(true);}
-  if(v4&&parts[index])parts[index]={...parts[index],text:`${lessonGreeting(parts[index].lesson)} ${parts[index].text}`};
+  if(v4&&parts[index]){
+   let part=parts[index];
+   if(!requestedLesson){try{const marker=readReadingMarker(window.localStorage,ownerId,locale),saved=readTeachingBookmark(window.localStorage,ownerId,locale);
+    if(saved&&!saved.finished&&marker&&saved.day===planDay&&saved.lesson===marker.lesson&&saved.paragraph===marker.paragraph&&marker.lesson===part.lesson&&marker.paragraph===part.paragraph&&marker.source===part.sourceText){const startOffset=resumeSentenceOffset(marker.source,marker.fraction);part={...part,startOffset,text:startOffset?marker.source.slice(startOffset):part.text};}
+   }catch{setDraftError(true);}}
+   parts[index]={...part,text:`${lessonGreeting(part.lesson)} ${part.text}`};
+  }
   return {parts,index};
  }
  const planRef=useRef(dayPlan);
@@ -182,7 +212,12 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   const target=lessons.findIndex(l=>l.id===part.lesson);
   const history=part.lesson===lesson.id?messages:conversations.current[part.lesson]?.messages??[];
   if(target!==unit){selectUnit(target);setDay(sourceDay(part.lesson));}
-  if(v4){setReadingProgress(null);setTeachingCursor({lesson:part.lesson,paragraph:part.paragraph});savePosition(part.lesson,history);}
+  if(v4){
+   const source=part.sourceText??part.text,base=Math.max(0,Math.min(1,(part.startOffset??0)/source.length));
+   activeReading.current={lesson:part.lesson,paragraph:part.paragraph,source,base};
+   setReadingProgress({elapsed:base,duration:1});rememberReadingMarker({lesson:part.lesson,paragraph:part.paragraph,source,fraction:base},true);
+   setTeachingCursor({lesson:part.lesson,paragraph:part.paragraph});savePosition(part.lesson,history);
+  }
   else{const next:Message[]=[...history,{role:'assistant',content:part.text}];showExplanation(next);savePosition(part.lesson,next);}
   try{saveTeachingBookmark(window.localStorage,ownerId,locale,{day:sourceDay(part.lesson),lesson:part.lesson,paragraph:part.paragraph,finished:false});}catch{setDraftError(true);}
  }
@@ -200,17 +235,18 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    voice.current?.startDay(continueCurrent?undefined:lessons[index].id);
   }
  }
+ const followCursor=voiceActive&&teachingCursor?teachingCursor:readingMarker,followLesson=followCursor?.lesson,followParagraph=followCursor?.paragraph;
  useEffect(()=>{
-  if(!v4||!voiceActive||teachingCursor?.lesson!==lesson.id)return;
+  if(!v4||followLesson!==lesson.id||followParagraph===undefined)return;
   const frame=requestAnimationFrame(()=>{
-   const target=document.getElementById(teachingCursor.paragraph<0?`lesson-${lesson.id}-body`:`lesson-${lesson.id}-paragraph-${teachingCursor.paragraph}`),scroll=curriculumScroll.current;
+   const target=document.getElementById(followParagraph<0?`lesson-${lesson.id}-body`:`lesson-${lesson.id}-paragraph-${followParagraph}`),scroll=curriculumScroll.current;
    if(!target||!scroll)return;
    if(window.matchMedia('(min-width:761px)').matches){scroll.scrollTop+=target.getBoundingClientRect().top-scroll.getBoundingClientRect().top-16;}
    else target.scrollIntoView({block:'nearest'});
   });return()=>cancelAnimationFrame(frame);
- },[v4,voiceActive,lesson.id,teachingCursor]);
+ },[v4,lesson.id,followLesson,followParagraph]);
  function playbackIdle(){setTeachingCursor(cursor=>cursor?.paragraph===-1?null:cursor);}
- function voiceActivity(active:boolean){setVoiceActive(active);if(!active){setTeachingCursor(null);setReadingProgress(null);}}
+ function voiceActivity(active:boolean){setVoiceActive(active);if(!active){persistReadingMarker();activeReading.current=null;setTeachingCursor(null);setReadingProgress(null);}}
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
  const visibleMessages=v4?(boardExplanation===null?[]:[{role:'assistant' as const,content:boardExplanation}]):messages;
@@ -244,7 +280,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
     <button type="button" className={styles.unitButton} disabled={!loaded||busy||!draftReady} aria-expanded={active} aria-controls={`lesson-${active?lesson.id:group.sources[0]}`} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===(group.sources.find(id=>!state.completed.includes(id))??group.sources[0])))}><span>{group.id}</span><strong>{label}</strong>{groupComplete(group,state.completed)&&<small>✓ {t("m5")}</small>}</button>
     {active&&<article id={`lesson-${lesson.id}`} aria-label={label}>
     {units.length>1&&<div>{units.map((part,n)=><button key={part.id} type="button" disabled={busy||!draftReady} aria-pressed={part.id===lesson.id} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===part.id))}>{t('lessonPart')} {n+1}{state.completed.includes(part.id)?' ✓':''}</button>)}</div>}
-    <h2>{group.id}. {title(lesson)}</h2><p>{t(unit<50?"quizCompletion":"projectCompletion")}</p>{v4?<div id={`lesson-${lesson.id}-body`} className={styles.lesson}>{teachingParagraphs(lesson.id,translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)).map(part=>{const reading=voiceActive&&teachingCursor?.lesson===part.lesson&&(teachingCursor.paragraph<0||teachingCursor.paragraph===part.paragraph);return <p key={part.paragraph} id={`lesson-${part.lesson}-paragraph-${part.paragraph}`} className={`${styles.lessonParagraph}${reading?` ${styles.readingParagraph}`:''}`} aria-current={reading?'true':undefined}>{part.text}{reading&&teachingCursor.paragraph>=0&&<ReadingProgress progress={readingProgress}/>}</p>;})}</div>:<p className={styles.lesson}>{translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)}</p>}
+    <h2>{group.id}. {title(lesson)}</h2><p>{t(unit<50?"quizCompletion":"projectCompletion")}</p>{v4?<div id={`lesson-${lesson.id}-body`} className={styles.lesson}>{teachingParagraphs(lesson.id,translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)).map(part=>{const reading=voiceActive&&teachingCursor?.lesson===part.lesson&&(teachingCursor.paragraph<0||teachingCursor.paragraph===part.paragraph);const marked=readingMarker?.lesson===part.lesson&&readingMarker.paragraph===part.paragraph&&readingMarker.source===part.text;return <p key={part.paragraph} id={`lesson-${part.lesson}-paragraph-${part.paragraph}`} className={`${styles.lessonParagraph}${reading?` ${styles.readingParagraph}`:marked?` ${styles.savedReadingParagraph}`:''}`} aria-current={reading?'true':undefined}>{part.text}{(marked||(reading&&teachingCursor.paragraph>=0))&&<ReadingProgress progress={reading&&teachingCursor.paragraph>=0?readingProgress:{elapsed:readingMarker?.fraction??0,duration:1}}/>}</p>;})}</div>:<p className={styles.lesson}>{translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)}</p>}
 
     {question&&unit<50&&<section className={styles.check} aria-label={t("m8")}><h3>{t("m8")}</h3><p>{translated(`q.${question.id}`,ko?question.ko:question.text)}</p>{question.options.map((option,i)=><label className={styles.option} key={option}><input type="radio" name="practice" disabled={busy} checked={answer===i} onChange={()=>setAnswer(i)}/>{translated(`q.${question.id}.${i}`,ko?question.koOptions[i]:option)}</label>)}<button disabled={busy||!loaded||!contentReady||answer===null} onClick={()=>void run({action:'practice',lesson:lesson.id,answer},d=>{if(d.correct){setState(d as unknown as LearningState);setNotice(t("m9"));}else setNotice(t("m10"));})}>{t("m11")}</button></section>}
     {unit>=50&&<section className={styles.check} aria-label={t("assignment")}><h3>{t("assignment")}</h3><p>{help("learnProject")}</p><label>{t("evidence")}<textarea rows={10} maxLength={6000} value={artifact} disabled={busy||!draftReady} onChange={e=>{setArtifact(e.target.value);keepDraft(message,e.target.value);}}/></label><small>{artifact.trim().length} / 6000</small><button disabled={!loaded||busy||state.completed.includes(lesson.id)||artifact.trim().length<150} onClick={()=>void run({action:'project',lesson:lesson.id,artifact},d=>{setState(d as unknown as LearningState);setNotice(`${d.projectScore} / 100 — ${d.feedback}`);})}>{t("submitFeedback")}</button>{state.work?.[lesson.id]&&<div><strong>{t(state.completed.includes(lesson.id)?"passedWork":"reviseWork")} · {state.work[lesson.id].score} / 100</strong><p>{state.work[lesson.id].feedback}</p></div>}</section>}
@@ -263,7 +299,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    </div>
    <aside className={styles.teacherColumn} aria-label={t("tutor")}>
   <div className={styles.teacherViewport}>
-  <LearningVoice key={locale} ref={voice} compact={v4} prepareText={preparedPlan?.language===locale&&preparedPlan.lesson===lesson.id?preparedPlan.text:''} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onChooseLesson={v4?chooseLesson:undefined} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={voiceActivity} onPlaybackIdle={v4?playbackIdle:undefined} onDayProgress={v4?setReadingProgress:undefined} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
+  <LearningVoice key={locale} ref={voice} compact={v4} prepareText={preparedPlan?.language===locale&&preparedPlan.lesson===lesson.id?preparedPlan.text:''} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onChooseLesson={v4?chooseLesson:undefined} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={voiceActivity} onPlaybackIdle={v4?playbackIdle:undefined} onDayProgress={v4?teachingProgress:undefined} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
   </div>
     <section className={styles.tutor} aria-label={t("tutor")}>{!v4&&<h3>{t("chatWithTeacher")}</h3>}
      <div className={v4?styles.answerWindow:styles.legacyAnswer}>

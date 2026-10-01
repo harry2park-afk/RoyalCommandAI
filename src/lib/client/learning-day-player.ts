@@ -1,4 +1,4 @@
-export type TeachingSegment={lesson:string;text:string;paragraph:number};
+export type TeachingSegment={lesson:string;text:string;paragraph:number;sourceText?:string;startOffset?:number};
 export function teachingStopCommand(text:string){return /^(?:오늘은?\s*그만\s*하자|오늘은?\s*그만|그만(?:해|하자)|스톱|정지|멈춰|stop(?: for today)?|that's enough(?: for today)?|今日はここまで|停止|今天到这里|आज बस)[.!?。\s]*$/i.test(text.trim());}
 /** Sequential teaching; cursor means the current paragraph, never assessment completion. */
 export class LearningDayPlayer{

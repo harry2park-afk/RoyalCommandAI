@@ -10,3 +10,10 @@ export function speechProgressRatio(progress:SpeechProgress|null){
  if(!progress||!progress.duration||!Number.isFinite(progress.duration)||!Number.isFinite(progress.elapsed))return 0;
  return Math.max(0,Math.min(1,progress.elapsed/progress.duration));
 }
+/** Sentence-level rewind from an approximate text position, not word alignment. */
+export function resumeSentenceOffset(text:string,fraction:number){
+ const position=Math.floor(text.length*Math.max(0,Math.min(1,fraction))),starts=[0];
+ for(const match of text.matchAll(/(?:[.!?。！？।][ \t]*|\n+)\s*/gu))starts.push(match.index+match[0].length);
+ let index=0;while(index+1<starts.length&&starts[index+1]<=position)index++;
+ return starts[Math.max(0,index-1)];
+}

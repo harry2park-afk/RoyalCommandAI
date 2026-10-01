@@ -162,3 +162,24 @@ it('places audio-clock progress below only the currently narrated V4 paragraph a
  m.index=0;m.values[28]={lesson:'001',paragraph:-1};expect(renderToStaticMarkup(LearningRoom({language:'ko',ownerId:'alice',entryPath:'/rcv4/learn'}))).not.toContain('data-reading-progress');
  m.index=0;m.values[28]={lesson:'001',paragraph:0};expect(renderToStaticMarkup(LearningRoom({language:'ko',ownerId:'alice',entryPath:'/rcv3/learn'}))).not.toContain('data-reading-progress');
 });
+
+
+it('keeps the stopped underline in place and resumes the same original paragraph from a prior sentence with greeting',async()=>{
+ const values=new Map<string,string>(),storage={getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>{values.set(key,value);}};
+ vi.stubGlobal('window',{localStorage:storage,location:{href:'http://localhost/'}});
+ const {saveTeachingBookmark,saveReadingMarker,readTeachingBookmark}=await import('@/components/rcv3-toolbox/learning-drafts');
+ const {teachingParagraphs}=await import('@/lib/client/learning-day-player');const {resumeSentenceOffset}=await import('@/lib/client/speech-progress');
+ const source=teachingParagraphs('001',lessons[0].ko)[1].text,marker={lesson:'001',paragraph:1,source,fraction:.8};
+ saveTeachingBookmark(storage,'alice','ko',{day:1,lesson:'001',paragraph:1,finished:false});saveReadingMarker(storage,'alice','ko',marker);
+ render(0,[],{},'ko','/rcv4/learn');m.index=0;m.values[24]=false;m.values[28]=null;m.values[30]=marker;
+ const n=nodes(LearningRoom({language:'ko',ownerId:'alice',entryPath:'/rcv4/learn'}));
+ expect(renderToStaticMarkup(n[0])).toContain('data-reading-progress="0.8"');
+ const teacher=n.find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!,plan=await teacher.props.onDayPlan(new AbortController().signal);
+ const part=plan.parts[plan.index],offset=resumeSentenceOffset(source,.8);
+ expect(part).toMatchObject({lesson:'001',paragraph:1,sourceText:source,startOffset:offset});expect(part.text).toContain('안녕하세요');expect(part.text.endsWith(source.slice(offset))).toBe(true);
+ expect(readTeachingBookmark(storage,'alice','ko')).toEqual({day:1,lesson:'001',paragraph:1,finished:false});
+ const fresh=await teacher.props.onDayPlan(new AbortController().signal,'001');expect(fresh.parts[fresh.index].startOffset).toBe(0);
+ saveTeachingBookmark(storage,'alice','ko',{day:1,lesson:'002',paragraph:1,finished:false});const mismatch=await teacher.props.onDayPlan(new AbortController().signal);expect(mismatch.parts[mismatch.index].startOffset).toBe(0);
+ saveTeachingBookmark(storage,'alice','ko',{day:1,lesson:'001',paragraph:1,finished:false});
+ saveReadingMarker(storage,'alice','ko',{...marker,source:'Changed stale public text.'});const stale=await teacher.props.onDayPlan(new AbortController().signal);expect(stale.parts[stale.index].startOffset).toBe(0);
+});
