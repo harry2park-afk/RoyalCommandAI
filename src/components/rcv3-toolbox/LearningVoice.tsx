@@ -97,7 +97,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  return <div className={`${styles.voice}${compact?` ${styles.compact}`:''}`} aria-label={t('voiceTitle')}>
   <div className={styles.teacher}>
    <LearningAvatar ref={avatar} language={language} compact={compact} disabled={!talking&&(disabled||Boolean(draft.trim()))} onTouch={touchTeacher} label={t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}/>
-   {(!compact||status)&&<div className={styles.caption}>{!compact&&<><strong>{t('teacherReady')}</strong><small>{lessonTitle}</small></>}<span role="status" aria-live="polite">{status?t(status):t('teacherHint')}</span></div>}
+   {(!compact||status==='voiceError'||status==='voiceMicError')&&<div className={styles.caption}>{!compact&&<><strong>{t('teacherReady')}</strong><small>{lessonTitle}</small></>}<span role="status" aria-live="polite">{status?t(status):t('teacherHint')}</span></div>}
    {controls}
   </div>
   {dayMicError&&<p role="status">{t('dayMicUnavailable')}</p>}
