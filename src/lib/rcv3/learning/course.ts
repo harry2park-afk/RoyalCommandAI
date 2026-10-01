@@ -1,8 +1,9 @@
+import {guidedPractice} from './guided-practice';
 export const COURSE = 'ai-literacy-100-v1';
 export const PASS_MARK = 70;
 export const EXAM_MINUTES = 30;
 export const EXAM_QUESTIONS = 30;
-export const lessons = [
+const sourceLessons = [
  {
   "id": "001",
   "day": 1,
@@ -804,7 +805,8 @@ export const lessons = [
   "ko": "AI로 만든 유용한 결과물 또는 업무 절차와 회사 보고서를 제출하세요. 사용자 요구·실제 초안이나 코드·근거 확인·개인정보 처리·시험·비용·한계·다음 개선을 포함하고 직접 검증한 부분을 설명하세요."
  }
 ] as const;
-export type LessonId = typeof lessons[number]['id'];
+export const lessons = sourceLessons.map(lesson=>({...lesson,body:guidedPractice(lesson)+lesson.body,ko:guidedPractice(lesson,true)+lesson.ko}));
+export type LessonId = typeof sourceLessons[number]['id'];
 export type Question = {id:string;lesson:LessonId;text:string;ko:string;options:string[];koOptions:string[]};
 export type Certificate = {id:string;name:string;issuedAt:string;score:number};
 export type LearningState = {work?:Record<string,{artifact:string;feedback:string;score:number}>;completed:string[];certificate:Certificate|null};
