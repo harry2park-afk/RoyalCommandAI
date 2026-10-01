@@ -16,8 +16,8 @@ it('keeps legacy coral/default pacing and applies the approved fixed male profil
  for(const language of ['ko','en','ja','hi','zh']){
   const r=await PUT(req({text:'Original content. Next sentence.',language,tutor:'v4-male'}));expect(r.status).toBe(200);
   body=JSON.parse(vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string);
-  expect(body).toMatchObject({voice:'onyx',speed:1.15,model:'gpt-4o-mini-tts',input:'Original content. Next sentence.'});
-  expect(body.instructions).toContain(language);expect(body.instructions).toContain('deep, resonant');expect(body.instructions).toContain('without long silences');
+  expect(body).toMatchObject({voice:'ash',speed:1.15,model:'gpt-4o-mini-tts',input:'Original content. Next sentence.'});
+  expect(body.instructions).toContain(language);expect(body.instructions).toContain('fresh, bright, clear');expect(body.instructions).toContain('young adult male');expect(body.instructions).not.toContain('deep, resonant');expect(body.instructions).not.toContain('lower-register');expect(body.instructions).toContain('without long silences');
  }
  expect(m.client).not.toHaveBeenCalled();
 });
@@ -31,7 +31,7 @@ it('returns the male PCM body incrementally without quota storage access',async(
  let stream!:ReadableStreamDefaultController<Uint8Array>;const audio=new ReadableStream<Uint8Array>({start:c=>{stream=c;}});
  vi.mocked(fetch).mockResolvedValue(new Response(audio));const r=await PUT(req({text:'Greeting and original lesson',language:'ko',tutor:'v4-male',stream:true}));
  expect(r.headers.get('content-type')).toBe('audio/pcm');expect(r.headers.get('cache-control')).toBe('no-store');expect(m.client).not.toHaveBeenCalled();
- const body=JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);expect(body).toMatchObject({voice:'onyx',speed:1.15,response_format:'pcm',input:'Greeting and original lesson'});
+ const body=JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);expect(body).toMatchObject({voice:'ash',speed:1.15,response_format:'pcm',input:'Greeting and original lesson'});
  const reader=r.body!.getReader();stream.enqueue(new Uint8Array([1,2]));expect(await reader.read()).toMatchObject({done:false,value:new Uint8Array([1,2])});stream.close();expect((await reader.read()).done).toBe(true);
 });
 it('rejects streaming outside the male profile and arbitrary stream flags before provider access',async()=>{
