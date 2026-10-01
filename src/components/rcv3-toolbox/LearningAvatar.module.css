@@ -2,3 +2,6 @@
 @media(max-width:760px){.wrapper .stage{height:clamp(220px,34dvh,340px)}.stage .video{object-fit:cover;object-position:center 12%}.stage .poster{object-fit:contain}}
 @media(min-width:761px){.compact{display:flex;flex-direction:column;height:100%}.compact .stage{height:auto;min-height:80px;flex:1}}
 @media(min-width:761px){.compact .stage .video,.compact .stage .poster{object-position:center bottom}}
+/* The fallback portrait has wide transparent side margins; use those margins
+   to enlarge it without stretching the face or changing provider-video framing. */
+@media(min-width:761px){.compact .stage .poster{width:140%!important;max-width:none;left:-20%!important;right:auto!important}}
