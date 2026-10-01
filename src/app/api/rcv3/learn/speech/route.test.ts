@@ -26,3 +26,14 @@ it('rejects arbitrary voice, speed, model, instructions and unapproved tutor pro
  }
  expect(m.reserve).not.toHaveBeenCalled();expect(fetch).not.toHaveBeenCalled();
 });
+it('returns the male PCM body incrementally after one authenticated quota reservation',async()=>{
+ let stream!:ReadableStreamDefaultController<Uint8Array>;const audio=new ReadableStream<Uint8Array>({start:c=>{stream=c;}});
+ vi.mocked(fetch).mockResolvedValue(new Response(audio));const r=await PUT(req({text:'Greeting and original lesson',language:'ko',tutor:'v4-male',stream:true}));
+ expect(r.headers.get('content-type')).toBe('audio/pcm');expect(r.headers.get('cache-control')).toBe('no-store');expect(m.reserve).toHaveBeenCalledOnce();
+ const body=JSON.parse(vi.mocked(fetch).mock.calls[0][1]!.body as string);expect(body).toMatchObject({voice:'onyx',speed:1.15,response_format:'pcm',input:'Greeting and original lesson'});
+ const reader=r.body!.getReader();stream.enqueue(new Uint8Array([1,2]));expect(await reader.read()).toMatchObject({done:false,value:new Uint8Array([1,2])});stream.close();expect((await reader.read()).done).toBe(true);
+});
+it('rejects streaming outside the male profile and arbitrary stream flags before quota use',async()=>{
+ for(const body of [{text:'one',language:'ko',stream:true},{text:'one',language:'ko',tutor:'v4-male',stream:false},{text:'one',language:'ko',tutor:'v4-male',stream:'pcm'}])expect((await PUT(req(body))).status).toBe(400);
+ expect(m.reserve).not.toHaveBeenCalled();expect(fetch).not.toHaveBeenCalled();
+});

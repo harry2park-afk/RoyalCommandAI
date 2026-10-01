@@ -1,13 +1,14 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
-const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>)}));
-vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>({current:v}),useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
-vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{constructor(options:{load:typeof m.load}){m.load=options.load;}enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
+const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>),stream:null as null|((job:unknown,text:string,signal:AbortSignal,reading:()=>void)=>Promise<boolean>),canStream:false,pcmPlay:vi.fn(),refs:[] as {current:unknown}[]}));
+vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>{const ref={current:v};m.refs.push(ref);return ref;},useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
+vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{constructor(options:{load:typeof m.load;stream?:typeof m.stream}){m.load=options.load;m.stream=options.stream??null;}enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
+vi.mock('@/lib/client/pcm-speech-player',()=>({PcmSpeechPlayer:class{get available(){return m.canStream;}prime=vi.fn();play=m.pcmPlay;stop=vi.fn();dispose=vi.fn();}}));
 import LearningVoice from './LearningVoice';
 function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
 let recog:any;
 class Recognition{lang='';onresult:any;onend:any;onerror:any;start=vi.fn();abort=vi.fn();constructor(){recog=this;}}
-beforeEach(()=>{vi.clearAllMocks();m.effects=[];vi.stubGlobal('React',React);vi.stubGlobal('window',{SpeechRecognition:Recognition});vi.stubGlobal('document',{hidden:false,addEventListener:vi.fn(),removeEventListener:vi.fn()});vi.stubGlobal('navigator',{mediaDevices:{addEventListener:vi.fn(),removeEventListener:vi.fn()}});});
+beforeEach(()=>{vi.clearAllMocks();m.effects=[];m.refs=[];m.canStream=false;vi.stubGlobal('React',React);vi.stubGlobal('window',{SpeechRecognition:Recognition});vi.stubGlobal('document',{hidden:false,addEventListener:vi.fn(),removeEventListener:vi.fn()});vi.stubGlobal('navigator',{mediaDevices:{addEventListener:vi.fn(),removeEventListener:vi.fn()}});});
 function setup(){const onTranscript=vi.fn();const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'answer',draft:'existing',disabled:false,onTranscript}));const cleanup=m.effects.map(f=>f());return {onTranscript,tree,cleanup};}
 it('adds spoken text to existing draft, does not submit, and ignores delayed results after cleanup',()=>{const {tree,onTranscript,cleanup}=setup();tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick();expect(recog.lang).toBe('ko');recog.onresult({results:[[{transcript:'질문'}]]});expect(onTranscript).toHaveBeenLastCalledWith('existing 질문');expect(m.stop).toHaveBeenCalled();for(const c of cleanup)if(typeof c==='function')c();recog.onresult({results:[[{transcript:'late'}]]});expect(onTranscript).toHaveBeenCalledTimes(1);expect(recog.abort).toHaveBeenCalled();});
 it('starts playback from a user gesture and cancels playback through stop control',()=>{const {tree}=setup();tree.find(n=>n.type==='button'&&n.props.children==='강의 듣기')!.props.onClick();expect(m.prime).toHaveBeenCalled();expect(m.enqueue).toHaveBeenCalledWith({id:'tutor',text:'lesson'});tree.find(n=>n.type==='button'&&n.props.children==='음성 중지')!.props.onClick();expect(m.stop.mock.calls.length).toBeGreaterThan(1);});
@@ -84,7 +85,7 @@ it('forwards an explicit listed source to the existing daily player and cancels 
 
 it('requests the fixed male profile only for V4 and preserves locale/text/cancellation',async()=>{
  for(const compact of [true,false]){
-  m.effects=[];vi.stubGlobal('fetch',vi.fn(async()=>new Response('audio')));
+  m.effects=[];m.refs=[];m.canStream=false;vi.stubGlobal('fetch',vi.fn(async()=>new Response('audio')));
   LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),compact});
   const cleanup=m.effects.map(f=>f()),signal=new AbortController().signal;
   await m.load!({},'original lesson or answer',signal);
@@ -105,4 +106,20 @@ it('V4 Start opens the registered lesson selector immediately instead of startin
 it('blocked access does not open the lesson selector',()=>{
  const onChooseLesson=vi.fn();const tree=nodes(LearningVoice({language:'en',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:true,onTranscript:vi.fn(),onChooseLesson,compact:true}));
  const start=tree.find(n=>n.type==='button'&&n.props.children==='Start lesson')!;expect(start.props.disabled).toBe(true);start.props.onClick();expect(onChooseLesson).not.toHaveBeenCalled();
+});
+
+it('streams V4 speech through one fixed male-profile request and preserves language and abort signal',async()=>{
+ m.canStream=true;const response=new Response('pcm',{headers:{'Content-Type':'audio/pcm'}});vi.stubGlobal('fetch',vi.fn(async()=>response));
+ LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),compact:true});m.effects.map(f=>f());
+ const signal=new AbortController().signal,reading=vi.fn();expect(await m.stream!({},'안녕하세요. 수업 내용',signal,reading)).toBe(true);
+ expect(fetch).toHaveBeenCalledOnce();const [url,init]=vi.mocked(fetch).mock.calls[0];expect(url).toBe('/api/rcv3/learn/speech');expect(init!.signal).toBe(signal);expect(JSON.parse(init!.body as string)).toEqual({text:'안녕하세요. 수업 내용',language:'ko',tutor:'v4-male',stream:true});expect(m.pcmPlay).toHaveBeenCalledWith(response,signal,reading);
+});
+it('uses the original transport without a streaming request for unsupported Web Audio or configured live video, and leaves V3 unchanged',async()=>{
+ vi.stubGlobal('fetch',vi.fn());
+ for(const live of [false,true]){
+  m.effects=[];m.refs=[];m.canStream=live;
+  LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),compact:true});m.effects.map(f=>f());
+  m.refs[0].current={hasLiveVideo:()=>live};expect(await m.stream!({},'lesson',new AbortController().signal,vi.fn())).toBe(false);
+ }
+ m.effects=[];LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn()});m.effects.map(f=>f());expect(m.stream).toBeNull();expect(fetch).not.toHaveBeenCalled();
 });

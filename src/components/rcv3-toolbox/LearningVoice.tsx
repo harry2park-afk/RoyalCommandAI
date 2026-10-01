@@ -6,6 +6,7 @@ import {createDictation} from '../../../rcv3/live-dictation.mjs';
 import {LearningDayPlayer,teachingStopCommand,type TeachingSegment} from '@/lib/client/learning-day-player';
 import {LearningConversation} from '@/lib/client/learning-conversation';
 import {AnswerSpeaker} from '@/lib/client/answer-speaker';
+import {PcmSpeechPlayer} from '@/lib/client/pcm-speech-player';
 import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
 export type LearningVoiceHandle={startDay:(lessonId?:string)=>void;stop:()=>void;stopDictation:()=>void;start:(question?:string,typed?:boolean)=>void};
 type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onDayPlan?:(signal:AbortSignal,lessonId?:string)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;onChooseLesson?:()=>void;compact?:boolean};
@@ -26,16 +27,23 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  const stop=()=>{const daily=Boolean(dayPlayer.current||dayLoad.current);cancelDay();conversation.current?.stop();conversation.current=null;setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(daily?'dayStopped':null);};
  useImperativeHandle(ref,()=>({stop,startDay:(lessonId?:string)=>{void startDay(lessonId);},stopDictation:()=>{if(recognition.current){recognition.current.cancel();recognition.current=null;setListening(false);setStatus(null);}},start:(question?:string,typed=false)=>{if(question||!talking)startConversation(question,typed);}}));
  useEffect(()=>{
+  const pcm=new PcmSpeechPlayer();
   const player=new AnswerSpeaker({load:async(_job,text,signal)=>{
    const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language,...(compact?{tutor:'v4-male'}:{})}),signal});
    if(!r.ok)throw Error('SPEECH');return r.blob();
-  },play:(blob,signal)=>avatar.current?.play(blob,signal)??Promise.resolve(false),stopPlayback:()=>avatar.current?.stop(),status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle')speechDone.current?.resolve();if(value==='error')speechDone.current?.reject();}});
+  },primeStream:()=>{if(compact)pcm.prime();},stream:compact?async(_job,text,signal,reading)=>{
+   // Live video keeps its existing blob transport. Unsupported audio contexts
+   // fall back before requesting anything, without duplicate quota/provider use.
+   if(!pcm.available||avatar.current?.hasLiveVideo())return false;
+   const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language,tutor:'v4-male',stream:true}),signal});
+   if(!r.ok)throw Error('SPEECH');await pcm.play(r,signal,reading);return true;
+  }:undefined,play:(blob,signal)=>avatar.current?.play(blob,signal)??Promise.resolve(false),stopPlayback:()=>{pcm.stop();avatar.current?.stop();},status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle')speechDone.current?.resolve();if(value==='error')speechDone.current?.reject();}});
   speaker.current=player;
   const halt=()=>{cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};
   const hide=()=>{if(document.hidden){cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;setListening(false);if(!background.current){player.stop();setStatus(null);}}};
   document.addEventListener('visibilitychange',hide);
   navigator.mediaDevices?.addEventListener('devicechange',halt);
-  return()=>{cancelDay();conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();speaker.current=null;};
+  return()=>{cancelDay();conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();pcm.dispose();speaker.current=null;};
  },[language,compact]);
  // External speech sessions must stop immediately when access or exam state disables voice.
  // stop reads refs only; rerun this external cancellation only when disabled changes.

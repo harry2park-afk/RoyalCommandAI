@@ -47,3 +47,12 @@ it("saves only the chosen ON/OFF preference and tolerates unavailable storage",(
  saveSpeakerPreference("room-a",true);expect(readSpeakerPreference("room-a")).toBe(true);expect(readSpeakerPreference("room-b")).toBe(false);saveSpeakerPreference("room-a",false);expect(readSpeakerPreference("room-a",true)).toBe(false);
  vi.stubGlobal("localStorage",{getItem:()=>{throw Error();},setItem:()=>{throw Error();}});expect(()=>saveSpeakerPreference("room-a",true)).not.toThrow();expect(readSpeakerPreference("room-a",true)).toBe(true);
 });
+it('uses the optional streamed transport and reports reading before download completion without a second load',async()=>{
+ let end!:()=>void;const load=vi.fn(async()=>blob),status=vi.fn(),primeStream=vi.fn();
+ const stream=vi.fn(async(_job:unknown,_text:string,_signal:AbortSignal,reading:()=>void)=>{reading();await new Promise<void>(r=>end=r);return true;});
+ const speaker=new AnswerSpeaker({load,status,stream,primeStream});speaker.prime();speaker.enqueue({id:'teacher',text:'greeting and lesson'});await flush();expect(primeStream).toHaveBeenCalledOnce();expect(status).toHaveBeenCalledWith('teacher','reading');expect(load).not.toHaveBeenCalled();expect(status).not.toHaveBeenCalledWith('teacher','idle');end();await flush();expect(status).toHaveBeenCalledWith('teacher','idle');speaker.stop();
+});
+it('stream fallback happens before a provider load; stream errors never retry through the blob provider',async()=>{
+ const load=vi.fn(async()=>blob),status=vi.fn();const fallback=new AnswerSpeaker({load,status,stream:async()=>false});fallback.enqueue({id:'legacy-device',text:'one'});await flush();expect(load).toHaveBeenCalledOnce();fallback.stop();load.mockClear();
+ const failed=new AnswerSpeaker({load,status,stream:async()=>{throw Error('provider failed');}});failed.enqueue({id:'failed',text:'one'});await flush();expect(load).not.toHaveBeenCalled();expect(status).toHaveBeenCalledWith('failed','error');failed.stop();
+});

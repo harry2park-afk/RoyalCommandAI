@@ -5,7 +5,7 @@ import {learningLabel} from '@/lib/locale/learning';
 import {primeSpeechElement} from '@/lib/client/answer-speaker';
 import type {LearningAvatarPlayer,AvatarState} from '@/lib/client/learning-avatar';
 import styles from './LearningAvatar.module.css';
-export type LearningAvatarHandle={play:(blob:Blob,signal:AbortSignal)=>Promise<boolean>;stop:()=>void;prime:()=>void};
+export type LearningAvatarHandle={play:(blob:Blob,signal:AbortSignal)=>Promise<boolean>;stop:()=>void;prime:()=>void;hasLiveVideo:()=>boolean};
 export default function LearningAvatar({ref,language,onTouch,label,disabled,compact=false}:{ref?:Ref<LearningAvatarHandle>;language:string;onTouch:()=>void;label:string;disabled:boolean;compact?:boolean}){
  const video=useRef<HTMLVideoElement|null>(null),player=useRef<LearningAvatarPlayer|null>(null);
  const audio=useRef<HTMLAudioElement|null>(null);
@@ -17,7 +17,7 @@ export default function LearningAvatar({ref,language,onTouch,label,disabled,comp
   // eslint-disable-next-line react-hooks/exhaustive-deps
   return()=>{mounted.current=false;generation.current++;controller.abort();player.current?.stop();player.current=null;};
  },[]);
- useImperativeHandle(ref,()=>({prime:()=>{if(audio.current)primeSpeechElement(audio.current);},stop:()=>{generation.current++;player.current?.stop();},play:async(blob,signal)=>{
+ useImperativeHandle(ref,()=>({hasLiveVideo:()=>available.current,prime:()=>{if(audio.current)primeSpeechElement(audio.current);},stop:()=>{generation.current++;player.current?.stop();},play:async(blob,signal)=>{
   if(!available.current)return false;const current=generation.current;
   const {LearningAvatarPlayer}=await import('@/lib/client/learning-avatar');
   if(!mounted.current||signal.aborted||current!==generation.current||!video.current)throw Error('CANCELLED');

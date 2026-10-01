@@ -6,6 +6,8 @@ type Options = {
   status: (id: string, state: "preparing" | "reading" | "idle" | "error") => void;
   play?: (blob: Blob, signal: AbortSignal) => Promise<boolean>;
   stopPlayback?: () => void;
+  primeStream?: () => void;
+  stream?: (job: SpeechJob, text: string, signal: AbortSignal, reading: () => void) => Promise<boolean>;
 };
 const SILENCE = "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQIAAACAgA==";
 export function primeSpeechElement(audio:HTMLMediaElement){audio.src=SILENCE;void audio.play().catch(()=>{});}
@@ -16,6 +18,7 @@ export class AnswerSpeaker {
   constructor(private options: Options) {}
   /** Called synchronously from an explicit user gesture, never on page load. */
   prime() {
+    this.options.primeStream?.();
     if (!this.audio) { this.audio = new Audio(); this.audio.preload = "auto"; }
     if (this.current) return;
     primeSpeechElement(this.audio);
@@ -50,6 +53,13 @@ export class AnswerSpeaker {
       // Keep all of the answer, within each server's 4,000-character limit.
       for (let offset = 0; offset < job.text.length; offset += 3500) {
         this.options.status(job.id, "preparing");
+        if (this.options.stream) {
+          const streamed = await this.options.stream(job, job.text.slice(offset, offset + 3500), AbortSignal.any([current.abort.signal, AbortSignal.timeout(180000)]), () => {
+            if (this.current === current) this.options.status(job.id, "reading");
+          });
+          if (this.current !== current) return;
+          if (streamed) continue;
+        }
         const blob = await this.options.load(job, job.text.slice(offset, offset + 3500), AbortSignal.any([current.abort.signal, AbortSignal.timeout(35000)]));
         if (this.current !== current) return;
         if(this.options.play){
