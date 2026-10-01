@@ -7,8 +7,8 @@ import {LearningDayPlayer,teachingStopCommand,type TeachingSegment} from '@/lib/
 import {LearningConversation} from '@/lib/client/learning-conversation';
 import {AnswerSpeaker} from '@/lib/client/answer-speaker';
 import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
-export type LearningVoiceHandle={startDay:()=>void;stop:()=>void;stopDictation:()=>void;start:(question?:string,typed?:boolean)=>void};
-type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onDayPlan?:(signal:AbortSignal)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;compact?:boolean};
+export type LearningVoiceHandle={startDay:(lessonId?:string)=>void;stop:()=>void;stopDictation:()=>void;start:(question?:string,typed?:boolean)=>void};
+type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onDayPlan?:(signal:AbortSignal,lessonId?:string)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;compact?:boolean};
 export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange,onDayPlan,onDaySegment,onDayComplete,compact=false}:Props){
  const avatar=useRef<LearningAvatarHandle|null>(null);
  const dayPlayer=useRef<LearningDayPlayer|null>(null),dayLoad=useRef<AbortController|null>(null),dayMic=useRef<ReturnType<typeof createDictation>|null>(null),dayRetry=useRef<ReturnType<typeof setTimeout>|null>(null);
@@ -24,7 +24,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  const t=(key:LearningLabel)=>learningLabel(key,language);
  const cancelDay=()=>{dayLoad.current?.abort();dayLoad.current=null;dayPlayer.current?.stop();dayPlayer.current=null;dayMic.current?.cancel();dayMic.current=null;if(dayRetry.current)clearTimeout(dayRetry.current);dayRetry.current=null;};
  const stop=()=>{const daily=Boolean(dayPlayer.current||dayLoad.current);cancelDay();conversation.current?.stop();conversation.current=null;setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(daily?'dayStopped':null);};
- useImperativeHandle(ref,()=>({stop,startDay:()=>{void startDay();},stopDictation:()=>{if(recognition.current){recognition.current.cancel();recognition.current=null;setListening(false);setStatus(null);}},start:(question?:string,typed=false)=>{if(question||!talking)startConversation(question,typed);}}));
+ useImperativeHandle(ref,()=>({stop,startDay:(lessonId?:string)=>{void startDay(lessonId);},stopDictation:()=>{if(recognition.current){recognition.current.cancel();recognition.current=null;setListening(false);setStatus(null);}},start:(question?:string,typed=false)=>{if(question||!talking)startConversation(question,typed);}}));
  useEffect(()=>{
   const player=new AnswerSpeaker({load:async(_job,text,signal)=>{
    const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language}),signal});
@@ -48,11 +48,11 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   const abort=()=>finish(true);if(signal.aborted){abort();return;}
   speechDone.current={resolve:()=>finish(),reject:()=>finish(true)};signal.addEventListener('abort',abort,{once:true});speaker.current?.enqueue({id:'conversation',text});
  });}
- async function startDay(){
+ async function startDay(requestedLesson?:string){
   if(disabled||!latest.current.onDayPlan)return;stop();setDayMicError(false);setAuto(false);background.current=false;setListenOnly(false);speaker.current?.prime();avatar.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);setStatus('voicePreparing');
   const abort=new AbortController();dayLoad.current=abort;
   try{
-   const plan=await latest.current.onDayPlan(AbortSignal.any([abort.signal,AbortSignal.timeout(65000)]));if(abort.signal.aborted)return;
+   const plan=await latest.current.onDayPlan(AbortSignal.any([abort.signal,AbortSignal.timeout(65000)]),requestedLesson);if(abort.signal.aborted)return;
    dayLoad.current=null;
    const player=new LearningDayPlayer({speak:speakText,stopAudio:()=>speaker.current?.stop(),segment:(_index,part)=>{latest.current.onDaySegment?.(part);setStatus('dayTeaching');},done:()=>{latest.current.onDayComplete?.();stop();setStatus('dayFinished');},error:()=>{stop();setStatus('voiceError');}});
    dayPlayer.current=player;

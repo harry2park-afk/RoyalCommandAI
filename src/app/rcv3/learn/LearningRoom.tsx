@@ -17,6 +17,7 @@ import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
 import {readLearningDraft,saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,readLearningResume,saveLearningResume,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
 type Message={role:'user'|'assistant';content:string};
 export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry="",entryPath="/rcv3/learn",homeHref="/rcv3"}:{language:string;ownerId:string;country?:string;entryPath?:"/rcv3/learn"|"/rcv4/learn";homeHref?:string}){
+ const v4=entryPath==='/rcv4/learn';
  const [state,setState]=useState<LearningState>({completed:[],certificate:null}),[practice,setPractice]=useState<Question[]>([]);
  const [day,setDay]=useState(1),[artifact,setArtifact]=useState(''),[clock,setClock]=useState(()=>Date.now()),[offset,setOffset]=useState(0);
  const drafts=useRef<Record<string,string>>({});
@@ -40,16 +41,23 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const locale=learningLanguage(language),ko=locale==='ko',lesson=lessons[unit],question=practice.find(q=>q.lesson===lesson.id);
  const t=(key:LearningLabel)=>learningLabel(key,language);
  const [resumed,setResumed]=useState(false);
+ // A fresh board is presentation only; saved history and assessment records remain intact.
+ const [boardExplanation,setBoardExplanation]=useState<string|null>(null);
  useEffect(()=>{
   try{
    for(const l of lessons){try{const saved=readLearningDraft(window.localStorage,ownerId,l.id);if(saved){localDrafts.current[l.id]=saved;drafts.current[l.id]=saved.artifact;}}catch{setDraftError(true);}}
    const saved=readLearningResume(window.localStorage,ownerId,learningLanguage(initialLanguage));
-   const index=saved?lessons.findIndex(l=>l.id===saved.lesson):0;
+   let bookmark:ReturnType<typeof readTeachingBookmark>=null;
+   if(v4){try{bookmark=readTeachingBookmark(window.localStorage,ownerId,learningLanguage(initialLanguage));}catch{setDraftError(true);}}
+   let id=saved?.lesson??bookmark?.lesson??lessons[0].id;
+   if(bookmark?.finished&&id===bookmark.lesson)id=lessons.find(l=>sourceDay(l.id)>bookmark.day)?.id??id;
+   const index=lessons.findIndex(l=>l.id===id);
    setUnit(index);setDay(sourceDay(lessons[index].id));
-   if(saved){setMessages(saved.messages);setResumed(true);}
+   setBoardExplanation(null);
+   if(saved){setMessages(id===saved.lesson?saved.messages:[]);setResumed(true);}
    const draft=localDrafts.current[lessons[index].id];setMessage(draft?.message??'');setArtifact(draft?.artifact??'');
   }catch{setDraftError(true);}finally{setDraftReady(true);}
- },[ownerId,initialLanguage]);
+ },[ownerId,initialLanguage,v4]);
  function savePosition(id:string,history:Message[]){
   try{saveLearningResume(window.localStorage,ownerId,locale,{lesson:id,messages:history.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))});}catch{setDraftError(true);}
  }
@@ -88,6 +96,10 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   setUnit(index);setMessages(saved?.messages??[]);setMessage(localDrafts.current[next.id]?.message??saved?.message??'');setAnswer(saved?.answer??null);
   setArtifact(drafts.current[next.id]??state.work?.[next.id]?.artifact??'');setNotice('');setResumed(false);savePosition(next.id,saved?.messages??[]);
  }
+ function showExplanation(history:Message[]){
+  setBoardExplanation([...history].reverse().find(m=>m.role==='assistant')?.content??null);
+  setMessages(history);
+ }
  function keepDraft(nextMessage:string,nextArtifact:string){
   const draft={message:nextMessage,artifact:nextArtifact};localDrafts.current[lesson.id]=draft;drafts.current[lesson.id]=nextArtifact;
   try{saveLearningDraft(window.localStorage,ownerId,lesson.id,draft);setDraftError(false);}catch{setDraftError(true);}
@@ -119,7 +131,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   }
   setVoiceTranscript('');
   const history:Message[]=[...prior,{role:'user',content:text},{role:'assistant',content:spoken}];
-  setMessages(history);savePosition(target.id,history);
+  showExplanation(history);savePosition(target.id,history);
   if(typed){
    const saved=localDrafts.current[lesson.id];
    if(saved?.message.trim()===text.trim()){
@@ -131,35 +143,46 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   }
   return spoken;
  }
- async function dayPlan(signal:AbortSignal){
+ async function dayPlan(signal:AbortSignal,requestedLesson?:string){
+  const planDay=requestedLesson?sourceDay(requestedLesson):day;
   let text:Record<string,string>={};
-  if(!native){const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day,language:locale}),signal});if(!r.ok)throw Error('CONTENT');text=(await r.json()).text;}
-  const parts=groups.filter(g=>g.day===day).flatMap(g=>g.sources).flatMap(id=>{
+  if(!native){const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:planDay,language:locale}),signal});if(!r.ok)throw Error('CONTENT');text=(await r.json()).text;}
+  const parts=groups.filter(g=>g.day===planDay).flatMap(g=>g.sources).flatMap(id=>{
    const item=lessons.find(l=>l.id===id)!;const body=native?(ko?item.ko:item.body):text[`body.${id}`];
    if(!body)throw Error('CONTENT');const paragraphs=teachingParagraphs(id,body);const name=native?(ko?item.koTitle:item.title):text[`title.${id}`]??item.title;
    if(paragraphs[0])paragraphs[0].text=`${name}. ${paragraphs[0].text}`;return paragraphs;
   });
-  let index=0;try{const saved=readTeachingBookmark(window.localStorage,ownerId,locale);if(saved&&saved.day===day&&!saved.finished)index=Math.max(0,parts.findIndex(p=>p.lesson===saved.lesson&&p.paragraph===saved.paragraph));}catch{setDraftError(true);}
+  let index=v4?Math.max(0,parts.findIndex(p=>p.lesson===(requestedLesson??lesson.id))):0;
+  try{const saved=readTeachingBookmark(window.localStorage,ownerId,locale);if(saved&&saved.day===planDay&&!saved.finished&&(!v4||(saved.lesson===lesson.id&&!requestedLesson))){const savedIndex=parts.findIndex(p=>p.lesson===saved.lesson&&p.paragraph===saved.paragraph);if(savedIndex>=0)index=savedIndex;}}catch{setDraftError(true);}
   return {parts,index};
  }
  function teachingSegment(part:TeachingSegment){
   const target=lessons.findIndex(l=>l.id===part.lesson);
   const history=part.lesson===lesson.id?messages:conversations.current[part.lesson]?.messages??[];
   if(target!==unit){selectUnit(target);setDay(sourceDay(part.lesson));}
-  const next:Message[]=[...history,{role:'assistant',content:part.text}];setMessages(next);savePosition(part.lesson,next);
+  const next:Message[]=[...history,{role:'assistant',content:part.text}];showExplanation(next);savePosition(part.lesson,next);
   try{saveTeachingBookmark(window.localStorage,ownerId,locale,{day:sourceDay(part.lesson),lesson:part.lesson,paragraph:part.paragraph,finished:false});}catch{setDraftError(true);}
  }
- function teachingFinished(){try{const saved=readTeachingBookmark(window.localStorage,ownerId,locale);if(saved)saveTeachingBookmark(window.localStorage,ownerId,locale,{...saved,finished:true});}catch{setDraftError(true);}}
+ function teachingFinished(){try{const saved=readTeachingBookmark(window.localStorage,ownerId,locale);if(saved){saveTeachingBookmark(window.localStorage,ownerId,locale,{...saved,finished:true});const next=v4?lessons.findIndex(l=>sourceDay(l.id)>saved.day):-1;if(next>=0){selectUnit(next);setDay(sourceDay(lessons[next].id));}}}catch{setDraftError(true);}}
  const voice=useRef<LearningVoiceHandle|null>(null);
+ function startListedLesson(number:number){
+  if(!v4){voice.current?.start(t('lessonStartRequest').replace('{number}',String(number)));return;}
+  const selected=groups[number-1];if(!selected||requestBusy||!loaded||!draftReady||exam)return;
+  const index=lessons.findIndex(l=>l.id===selected.sources[0]);
+  voice.current?.stop();selectUnit(index);setDay(selected.day);
+  if(!localDrafts.current[lessons[index].id]?.message.trim())voice.current?.startDay(lessons[index].id);
+ }
+ useEffect(()=>{
+  if(v4&&voiceActive){const frame=requestAnimationFrame(()=>document.getElementById(`lesson-${lesson.id}`)?.scrollIntoView({block:'start'}));return()=>cancelAnimationFrame(frame);}
+ },[v4,voiceActive,lesson.id]);
  const nextLesson=nextLearningLesson(unit);
  const finish=state.completed.length===lessons.length;
- const v4=entryPath==='/rcv4/learn';
- const visibleMessages=v4?messages.filter(m=>m.role==='assistant').slice(-1):messages;
+ const visibleMessages=v4?(boardExplanation===null?[]:[{role:'assistant' as const,content:boardExplanation}]):messages;
  function sendMessage(){
   if(voiceActive){voice.current?.start(message,true);return;}
   void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{
    const history:Message[]=[...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}];
-   setMessages(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);
+   showExplanation(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);
   });
  }
  const sendDisabled=!loaded||requestBusy||!draftReady||Boolean(exam)||!message.trim();
@@ -180,7 +203,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>{t("retry")}</button>}</div>}
   <p>{t("topicHelp")}</p>
 
-<LearningLessonList language={locale} titles={groups.map(g=>ko?g.koTitle:g.sources.map(id=>(content?.language===locale?content.text[`title.${id}`]:undefined)??lessons.find(l=>l.id===id)!.title).join(' · '))} selected={groups.indexOf(groupForSource(lesson.id))+1} completed={groups.flatMap((g,i)=>groupComplete(g,state.completed)?[i+1]:[])} disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onStart={number=>voice.current?.start(t('lessonStartRequest').replace('{number}',String(number)))}/><div className={styles.dayStart}><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label>{!v4&&<button type="button" disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onClick={()=>voice.current?.startDay()}>{t('teacherStart')}</button>}</div>
+<LearningLessonList language={locale} titles={groups.map(g=>ko?g.koTitle:g.sources.map(id=>(content?.language===locale?content.text[`title.${id}`]:undefined)??lessons.find(l=>l.id===id)!.title).join(' · '))} selected={groups.indexOf(groupForSource(lesson.id))+1} completed={groups.flatMap((g,i)=>groupComplete(g,state.completed)?[i+1]:[])} disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onStart={startListedLesson}/><div className={styles.dayStart}><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label>{!v4&&<button type="button" disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onClick={()=>voice.current?.startDay()}>{t('teacherStart')}</button>}</div>
    {groups.filter(g=>g.day===day).map(group=>{const units=group.sources.map(id=>lessons.find(l=>l.id===id)!);const active=group.sources.includes(lesson.id);const label=ko?group.koTitle:units.map(title).join(' · ');return <section className={styles.unit} key={group.id}>
     <button type="button" className={styles.unitButton} disabled={!loaded||busy||!draftReady} aria-expanded={active} aria-controls={`lesson-${active?lesson.id:group.sources[0]}`} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===(group.sources.find(id=>!state.completed.includes(id))??group.sources[0])))}><span>{group.id}</span><strong>{label}</strong>{groupComplete(group,state.completed)&&<small>✓ {t("m5")}</small>}</button>
     {active&&<article id={`lesson-${lesson.id}`} aria-label={label}>

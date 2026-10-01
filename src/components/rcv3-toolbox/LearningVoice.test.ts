@@ -73,3 +73,11 @@ it('starts continuous daily teaching and recognizes Stop after earlier microphon
  expect(tree.some(n=>n.type==='button'&&n.props.children==='스톱')).toBe(true);expect(tree.some(n=>n.type==='button'&&n.props.children==='수업 시작')).toBe(false);
  for(const c of cleanup)if(typeof c==='function')c();
 });
+
+it('forwards an explicit listed source to the existing daily player and cancels it through Stop',async()=>{
+ const onDayPlan=vi.fn(async()=>({parts:[{lesson:'005',paragraph:0,text:'selected source teaching'}],index:0}));
+ LearningVoice({language:'ko',lessonId:'001',lessonText:'old lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onDayPlan,compact:true});const cleanup=m.effects.map(f=>f());
+ (m.handle as unknown as {startDay:(lesson:string)=>void}).startDay('005');await Promise.resolve();await Promise.resolve();
+ expect(onDayPlan).toHaveBeenCalledWith(expect.any(AbortSignal),'005');expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'selected source teaching'});
+ m.handle!.stop();expect(m.stop).toHaveBeenCalled();for(const c of cleanup)if(typeof c==='function')c();
+});

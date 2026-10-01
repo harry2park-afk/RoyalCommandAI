@@ -9,7 +9,7 @@ import LearningAutoTextarea from '@/components/rcv3-toolbox/LearningAutoTextarea
 import {sourceDay} from '@/lib/rcv3/learning/groups';
 import {lessons} from '@/lib/rcv3/learning/course';
 function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
-function render(unit:number,completed:string[],work={},language='ko',entryPath:'/rcv3/learn'|'/rcv4/learn'='/rcv3/learn',message=''){m.index=0;m.values=[{completed,certificate:null,work},[],sourceDay(lessons[unit].id),'',0,0,true,false,unit,[],message,null,false,true,'','',null,{},null];return nodes(LearningRoom({language,ownerId:'alice',entryPath}));}
+function render(unit:number,completed:string[],work={},language='ko',entryPath:'/rcv3/learn'|'/rcv4/learn'='/rcv3/learn',message=''){m.index=0;m.values=[{completed,certificate:null,work},[],sourceDay(lessons[unit].id),'',0,0,true,false,unit,[],message,null,false,true,'','',null,{},null,null,false,0,language,'',false,'',false,null];return nodes(LearningRoom({language,ownerId:'alice',entryPath}));}
 beforeEach(()=>{vi.unstubAllGlobals();m.changes=[];vi.stubGlobal('React',React);vi.stubGlobal('requestAnimationFrame',vi.fn());});
 it('moves a completed lesson to the next day without marking another lesson complete',()=>{const n=render(3,['004']);const b=n.find(e=>e.type==='button'&&e.props.children==='다음 과목')!;expect(b.props.disabled).toBe(false);b.props.onClick();expect(m.changes).toContainEqual([2,2]);expect(m.changes).toContainEqual([8,4]);expect(m.changes.some(([i])=>i===0)).toBe(false);});
 it('does not offer next-completion controls before completion or after lesson 100',()=>{for(const [unit,completed] of [[0,[]],[99,['100']]] as const){expect(render(unit,[...completed]).some(e=>e.type==='button'&&e.props.children==='다음 과목')).toBe(false);}});
@@ -40,14 +40,20 @@ it('reuses the V4 toolbox send control inside the input without visible chat hea
  expect(html).toContain('data-rc-tool="send"');
 });
 
-it('shows the latest speaking answer in V4 while keeping full conversation history in V3',()=>{
+it('starts V4 with a clean board without deleting saved history, and shows only new explanations',()=>{
  const history=[{role:'assistant',content:'Previous answer'},{role:'user',content:'Question'},{role:'assistant',content:'Current answer'}];
  for(const entryPath of ['/rcv3/learn','/rcv4/learn'] as const){
   render(0,[]);m.index=0;m.values[9]=history;
   const html=renderToStaticMarkup(LearningRoom({ownerId:'alice',language:'ko',entryPath}));
-  expect(html).toContain('Current answer');
+  expect(html.includes('Current answer')).toBe(entryPath==='/rcv3/learn');
   expect(html.includes('Previous answer')).toBe(entryPath==='/rcv3/learn');
   expect(m.values[9]).toEqual(history);
+  if(entryPath==='/rcv4/learn'){
+   m.index=0;m.values[27]='New explanation';
+   const next=renderToStaticMarkup(LearningRoom({ownerId:'alice',language:'ko',entryPath}));
+   expect(next).toContain('New explanation');expect(next).not.toContain('Previous answer');expect(next).not.toContain('Current answer');
+   expect(m.values[9]).toEqual(history);
+  }
  }
 });
 
@@ -69,4 +75,44 @@ it('preserves the V4 typed draft and releases busy state when sending fails',asy
  await vi.waitFor(()=>expect(m.changes).toContainEqual([12,false]));
  expect(m.changes.some(([i,v])=>i===14&&Boolean(v))).toBe(true);
  expect(m.changes.some(([i])=>i===9||i===10)).toBe(false);
+});
+
+it('resumes the selected V4 source and lets existing numbered controls restart another study day',async()=>{
+ const values=new Map<string,string>(),storage={getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>{values.set(key,value);}};
+ vi.stubGlobal('window',{localStorage:storage});
+ const {saveTeachingBookmark}=await import('@/components/rcv3-toolbox/learning-drafts');
+ saveTeachingBookmark(storage,'alice','ko',{day:1,lesson:'003',paragraph:0,finished:false});
+ const tree=render(2,[],{},'ko','/rcv4/learn'),teacher=tree.find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
+ const resume=await teacher.props.onDayPlan(new AbortController().signal);
+ expect(resume.parts[resume.index]).toMatchObject({lesson:'003',paragraph:0});
+ const repeat=await teacher.props.onDayPlan(new AbortController().signal,'003');
+ expect(repeat.parts[repeat.index]).toMatchObject({lesson:'003',paragraph:0});
+ const later=await teacher.props.onDayPlan(new AbortController().signal,'005');
+ expect(later.parts[later.index]).toMatchObject({lesson:'005',paragraph:0});
+ expect(later.parts.every((part:{lesson:string})=>sourceDay(part.lesson)===2)).toBe(true);
+ expect(values.get('rc-learning-resume:alice:ai-literacy-100-v1:ko:teaching')).toContain('"finished":false');
+ expect(m.changes.some(([i])=>i===0)).toBe(false);
+});
+
+it('invalid or different-source bookmarks cannot send V4 Start back to the first lesson',async()=>{
+ const {saveTeachingBookmark}=await import('@/components/rcv3-toolbox/learning-drafts');
+ for(const bookmark of [{day:1,lesson:'003',paragraph:500,finished:false},{day:1,lesson:'001',paragraph:0,finished:false}]){
+  const values=new Map<string,string>(),storage={getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>{values.set(key,value);}};
+  vi.stubGlobal('window',{localStorage:storage});saveTeachingBookmark(storage,'alice','ko',bookmark);
+  const teacher=render(2,[],{},'ko','/rcv4/learn').find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
+  const plan=await teacher.props.onDayPlan(new AbortController().signal);
+  expect(plan.parts[plan.index]).toMatchObject({lesson:'003',paragraph:0});
+ }
+});
+
+it('prepares the next teaching day without marking any assessment complete',async()=>{
+ const values=new Map<string,string>(),storage={getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>{values.set(key,value);}};
+ vi.stubGlobal('window',{localStorage:storage});
+ const {saveTeachingBookmark}=await import('@/components/rcv3-toolbox/learning-drafts');
+ saveTeachingBookmark(storage,'alice','ko',{day:1,lesson:'004',paragraph:0,finished:false});
+ const teacher=render(3,[],{},'ko','/rcv4/learn').find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
+ teacher.props.onDayComplete();
+ expect(m.changes).toContainEqual([8,4]);expect(m.changes).toContainEqual([2,2]);
+ expect(m.changes.some(([i])=>i===0)).toBe(false);
+ expect(values.get('rc-learning-resume:alice:ai-literacy-100-v1:ko:teaching')).toContain('"finished":true');
 });
