@@ -1,19 +1,23 @@
+import {clampVolume} from './audio-volume';
 /** Browser-local 24 kHz PCM16 playback. Primed only by a user gesture. */
 export class PcmSpeechPlayer {
   private context: AudioContext | null = null;
   private active: AbortController | null = null;
+  private gain: GainNode | null = null;
+  private volume = 1;
+  setVolume(value:number){this.volume=clampVolume(value);if(this.gain)this.gain.gain.value=this.volume;}
 
   prime() {
     if (!this.context) {
       const ctor = window.AudioContext ?? (window as unknown as {webkitAudioContext?: typeof AudioContext}).webkitAudioContext;
       if (!ctor) return;
-      try { this.context = new ctor(); } catch { return; }
+      try { this.context = new ctor();this.gain=this.context.createGain();this.gain.gain.value=this.volume;this.gain.connect(this.context.destination); } catch { void this.context?.close().catch(()=>{});this.context=null;this.gain=null;return; }
     }
     void this.context.resume().catch(() => {});
   }
   get available() { return this.context !== null && this.context.state !== 'closed'; }
   stop() { this.active?.abort(); }
-  dispose() { this.stop(); void this.context?.close().catch(() => {}); this.context = null; }
+  dispose() { this.stop(); void this.context?.close().catch(() => {}); this.context = null;this.gain?.disconnect();this.gain=null; }
 
   async play(response: Response, signal: AbortSignal, reading: () => void) {
     const context = this.context;
@@ -37,7 +41,7 @@ export class PcmSpeechPlayer {
       const buffer = context.createBuffer(1, bytes.length / 2, 24000), channel = buffer.getChannelData(0);
       const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
       for (let i = 0; i < channel.length; i++) channel[i] = view.getInt16(i * 2, true) / 32768;
-      const source = context.createBufferSource(); source.buffer = buffer; source.connect(context.destination); sources.add(source);
+      const source = context.createBufferSource(); source.buffer = buffer; source.connect(this.gain??context.destination); sources.add(source);
       source.onended = () => { sources.delete(source); source.disconnect(); if (ended && !sources.size) resolveDrain(); };
       nextTime = Math.max(nextTime, context.currentTime + 0.015);
       source.start(nextTime); nextTime += buffer.duration;

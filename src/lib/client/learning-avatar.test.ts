@@ -24,3 +24,12 @@ it('Stop interrupts current speech, releases resources and rejects pending playb
 it('late start response after Stop is closed without joining its room',async()=>{
  let resolve!:(r:Response)=>void;vi.mocked(fetch).mockImplementationOnce(()=>new Promise(r=>{resolve=r;}));const player=new LearningAvatarPlayer({srcObject:null} as HTMLVideoElement,vi.fn());const task=player.connect();void task.catch(()=>{});player.stop();resolve(Response.json({receipt:'late'}));await expect(task).rejects.toThrow('CANCELLED');expect(m.rooms).toHaveLength(0);expect(JSON.parse(vi.mocked(fetch).mock.calls.at(-1)![1]!.body as string).receipt).toBe('late');
 });
+
+it('uses the selected gain for current and later avatar audio tracks without reconnecting',async()=>{
+ const player=new LearningAvatarPlayer({srcObject:null} as HTMLVideoElement,vi.fn());player.setVolume(.3);
+ const task=player.connect();await flush();Socket.all[0].event({type:'session.state_updated',state:'connected'});await task;
+ const audio=()=>({volume:1,play:vi.fn(async()=>{}),pause:vi.fn(),remove:vi.fn(),srcObject:null}) as unknown as HTMLAudioElement;
+ const first=audio();m.rooms[0].handlers.track({kind:'audio',attach:()=>first});expect(first.volume).toBe(.3);
+ player.setVolume(0);expect(first.volume).toBe(0);const second=audio();m.rooms[0].handlers.track({kind:'audio',attach:()=>second});expect(second.volume).toBe(0);
+ player.setVolume(.8);expect(first.volume).toBe(.8);expect(second.volume).toBe(.8);expect(m.rooms).toHaveLength(1);player.stop();
+});

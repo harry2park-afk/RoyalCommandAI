@@ -1,3 +1,4 @@
+import {clampVolume} from './audio-volume';
 import {Room,RoomEvent,Track} from 'livekit-client';
 export type AvatarState='offline'|'connecting'|'ready'|'error';
 type Connection={livekit_url:string;livekit_client_token:string;ws_url:string;receipt:string};
@@ -7,6 +8,8 @@ export class LearningAvatarPlayer{
  private pending:Promise<void>|null=null;private generation=0;private ready=false;
  private finish:((error?:Error)=>void)|null=null;private utterance='';private audio:HTMLAudioElement[]=[];
  private idle:ReturnType<typeof setTimeout>|undefined;
+ private volume=1;
+ setVolume(value:number){this.volume=clampVolume(value);if(this.primedAudio)this.primedAudio.volume=this.volume;for(const audio of this.audio)audio.volume=this.volume;}
  constructor(private video:HTMLVideoElement,private state:(s:AvatarState)=>void,private primedAudio?:HTMLAudioElement){}
  private send(type:string,extra:Record<string,string>={}){if(this.socket?.readyState!==WebSocket.OPEN)throw Error('AVATAR');this.socket.send(JSON.stringify({type,event_id:crypto.randomUUID(),...extra}));}
  private release(receipt:string){if(receipt)void fetch('/api/rcv3/learn/avatar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'stop',receipt}),keepalive:true}).catch(()=>{});}
@@ -19,7 +22,7 @@ export class LearningAvatarPlayer{
    if(generation!==this.generation){this.release(data.receipt);throw Error('CANCELLED');}
    this.receipt=data.receipt;const room=new Room({adaptiveStream:true,dynacast:true});this.room=room;
    let videoReady:()=>void=()=>{};const videoPromise=new Promise<void>(resolve=>{videoReady=resolve;});
-   room.on(RoomEvent.TrackSubscribed,track=>{if(generation!==this.generation)return;if(track.kind===Track.Kind.Video){track.attach(this.video);videoReady();}else if(track.kind===Track.Kind.Audio){const audio=(this.primedAudio?track.attach(this.primedAudio):track.attach()) as HTMLAudioElement;this.audio.push(audio);audio.play().catch(()=>{if(generation===this.generation){this.stop();this.state('error');}});}});
+   room.on(RoomEvent.TrackSubscribed,track=>{if(generation!==this.generation)return;if(track.kind===Track.Kind.Video){track.attach(this.video);videoReady();}else if(track.kind===Track.Kind.Audio){const audio=(this.primedAudio?track.attach(this.primedAudio):track.attach()) as HTMLAudioElement;audio.volume=this.volume;this.audio.push(audio);audio.play().catch(()=>{if(generation===this.generation){this.stop();this.state('error');}});}});
    room.on(RoomEvent.Disconnected,()=>{if(generation===this.generation){this.stop();this.state('error');}});
    const socket=new WebSocket(data.ws_url);this.socket=socket;
    const socketPromise=new Promise<void>((resolve,reject)=>{

@@ -2,6 +2,8 @@ import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {PcmSpeechPlayer} from './pcm-speech-player';
 class Context {
  static latest:Context;state='running';currentTime=0;destination={};
+ gain={gain:{value:1},connect:vi.fn(),disconnect:vi.fn()};
+ createGain(){return this.gain;}
  sources:{buffer:{duration:number}|null;start:ReturnType<typeof vi.fn>;stop:ReturnType<typeof vi.fn>;connect:ReturnType<typeof vi.fn>;disconnect:ReturnType<typeof vi.fn>;onended:(()=>void)|null}[]=[];
  buffers:Float32Array[]=[];
  constructor(){Context.latest=this;}
@@ -37,4 +39,12 @@ it('fails closed for empty or truncated PCM and wrong content type without sched
 it('unsupported or failed context construction remains unavailable for the caller to use its original transport',()=>{
  vi.stubGlobal('window',{});const pcm=new PcmSpeechPlayer();pcm.prime();expect(pcm.available).toBe(false);
  vi.stubGlobal('window',{AudioContext:class{constructor(){throw Error('unavailable');}}});pcm.prime();expect(pcm.available).toBe(false);pcm.dispose();
+});
+
+it('changes audible PCM gain during the same stream without reloading or truncating samples',async()=>{
+ const pcm=new PcmSpeechPlayer();pcm.setVolume(.25);pcm.prime();const ctx=Context.latest;expect(ctx.gain.gain.value).toBe(.25);
+ const data=stream(),task=pcm.play(data.response,new AbortController().signal,vi.fn());data.push(new Uint8Array(5760));await flush();
+ expect(ctx.sources[0].connect).toHaveBeenCalledWith(ctx.gain);pcm.setVolume(0);expect(ctx.gain.gain.value).toBe(0);
+ pcm.setVolume(.8);expect(ctx.gain.gain.value).toBe(.8);expect(ctx.sources).toHaveLength(1);expect(ctx.sources[0].stop).not.toHaveBeenCalled();
+ data.end();await flush();ctx.sources[0].onended?.();await task;pcm.dispose();expect(ctx.gain.disconnect).toHaveBeenCalled();
 });

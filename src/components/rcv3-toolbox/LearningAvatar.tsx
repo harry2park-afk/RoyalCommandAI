@@ -1,14 +1,15 @@
 'use client';
 import {useEffect,useImperativeHandle,useRef,useState,type Ref} from 'react';
 import Image from 'next/image';
+import {clampVolume} from '@/lib/client/audio-volume';
 import {learningLabel} from '@/lib/locale/learning';
 import {primeSpeechElement} from '@/lib/client/answer-speaker';
 import type {LearningAvatarPlayer,AvatarState} from '@/lib/client/learning-avatar';
 import styles from './LearningAvatar.module.css';
-export type LearningAvatarHandle={play:(blob:Blob,signal:AbortSignal)=>Promise<boolean>;stop:()=>void;prime:()=>void;hasLiveVideo:()=>boolean};
+export type LearningAvatarHandle={play:(blob:Blob,signal:AbortSignal)=>Promise<boolean>;stop:()=>void;prime:()=>void;hasLiveVideo:()=>boolean;setVolume:(value:number)=>void};
 export default function LearningAvatar({ref,language,onTouch,label,disabled,compact=false,onReady}:{ref?:Ref<LearningAvatarHandle>;language:string;onTouch:()=>void;label:string;disabled:boolean;compact?:boolean;onReady?:(liveVideo:boolean)=>void}){
  const video=useRef<HTMLVideoElement|null>(null),player=useRef<LearningAvatarPlayer|null>(null);
- const audio=useRef<HTMLAudioElement|null>(null);
+ const audio=useRef<HTMLAudioElement|null>(null),volume=useRef(1);
  const available=useRef(false),mounted=useRef(false),generation=useRef(0);
  const [status,setStatus]=useState<AvatarState>('offline'),[configured,setConfigured]=useState(false);
  useEffect(()=>{mounted.current=true;const controller=new AbortController();
@@ -17,11 +18,11 @@ export default function LearningAvatar({ref,language,onTouch,label,disabled,comp
   // eslint-disable-next-line react-hooks/exhaustive-deps
   return()=>{mounted.current=false;generation.current++;controller.abort();player.current?.stop();player.current=null;};
  },[onReady]);
- useImperativeHandle(ref,()=>({hasLiveVideo:()=>available.current,prime:()=>{if(audio.current)primeSpeechElement(audio.current);},stop:()=>{generation.current++;player.current?.stop();},play:async(blob,signal)=>{
+ useImperativeHandle(ref,()=>({setVolume:(value:number)=>{volume.current=clampVolume(value);if(audio.current)audio.current.volume=volume.current;player.current?.setVolume(volume.current);},hasLiveVideo:()=>available.current,prime:()=>{if(audio.current)primeSpeechElement(audio.current);},stop:()=>{generation.current++;player.current?.stop();},play:async(blob,signal)=>{
   if(!available.current)return false;const current=generation.current;
   const {LearningAvatarPlayer}=await import('@/lib/client/learning-avatar');
   if(!mounted.current||signal.aborted||current!==generation.current||!video.current)throw Error('CANCELLED');
-  if(!player.current)player.current=new LearningAvatarPlayer(video.current,s=>{if(mounted.current)setStatus(s);},audio.current??undefined);
+  if(!player.current){player.current=new LearningAvatarPlayer(video.current,s=>{if(mounted.current)setStatus(s);},audio.current??undefined);player.current.setVolume(volume.current);}
   await player.current.play(blob,signal);return true;
  }}));
  return <div className={`${styles.wrapper}${compact?` ${styles.compact}`:''}`}>

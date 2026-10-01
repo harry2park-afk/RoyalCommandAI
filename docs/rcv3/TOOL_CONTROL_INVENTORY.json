@@ -179,61 +179,75 @@
     {
       "controlId": "src/app/rcv3/Room.tsx#19",
       "toolId": "toolbox",
-      "sourceHash": "44672ba4bcc1c54cc745a028bb0fa2f05d1d4338139fee12802d3e1076c07fb1",
+      "sourceHash": "dbd5d53e4d4384a3c4615068eeb0a75650dfdbde064aba2198c927cc7d73f833",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/Room.tsx#20",
       "toolId": "toolbox",
-      "sourceHash": "c1b9a92ce8232e57736d82495e7e5653901dc7768c198f4b1ddf38df116dcf4f",
+      "sourceHash": "00b254ec78c3b320edf29b4d2e190e084810865c555551cb04af67e32f900d20",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/Room.tsx#21",
       "toolId": "toolbox",
-      "sourceHash": "9b8d61247419919e6efe33a0c50dbdf67301c6f5ce14d6d949a0c172cb3403be",
+      "sourceHash": "44672ba4bcc1c54cc745a028bb0fa2f05d1d4338139fee12802d3e1076c07fb1",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/Room.tsx#22",
       "toolId": "toolbox",
-      "sourceHash": "ca64fd8a4d891d198d53327df4a5b773961c0027ae32344e14397e44fccf422d",
+      "sourceHash": "c1b9a92ce8232e57736d82495e7e5653901dc7768c198f4b1ddf38df116dcf4f",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/Room.tsx#23",
       "toolId": "toolbox",
-      "sourceHash": "4c805c1702046abb9a8270f3b889b2f91adc4f33345b96a20ff79eb939eb7877",
+      "sourceHash": "9b8d61247419919e6efe33a0c50dbdf67301c6f5ce14d6d949a0c172cb3403be",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/Room.tsx#24",
       "toolId": "toolbox",
-      "sourceHash": "a043701332a3428358f3b17de876f92015084cc8e5ae29a96817c601cc5916b4",
+      "sourceHash": "ca64fd8a4d891d198d53327df4a5b773961c0027ae32344e14397e44fccf422d",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/Room.tsx#25",
       "toolId": "toolbox",
-      "sourceHash": "b301de31f6aafaa5b4b571b94cf70389752b77e657ea957a476184858e0f197c",
+      "sourceHash": "4c805c1702046abb9a8270f3b889b2f91adc4f33345b96a20ff79eb939eb7877",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/Room.tsx#26",
       "toolId": "toolbox",
-      "sourceHash": "2df3b710f8b5c34e431d7fd2f2d76765f88312d9eedb60d0acfed2ca0dca8ec0",
+      "sourceHash": "a043701332a3428358f3b17de876f92015084cc8e5ae29a96817c601cc5916b4",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/Room.tsx#27",
+      "toolId": "toolbox",
+      "sourceHash": "b301de31f6aafaa5b4b571b94cf70389752b77e657ea957a476184858e0f197c",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#28",
+      "toolId": "toolbox",
+      "sourceHash": "2df3b710f8b5c34e431d7fd2f2d76765f88312d9eedb60d0acfed2ca0dca8ec0",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/Room.tsx#29",
       "toolId": "toolbox",
       "sourceHash": "725a3dc922ecec178b4edd58b020ecbc1de64c1d075b8302a0388124ebcaa365",
       "mode": "context-bound",
@@ -557,12 +571,33 @@
     {
       "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#3",
       "toolId": "meetings",
-      "sourceHash": "03090a220dc29b83b6368cfda3951f26c2ed43d054014585b24cb7602fb29447",
+      "sourceHash": "57aeb6775eaf6e5e16da57653104291bbbfb6f946c888ed86ea38522e8306f62",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#4",
+      "toolId": "meetings",
+      "sourceHash": "3c6611562bdd9cc4f8590d99230823c7c0ab0de9a0797f2702dee79d13b5f0d6",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#5",
+      "toolId": "meetings",
+      "sourceHash": "ba1031eab9db63844ffc66c2e79e2ca5cd488f6bc9a7673922fdbbb8bb776a9b",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#6",
+      "toolId": "meetings",
+      "sourceHash": "03090a220dc29b83b6368cfda3951f26c2ed43d054014585b24cb7602fb29447",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/meetings/MeetingPreview.tsx#7",
       "toolId": "meetings",
       "sourceHash": "6e4e3a910b95731fbc3d851c0080fdc27d06b4e0291ce232ef54d35e58b27e28",
       "mode": "context-bound",
@@ -732,40 +767,47 @@
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#3",
       "toolId": "learning",
-      "sourceHash": "70eace73fb0268f0a114a8bfd1f3513bdf214baeddd8608b6057bf6e2e1a4e07",
+      "sourceHash": "5101960a8217aa49ddfaec08e7f92b7c97ae1e547cd2deb57f1a23feeeb4c3de",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#4",
       "toolId": "learning",
-      "sourceHash": "289551c65fea565e7820388690d4e96f5a6480f353f3952c995e05ac27e94cb4",
+      "sourceHash": "70eace73fb0268f0a114a8bfd1f3513bdf214baeddd8608b6057bf6e2e1a4e07",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#5",
       "toolId": "learning",
-      "sourceHash": "9153697271d5133923079c83f6f3108ff5e99116509435c0485399d1d353b443",
+      "sourceHash": "289551c65fea565e7820388690d4e96f5a6480f353f3952c995e05ac27e94cb4",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#6",
       "toolId": "learning",
-      "sourceHash": "83d1f255be6b01f0ce7524277427f27a0ca3253187bb58c8b613b8a0f7ec481a",
+      "sourceHash": "9153697271d5133923079c83f6f3108ff5e99116509435c0485399d1d353b443",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#7",
       "toolId": "learning",
-      "sourceHash": "3694978cf0710ade6da8b5ee58eaad3686340bf8dee5e2b0e4300b193950b7e4",
+      "sourceHash": "83d1f255be6b01f0ce7524277427f27a0ca3253187bb58c8b613b8a0f7ec481a",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#8",
+      "toolId": "learning",
+      "sourceHash": "3694978cf0710ade6da8b5ee58eaad3686340bf8dee5e2b0e4300b193950b7e4",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/LearningVoice.tsx#9",
       "toolId": "learning",
       "sourceHash": "a29a316e051b6879c533612d324309063c3f4532d627b21621d54deca94c86eb",
       "mode": "context-bound",
@@ -901,6 +943,13 @@
       "controlId": "src/components/rcv3-toolbox/Toolbox.tsx#2",
       "toolId": "toolbox",
       "sourceHash": "d9d1326d75d50dde9ccfaa80ab1fb3b0d7dfde4f2d95fb7c4c814e6dc8ec176d",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/components/rcv3-toolbox/VolumeControl.tsx#1",
+      "toolId": "learning",
+      "sourceHash": "2b4f7ce289a4552e50ca4f6fd84f31a9dc0727286e48fad3f76ac1deec31b96d",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

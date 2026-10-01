@@ -1,0 +1,3 @@
+.control{display:flex;flex-direction:column;align-items:center;gap:6px;width:44px;padding:6px 0;color:#e7c46c;background:#102635b8;border-radius:22px;box-sizing:border-box}
+.control input{writing-mode:vertical-lr;direction:rtl;width:44px;height:100px;min-height:0;min-width:0;margin:0;padding:0;accent-color:#e7c46c;cursor:pointer;touch-action:none;background:transparent;box-sizing:border-box}
+.control input:focus-visible{outline:2px solid #f5d780;outline-offset:3px;border-radius:8px}

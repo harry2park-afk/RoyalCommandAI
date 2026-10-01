@@ -1,3 +1,4 @@
+import {clampVolume} from './audio-volume';
 /** One reusable audio element and one cancellable queue per answer surface. */
 export type SpeechJob = { id: string; text: string; language?: string; roomId?: string };
 type Playback = { job: SpeechJob; abort: AbortController; finish?: () => void; url?: string };
@@ -13,13 +14,15 @@ const SILENCE = "data:audio/wav;base64,UklGRiYAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfA
 export function primeSpeechElement(audio:HTMLMediaElement){audio.src=SILENCE;void audio.play().catch(()=>{});}
 export class AnswerSpeaker {
   private audio: HTMLAudioElement | null = null;
+  private volume = 1;
+  setVolume(value:number){this.volume=clampVolume(value);if(this.audio)this.audio.volume=this.volume;}
   private queue: SpeechJob[] = [];
   private current: Playback | null = null;
   constructor(private options: Options) {}
   /** Called synchronously from an explicit user gesture, never on page load. */
   prime() {
     this.options.primeStream?.();
-    if (!this.audio) { this.audio = new Audio(); this.audio.preload = "auto"; }
+    if (!this.audio) { this.audio = new Audio(); this.audio.preload = "auto";this.audio.volume=this.volume; }
     if (this.current) return;
     primeSpeechElement(this.audio);
   }
@@ -47,7 +50,7 @@ export class AnswerSpeaker {
     const job = this.queue.shift()!;
     const current = { job, abort: new AbortController() } as Playback;
     this.current = current;
-    if (!this.audio) { this.audio = new Audio(); this.audio.preload = "auto"; }
+    if (!this.audio) { this.audio = new Audio(); this.audio.preload = "auto";this.audio.volume=this.volume; }
     const audio = this.audio;
     try {
       // Keep all of the answer, within each server's 4,000-character limit.

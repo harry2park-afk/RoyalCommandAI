@@ -1,5 +1,6 @@
 'use client';
 import {useEffect,useRef,useState,useImperativeHandle,type Ref} from 'react';
+import VolumeControl from './VolumeControl';
 import LearningAvatar,{type LearningAvatarHandle} from './LearningAvatar';
 import styles from './LearningVoice.module.css';
 import {createDictation} from '../../../rcv3/live-dictation.mjs';
@@ -15,6 +16,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  const avatar=useRef<LearningAvatarHandle|null>(null);
  const prepared=useRef<PreparedLearningSpeech|null>(null),warmAttempted=useRef(false);
  const [avatarReady,setAvatarReady]=useState<boolean|null>(null);
+ const [volume,setVolume]=useState(1),volumeValue=useRef(1),pcmPlayer=useRef<PcmSpeechPlayer|null>(null);
  const dayPlayer=useRef<LearningDayPlayer|null>(null),dayLoad=useRef<AbortController|null>(null),dayMic=useRef<ReturnType<typeof createDictation>|null>(null),dayRetry=useRef<ReturnType<typeof setTimeout>|null>(null);
  const [dayMicError,setDayMicError]=useState(false);
  const conversation=useRef<LearningConversation|null>(null),speechDone=useRef<{resolve:()=>void;reject:()=>void}|null>(null);
@@ -30,7 +32,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  const stop=()=>{const daily=Boolean(dayPlayer.current||dayLoad.current);cancelDay();conversation.current?.stop();conversation.current=null;setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(daily?'dayStopped':null);};
  useImperativeHandle(ref,()=>({stop,startDay:(lessonId?:string)=>{void startDay(lessonId);},stopDictation:()=>{if(recognition.current){recognition.current.cancel();recognition.current=null;setListening(false);setStatus(null);}},start:(question?:string,typed=false)=>{if(question||!talking)startConversation(question,typed);}}));
  useEffect(()=>{
-  const pcm=new PcmSpeechPlayer();
+  const pcm=new PcmSpeechPlayer();pcm.setVolume(volumeValue.current);pcmPlayer.current=pcm;
   const request=async(text:string,format:'pcm'|'blob',signal:AbortSignal)=>{
    const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language,...(compact?{tutor:'v4-male'}:{}),...(format==='pcm'?{stream:true}:{})}),signal});
    if(!r.ok)throw Error('SPEECH');return r;
@@ -43,12 +45,12 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
    if(!pcm.available||avatar.current?.hasLiveVideo())return false;
    await warm.consume(text,'pcm',signal,async r=>{await pcm.play(r,signal,reading);});return true;
   }:undefined,play:(blob,signal)=>avatar.current?.play(blob,signal)??Promise.resolve(false),stopPlayback:()=>{pcm.stop();avatar.current?.stop();},status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle')speechDone.current?.resolve();if(value==='error')speechDone.current?.reject();}});
-  speaker.current=player;
+  player.setVolume(volumeValue.current);speaker.current=player;avatar.current?.setVolume(volumeValue.current);
   const halt=()=>{warm.clear();cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};
   const hide=()=>{if(document.hidden){warm.clear();cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;setListening(false);if(!background.current){player.stop();setStatus(null);}}};
   document.addEventListener('visibilitychange',hide);
   navigator.mediaDevices?.addEventListener('devicechange',halt);
-  return()=>{warm.clear();prepared.current=null;cancelDay();conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();pcm.dispose();speaker.current=null;};
+  return()=>{warm.clear();prepared.current=null;cancelDay();conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();pcm.dispose();pcmPlayer.current=null;speaker.current=null;};
  },[language,compact]);
  useEffect(()=>{
   if(!compact||disabled||draft.trim()||!prepareText||avatarReady===null||document.hidden||warmAttempted.current||!prepared.current)return;
@@ -111,9 +113,10 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
    recognition.current=session;session.start();setListening(true);setStatus('voiceListening');
   }catch{recognition.current?.cancel();recognition.current=null;setListening(false);setStatus('voiceMicError');}
  }
+ function changeVolume(value:number){volumeValue.current=value;setVolume(value);pcmPlayer.current?.setVolume(value);speaker.current?.setVolume(value);avatar.current?.setVolume(value);}
  function startLesson(){if(disabled)return;if(compact&&onChooseLesson){stop();onChooseLesson();}else void startDay();}
  function touchTeacher(){if(dayPlayer.current||dayLoad.current){stop();return;}if(!talking){startLesson();return;}if(paused)conversation.current?.resume();else conversation.current?.pause();}
- const controls=<div className={styles.actions}>{compact&&<button type="button" disabled={disabled||talking||(!onChooseLesson&&(Boolean(draft.trim())||!onDayPlan))} aria-haspopup={onChooseLesson?'dialog':undefined} onClick={startLesson}>{t('teacherStart')}</button>}<button type="button" onClick={()=>{warmAttempted.current=true;prepared.current?.clear();stop();}}>{t('teacherStop')}</button>{!compact&&talking&&<button type="button" onClick={touchTeacher}>{t(paused?'teacherResume':'teacherPause')}</button>}</div>;
+ const controls=<div className={styles.actions}>{compact&&<button type="button" disabled={disabled||talking||(!onChooseLesson&&(Boolean(draft.trim())||!onDayPlan))} aria-haspopup={onChooseLesson?'dialog':undefined} onClick={startLesson}>{t('teacherStart')}</button>}{compact?<div className={styles.stopControls}><div className={styles.stopVolume}><VolumeControl value={volume} onChange={changeVolume} label={t('voiceVolume')}/></div><button type="button" onClick={()=>{warmAttempted.current=true;prepared.current?.clear();stop();}}>{t('teacherStop')}</button></div>:<button type="button" onClick={()=>{warmAttempted.current=true;prepared.current?.clear();stop();}}>{t('teacherStop')}</button>}{!compact&&talking&&<button type="button" onClick={touchTeacher}>{t(paused?'teacherResume':'teacherPause')}</button>}</div>;
  return <div className={`${styles.voice}${compact?` ${styles.compact}`:''}`} aria-label={t('voiceTitle')}>
   <div className={styles.teacher}>
    <LearningAvatar ref={avatar} language={language} compact={compact} disabled={!talking&&(disabled||Boolean(draft.trim()))} onTouch={touchTeacher} onReady={compact?setAvatarReady:undefined} label={t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}/>

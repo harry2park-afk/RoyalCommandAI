@@ -5,6 +5,7 @@ import {readdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {createHash} from 'node:crypto';
 import {TOOL_REGISTRY} from '../rcv3/tool-registry.mjs';
 const owners={
+ 'src/components/rcv3-toolbox/VolumeControl.tsx':'learning',
  'src/components/rcv3-toolbox/LearningAvatar.tsx':'learning',
  'src/components/rcv3-toolbox/LearningVoice.tsx':'learning',
  'src/components/rcv3-toolbox/LearningLessonList.tsx':'learning',
@@ -41,7 +42,7 @@ const entries=[];
 for(const file of [...files('src/app/rcv3'),...files('src/components/rcv3-toolbox'),'src/components/help/HelpText.tsx'].sort()){
  const source=readFileSync(file,'utf8'),ast=ts.createSourceFile(file,source,ts.ScriptTarget.Latest,true,ts.ScriptKind.TSX);let index=0;
  function visit(node){
-  if((ts.isJsxElement(node)&&['button','ToolButton','CopyText'].includes(node.openingElement.tagName.getText(ast)))||(ts.isJsxSelfClosingElement(node)&&['ToolButton','CopyText'].includes(node.tagName.getText(ast)))){
+  if((ts.isJsxElement(node)&&['button','ToolButton','CopyText'].includes(node.openingElement.tagName.getText(ast)))||(ts.isJsxSelfClosingElement(node)&&(['ToolButton','CopyText'].includes(node.tagName.getText(ast))||(node.tagName.getText(ast)==='input'&&node.attributes.properties.some(prop=>ts.isJsxAttribute(prop)&&prop.name.getText(ast)==='type'&&prop.initializer&&ts.isStringLiteral(prop.initializer)&&prop.initializer.text==='range'))))){
    const owner=owners[file];if(!TOOL_REGISTRY.some(tool=>tool.id===owner))throw new Error(`Register control owner before use: ${file}`);
    const code=node.getText(ast),hash=createHash('sha256').update(code).digest('hex');
    entries.push({controlId:`${file}#${++index}`,toolId:owner,sourceHash:hash,mode:'context-bound',note:'Reuse through the owning component and its state/handlers; never copy markup alone.'});

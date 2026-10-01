@@ -2,7 +2,7 @@ import {beforeEach, afterEach, expect, it, vi} from "vitest";
 import {AnswerSpeaker, readSpeakerPreference, saveSpeakerPreference} from "./answer-speaker";
 class AudioMock {
   static instances: AudioMock[] = [];
-  src = ""; preload = "";
+  src = ""; preload = ""; volume = 1;
   onended: (() => void) | null = null; onerror: (() => void) | null = null;
   play = vi.fn(async () => {}); pause = vi.fn();
   removeAttribute() { this.src = ""; }
@@ -55,4 +55,11 @@ it('uses the optional streamed transport and reports reading before download com
 it('stream fallback happens before a provider load; stream errors never retry through the blob provider',async()=>{
  const load=vi.fn(async()=>blob),status=vi.fn();const fallback=new AnswerSpeaker({load,status,stream:async()=>false});fallback.enqueue({id:'legacy-device',text:'one'});await flush();expect(load).toHaveBeenCalledOnce();fallback.stop();load.mockClear();
  const failed=new AnswerSpeaker({load,status,stream:async()=>{throw Error('provider failed');}});failed.enqueue({id:'failed',text:'one'});await flush();expect(load).not.toHaveBeenCalled();expect(status).toHaveBeenCalledWith('failed','error');failed.stop();
+});
+
+it('applies the tutor gain before playback and updates it without creating or restarting audio',async()=>{
+ const load=vi.fn(async()=>blob),speaker=new AnswerSpeaker({load,status:vi.fn()});speaker.setVolume(.25);speaker.enqueue({id:'teacher',text:'lesson'});await flush();
+ const audio=AudioMock.instances[0];expect(audio.volume).toBe(.25);const plays=audio.play.mock.calls.length;
+ speaker.setVolume(0);expect(audio.volume).toBe(0);speaker.setVolume(.7);expect(audio.volume).toBe(.7);
+ expect(audio.play).toHaveBeenCalledTimes(plays);expect(load).toHaveBeenCalledOnce();expect(AudioMock.instances).toHaveLength(1);speaker.stop();
 });

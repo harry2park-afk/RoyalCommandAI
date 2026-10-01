@@ -1,4 +1,11 @@
 {
+  "voiceVolume": {
+    "en": "Volume",
+    "ko": "음량",
+    "ja": "音量",
+    "zh": "音量",
+    "hi": "आवाज़ का स्तर"
+  },
   "draftSaved": {
     "en": "Draft saved on this browser. Submitted assignments and progress are saved to your account.",
     "ko": "작성 내용은 이 브라우저에 저장됩니다. 제출한 과제와 진도는 계정에 저장됩니다.",

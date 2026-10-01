@@ -29,3 +29,7 @@
  .compact .actions button{pointer-events:auto}
  .compact .caption{grid-column:1;grid-row:2;margin-top:8px}
 }
+
+/* Keep the existing footer baseline; volume occupies the space directly above Stop. */
+.stopControls{position:relative;pointer-events:auto;flex:none}
+.stopVolume{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);pointer-events:auto}
