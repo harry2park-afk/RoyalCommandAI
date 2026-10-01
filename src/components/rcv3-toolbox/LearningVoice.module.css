@@ -18,3 +18,6 @@
 @media(min-width:761px){.teacher{display:flex;padding:10px}.caption{align-self:stretch}}
 @media(max-width:760px){.voice{position:sticky;top:0}.teacher{padding:6px}.caption>span{font-size:12px}.actions button{min-height:44px}}
 @media(min-width:761px){.compact{height:100%;box-sizing:border-box;display:flex;flex-direction:column}.compact .teacher{flex:1;min-height:0}.compact .teacher>div:first-child{flex:1;min-height:0}.compact .caption{flex:none}.compact .options{flex:none}}
+.compact .actions{flex:none;justify-content:space-between;flex-wrap:nowrap}
+.compact .actions button{padding:8px 12px;min-height:44px}
+@media(min-width:761px){.compact .teacher>div:first-child{overflow:hidden}}

@@ -1,7 +1,6 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
 const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn()}));
-vi.mock('react-dom',()=>({createPortal:(children:unknown)=>children}));
 vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>({current:v}),useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
 vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
 import LearningVoice from './LearningVoice';
@@ -42,16 +41,28 @@ it('typing cancels standalone dictation so delayed transcript cannot overwrite m
  m.handle!.stopDictation();recog.onresult({results:[[{transcript:'late dictation'}]]});expect(onTranscript).not.toHaveBeenCalled();expect(recog.abort).toHaveBeenCalled();
  for(const c of cleanup)if(typeof c==='function')c();
 });
-it('moves the existing stop handler into the V4 answer target without static tutor guidance',()=>{
+it('uses the existing daily start and stop handlers in the V4 tutor without static guidance or settings',async()=>{
  const onActiveChange=vi.fn();
- const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonTitle:'Original lesson title',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onActiveChange,compact:true,controlsTarget:{} as HTMLElement}));
+ const onDayPlan=vi.fn(async()=>({parts:[{lesson:'001',paragraph:0,text:'daily teaching'}],index:0}));
+ const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonTitle:'Original lesson title',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onActiveChange,onDayPlan,compact:true}));
  m.effects.map(f=>f());
  expect(tree.some(n=>n.type==='strong'||n.type==='small')).toBe(false);
  expect(tree.some(n=>n.type==='span'&&n.props.role==='status')).toBe(false);
  expect(tree.some(n=>n.type==='details'||n.type==='summary')).toBe(false);
  expect(tree.some(n=>n.type==='button'&&n.props.children==='마이크')).toBe(false);
+ const start=tree.find(n=>n.type==='button'&&n.props.children==='수업 시작')!;
+ expect(start.props.disabled).toBe(false);start.props.onClick();await Promise.resolve();await Promise.resolve();
+ expect(onDayPlan).toHaveBeenCalledOnce();expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'daily teaching'});
  tree.find(n=>n.type==='button'&&n.props.children==='스톱')!.props.onClick();
  expect(m.stop).toHaveBeenCalled();expect(onActiveChange).toHaveBeenCalledWith(false);
+});
+it('keeps V4 start disabled when access is blocked, a draft exists or no daily plan is available',()=>{
+ const props={language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),compact:true};
+ const onDayPlan=vi.fn(async()=>({parts:[],index:0}));
+ for(const guard of [{disabled:true,onDayPlan},{draft:'unfinished question',onDayPlan},{}]){
+  const tree=nodes(LearningVoice({...props,...guard}));
+  expect(tree.find(n=>n.type==='button'&&n.props.children==='수업 시작')!.props.disabled).toBe(true);
+ }
 });
 it('starts continuous daily teaching and recognizes Stop after earlier microphone results',async()=>{
  const onDaySegment=vi.fn(),onDayComplete=vi.fn(),onActiveChange=vi.fn();

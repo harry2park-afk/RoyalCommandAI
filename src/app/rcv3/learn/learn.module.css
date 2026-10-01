@@ -57,9 +57,6 @@
 .answerWindow{display:flex;gap:8px;min-height:56px;max-height:min(30dvh,320px);min-width:0}
 .answerWindow .messages{flex:1;min-width:0;min-height:0;margin:0;max-height:none;scrollbar-width:none}
 .answerWindow .messages p{margin:0 0 8px}
-.voiceControls{flex:none;align-self:flex-start;margin-left:auto}
-.voiceControls>div{flex-direction:column;gap:8px}
-.page .voiceControls button{padding:8px 12px;min-height:44px}
 .v4Desktop .transcript{max-height:12dvh;overflow:auto;margin:0;scrollbar-width:none;overflow-wrap:anywhere}
 .page .composer .send{position:absolute;right:10px;bottom:10px;display:grid;place-items:center;width:44px;height:44px;padding:0;background:#285747;border-color:#9ce4cb}
 /* Only the V4 desktop right column owns this viewport sizing. */
