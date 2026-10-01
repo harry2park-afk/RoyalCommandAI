@@ -84,11 +84,11 @@
     "hi": "प्रगति लोड नहीं हुई। पुनः प्रयास करें।"
   },
   "m1": {
-    "en": "Daily allowance reached. Try again tomorrow (UTC).",
-    "ko": "오늘의 이용 한도에 도달했습니다. 내일(UTC 기준) 다시 이용하세요.",
-    "ja": "本日の利用上限です。明日（UTC）再試行してください。",
-    "zh": "已达到今日限额，请明天（UTC）再试。",
-    "hi": "आज की सीमा पूरी हो गई। कल (UTC) पुनः प्रयास करें।"
+    "en": "Daily exam attempt limit reached. Try again tomorrow (UTC).",
+    "ko": "오늘의 시험 응시 한도에 도달했습니다. 내일(UTC 기준) 다시 이용하세요.",
+    "ja": "本日の試験受験上限です。明日（UTC）再試行してください。",
+    "zh": "已达到今日考试次数上限，请明天（UTC）再试。",
+    "hi": "आज की परीक्षा प्रयास सीमा पूरी हो गई। कल (UTC) पुनः प्रयास करें।"
   },
   "m2": {
     "en": "This exam expired. Start a new exam.",
@@ -630,18 +630,18 @@
     "hi": "माइक्रोफ़ोन उपलब्ध नहीं है। समर्थित ब्राउज़र में अनुमति दें या प्रश्न टाइप करें।"
   },
   "voiceError": {
-    "en": "Audio could not play. Check your connection and daily allowance, then tap Listen again.",
-    "ko": "음성을 재생하지 못했어요. 인터넷 연결과 하루 사용 한도를 확인하고 다시 듣기를 눌러주세요.",
-    "ja": "音声を再生できません。接続と1日の上限を確認し、再度再生してください。",
-    "zh": "无法播放语音。请检查网络和每日额度，然后再次点击收听。",
-    "hi": "आवाज़ नहीं चली। इंटरनेट और दैनिक सीमा जाँचकर फिर सुनें दबाएँ।"
+    "en": "Audio could not play. Check your connection, then tap Listen again.",
+    "ko": "음성을 재생하지 못했어요. 인터넷 연결을 확인하고 다시 듣기를 눌러주세요.",
+    "ja": "音声を再生できません。接続を確認し、再度再生してください。",
+    "zh": "无法播放语音。请检查网络，然后再次点击收听。",
+    "hi": "आवाज़ नहीं चली। इंटरनेट जाँचकर फिर सुनें दबाएँ।"
   },
   "voiceHint": {
-    "en": "Connect earphones using your phone settings. Speech recognition depends on your browser and may use its speech service. Each audio segment uses one daily AI request.",
-    "ko": "휴대폰 설정에서 이어폰을 연결해 주세요. 음성 입력은 브라우저 지원에 따라 작동하며 브라우저 음성 서비스를 이용할 수 있어요. 읽어주기는 음성 구간마다 하루 AI 요청 1회를 사용해요.",
-    "ja": "端末設定でイヤホンを接続してください。音声入力はブラウザの対応状況により、その音声サービスを使用する場合があります。読み上げは音声区間ごとに1日のAIリクエストを1回使用します。",
-    "zh": "请在手机设置中连接耳机。语音输入取决于浏览器支持，可能使用其语音服务。每段朗读消耗一次每日AI请求额度。",
-    "hi": "फ़ोन की सेटिंग में इयरफ़ोन जोड़ें। वॉइस इनपुट ब्राउज़र पर निर्भर है और उसकी वॉइस सेवा इस्तेमाल कर सकता है। हर ऑडियो खंड एक दैनिक AI अनुरोध लेता है।"
+    "en": "Connect earphones using your phone settings. Speech recognition depends on your browser and may use its speech service.",
+    "ko": "휴대폰 설정에서 이어폰을 연결해 주세요. 음성 입력은 브라우저 지원에 따라 작동하며 브라우저 음성 서비스를 이용할 수 있어요.",
+    "ja": "端末設定でイヤホンを接続してください。音声入力はブラウザの対応状況により、その音声サービスを使用する場合があります。",
+    "zh": "请在手机设置中连接耳机。语音输入取决于浏览器支持，可能使用其语音服务。",
+    "hi": "फ़ोन की सेटिंग में इयरफ़ोन जोड़ें। वॉइस इनपुट ब्राउज़र पर निर्भर है और उसकी वॉइस सेवा इस्तेमाल कर सकता है।"
   },
   "voiceListenOnly": {
     "en": "Listen-only mode · choose and start before travelling; screen-lock playback depends on your phone.",

@@ -9,7 +9,6 @@ import {getAvailableProviderIds,getConnector} from '@/lib/ai/connectors';
 import {reserveLearning} from './store';
 import {learningLanguage} from '@/lib/locale/learning';
 const cache=new Map<string,string>();
-const rate=new Map<string,{count:number;until:number}>();
 export function publicLearningContent(day:number,questionIds:string[]=[],language='en'){
  const ko=learningLanguage(language)==='ko',out:Record<string,string>={};
  const addQuestion=(id:string)=>{const source=questionById(id);if(!source)throw Error('RCV3_NOT_FOUND');const q=publicQuestion(source);out[`q.${q.id}`]=ko?q.ko:q.text;q.options.forEach((v,i)=>{out[`q.${q.id}.${i}`]=ko?q.koOptions[i]:v;});};
@@ -29,9 +28,6 @@ export async function translatedLearningContent(owner:string,language:string,sou
  const cacheKey=(k:string)=>`${COURSE}:${locale}:${k}:${createHash('sha256').update(source[k]).digest('hex')}`;
  for(const k of Object.keys(source)){const hit=cache.get(cacheKey(k));if(hit)output[k]=hit;else missing[k]=source[k];}
  if(!Object.keys(missing).length)return output;
- const now=Date.now();for(const [key,v] of rate)if(v.until<=now)rate.delete(key);
- const old=rate.get(owner);if((old?.count??0)>=12||(!old&&rate.size>=1000))throw Error('RCV3_LIMIT');
- rate.set(owner,{count:(old?.count??0)+1,until:old?.until??now+60000});
  const providers=getAvailableProviderIds(),provider=providers.includes('openai')?'openai':providers[0];if(!provider)throw Error('RCV3_UNAVAILABLE');
  // Only public, server-owned catalog strings reach the translator. Answer keys,
  // customer drafts, feedback and credentials never enter this shared cache.

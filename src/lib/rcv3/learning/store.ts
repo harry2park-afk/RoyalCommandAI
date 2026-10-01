@@ -11,7 +11,11 @@ export async function learningState(owner:string):Promise<LearningState>{
  return {work:Object.fromEntries((w.data||[]).map(r=>[r.lesson,{artifact:r.artifact,feedback:r.feedback,score:r.score}])),completed:(p.data||[]).map(r=>r.lesson),certificate:row?{id:row.certificate_id,name:row.issued_name,issuedAt:row.submitted_at,score:row.score}:null};
 }
 export async function reserveLearning(owner:string,kind:'chat'|'exam'){
- const db=learningDB(),day=new Date().toISOString().slice(0,10),limit=kind==='chat'?30:3;
+ // Owner policy: education AI is period-based, never request-count based.
+ // Keep the shared caller contract, but do no quota reads/writes for AI.
+ // This is not a 30-day entitlement check; paid activation/expiry is pending.
+ if(kind==='chat')return;
+ const db=learningDB(),day=new Date().toISOString().slice(0,10),limit=3;
  // Read once; the unique key still atomically enforces the quota under concurrency.
  const used=await db.from(tables.usage).select('slot').eq('owner_id',owner).eq('day',day).eq('kind',kind);
  if(used.error||!used.data)throw new Error('RCV3_STORAGE');
