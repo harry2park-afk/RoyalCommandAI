@@ -80,3 +80,7 @@
  /* Preserve the previous tutor width; give the reclaimed margins to study. */
  .v4Desktop .layout{grid-template-columns:minmax(0,1fr) minmax(0,42.5%)}
 }
+
+/* V4 uses the same source paragraphs as speech; only the left curriculum follows. */
+.lessonParagraph{margin:0 0 16px;padding:10px 12px;border-left:3px solid transparent;border-radius:6px;white-space:pre-line;scroll-margin-top:16px}
+.readingParagraph{border-left-color:#e7c46c;background:#e7c46c1a;color:#fff}

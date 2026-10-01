@@ -130,3 +130,24 @@ it('shows a numbered greeting only for V4 and prepends it to the selected source
  const legacy=render(0,[],{},'ko','/rcv3/learn').find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
  expect(legacy.props.onChooseLesson).toBeUndefined();const plan=await legacy.props.onDayPlan(new AbortController().signal,'053');expect(plan.parts[plan.index].text).not.toContain('안녕하세요.');expect(fetch).not.toHaveBeenCalled();
 });
+
+it('V4 lectures follow left paragraphs and keep genuine conversation and bookmarks without lecture appends',()=>{
+ const values=new Map<string,string>(),storage={getItem:(key:string)=>values.get(key)??null,setItem:(key:string,value:string)=>values.set(key,value)};vi.stubGlobal('window',{localStorage:storage});
+ render(0,[],{},'ko','/rcv4/learn');m.index=0;const history=[{role:'user',content:'Question'},{role:'assistant',content:'Chat reply'}];m.values[9]=history;
+ const tree=nodes(LearningRoom({ownerId:'alice',language:'ko',entryPath:'/rcv4/learn'})),teacher=tree.find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
+ teacher.props.onDaySegment({lesson:'001',paragraph:1,text:'Spoken course paragraph'});
+ expect(m.changes).toContainEqual([28,{lesson:'001',paragraph:1}]);expect(m.changes.some(([i])=>i===9||i===27)).toBe(false);
+ expect(JSON.parse(values.get('rc-learning-resume:alice:ai-literacy-100-v1:ko')!).messages).toEqual(history);
+ expect(JSON.parse(values.get('rc-learning-resume:alice:ai-literacy-100-v1:ko:teaching')!)).toMatchObject({lesson:'001',paragraph:1,finished:false});
+ teacher.props.onActiveChange(false);expect(m.changes).toContainEqual([28,null]);
+});
+it('V4 explicit reading stays out of chat and its cursor clears before normal replies or when audio ends',async()=>{
+ vi.stubGlobal('window',{localStorage:{setItem:vi.fn()}});vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({answer:'Actual chat answer'})})));
+ const teacher=render(0,[],{},'ko','/rcv4/learn').find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
+ const speech=await teacher.props.onQuestion('읽어줘',new AbortController().signal);
+ expect(speech).toBe(lessons[0].ko);expect(m.changes).toContainEqual([28,{lesson:'001',paragraph:-1}]);expect(m.changes.some(([i])=>i===27||i===9)).toBe(false);
+ teacher.props.onPlaybackIdle();const update=m.changes.at(-1)![1] as (cursor:unknown)=>unknown;
+ expect(update({lesson:'001',paragraph:-1})).toBe(null);expect(update({lesson:'001',paragraph:2})).toEqual({lesson:'001',paragraph:2});
+ m.changes=[];await teacher.props.onQuestion('Explain this',new AbortController().signal);
+ expect(m.changes).toContainEqual([28,null]);expect(m.changes).toContainEqual([27,'Actual chat answer']);
+});
