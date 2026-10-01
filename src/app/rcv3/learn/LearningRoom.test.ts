@@ -151,3 +151,14 @@ it('V4 explicit reading stays out of chat and its cursor clears before normal re
  m.changes=[];await teacher.props.onQuestion('Explain this',new AbortController().signal);
  expect(m.changes).toContainEqual([28,null]);expect(m.changes).toContainEqual([27,'Actual chat answer']);
 });
+
+
+it('places audio-clock progress below only the currently narrated V4 paragraph and not in the tutor board',()=>{
+ render(0,[],{},'ko','/rcv4/learn');m.index=0;m.values[24]=true;m.values[28]={lesson:'001',paragraph:0};m.values[29]={elapsed:2,duration:4};
+ const n=nodes(LearningRoom({language:'ko',ownerId:'alice',entryPath:'/rcv4/learn'})),bar=n.find(e=>typeof e.type==='function'&&e.type.name==='ReadingProgress')!;
+ expect(bar.props.progress).toEqual({elapsed:2,duration:4});expect(n.filter(e=>typeof e.type==='function'&&e.type.name==='ReadingProgress')).toHaveLength(1);
+ const html=renderToStaticMarkup(n[0]);expect(html).toContain('data-reading-progress="0.5"');expect(html).toContain('scaleX(0.5)');
+ const teacher=n.find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;teacher.props.onActiveChange(false);expect(m.changes).toContainEqual([29,null]);
+ m.index=0;m.values[28]={lesson:'001',paragraph:-1};expect(renderToStaticMarkup(LearningRoom({language:'ko',ownerId:'alice',entryPath:'/rcv4/learn'}))).not.toContain('data-reading-progress');
+ m.index=0;m.values[28]={lesson:'001',paragraph:0};expect(renderToStaticMarkup(LearningRoom({language:'ko',ownerId:'alice',entryPath:'/rcv3/learn'}))).not.toContain('data-reading-progress');
+});

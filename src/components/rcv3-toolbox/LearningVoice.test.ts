@@ -1,8 +1,8 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
-const m=vi.hoisted(()=>({stateIndex:0,avatarReady:null as boolean|null,effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>),stream:null as null|((job:unknown,text:string,signal:AbortSignal,reading:()=>void)=>Promise<boolean>),canStream:false,pcmPlay:vi.fn(),refs:[] as {current:unknown}[]}));
+const m=vi.hoisted(()=>({stateIndex:0,avatarReady:null as boolean|null,effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>),stream:null as null|((job:unknown,text:string,signal:AbortSignal,reading:()=>void)=>Promise<boolean>),progress:null as null|((id:string,value:{elapsed:number;duration:number|null})=>void),canStream:false,pcmPlay:vi.fn(),refs:[] as {current:unknown}[]}));
 vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>{const i=m.stateIndex++;return [i===0?m.avatarReady:v,vi.fn()];},useRef:(v:unknown)=>{const ref={current:v};m.refs.push(ref);return ref;},useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
-vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{constructor(options:{load:typeof m.load;stream?:typeof m.stream}){m.load=options.load;m.stream=options.stream??null;}enqueue=m.enqueue;stop=m.stop;prime=m.prime;setVolume=vi.fn();}}));
+vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{constructor(options:{load:typeof m.load;stream?:typeof m.stream;progress?:typeof m.progress}){m.progress=options.progress??null;m.load=options.load;m.stream=options.stream??null;}enqueue=m.enqueue;stop=m.stop;prime=m.prime;setVolume=vi.fn();}}));
 vi.mock('@/lib/client/pcm-speech-player',()=>({PcmSpeechPlayer:class{get available(){return m.canStream;}prime=vi.fn();play=m.pcmPlay;stop=vi.fn();dispose=vi.fn();setVolume=vi.fn();}}));
 import LearningVoice from './LearningVoice';
 function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
@@ -112,7 +112,7 @@ it('streams V4 speech through one fixed male-profile request and preserves langu
  m.canStream=true;const response=new Response('pcm',{headers:{'Content-Type':'audio/pcm'}});vi.stubGlobal('fetch',vi.fn(async()=>response));
  LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),compact:true});m.effects.map(f=>f());
  const signal=new AbortController().signal,reading=vi.fn();expect(await m.stream!({},'안녕하세요. 수업 내용',signal,reading)).toBe(true);
- expect(fetch).toHaveBeenCalledOnce();const [url,init]=vi.mocked(fetch).mock.calls[0];expect(url).toBe('/api/rcv3/learn/speech');expect(init!.signal).toBe(signal);expect(JSON.parse(init!.body as string)).toEqual({text:'안녕하세요. 수업 내용',language:'ko',tutor:'v4-male',stream:true});expect(m.pcmPlay).toHaveBeenCalledWith(response,signal,reading);
+ expect(fetch).toHaveBeenCalledOnce();const [url,init]=vi.mocked(fetch).mock.calls[0];expect(url).toBe('/api/rcv3/learn/speech');expect(init!.signal).toBe(signal);expect(JSON.parse(init!.body as string)).toEqual({text:'안녕하세요. 수업 내용',language:'ko',tutor:'v4-male',stream:true});expect(m.pcmPlay).toHaveBeenCalledWith(response,signal,reading,expect.any(Function));
 });
 it('uses the original transport without a streaming request for unsupported Web Audio or configured live video, and leaves V3 unchanged',async()=>{
  vi.stubGlobal('fetch',vi.fn());
@@ -147,4 +147,14 @@ it('keeps background preparation disabled for V3, blocked access, drafts and unk
   const cleanups=m.effects.map(f=>f());for(const cleanup of cleanups)if(typeof cleanup==='function')cleanup();
  }
  expect(fetch).not.toHaveBeenCalled();
+});
+
+
+it('forwards playback progress only while a V4 daily lesson is active, never during chat or after Stop',async()=>{
+ const onDayProgress=vi.fn();
+ LearningVoice({compact:true,language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onDayProgress,onDayPlan:async()=>({parts:[{lesson:'001',paragraph:0,text:'first paragraph'}],index:0})});
+ const cleanup=m.effects.map(f=>f());m.progress!('teacher',{elapsed:1,duration:4});expect(onDayProgress).not.toHaveBeenCalled();
+ m.handle!.startDay();await Promise.resolve();await Promise.resolve();m.progress!('teacher',{elapsed:1,duration:4});expect(onDayProgress).toHaveBeenLastCalledWith({elapsed:1,duration:4});
+ m.handle!.stop();const count=onDayProgress.mock.calls.length;m.progress!('teacher',{elapsed:3,duration:4});expect(onDayProgress).toHaveBeenCalledTimes(count);
+ for(const c of cleanup)if(typeof c==='function')c();
 });

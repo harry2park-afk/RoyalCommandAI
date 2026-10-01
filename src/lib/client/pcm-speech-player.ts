@@ -1,4 +1,5 @@
 import {clampVolume} from './audio-volume';
+import {pcmPlaybackProgress,type SpeechBlock,type SpeechProgress} from './speech-progress';
 /** Browser-local 24 kHz PCM16 playback. Primed only by a user gesture. */
 export class PcmSpeechPlayer {
   private context: AudioContext | null = null;
@@ -19,7 +20,7 @@ export class PcmSpeechPlayer {
   stop() { this.active?.abort(); }
   dispose() { this.stop(); void this.context?.close().catch(() => {}); this.context = null;this.gain?.disconnect();this.gain=null; }
 
-  async play(response: Response, signal: AbortSignal, reading: () => void) {
+  async play(response: Response, signal: AbortSignal, reading: () => void, progress?: (value:SpeechProgress)=>void) {
     const context = this.context;
     if (!context || !response.ok || !response.body || !response.headers.get('content-type')?.startsWith('audio/pcm')) throw Error('SPEECH');
     this.stop();
@@ -27,11 +28,14 @@ export class PcmSpeechPlayer {
     const cancel = AbortSignal.any([signal, controller.signal]);
     const reader = response.body.getReader(), sources = new Set<AudioBufferSourceNode>();
     let pending = new Uint8Array(0), nextTime = context.currentTime + 0.04, received = false, ended = false;
+    const blocks:SpeechBlock[]=[];let timer:ReturnType<typeof setInterval>|undefined;
+    const tick=()=>{if(!cancel.aborted&&this.active===controller)progress?.(pcmPlaybackProgress(blocks,context.currentTime,ended));};
     let resolveDrain: () => void = () => {}, rejectDrain: (e: Error) => void = () => {};
     const drain = new Promise<void>((resolve, reject) => { resolveDrain = resolve; rejectDrain = reject; });
     // Cancellation can happen while reader.read() is pending, before awaiting drain.
     void drain.catch(() => {});
     const abort = () => {
+      clearInterval(timer);
       for (const source of sources) { source.onended = null; try { source.stop(); } catch {} source.disconnect(); }
       sources.clear(); void reader.cancel().catch(() => {}); rejectDrain(Error('CANCELLED'));
     };
@@ -44,8 +48,9 @@ export class PcmSpeechPlayer {
       const source = context.createBufferSource(); source.buffer = buffer; source.connect(this.gain??context.destination); sources.add(source);
       source.onended = () => { sources.delete(source); source.disconnect(); if (ended && !sources.size) resolveDrain(); };
       nextTime = Math.max(nextTime, context.currentTime + 0.015);
+      if(progress)blocks.push({start:nextTime,duration:buffer.duration});
       source.start(nextTime); nextTime += buffer.duration;
-      if (!received) { received = true; reading(); }
+      if (!received) { received = true; reading();if(progress){tick();timer=setInterval(tick,100);} }
     };
     try {
       if (cancel.aborted) throw Error('CANCELLED');
@@ -61,9 +66,10 @@ export class PcmSpeechPlayer {
       if (pending.length % 2) throw Error('SPEECH');
       if (pending.length) append(pending);
       if (!received) throw Error('SPEECH');
-      ended = true; if (!sources.size) resolveDrain();
+      ended = true;tick();if (!sources.size) resolveDrain();
       await drain;
+      if(!cancel.aborted)progress?.({elapsed:blocks.reduce((sum,block)=>sum+block.duration,0),duration:blocks.reduce((sum,block)=>sum+block.duration,0)});
     } catch (error) { abort(); throw error; }
-    finally { cancel.removeEventListener('abort', abort); reader.releaseLock(); if (this.active === controller) this.active = null; }
+    finally { clearInterval(timer);cancel.removeEventListener('abort', abort); reader.releaseLock(); if (this.active === controller) this.active = null; }
   }
 }

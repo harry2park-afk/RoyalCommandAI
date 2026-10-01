@@ -9,10 +9,11 @@ import {LearningConversation} from '@/lib/client/learning-conversation';
 import {AnswerSpeaker} from '@/lib/client/answer-speaker';
 import {PcmSpeechPlayer} from '@/lib/client/pcm-speech-player';
 import {PreparedLearningSpeech} from '@/lib/client/prepared-learning-speech';
+import type {SpeechProgress} from '@/lib/client/speech-progress';
 import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
 export type LearningVoiceHandle={startDay:(lessonId?:string)=>void;stop:()=>void;stopDictation:()=>void;start:(question?:string,typed?:boolean)=>void};
-type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onPlaybackIdle?:()=>void;onDayPlan?:(signal:AbortSignal,lessonId?:string)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;onChooseLesson?:()=>void;compact?:boolean;prepareText?:string};
-export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange,onPlaybackIdle,onDayPlan,onDaySegment,onDayComplete,onChooseLesson,compact=false,prepareText=''}:Props){
+type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onPlaybackIdle?:()=>void;onDayProgress?:(value:SpeechProgress)=>void;onDayPlan?:(signal:AbortSignal,lessonId?:string)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;onChooseLesson?:()=>void;compact?:boolean;prepareText?:string};
+export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange,onPlaybackIdle,onDayProgress,onDayPlan,onDaySegment,onDayComplete,onChooseLesson,compact=false,prepareText=''}:Props){
  const avatar=useRef<LearningAvatarHandle|null>(null);
  const prepared=useRef<PreparedLearningSpeech|null>(null),warmAttempted=useRef(false);
  const [avatarReady,setAvatarReady]=useState<boolean|null>(null);
@@ -25,7 +26,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  const [listenOnly,setListenOnly]=useState(false);
  const [listening,setListening]=useState(false),[status,setStatus]=useState<LearningLabel|null>(null),[auto,setAuto]=useState(false);
  const recognition=useRef<ReturnType<typeof createDictation>|null>(null),speaker=useRef<AnswerSpeaker|null>(null);
- const latest=useRef({draft,onTranscript,onQuestion,onActiveChange,onPlaybackIdle,onDayPlan,onDaySegment,onDayComplete});latest.current={draft,onTranscript,onQuestion,onActiveChange,onPlaybackIdle,onDayPlan,onDaySegment,onDayComplete};
+ const latest=useRef({draft,onTranscript,onQuestion,onActiveChange,onPlaybackIdle,onDayProgress,onDayPlan,onDaySegment,onDayComplete});latest.current={draft,onTranscript,onQuestion,onActiveChange,onPlaybackIdle,onDayProgress,onDayPlan,onDaySegment,onDayComplete};
  const seenAnswer=useRef(answerText);
  const t=(key:LearningLabel)=>learningLabel(key,language);
  const cancelDay=()=>{dayLoad.current?.abort();dayLoad.current=null;dayPlayer.current?.stop();dayPlayer.current=null;dayMic.current?.cancel();dayMic.current=null;if(dayRetry.current)clearTimeout(dayRetry.current);dayRetry.current=null;};
@@ -38,12 +39,13 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
    if(!r.ok)throw Error('SPEECH');return r;
   };
   const warm=new PreparedLearningSpeech(request);prepared.current=warm;warmAttempted.current=false;
-  const player=new AnswerSpeaker({load:(_job,text,signal)=>warm.consume(text,'blob',signal,r=>r.blob()),
+  const report=compact?(value:SpeechProgress)=>{if(dayPlayer.current)latest.current.onDayProgress?.(value);}:undefined;
+  const player=new AnswerSpeaker({progress:report?(_id,value)=>report(value):undefined,load:(_job,text,signal)=>warm.consume(text,'blob',signal,r=>r.blob()),
   primeStream:()=>{if(compact)pcm.prime();},stream:compact?async(_job,text,signal,reading)=>{
    // Live video keeps its existing blob transport. Unsupported audio contexts
    // fall back before requesting anything, without duplicate quota/provider use.
    if(!pcm.available||avatar.current?.hasLiveVideo())return false;
-   await warm.consume(text,'pcm',signal,async r=>{await pcm.play(r,signal,reading);});return true;
+   await warm.consume(text,'pcm',signal,async r=>{await pcm.play(r,signal,reading,report);});return true;
   }:undefined,play:(blob,signal)=>avatar.current?.play(blob,signal)??Promise.resolve(false),stopPlayback:()=>{pcm.stop();avatar.current?.stop();},status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle'){latest.current.onPlaybackIdle?.();speechDone.current?.resolve();}if(value==='error'){latest.current.onPlaybackIdle?.();speechDone.current?.reject();}}});
   player.setVolume(volumeValue.current);speaker.current=player;avatar.current?.setVolume(volumeValue.current);
   const halt=()=>{warm.clear();cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};

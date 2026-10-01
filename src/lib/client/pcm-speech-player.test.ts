@@ -11,7 +11,7 @@ class Context {
  createBuffer(_channels:number,length:number,rate:number){const samples=new Float32Array(length);this.buffers.push(samples);return {duration:length/rate,getChannelData:()=>samples};}
  createBufferSource(){const source={buffer:null,start:vi.fn(),stop:vi.fn(),connect:vi.fn(),disconnect:vi.fn(),onended:null};this.sources.push(source);return source;}
 }
-beforeEach(()=>vi.stubGlobal('window',{AudioContext:Context}));afterEach(()=>{vi.unstubAllGlobals();vi.restoreAllMocks();});
+beforeEach(()=>vi.stubGlobal('window',{AudioContext:Context}));afterEach(()=>{vi.useRealTimers();vi.unstubAllGlobals();vi.restoreAllMocks();});
 const flush=async()=>{for(let i=0;i<12;i++)await Promise.resolve();};
 function stream(){let control!:ReadableStreamDefaultController<Uint8Array>;const cancel=vi.fn();return {response:new Response(new ReadableStream<Uint8Array>({start:c=>{control=c;},cancel}),{headers:{'Content-Type':'audio/pcm'}}),push:(bytes:Uint8Array)=>control.enqueue(bytes),end:()=>control.close(),cancel};}
 it('plays the first partial response before EOF, retains split bytes and waits for the last audio sample',async()=>{
@@ -22,6 +22,15 @@ it('plays the first partial response before EOF, retains split bytes and waits f
  const ctx=Context.latest;expect(reading).toHaveBeenCalledOnce();expect(ctx.sources).toHaveLength(1);expect(ctx.buffers[0][0]).toBe(-1);expect(ctx.buffers[0][1]).toBeCloseTo(32767/32768);expect(done).not.toHaveBeenCalled();
  data.push(bytes.subarray(5761));data.end();await flush();expect(ctx.sources).toHaveLength(2);expect(ctx.buffers[1][1]).toBe(0.25);
  expect(ctx.sources[1].start.mock.calls[0][0]).toBeCloseTo(0.16);ctx.sources[0].onended?.();await flush();expect(done).not.toHaveBeenCalled();ctx.sources[1].onended?.();await task;expect(done).toHaveBeenCalledOnce();pcm.dispose();expect(ctx.close).toHaveBeenCalledOnce();
+});
+
+it('uses sample scheduling and the audio clock, waits for real duration and stops progress callbacks on cancellation',async()=>{
+ vi.useFakeTimers();const pcm=new PcmSpeechPlayer();pcm.prime();const progress=vi.fn(),data=stream(),task=pcm.play(data.response,new AbortController().signal,vi.fn(),progress);const rejected=expect(task).rejects.toThrow('CANCELLED');
+ data.push(new Uint8Array(48000));await flush();expect(progress).toHaveBeenLastCalledWith({elapsed:0,duration:null});
+ data.end();await flush();expect(progress.mock.calls.at(-1)![0].duration).toBeCloseTo(1);
+ Context.latest.currentTime=.54;vi.advanceTimersByTime(100);expect(progress.mock.calls.at(-1)![0].elapsed).toBeCloseTo(.5);
+ vi.advanceTimersByTime(500);expect(progress.mock.calls.at(-1)![0].elapsed).toBeCloseTo(.5);
+ pcm.stop();await rejected;const count=progress.mock.calls.length;Context.latest.currentTime=5;vi.advanceTimersByTime(500);expect(progress).toHaveBeenCalledTimes(count);pcm.dispose();
 });
 it('Stop cancels a pending stream and all scheduled sources, then allows a fresh attempt',async()=>{
  const pcm=new PcmSpeechPlayer();pcm.prime();const data=stream(),task=pcm.play(data.response,new AbortController().signal,vi.fn());const rejected=expect(task).rejects.toThrow('CANCELLED');

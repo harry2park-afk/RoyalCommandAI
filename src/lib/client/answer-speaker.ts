@@ -1,10 +1,12 @@
 import {clampVolume} from './audio-volume';
+import type {SpeechProgress} from './speech-progress';
 /** One reusable audio element and one cancellable queue per answer surface. */
 export type SpeechJob = { id: string; text: string; language?: string; roomId?: string };
 type Playback = { job: SpeechJob; abort: AbortController; finish?: () => void; url?: string };
 type Options = {
   load: (job: SpeechJob, text: string, signal: AbortSignal) => Promise<Blob>;
   status: (id: string, state: "preparing" | "reading" | "idle" | "error") => void;
+  progress?: (id:string,value:SpeechProgress)=>void;
   play?: (blob: Blob, signal: AbortSignal) => Promise<boolean>;
   stopPlayback?: () => void;
   primeStream?: () => void;
@@ -38,7 +40,7 @@ export class AnswerSpeaker {
     if (current && (!id || current.job.id === id)) {
       this.current = null;
       current.abort.abort();
-      if (this.audio) { this.audio.onended = null; this.audio.onerror = null; this.audio.pause(); this.audio.removeAttribute("src"); }
+      if (this.audio) { this.audio.onended = null; this.audio.onerror = null;this.audio.ontimeupdate=null;this.audio.ondurationchange=null; this.audio.pause(); this.audio.removeAttribute("src"); }
       current.finish?.();
       if (current.url) URL.revokeObjectURL(current.url);
       this.options.status(current.job.id, "idle");
@@ -73,14 +75,16 @@ export class AnswerSpeaker {
         }
         current.url = URL.createObjectURL(blob);
         audio.src = current.url;
+        const report=()=>{if(this.current===current&&!current.abort.signal.aborted)this.options.progress?.(job.id,{elapsed:audio.currentTime,duration:Number.isFinite(audio.duration)&&audio.duration>0?audio.duration:null});};
+        if(this.options.progress){audio.ontimeupdate=report;audio.ondurationchange=report;}
         await new Promise<void>((resolve, reject) => {
           current.finish = resolve;
-          audio.onended = () => resolve();
+          audio.onended = () => {report();resolve();};
           audio.onerror = () => reject(new Error("AUDIO_PLAYBACK"));
           void audio.play().then(() => { if (this.current === current) this.options.status(job.id, "reading"); }).catch(reject);
         });
         if (this.current !== current) return;
-        audio.onended = null; audio.onerror = null;
+        audio.onended = null; audio.onerror = null;audio.ontimeupdate=null;audio.ondurationchange=null;
         URL.revokeObjectURL(current.url); current.url = undefined;
       }
       this.options.status(job.id, "idle");
@@ -89,7 +93,7 @@ export class AnswerSpeaker {
     } finally {
       if (this.current === current) {
         this.current = null;
-        audio.onended = null; audio.onerror = null; audio.pause(); audio.removeAttribute("src");
+        audio.onended = null; audio.onerror = null;audio.ontimeupdate=null;audio.ondurationchange=null; audio.pause(); audio.removeAttribute("src");
         if (current.url) URL.revokeObjectURL(current.url);
         void this.next();
       }

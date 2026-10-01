@@ -3,6 +3,7 @@ import {AnswerSpeaker, readSpeakerPreference, saveSpeakerPreference} from "./ans
 class AudioMock {
   static instances: AudioMock[] = [];
   src = ""; preload = ""; volume = 1;
+  currentTime=0;duration=NaN;ontimeupdate:(()=>void)|null=null;ondurationchange:(()=>void)|null=null;
   onended: (() => void) | null = null; onerror: (() => void) | null = null;
   play = vi.fn(async () => {}); pause = vi.fn();
   removeAttribute() { this.src = ""; }
@@ -13,6 +14,13 @@ const blob = new Blob(["audio"],{type:"audio/mpeg"});
 it('video transport replaces local audio and Stop cancels the video transport',async()=>{
  const play=vi.fn(async()=>true),stopPlayback=vi.fn(),status=vi.fn();const speaker=new AnswerSpeaker({load:async()=>blob,play,stopPlayback,status});
  speaker.enqueue({id:'teacher',text:'lesson'});await flush();expect(play).toHaveBeenCalled();expect(URL.createObjectURL).not.toHaveBeenCalled();expect(status).toHaveBeenCalledWith('teacher','idle');speaker.stop();expect(stopPlayback).toHaveBeenCalled();
+});
+
+it('reports the actual media clock and removes progress listeners on Stop without another request',async()=>{
+ const progress=vi.fn(),load=vi.fn(async()=>blob),speaker=new AnswerSpeaker({load,status:vi.fn(),progress});speaker.enqueue({id:'teacher',text:'lesson'});await flush();
+ const audio=AudioMock.instances[0];audio.duration=4;audio.currentTime=1;audio.ontimeupdate?.();expect(progress).toHaveBeenLastCalledWith('teacher',{elapsed:1,duration:4});
+ audio.duration=NaN;audio.ondurationchange?.();expect(progress).toHaveBeenLastCalledWith('teacher',{elapsed:1,duration:null});
+ const late=audio.ontimeupdate;speaker.stop();const count=progress.mock.calls.length;late?.();expect(progress).toHaveBeenCalledTimes(count);expect(audio.ontimeupdate).toBeNull();expect(audio.ondurationchange).toBeNull();expect(load).toHaveBeenCalledOnce();
 });
 beforeEach(()=>{AudioMock.instances=[];vi.stubGlobal("Audio",AudioMock);vi.spyOn(URL,"createObjectURL").mockReturnValue("blob:test");vi.spyOn(URL,"revokeObjectURL").mockImplementation(()=>{});});
 afterEach(()=>{vi.restoreAllMocks();vi.unstubAllGlobals();});
