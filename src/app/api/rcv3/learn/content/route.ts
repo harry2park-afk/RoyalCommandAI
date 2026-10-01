@@ -4,10 +4,10 @@ import {accountAnswerLanguage} from '@/lib/rcv3/answer-language';
 import {publicLearningContent,translatedLearningContent} from '@/lib/rcv3/learning/content';
 import {learningLanguages,learningLanguage} from '@/lib/locale/learning';
 export const maxDuration=60;
-const schema=z.object({day:z.number().int().min(1).max(30),language:z.enum(learningLanguages).optional()}).strict();
+const schema=z.object({course:z.string().max(80).optional(),day:z.number().int().min(1).max(30),language:z.enum(learningLanguages).optional()}).strict();
 export async function POST(request:Request){try{
  const ctx=await session(),body=schema.parse(await input(request,500));
  const language=body.language??learningLanguage(await accountAnswerLanguage(ctx));
- const source=publicLearningContent(body.day,[],language);
+ const source=publicLearningContent(body.day,[],language,body.course);
  return reply({language,day:body.day,text:await translatedLearningContent(ctx.user.id,language,source)});
  }catch(error){return failure(error);}}

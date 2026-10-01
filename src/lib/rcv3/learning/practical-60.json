@@ -1,0 +1,602 @@
+[
+  {
+    "id": "p001",
+    "day": 1,
+    "koTitle": "ChatGPT 첫 질문",
+    "taskKo": "AI가 무엇인지 초보자에게 두 문장으로 설명해줘.",
+    "checkKo": "실제 답을 받고 내가 이해한 뜻을 한 문장으로 말한다.",
+    "title": "ChatGPT: your first question",
+    "task": "Explain AI to a beginner in two sentences.",
+    "check": "Read the actual answer, then explain it in your own sentence."
+  },
+  {
+    "id": "p002",
+    "day": 1,
+    "koTitle": "ChatGPT 다시 부탁하기",
+    "taskKo": "방금 답을 더 쉽게 바꾸고 생활 속 예를 하나 들어줘.",
+    "checkKo": "처음 답과 수정 답에서 달라진 점 하나를 찾는다.",
+    "title": "ChatGPT: ask again",
+    "task": "Make your last answer simpler and add one everyday example.",
+    "check": "Compare the two answers and identify one improvement."
+  },
+  {
+    "id": "p003",
+    "day": 2,
+    "koTitle": "ChatGPT 상황 알려주기",
+    "taskKo": "가상 꽃집의 새 고객에게 보낼 환영 인사를 공손하게 두 문장으로 써줘.",
+    "checkKo": "대상·목적·말투가 요청과 맞는지 확인한다.",
+    "title": "ChatGPT: give context",
+    "task": "Write a polite, two-sentence welcome for a new customer of a fictional flower shop.",
+    "check": "Check audience, purpose and tone."
+  },
+  {
+    "id": "p004",
+    "day": 2,
+    "koTitle": "ChatGPT 형식 정하기",
+    "taskKo": "같은 인사를 문자메시지용 한 문장과 이메일용 세 문장으로 나눠줘.",
+    "checkKo": "두 형식을 받아 비교하고 하나를 내 말로 고친다.",
+    "title": "ChatGPT: choose a format",
+    "task": "Turn that welcome into a one-sentence text message and a three-sentence email.",
+    "check": "Compare both formats and rewrite one in your own words."
+  },
+  {
+    "id": "p005",
+    "day": 3,
+    "koTitle": "Claude 글쓰기 시작",
+    "taskKo": "가상 모임 안내를 써줘. 장소는 연습실, 날짜는 미정이야. 날짜는 만들지 마.",
+    "checkKo": "모르는 날짜를 지어내지 않은 초안을 얻는다.",
+    "title": "Claude: start writing",
+    "task": "Write an invitation to a fictional gathering. The venue is the practice room; the date is undecided. Do not invent a date.",
+    "check": "Check that the date remains undecided."
+  },
+  {
+    "id": "p006",
+    "day": 3,
+    "koTitle": "Claude 원하는 부분만 수정",
+    "taskKo": "이 안내에서 인사말만 친근하게 바꾸고 장소와 나머지 내용은 유지해줘.",
+    "checkKo": "수정 전후를 대조해 지정하지 않은 내용이 보존됐는지 확인한다.",
+    "title": "Claude: edit one part",
+    "task": "Make only the greeting friendlier. Keep the venue and all other information.",
+    "check": "Compare the drafts to confirm other facts stayed unchanged."
+  },
+  {
+    "id": "p007",
+    "day": 4,
+    "koTitle": "Gemini 생활 계획",
+    "taskKo": "오늘 책상 정리와 책 읽기를 할 거야. 30분짜리 순서를 세 단계로 만들어줘.",
+    "checkKo": "계획을 받고 첫 단계 하나를 직접 해본다.",
+    "title": "Gemini: a daily plan",
+    "task": "Plan 30 minutes of desk tidying and reading in three steps.",
+    "check": "Get the plan and actually perform its first step."
+  },
+  {
+    "id": "p008",
+    "day": 4,
+    "koTitle": "Gemini 조건 바꾸기",
+    "taskKo": "책상 정리는 10분 이내로 하고 나머지는 책 읽기에 써줘.",
+    "checkKo": "시간 합계가 30분인지 직접 계산한다.",
+    "title": "Gemini: change a condition",
+    "task": "Keep tidying within 10 minutes and use the remaining time for reading.",
+    "check": "Add the times yourself: the total must be 30 minutes."
+  },
+  {
+    "id": "p009",
+    "day": 5,
+    "koTitle": "두 AI 답변 비교",
+    "taskKo": "ChatGPT와 Claude에 같은 모임 안내 요청을 각각 보내기.",
+    "checkKo": "좋은 답을 선택하고 정확성·길이·말투 중 이유 두 가지를 적는다.",
+    "title": "Compare two AI answers",
+    "task": "Send the same fictional gathering invitation request to ChatGPT and Claude.",
+    "check": "Choose one answer and give two reasons about accuracy, length or tone."
+  },
+  {
+    "id": "p010",
+    "day": 5,
+    "koTitle": "개인정보를 가리고 질문",
+    "taskKo": "가상 이름·주소가 든 연습 메모에서 이름을 고객A, 주소를 지역명으로 바꾼 뒤 요약 요청하기.",
+    "checkKo": "직접 가린 자료를 사용하고 실제 비밀번호·계좌정보는 넣지 않는다.",
+    "title": "Remove personal details",
+    "task": "Replace the fictional name and street address in a practice note with Customer A and a region before asking for a summary.",
+    "check": "Use only the redacted note; never enter real passwords or account details."
+  },
+  {
+    "id": "p011",
+    "day": 6,
+    "koTitle": "ChatGPT 이메일 초안",
+    "taskKo": "가상 거래처에 배송 예정일을 묻는 공손한 영어 이메일을 다섯 줄 이내로 써줘.",
+    "checkKo": "제목·문의 내용·줄 수를 확인한다. 실제 발송은 하지 않는다.",
+    "title": "ChatGPT: an email draft",
+    "task": "Write a polite English email asking a fictional supplier for the expected delivery date. Use no more than five lines.",
+    "check": "Check the subject, question and length. Do not send it."
+  },
+  {
+    "id": "p012",
+    "day": 6,
+    "koTitle": "ChatGPT 번역과 말투",
+    "taskKo": "이 영어 초안을 쉬운 한국어로 설명하고 너무 강한 표현이 있으면 공손하게 고쳐줘.",
+    "checkKo": "원문의 요청이 바뀌지 않았는지 확인하고 한 표현을 직접 수정한다.",
+    "title": "ChatGPT: translation and tone",
+    "task": "Explain the draft in my selected language and soften any demanding wording.",
+    "check": "Preserve the original request and edit one phrase yourself."
+  },
+  {
+    "id": "p013",
+    "day": 7,
+    "koTitle": "Claude 문서 요약",
+    "taskKo": "제공한 가상 안내문만 사용해 중요한 내용 세 가지와 모르는 점을 나눠줘.",
+    "checkKo": "원문과 세 가지 요점을 대조한다.",
+    "title": "Claude: summarize a document",
+    "task": "Use only the supplied fictional notice. List three key points and separately list what is unknown.",
+    "check": "Compare every key point with the original."
+  },
+  {
+    "id": "p014",
+    "day": 7,
+    "koTitle": "Claude 긴 문서에서 찾기",
+    "taskKo": "제공한 가상 두 쪽 문서에서 마감일·준비물을 찾아 근거 문장을 함께 보여줘.",
+    "checkKo": "원문에서 근거를 직접 찾아 표시한다. 없는 내용은 미확인으로 남긴다.",
+    "title": "Claude: find evidence",
+    "task": "Find deadlines and required items in the supplied fictional two-page document. Quote the supporting sentences.",
+    "check": "Locate each supporting sentence yourself. Mark absent information unknown."
+  },
+  {
+    "id": "p015",
+    "day": 8,
+    "koTitle": "Copilot 회의 메모 정리",
+    "taskKo": "가상 메모: 민수는 금요일까지 안내문, 지연은 장소 확인, 다음 회의일 미정. 결정과 할 일을 나눠줘.",
+    "checkKo": "결정·담당·기한이 메모와 일치하는지 확인한다. 계정 연결 없이 텍스트로 시작한다.",
+    "title": "Copilot: meeting notes",
+    "task": "Fictional notes: Minsu writes the notice by Friday; Jiyeon checks the venue; the next meeting date is undecided. Separate decisions and tasks.",
+    "check": "Match people and deadlines to the notes. Start with text without connecting an account."
+  },
+  {
+    "id": "p016",
+    "day": 8,
+    "koTitle": "Copilot 업무 목록 만들기",
+    "taskKo": "방금 메모를 할 일·담당자·기한의 표로 바꿔줘. 미정은 미정으로 써줘.",
+    "checkKo": "만든 표를 직접 수정하고 확인되지 않은 날짜가 없는지 본다.",
+    "title": "Copilot: a task table",
+    "task": "Turn the notes into a table of task, owner and deadline. Keep undecided items undecided.",
+    "check": "Edit the table yourself and check for invented dates."
+  },
+  {
+    "id": "p017",
+    "day": 9,
+    "koTitle": "Perplexity 근거 있는 검색",
+    "taskKo": "비밀번호 재사용을 피해야 하는 이유를 공식 기관 자료 두 개와 함께 찾아줘.",
+    "checkKo": "인용 링크 두 개를 직접 열어 기관·날짜·관련 내용을 확인한다.",
+    "title": "Perplexity: search with sources",
+    "task": "Find why password reuse should be avoided, using two official institutional sources.",
+    "check": "Open both links and check the institution, dates and relevant passages."
+  },
+  {
+    "id": "p018",
+    "day": 9,
+    "koTitle": "Perplexity 검색 질문 좁히기",
+    "taskKo": "앞선 검색을 컴퓨터 초보자가 실천할 세 가지 행동으로 좁혀줘. 근거를 함께 보여줘.",
+    "checkKo": "검색 전후 차이를 비교하고 근거 없는 문장 하나를 찾아 수정 요청한다.",
+    "title": "Perplexity: narrow a search",
+    "task": "Turn the findings into three actions for a computer beginner, with supporting sources.",
+    "check": "Compare the scope and ask to fix any unsupported sentence; do not invent a flaw if none is found."
+  },
+  {
+    "id": "p019",
+    "day": 10,
+    "koTitle": "Grok 최근 정보 확인",
+    "taskKo": "관심 있는 AI의 최근 공식 발표 하나를 찾아 발표일과 원문 링크를 보여줘.",
+    "checkKo": "발표일과 기사가 쓰인 날짜를 구분하고 공식 원문을 확인한다.",
+    "title": "Grok: check recent information",
+    "task": "Find one recent official announcement about an AI I am interested in. Show its announcement date and original link.",
+    "check": "Check the original and distinguish the announcement date from article publication."
+  },
+  {
+    "id": "p020",
+    "day": 10,
+    "koTitle": "Grok 사실과 의견 구분",
+    "taskKo": "방금 답에서 확인된 사실·해석·확인되지 않은 내용을 구분해줘.",
+    "checkKo": "주장 두 개를 원문과 대조한다. 최신 검색도 정확성 보장이 아님을 배운다.",
+    "title": "Grok: fact or interpretation",
+    "task": "Separate verified facts, interpretations and unknowns in the last answer.",
+    "check": "Check two claims against the original. Search results are not guaranteed correct."
+  },
+  {
+    "id": "p021",
+    "day": 11,
+    "koTitle": "DeepSeek 순서대로 생각하기",
+    "taskKo": "가상 가게에서 포장 전 상품·수량·주소를 확인하려고 해. 빠뜨리지 않을 순서를 만들어줘.",
+    "checkKo": "세 항목이 모두 들어간 점검 순서를 얻는다.",
+    "title": "DeepSeek: a checklist",
+    "task": "Create a packing checklist for a fictional shop covering product, quantity and address.",
+    "check": "Check that all three items appear in a usable order."
+  },
+  {
+    "id": "p022",
+    "day": 11,
+    "koTitle": "DeepSeek 계산 검산",
+    "taskKo": "가상 판매 20개, 개당 5달러, 비용 60달러야. 매출과 비용 차이를 식으로 보여줘.",
+    "checkKo": "매출100·차이40을 직접 계산하고 단위가 맞는지 확인한다.",
+    "title": "DeepSeek: verify arithmetic",
+    "task": "A fictional shop sells 20 items at $5 each with $60 in costs. Show revenue and revenue minus costs as equations.",
+    "check": "Calculate revenue $100 and difference $40 yourself; check units."
+  },
+  {
+    "id": "p023",
+    "day": 12,
+    "koTitle": "Kimi 문서 정리",
+    "taskKo": "가상 행사 안내 메모를 제목·일정·준비물·미정 사항으로 정리해줘.",
+    "checkKo": "네 항목이 들어간 문서를 만들고 원문과 대조한다.",
+    "title": "Kimi: organize a document",
+    "task": "Organize the fictional event notes under title, schedule, required items and undecided details.",
+    "check": "Check all four sections against the original."
+  },
+  {
+    "id": "p024",
+    "day": 12,
+    "koTitle": "Kimi 자료 비교",
+    "taskKo": "가상 행사안 A와 B의 차이를 비용·시간·준비물 표로 비교해줘.",
+    "checkKo": "숫자와 빠진 항목을 확인하고 선택 이유를 내 말로 적는다.",
+    "title": "Kimi: compare options",
+    "task": "Compare fictional event plans A and B in a table of cost, time and required items.",
+    "check": "Check the numbers and missing information, then explain your choice."
+  },
+  {
+    "id": "p025",
+    "day": 13,
+    "koTitle": "Meta AI 아이디어 얻기",
+    "taskKo": "가상 독서 모임에서 돈을 들이지 않고 해볼 활동 세 가지를 제안해줘.",
+    "checkKo": "실행할 수 있는 아이디어 하나를 고른다.",
+    "title": "Meta AI: get ideas",
+    "task": "Suggest three free activities for a fictional reading club.",
+    "check": "Choose one activity you could actually run."
+  },
+  {
+    "id": "p026",
+    "day": 13,
+    "koTitle": "Meta AI 내 상황에 맞추기",
+    "taskKo": "선택한 활동을 네 명·실내·20분 조건에 맞춰 준비물과 순서로 바꿔줘.",
+    "checkKo": "시간·인원·준비물을 확인하고 내 상황 한 가지를 추가한다.",
+    "title": "Meta AI: adapt an idea",
+    "task": "Adapt my chosen activity for four people indoors in 20 minutes. Show materials and steps.",
+    "check": "Check time, people and materials, then add one personal constraint."
+  },
+  {
+    "id": "p027",
+    "day": 14,
+    "koTitle": "AssemblyAI 음성을 글로 바꾸기",
+    "taskKo": "RC가 제공하는 비민감 영어 연습 음성 30초를 Playground에 넣어 전사하기.",
+    "checkKo": "음성을 다시 들으며 단어·숫자 오류를 직접 고친다. 한국어 지원을 일괄 가정하지 않는다.",
+    "title": "AssemblyAI: transcribe speech",
+    "task": "Record the supplied fictional English script for about 30 seconds and transcribe it in the available Playground.",
+    "check": "Listen again and correct words and numbers. Do not assume every language is supported."
+  },
+  {
+    "id": "p028",
+    "day": 14,
+    "koTitle": "음성 메모에서 할 일 찾기",
+    "taskKo": "교정한 전사문을 선택한 대화 AI에 주고 결정·할 일·미정 사항을 나눠줘.",
+    "checkKo": "원음·교정문·요약을 대조한다. 전사와 요약 도구를 구분한다.",
+    "title": "Find tasks in a transcript",
+    "task": "Give the corrected transcript to a conversational AI. Separate decisions, actions and unknowns.",
+    "check": "Compare audio, corrected transcript and summary. Transcription and summarization are separate tasks."
+  },
+  {
+    "id": "p029",
+    "day": 15,
+    "koTitle": "ChatGPT 작은 표 만들기",
+    "taskKo": "가상 매출 월20·화30·수25를 날짜와 금액 표로 만들어줘.",
+    "checkKo": "세 행·단위·합계75를 확인한다.",
+    "title": "ChatGPT: a small table",
+    "task": "Make a table of fictional sales: Monday $20, Tuesday $30, Wednesday $25.",
+    "check": "Check three data rows, currency and a total of $75."
+  },
+  {
+    "id": "p030",
+    "day": 15,
+    "koTitle": "표의 오류 고치기",
+    "taskKo": "화요일 값이 30이 아니라 35야. 그 값과 합계만 바꾸고 나머지는 유지해줘.",
+    "checkKo": "합계80과 나머지 행 보존을 확인한다.",
+    "title": "Correct a table",
+    "task": "Tuesday should be $35, not $30. Change only that value and the total.",
+    "check": "Check the new total of $80 and unchanged other rows."
+  },
+  {
+    "id": "p031",
+    "day": 16,
+    "koTitle": "Nano Banana 그림 부탁하기",
+    "taskKo": "가상 꽃집용으로 흰 배경에 노란 꽃다발 하나를 그려줘. 글씨는 넣지 마.",
+    "checkKo": "배경·대상·색·개수가 맞는 그림을 만들고 요청과 비교한다.",
+    "title": "Nano Banana: request an image",
+    "task": "Create one yellow bouquet on a white background for a fictional flower shop. No text.",
+    "check": "Check subject, color, count and background against the request."
+  },
+  {
+    "id": "p032",
+    "day": 16,
+    "koTitle": "Nano Banana 한 부분 수정",
+    "taskKo": "꽃다발은 유지하고 배경만 옅은 파란색으로 바꿔줘.",
+    "checkKo": "수정 전후를 비교하고 꽃이 바뀌었다면 다시 요청한다.",
+    "title": "Nano Banana: edit one detail",
+    "task": "Keep the bouquet and change only the background to pale blue.",
+    "check": "Compare images; ask again if the bouquet changed."
+  },
+  {
+    "id": "p033",
+    "day": 17,
+    "koTitle": "Leonardo AI 스타일 지정",
+    "taskKo": "같은 가상 꽃집용 꽃다발을 수채화 느낌, 밝은 색, 단순한 배경으로 만들어줘.",
+    "checkKo": "스타일·색·배경을 기준으로 결과를 평가한다.",
+    "title": "Leonardo AI: choose a style",
+    "task": "Create a bouquet for the fictional flower shop in a watercolor style, with bright colors and a simple background.",
+    "check": "Evaluate style, colors and background."
+  },
+  {
+    "id": "p034",
+    "day": 17,
+    "koTitle": "이미지 요청 비교와 수정",
+    "taskKo": "동일한 꽃다발 요청에서 색이나 구도 한 가지만 바꿔 다시 생성하기.",
+    "checkKo": "변경한 조건과 실제 결과의 차이를 적고 적합한 그림을 고른다.",
+    "title": "Compare image requests",
+    "task": "Change only the bouquet color or composition in the same image request and generate again.",
+    "check": "Record the changed condition and actual differences, then choose an image."
+  },
+  {
+    "id": "p035",
+    "day": 18,
+    "koTitle": "Canva 안내 포스터 만들기",
+    "taskKo": "가상 독서 모임 안내 포스터. 제목은 함께 읽어요, 토요일 오전10시, 장소 연습실.",
+    "checkKo": "제공한 글과 이미지를 배치하고 날짜·장소·읽기 쉬운 크기를 확인한다.",
+    "title": "Canva: make a poster",
+    "task": "Make a fictional reading club poster: Read Together, Saturday at 10 am, practice room.",
+    "check": "Arrange text and an image, then check time, venue and readable type."
+  },
+  {
+    "id": "p036",
+    "day": 18,
+    "koTitle": "Canva 휴대폰용으로 다듬기",
+    "taskKo": "제목을 더 크게 하고 본문을 두 줄로 줄이되 날짜와 장소는 유지하기.",
+    "checkKo": "휴대폰에서 확대하지 않고 읽히는지 확인하고 한 곳을 직접 수정한다.",
+    "title": "Canva: improve mobile readability",
+    "task": "Make the title larger and the body two lines. Keep the time and venue.",
+    "check": "Check on a phone without zooming and fix one detail yourself."
+  },
+  {
+    "id": "p037",
+    "day": 19,
+    "koTitle": "Canva 세 장 발표자료",
+    "taskKo": "가상 꽃집 소개를 가게 소개·상품 예시·문의 안내 세 장으로 구성해줘.",
+    "checkKo": "세 장의 제목·내용을 확인한다. 연락처는 실제 공개하지 않고 예시로 표시한다.",
+    "title": "Canva: three slides",
+    "task": "Make three fictional flower shop slides: introduction, sample products and contact information.",
+    "check": "Check each title and content. Mark contact details as fictional placeholders."
+  },
+  {
+    "id": "p038",
+    "day": 19,
+    "koTitle": "Canva 저장과 결과 확인",
+    "taskKo": "내 발표자료를 계정에서 가능한 파일 형식으로 내려받아 다시 열기.",
+    "checkKo": "파일이 열리고 글·그림이 잘리지 않는지 확인한다. Pro 자산이 필요하면 교체한다.",
+    "title": "Canva: save and inspect",
+    "task": "Download the presentation in a format available to my account and reopen it.",
+    "check": "Check the file opens and nothing is clipped. Replace paid assets if necessary."
+  },
+  {
+    "id": "p039",
+    "day": 20,
+    "koTitle": "Claude 영상 장면 구성",
+    "taskKo": "가상 꽃집 소개 영상을 꽃 준비·포장·완성 세 장면으로 나눠줘. 각 장면은 한 문장.",
+    "checkKo": "실제로 만들 장면 하나를 선택하고 주인공·동작·배경을 정한다.",
+    "title": "Claude: plan video scenes",
+    "task": "Describe a fictional flower shop video in three one-sentence scenes: prepare flowers, wrap them, show the finished bouquet.",
+    "check": "Choose one scene; define its subject, action and background."
+  },
+  {
+    "id": "p040",
+    "day": 20,
+    "koTitle": "영상 AI에 정확히 요청하기",
+    "taskKo": "선택한 장면을 주인공·동작·카메라·분위기의 영상 요청문으로 바꿔줘.",
+    "checkKo": "한 장면용 요청문을 직접 고치고 서로 모순되는 동작을 없앤다.",
+    "title": "Write a video request",
+    "task": "Turn the chosen scene into a request specifying subject, action, camera and mood.",
+    "check": "Edit the request yourself and remove conflicting actions."
+  },
+  {
+    "id": "p041",
+    "day": 21,
+    "koTitle": "Google 영상 AI로 짧은 영상",
+    "taskKo": "앞서 만든 한 장면 요청을 현재 이용 가능한 Google 영상 생성 화면에서 실행하기.",
+    "checkKo": "요청·결과 영상을 보존하고 대상·동작·왜곡을 확인한다. 현재 계정의 Omni 또는 이용 가능한 Veo 경로를 따른다.",
+    "title": "Google video AI: a short clip",
+    "task": "Run the one-scene request in the Google video generator currently available to my account.",
+    "check": "Keep the prompt and clip; inspect subject, motion and distortion. Use the available model rather than assuming a model name."
+  },
+  {
+    "id": "p042",
+    "day": 21,
+    "koTitle": "Kling으로 이미지 움직이기",
+    "taskKo": "내가 만든 꽃다발 그림을 바탕으로 천천히 다가가는 카메라와 약한 꽃잎 움직임을 요청하기.",
+    "checkKo": "그림을 쓸 권한을 확인하고 원래 대상이 유지되는지 재생해 본다.",
+    "title": "Kling: animate an image",
+    "task": "Animate my bouquet image with a slowly approaching camera and gentle petal movement.",
+    "check": "Check permission to use the image, then play the clip and inspect subject consistency."
+  },
+  {
+    "id": "p043",
+    "day": 22,
+    "koTitle": "영상 한 가지 문제 고치기",
+    "taskKo": "영상에서 꽃이 변형된 부분을 적고 카메라 움직임을 줄여 다시 요청하기.",
+    "checkKo": "두 결과를 같은 기준으로 비교한다. 생성 모델이 정확히 지시대로 고친다고 가정하지 않는다.",
+    "title": "Fix one video problem",
+    "task": "Describe any flower distortion and regenerate with less camera motion.",
+    "check": "Compare both clips with the same criteria; exact edits are not guaranteed."
+  },
+  {
+    "id": "p044",
+    "day": 22,
+    "koTitle": "Canva로 영상 마무리",
+    "taskKo": "내 짧은 영상에 가상 꽃집 이름을 넣고 앞뒤 불필요한 부분을 자르기.",
+    "checkKo": "처음부터 끝까지 재생해 글 잘림·소리·길이를 확인하고 파일로 보관한다.",
+    "title": "Canva: finish a video",
+    "task": "Add the fictional shop name to my clip and trim unwanted beginning and ending footage.",
+    "check": "Play the whole clip; check text, sound and duration, then save it."
+  },
+  {
+    "id": "p045",
+    "day": 23,
+    "koTitle": "Claude Artifacts 작은 도구",
+    "taskKo": "가상 가격과 수량을 입력하면 합계를 보여주는 연습용 계산기를 만들어줘. 결제는 넣지 마.",
+    "checkKo": "보이는 계산기에 5×3을 입력해15가 나오는지 직접 확인한다.",
+    "title": "Claude Artifacts: a small tool",
+    "task": "Build a practice calculator that multiplies a fictional price by quantity. Do not add payments.",
+    "check": "Actually enter 5 and 3 into the visible calculator and check for 15."
+  },
+  {
+    "id": "p046",
+    "day": 23,
+    "koTitle": "도구 오류 설명하고 수정",
+    "taskKo": "수량0·1·빈칸을 시험한 결과를 알려주고 잘못된 입력 안내를 추가해줘.",
+    "checkKo": "수정 후 같은 입력을 다시 시험하고 실제 통과·실패를 기록한다.",
+    "title": "Test and fix a tool",
+    "task": "Report my tests with quantities 0, 1 and blank. Add appropriate invalid-input guidance.",
+    "check": "Repeat the same inputs after editing and record actual passes and failures."
+  },
+  {
+    "id": "p047",
+    "day": 24,
+    "koTitle": "Lovable 한 페이지 만들기",
+    "taskKo": "가상 꽃집 소개 페이지를 만들어줘. 이름·소개·상품 예시만 넣고 로그인·결제·문의 접수는 넣지 마.",
+    "checkKo": "미리보기에서 세 내용과 휴대폰 배치를 확인한다. 공개 게시를 필수로 하지 않는다.",
+    "title": "Lovable: one page",
+    "task": "Build a fictional flower shop page with only a name, introduction and sample products. No login, payments or inquiry collection.",
+    "check": "Check all three sections and mobile layout in preview; public publishing is optional."
+  },
+  {
+    "id": "p048",
+    "day": 24,
+    "koTitle": "Lovable 말로 수정하기",
+    "taskKo": "첫 제목을 더 쉽게 바꾸고 상품 설명을 두 줄로 줄여줘. 다른 내용은 유지해줘.",
+    "checkKo": "수정 전후 화면을 비교하고 유지할 부분이 바뀌지 않았는지 확인한다.",
+    "title": "Lovable: describe an edit",
+    "task": "Simplify the first heading and shorten product descriptions to two lines. Preserve everything else.",
+    "check": "Compare before and after, including unchanged sections."
+  },
+  {
+    "id": "p049",
+    "day": 25,
+    "koTitle": "Manus 업무 맡기기",
+    "taskKo": "제공한 가상 행사자료로 비교표와 한 쪽 준비 계획을 만들어줘. 외부 연락·예약·결제는 하지 마.",
+    "checkKo": "목표·자료·결과물·실행 범위를 넣은 요청을 실제 실행하고 결과 파일을 확인한다.",
+    "title": "Manus: delegate a bounded task",
+    "task": "Use the supplied fictional event data to make a comparison table and one-page preparation plan. Do not contact anyone, book or pay.",
+    "check": "Specify goal, data, deliverables and boundaries, run the task and open its files."
+  },
+  {
+    "id": "p050",
+    "day": 25,
+    "koTitle": "Manus 결과 검토와 보완",
+    "taskKo": "결과에서 빠진 준비물 한 가지를 지정하고 그 부분만 보완해줘.",
+    "checkKo": "원자료와 결과를 대조해 실제 수정됐는지 확인한다. 비용·크레딧은 실행 전에 확인한다.",
+    "title": "Manus: review the result",
+    "task": "Identify a missing required item in the result and ask to add only that item. If none is missing, report that honestly.",
+    "check": "Check credits before running and verify the change against source data."
+  },
+  {
+    "id": "p051",
+    "day": 26,
+    "koTitle": "내 일에 맞는 AI 고르기",
+    "taskKo": "내가 할 연습 업무를 글쓰기·검색·이미지·영상·도구 제작으로 나누고 필요한 AI만 골라보기.",
+    "checkKo": "AI이름·할 일·선택 이유를 적는다. 최고 성능 순위를 외우지 않는다.",
+    "title": "Choose AI for your own tasks",
+    "task": "Classify practice tasks as writing, research, images, video or tool building. Choose only the AI needed.",
+    "check": "Record each tool, task and reason instead of memorizing rankings."
+  },
+  {
+    "id": "p052",
+    "day": 26,
+    "koTitle": "재사용할 질문 양식",
+    "taskKo": "내 반복 업무용으로 할 일·상황·자료·형식·확인 기준이 들어간 빈 요청 양식을 만들기.",
+    "checkKo": "자료를 한 번 바꿔 재사용하고 원치 않는 결과가 생긴 항목을 수정한다.",
+    "title": "Make a reusable request",
+    "task": "Create a blank request template with task, context, data, output format and checks.",
+    "check": "Change the data and reuse it once; fix the field that caused an unwanted result."
+  },
+  {
+    "id": "p053",
+    "day": 27,
+    "koTitle": "종합 실습 주제 정하기",
+    "taskKo": "가상 꽃집·독서 모임·개인 일정 중 하나를 고르고 만들 결과물 두 개를 정하기.",
+    "checkKo": "완료 기준과 사용할 가상 자료를 직접 적는다.",
+    "title": "Choose a final project",
+    "task": "Choose a fictional flower shop, reading club or personal schedule and define two deliverables.",
+    "check": "Write the completion criteria and fictional source data yourself."
+  },
+  {
+    "id": "p054",
+    "day": 27,
+    "koTitle": "종합 실습 글 완성",
+    "taskKo": "선택한 AI로 안내문이나 보고서 초안을 만들고 대상·말투·길이를 수정하기.",
+    "checkKo": "최초 요청·첫 답·수정 요청·최종 글을 남긴다.",
+    "title": "Finish the project text",
+    "task": "Draft an announcement or report with my selected AI, then revise audience, tone and length.",
+    "check": "Keep the first request, first answer, revision request and final text."
+  },
+  {
+    "id": "p055",
+    "day": 28,
+    "koTitle": "종합 실습 자료 완성",
+    "taskKo": "포스터·표·짧은 영상·간단한 도구 중 하나를 만들어 앞선 글과 맞추기.",
+    "checkKo": "이름·시간·금액 등 공통 정보가 일치하는지 확인한다.",
+    "title": "Finish the second deliverable",
+    "task": "Make a poster, table, short video or simple tool consistent with the project text.",
+    "check": "Check shared names, times and amounts for agreement."
+  },
+  {
+    "id": "p056",
+    "day": 28,
+    "koTitle": "종합 실습 직접 검증",
+    "taskKo": "글은 원자료, 표는 직접 계산, 영상은 재생, 도구는 입력 사례로 확인하기.",
+    "checkKo": "직접 확인한 항목 세 개와 남은 한계를 기록한다.",
+    "title": "Verify the project yourself",
+    "task": "Check text against sources, tables with arithmetic, video by playback or tools with input cases.",
+    "check": "Record three actual checks and remaining limitations."
+  },
+  {
+    "id": "p057",
+    "day": 29,
+    "koTitle": "내 질문 모음 만들기",
+    "taskKo": "가장 잘된 질문 다섯 개를 목적·상황·형식별로 정리하기.",
+    "checkKo": "각 질문에서 결과를 좋아지게 만든 표현을 한 가지 표시한다.",
+    "title": "Build your prompt collection",
+    "task": "Organize five successful requests by purpose, context and format.",
+    "check": "Highlight one expression in each that improved the result."
+  },
+  {
+    "id": "p058",
+    "day": 29,
+    "koTitle": "혼자 다시 해보기",
+    "taskKo": "예시를 보지 않고 새로운 가상 상황의 요청·수정·결과 확인을 스스로 하기.",
+    "checkKo": "도움받은 부분을 구분하고 막힌 점 하나를 다시 연습한다.",
+    "title": "Try independently",
+    "task": "Without copying an example, write a request for a new fictional situation, revise it and verify the output.",
+    "check": "Disclose any help and practice one difficult part again."
+  },
+  {
+    "id": "p059",
+    "day": 30,
+    "koTitle": "최종 결과물 설명",
+    "taskKo": "무엇을 부탁했고 어떻게 고쳤고 무엇을 직접 확인했는지 1분 분량으로 설명하기.",
+    "checkKo": "결과물과 설명이 일치하고 확인하지 않은 것을 성공이라고 말하지 않는다.",
+    "title": "Explain the final result",
+    "task": "Give a one-minute explanation of what I requested, revised and personally checked.",
+    "check": "Match the explanation to the artifacts; do not call unchecked work successful."
+  },
+  {
+    "id": "p060",
+    "day": 30,
+    "koTitle": "복습과 다음 활용 계획",
+    "taskKo": "다음 주에 사용할 AI 두 개 이내와 할 일 세 가지를 정하고 최종 시험 준비하기.",
+    "checkKo": "개인 활용 계획을 작성한다. 최종 시험은 별도30분·70점 기준을 유지한다.",
+    "title": "Review and plan next week",
+    "task": "Choose no more than two AI tools and three tasks for next week; review for the planned final assessment.",
+    "check": "Write the plan. The intended final exam is separate: 30 minutes, 70% pass; it is not active in this test course."
+  }
+]

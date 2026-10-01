@@ -1,20 +1,23 @@
 import 'server-only';
 import {createHash} from 'node:crypto';
 import {z} from 'zod';
-import {sourceDay} from './groups';
-import {lessons,COURSE} from './course';
+import {learningCurriculum} from './curricula';
+import {COURSE} from './course';
 import {practiceQuestion,questionById,publicQuestion} from './questions';
 import {helpCatalog} from '@/lib/locale/help-catalog';
 import {getAvailableProviderIds,getConnector} from '@/lib/ai/connectors';
 import {reserveLearning} from './store';
 import {learningLanguage} from '@/lib/locale/learning';
 const cache=new Map<string,string>();
-export function publicLearningContent(day:number,questionIds:string[]=[],language='en'){
+export function publicLearningContent(day:number,questionIds:string[]=[],language='en',course=COURSE){
+ const {lessons,sourceDay,preview}=learningCurriculum(course);
+ if(preview&&questionIds.length)throw Error('RCV3_NOT_FOUND');
  const ko=learningLanguage(language)==='ko',out:Record<string,string>={};
  const addQuestion=(id:string)=>{const source=questionById(id);if(!source)throw Error('RCV3_NOT_FOUND');const q=publicQuestion(source);out[`q.${q.id}`]=ko?q.ko:q.text;q.options.forEach((v,i)=>{out[`q.${q.id}.${i}`]=ko?q.koOptions[i]:v;});};
  if(questionIds.length){questionIds.forEach(addQuestion);return out;}
- for(const key of ['learnOverview','learnTutor','learnProject','learnExam'])out[key]=(ko?helpCatalog[key].ko:helpCatalog[key].en)!;
- for(const l of lessons.filter(l=>sourceDay(l.id)===day)){out[`title.${l.id}`]=ko?l.koTitle:l.title;out[`body.${l.id}`]=ko?l.ko:l.body;addQuestion(practiceQuestion(l.id).id);}
+ if(preview)for(const l of lessons)out[`title.${l.id}`]=ko?l.koTitle:l.title;
+ if(!preview)for(const key of ['learnOverview','learnTutor','learnProject','learnExam'])out[key]=(ko?helpCatalog[key].ko:helpCatalog[key].en)!;
+ for(const l of lessons.filter(l=>sourceDay(l.id)===day)){out[`title.${l.id}`]=ko?l.koTitle:l.title;out[`body.${l.id}`]=ko?l.ko:l.body;if(!preview)addQuestion(practiceQuestion(l.id).id);}
  return out;
 }
 export function validateTranslation(source:Record<string,string>,candidate:unknown){

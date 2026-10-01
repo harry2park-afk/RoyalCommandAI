@@ -887,5 +887,40 @@
     "ja": "接続が停止しました。レッスンを再開すると再試行します。",
     "zh": "连接已停止。重新开始课程以重试。",
     "hi": "अवतार कनेक्शन रुक गया। फिर प्रयास करने के लिए पाठ शुरू करें।"
+  },
+  "previewBadge": {
+    "en": "PRACTICE TEST",
+    "ko": "실습 테스트",
+    "ja": "実習テスト",
+    "zh": "实践测试",
+    "hi": "अभ्यास परीक्षण"
+  },
+  "previewOverview": {
+    "en": "30 days · 60 lessons · 2 lessons a day. Try, inspect and revise. External AI accounts are separate. Test notes stay in this browser; prior course records are preserved. Exams and certificates are not active for this test course.",
+    "ko": "30일 · 60레슨 · 하루 2레슨. 직접 요청하고 결과를 확인한 뒤 고쳐봅니다. 외부 AI 계정은 별도입니다. 테스트 기록은 이 브라우저에 저장하며 이전 과정 기록은 보존합니다. 이 테스트 과정은 시험·수료증 발급을 하지 않습니다.",
+    "ja": "30日・60レッスン・1日2レッスン。実行し、確認し、修正します。外部AIのアカウントは別です。メモはこのブラウザに保存され、以前の記録は保持されます。このテストでは試験・修了証はありません。",
+    "zh": "30天、60课、每天2课。亲自操作、检查并修改。外部AI账户独立。测试笔记保存在此浏览器，旧课程记录保留。本测试不提供考试或证书。",
+    "hi": "30 दिन · 60 पाठ · रोज़ 2 पाठ। स्वयं करें, जाँचें और सुधारें। बाहरी AI खाते अलग हैं। नोट इसी ब्राउज़र में रहते हैं; पुराने रिकॉर्ड सुरक्षित हैं। इस परीक्षण में परीक्षा या प्रमाणपत्र नहीं है।"
+  },
+  "previewLesson": {
+    "en": "Practice, then ask the tutor for one improvement.",
+    "ko": "실제로 해본 뒤 튜터에게 한 가지 개선을 요청하세요.",
+    "ja": "実践した後、講師に改善点を一つ尋ねてください。",
+    "zh": "实践后，请导师提出一项改进。",
+    "hi": "अभ्यास के बाद शिक्षक से एक सुधार पूछें।"
+  },
+  "previewEvidence": {
+    "en": "Record your request, actual result, revision and checks. Feedback is guidance, not a grade. Notes are saved only in this browser.",
+    "ko": "요청·실제 결과·수정·확인 내용을 기록하세요. 피드백은 안내이며 점수가 아닙니다. 기록은 이 브라우저에만 저장됩니다.",
+    "ja": "依頼・実際の結果・修正・確認を記録してください。助言は採点ではありません。記録はこのブラウザのみに保存されます。",
+    "zh": "记录请求、实际结果、修改和检查。反馈是指导，不是评分。笔记仅保存在此浏览器。",
+    "hi": "अनुरोध, वास्तविक परिणाम, सुधार और जाँच लिखें। प्रतिक्रिया मार्गदर्शन है, अंक नहीं। नोट केवल इसी ब्राउज़र में रहते हैं।"
+  },
+  "previewReviewRequest": {
+    "en": "Review my practice evidence. Identify what I actually checked, distinguish anything unexecuted, and suggest just one next step. Do not grade or certify.",
+    "ko": "내 실습 기록을 검토해줘. 실제 확인한 내용과 실행하지 않은 부분을 구분하고 다음 한 단계만 알려줘. 점수나 수료를 부여하지 마.",
+    "ja": "実習記録を確認し、実行済みと未実行を区別して次の一歩だけ教えてください。採点や認定はしないでください。",
+    "zh": "请检查我的实践记录，区分已检查与未执行部分，只给出下一步，不评分或认证。",
+    "hi": "मेरे अभ्यास की समीक्षा करें। वास्तविक जाँच और अधूरे काम को अलग करें तथा केवल अगला कदम बताएँ। अंक या प्रमाणपत्र न दें।"
   }
 }

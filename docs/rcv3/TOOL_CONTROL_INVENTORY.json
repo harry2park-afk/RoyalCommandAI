@@ -508,7 +508,7 @@
     {
       "controlId": "src/app/rcv3/learn/LearningRoom.tsx#7",
       "toolId": "learning",
-      "sourceHash": "89a420eb2849fb417ffc971673a3f3fecb26a6881f582378963d0cb6130068c9",
+      "sourceHash": "1c9f5170080dcdb695399c29f2f7ce29821b67e4469958a900cc364f8f18ec76",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },

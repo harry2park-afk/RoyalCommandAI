@@ -6,21 +6,23 @@ import {Mic,Send} from 'lucide-react';
 import ToolButton from '@/components/rcv3-toolbox/ToolButton';
 import LearningAutoTextarea from '@/components/rcv3-toolbox/LearningAutoTextarea';
 import {findHelp} from '@/lib/locale/help-catalog';
-import {COURSE,lessons,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
+import {COURSE,PASS_MARK,EXAM_MINUTES,type Question,type LearningState} from '@/lib/rcv3/learning/course';
 import {learningLabel,learningLanguage,type LearningLabel} from "@/lib/locale/learning";
 import styles from './learn.module.css';
-import {groups,sourceDay,groupForSource,groupComplete,completedGroupCount} from '@/lib/rcv3/learning/groups';
+import {learningCurriculum} from '@/lib/rcv3/learning/curricula';
 import {learningVoiceCommand,voiceLessonIndex} from '@/lib/client/learning-voice-command';
 import LearningVoice,{type LearningVoiceHandle} from '@/components/rcv3-toolbox/LearningVoice';
 import {teachingParagraphs,type TeachingSegment} from '@/lib/client/learning-day-player';
 import LearningLessonList,{type LearningLessonListHandle} from '@/components/rcv3-toolbox/LearningLessonList';
 import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
-import {readLearningDraft,saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,readLearningResume,saveLearningResume,nextLearningLesson,readReadingMarker,saveReadingMarker,type ReadingMarker,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
+import {learningDraftStore,type ReadingMarker,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
 type Message={role:'user'|'assistant';content:string};
 type InitialLearning={state:LearningState;practice:Omit<Question,'answer'>[]};
-export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry="",entryPath="/rcv3/learn",homeHref="/rcv3",initialLearning}:{language:string;ownerId:string;country?:string;entryPath?:"/rcv3/learn"|"/rcv4/learn";homeHref?:string;initialLearning?:InitialLearning}){
+export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry="",entryPath="/rcv3/learn",homeHref="/rcv3",initialLearning,curriculumId=COURSE}:{language:string;ownerId:string;country?:string;entryPath?:"/rcv3/learn"|"/rcv4/learn";homeHref?:string;initialLearning?:InitialLearning;curriculumId?:string}){
  const v4=entryPath==='/rcv4/learn';
+ const {lessons,groups,sourceDay,groupForSource,groupComplete,completedGroupCount,nextLearningLesson,preview}=learningCurriculum(curriculumId);
+ const {readLearningDraft,saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,readLearningResume,saveLearningResume,readReadingMarker,saveReadingMarker}=learningDraftStore(curriculumId);
  const [state,setState]=useState<LearningState>(initialLearning?.state??{completed:[],certificate:null}),[practice,setPractice]=useState<Omit<Question,'answer'>[]>(initialLearning?.practice??[]);
  const [day,setDay]=useState(1),[artifact,setArtifact]=useState(''),[clock,setClock]=useState(()=>Date.now()),[offset,setOffset]=useState(0);
  const drafts=useRef<Record<string,string>>({});
@@ -62,7 +64,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    if(v4){try{bookmark=readTeachingBookmark(window.localStorage,ownerId,learningLanguage(initialLanguage));}catch{setDraftError(true);}}
    let id=saved?.lesson??bookmark?.lesson??lessons[0].id;
    if(bookmark?.finished&&id===bookmark.lesson)id=lessons.find(l=>sourceDay(l.id)>bookmark.day)?.id??id;
-   const index=lessons.findIndex(l=>l.id===id);
+   const index=Math.max(0,lessons.findIndex(l=>l.id===id));
    setUnit(index);setDay(sourceDay(lessons[index].id));
    setBoardExplanation(null);
    activeReading.current=null;markerRecord.current=null;setReadingMarker(null);
@@ -70,7 +72,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    if(saved){setMessages(id===saved.lesson?saved.messages:[]);setResumed(true);}
    const draft=localDrafts.current[lessons[index].id];setMessage(draft?.message??'');setArtifact(draft?.artifact??'');
   }catch{setDraftError(true);}finally{setDraftReady(true);}
- },[ownerId,initialLanguage,v4]);
+ },[ownerId,initialLanguage,v4,lessons,readLearningDraft,readLearningResume,readReadingMarker,readTeachingBookmark,sourceDay]);
  function savePosition(id:string,history:Message[]){
   try{saveLearningResume(window.localStorage,ownerId,locale,{lesson:id,messages:history.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))});}catch{setDraftError(true);}
  }
@@ -83,7 +85,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   markerRecord.current={value,owner:ownerId,language:locale};setReadingMarker(value);
   if(force||++markerTicks.current>=10||value.fraction===1)persistReadingMarker();
  }
- useEffect(()=>{const save=()=>{const record=markerRecord.current;if(record)try{saveReadingMarker(window.localStorage,record.owner,record.language,record.value);}catch{}};window.addEventListener('pagehide',save);return()=>window.removeEventListener('pagehide',save);},[]);
+ useEffect(()=>{const save=()=>{const record=markerRecord.current;if(record)try{saveReadingMarker(window.localStorage,record.owner,record.language,record.value);}catch{}};window.addEventListener('pagehide',save);return()=>window.removeEventListener('pagehide',save);},[saveReadingMarker]);
  function teachingProgress(value:SpeechProgress){
   const current=activeReading.current;if(!current)return;
   const fraction=current.base+(1-current.base)*speechProgressRatio(value);
@@ -104,14 +106,14 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const native=locale==='en'||locale==='ko',contentReady=native||(content?.day===day&&content?.language===locale);
  useEffect(()=>{
   if(native)return;const abort=new AbortController();setTranslationError(false);
-  fetch("/api/rcv3/learn/content",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({day,language:locale}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(65000)])}).then(async r=>{if(!r.ok)throw Error();const value=await r.json();if(!abort.signal.aborted)setContent(value);}).catch(()=>{if(!abort.signal.aborted)setTranslationError(true);});
+  fetch("/api/rcv3/learn/content",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({day,language:locale,course:curriculumId}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(65000)])}).then(async r=>{if(!r.ok)throw Error();const value=await r.json();if(!abort.signal.aborted)setContent(value);}).catch(()=>{if(!abort.signal.aborted)setTranslationError(true);});
   return()=>abort.abort();
- },[day,locale,native,translationRetry]);
+ },[day,locale,native,translationRetry,curriculumId]);
  const translated=(key:string,fallback:string)=>native?fallback:contentReady?content?.text[key]??t('translationError'):t('translating');
  const help=(key:string)=>{const value=findHelp(key);return translated(key,(ko?value?.ko:value?.en)??'');};
  const title=(l:typeof lessons[number])=>translated(`title.${l.id}`,ko?l.koTitle:l.title);
 
- async function load(){try{const r=await fetch('/api/rcv3/learn',{cache:'no-store',signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error();const d=await r.json();setError('');setState(d);setPractice(d.practice);setLoaded(true);}catch{setError(t("m0"));}}
+ async function load(){if(preview){setLoaded(true);return;}try{const r=await fetch('/api/rcv3/learn',{cache:'no-store',signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error();const d=await r.json();setError('');setState(d);setPractice(d.practice);setLoaded(true);}catch{setError(t("m0"));}}
  // Loading remote progress updates state only after the network response.
  // eslint-disable-next-line react-hooks/set-state-in-effect
  useEffect(()=>{if(!initialLearning)void load();return()=>controller.current?.abort();},[]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -151,13 +153,13 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   else if(command?.kind==='read'){
    if(native)spoken=ko?target.ko:target.body;
    else{
-    const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:sourceDay(target.id),language:locale}),signal});
+    const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:sourceDay(target.id),language:locale,course:curriculumId}),signal});
     if(!r.ok)throw Error('VOICE');const d=await r.json();spoken=d.text?.[`body.${target.id}`];if(!spoken)throw Error('VOICE');
    }
   }else{
    const turn=v4?++chatTurn.current:0;if(v4){chatFlight.current=true;setChatPending(true);setChatError('');}
    try{
-    const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat',course:COURSE,voice:true,lesson:target.id,language:locale,message:navigating?t('voiceOpening'):text,history:navigating?[]:prior.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))}),signal});
+    const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat',course:curriculumId,voice:true,lesson:target.id,language:locale,message:navigating?t('voiceOpening'):text,history:navigating?[]:prior.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))}),signal});
     if(!r.ok)throw Error('VOICE');const d=await r.json();if(v4&&(typeof d?.answer!=='string'||!d.answer.trim()))throw Error('VOICE');spoken=String(d?.answer??'');if(!spoken.trim())throw Error('VOICE');
    }catch(e){if(v4&&turn===chatTurn.current&&!signal.aborted)setChatError(t('m3'));throw e;}
    finally{if(v4&&turn===chatTurn.current){chatFlight.current=false;setChatPending(false);}}
@@ -190,7 +192,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  async function dayPlan(signal:AbortSignal,requestedLesson?:string){
   const planDay=requestedLesson?sourceDay(requestedLesson):day;
   let text:Record<string,string>={};
-  if(!native){if(content?.day===planDay&&content.language===locale)text=content.text;else{const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:planDay,language:locale}),signal});if(!r.ok)throw Error('CONTENT');text=(await r.json()).text;}}
+  if(!native){if(content?.day===planDay&&content.language===locale)text=content.text;else{const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:planDay,language:locale,course:curriculumId}),signal});if(!r.ok)throw Error('CONTENT');text=(await r.json()).text;}}
   const parts:TeachingSegment[]=groups.filter(g=>g.day===planDay).flatMap(g=>g.sources).flatMap(id=>{
    const item=lessons.find(l=>l.id===id)!;const body=native?(ko?item.ko:item.body):text[`body.${id}`];
    if(!body)throw Error('CONTENT');const paragraphs=teachingParagraphs(id,body).map(part=>v4?{...part,sourceText:part.text,startOffset:0}:part);const name=native?(ko?item.koTitle:item.title):text[`title.${id}`]??item.title;
@@ -215,7 +217,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   // Preparation never starts teaching or changes the saved teaching position.
   void planRef.current(abort.signal).then(plan=>{if(!abort.signal.aborted)setPreparedPlan({language:locale,lesson:lessons[unit].id,text:plan.parts[plan.index]?.text??''});}).catch(()=>{});
   return()=>abort.abort();
- },[v4,loaded,draftReady,contentReady,day,unit,locale,content]);
+ },[v4,loaded,draftReady,contentReady,day,unit,locale,content,lessons]);
  function teachingSegment(part:TeachingSegment){
   const target=lessons.findIndex(l=>l.id===part.lesson);
   const history=part.lesson===lesson.id?messages:conversations.current[part.lesson]?.messages??[];
@@ -261,7 +263,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  function sendMessage(){
   if(v4){if(sendDisabled||chatFlight.current)return;voice.current?.stopDictation();}
   if(voiceActive){voice.current?.start(message,true);return;}
-  void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{
+  void run({action:'chat',course:curriculumId,lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{
    const history:Message[]=[...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}];
    showExplanation(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);
   });
@@ -277,34 +279,34 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   <div className={styles.layout}>
    <div className={styles.curriculum} ref={curriculumScroll}>
   {resumed&&<p>{t('teacherResumeSaved')}</p>}
-  <header><a href={homeHref}>← {t("myRooms")}</a><span className={styles.courseBadge}>{t("courseBadge")}</span><h1>{t("title")}</h1><p>{help("learnOverview")}</p><LearningRegion language={language} country={country} disabled={busy||Boolean(exam)} onChange={changeRegion}/></header>
+  <header><a href={homeHref}>← {t("myRooms")}</a><span className={styles.courseBadge}>{t(preview?'previewBadge':'courseBadge')}</span><h1>{t("title")}</h1><p>{preview?t('previewOverview'):help('learnOverview')}</p><LearningRegion language={language} country={country} disabled={busy||Boolean(exam)} onChange={changeRegion}/></header>
   {!native&&<p role="status">{t('autoTranslation')} {!contentReady&&t(translationError?'translationError':'translating')}{translationError&&<button onClick={()=>setTranslationRetry(v=>v+1)}>{t('retry')}</button>}</p>}
   {!loaded&&!error&&<p role="status">{t("loadingProgress")}</p>}
-  <div className={styles.progress}><strong>{completedGroupCount(state.completed)} / {groups.length} {t("m4")}</strong><progress max={groups.length} value={completedGroupCount(state.completed)}/></div>
+  {!preview&&<div className={styles.progress}><strong>{completedGroupCount(state.completed)} / {groups.length} {t("m4")}</strong><progress max={groups.length} value={completedGroupCount(state.completed)}/></div>}
   {error&&<div role="alert" className={styles.error}>{error}{!loaded&&<button onClick={()=>void load()}>{t("retry")}</button>}</div>}
   <p>{t("topicHelp")}</p>
 
-<LearningLessonList ref={lessonList} language={locale} titles={groups.map(g=>ko?g.koTitle:g.sources.map(id=>(content?.language===locale?content.text[`title.${id}`]:undefined)??lessons.find(l=>l.id===id)!.title).join(' · '))} selected={groups.indexOf(groupForSource(lesson.id))+1} completed={groups.flatMap((g,i)=>groupComplete(g,state.completed)?[i+1]:[])} disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onStart={startListedLesson}/><div className={styles.dayStart}><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label>{!v4&&<button type="button" disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onClick={()=>voice.current?.startDay()}>{t('teacherStart')}</button>}</div>
+<LearningLessonList ref={lessonList} language={locale} titles={groups.map(g=>ko?g.koTitle:g.sources.map(id=>preview?title(lessons.find(l=>l.id===id)!):(content?.language===locale?content.text[`title.${id}`]:undefined)??lessons.find(l=>l.id===id)!.title).join(' · '))} selected={groups.indexOf(groupForSource(lesson.id))+1} completed={groups.flatMap((g,i)=>groupComplete(g,state.completed)?[i+1]:[])} disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onStart={startListedLesson}/><div className={styles.dayStart}><label>{t("studyDay")}<select value={day} disabled={!loaded||busy||!draftReady} onChange={e=>{const d=Number(e.target.value);setDay(d);selectUnit(lessons.findIndex(l=>sourceDay(l.id)===d));}}>{Array.from({length:30},(_,i)=><option key={i} value={i+1}>{i+1} {t("day")} · {groups.filter(g=>g.day===i+1&&groupComplete(g,state.completed)).length}/{groups.filter(g=>g.day===i+1).length}</option>)}</select></label>{!v4&&<button type="button" disabled={!loaded||requestBusy||!draftReady||Boolean(exam)} onClick={()=>voice.current?.startDay()}>{t('teacherStart')}</button>}</div>
    {groups.filter(g=>g.day===day).map(group=>{const units=group.sources.map(id=>lessons.find(l=>l.id===id)!);const active=group.sources.includes(lesson.id);const label=ko?group.koTitle:units.map(title).join(' · ');return <section className={styles.unit} key={group.id}>
     <button type="button" className={styles.unitButton} disabled={!loaded||busy||!draftReady} aria-expanded={active} aria-controls={`lesson-${active?lesson.id:group.sources[0]}`} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===(group.sources.find(id=>!state.completed.includes(id))??group.sources[0])))}><span>{group.id}</span><strong>{label}</strong>{groupComplete(group,state.completed)&&<small>✓ {t("m5")}</small>}</button>
     {active&&<article id={`lesson-${lesson.id}`} aria-label={label}>
     {units.length>1&&<div>{units.map((part,n)=><button key={part.id} type="button" disabled={busy||!draftReady} aria-pressed={part.id===lesson.id} onClick={()=>selectUnit(lessons.findIndex(l=>l.id===part.id))}>{t('lessonPart')} {n+1}{state.completed.includes(part.id)?' ✓':''}</button>)}</div>}
-    <h2>{group.id}. {title(lesson)}</h2><p>{t(unit<50?"quizCompletion":"projectCompletion")}</p>{v4?<div id={`lesson-${lesson.id}-body`} className={styles.lesson}>{teachingParagraphs(lesson.id,translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)).map(part=>{const reading=voiceActive&&teachingCursor?.lesson===part.lesson&&(teachingCursor.paragraph<0||teachingCursor.paragraph===part.paragraph);const marked=readingMarker?.lesson===part.lesson&&readingMarker.paragraph===part.paragraph&&readingMarker.source===part.text;return <p key={part.paragraph} id={`lesson-${part.lesson}-paragraph-${part.paragraph}`} className={`${styles.lessonParagraph}${reading?` ${styles.readingParagraph}`:marked?` ${styles.savedReadingParagraph}`:''}`} aria-current={reading?'true':undefined}>{part.text}{(marked||(reading&&teachingCursor.paragraph>=0))&&<ReadingProgress progress={reading&&teachingCursor.paragraph>=0?readingProgress:{elapsed:readingMarker?.fraction??0,duration:1}}/>}</p>;})}</div>:<p className={styles.lesson}>{translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)}</p>}
+    <h2>{group.id}. {title(lesson)}</h2><p>{t(preview?"previewLesson":unit<50?"quizCompletion":"projectCompletion")}</p>{v4?<div id={`lesson-${lesson.id}-body`} className={styles.lesson}>{teachingParagraphs(lesson.id,translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)).map(part=>{const reading=voiceActive&&teachingCursor?.lesson===part.lesson&&(teachingCursor.paragraph<0||teachingCursor.paragraph===part.paragraph);const marked=readingMarker?.lesson===part.lesson&&readingMarker.paragraph===part.paragraph&&readingMarker.source===part.text;return <p key={part.paragraph} id={`lesson-${part.lesson}-paragraph-${part.paragraph}`} className={`${styles.lessonParagraph}${reading?` ${styles.readingParagraph}`:marked?` ${styles.savedReadingParagraph}`:''}`} aria-current={reading?'true':undefined}>{part.text}{(marked||(reading&&teachingCursor.paragraph>=0))&&<ReadingProgress progress={reading&&teachingCursor.paragraph>=0?readingProgress:{elapsed:readingMarker?.fraction??0,duration:1}}/>}</p>;})}</div>:<p className={styles.lesson}>{translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body)}</p>}
 
-    {question&&unit<50&&<section className={styles.check} aria-label={t("m8")}><h3>{t("m8")}</h3><p>{translated(`q.${question.id}`,ko?question.ko:question.text)}</p>{question.options.map((option,i)=><label className={styles.option} key={option}><input type="radio" name="practice" disabled={busy} checked={answer===i} onChange={()=>setAnswer(i)}/>{translated(`q.${question.id}.${i}`,ko?question.koOptions[i]:option)}</label>)}<button disabled={busy||!loaded||!contentReady||answer===null} onClick={()=>void run({action:'practice',lesson:lesson.id,answer},d=>{if(d.correct){setState(d as unknown as LearningState);setNotice(t("m9"));}else setNotice(t("m10"));})}>{t("m11")}</button></section>}
-    {unit>=50&&<section className={styles.check} aria-label={t("assignment")}><h3>{t("assignment")}</h3><p>{help("learnProject")}</p><label>{t("evidence")}<textarea rows={10} maxLength={6000} value={artifact} disabled={busy||!draftReady} onChange={e=>{setArtifact(e.target.value);keepDraft(message,e.target.value);}}/></label><small>{artifact.trim().length} / 6000</small><button disabled={!loaded||busy||state.completed.includes(lesson.id)||artifact.trim().length<150} onClick={()=>void run({action:'project',lesson:lesson.id,artifact},d=>{setState(d as unknown as LearningState);setNotice(`${d.projectScore} / 100 — ${d.feedback}`);})}>{t("submitFeedback")}</button>{state.work?.[lesson.id]&&<div><strong>{t(state.completed.includes(lesson.id)?"passedWork":"reviseWork")} · {state.work[lesson.id].score} / 100</strong><p>{state.work[lesson.id].feedback}</p></div>}</section>}
+    {!preview&&question&&unit<50&&<section className={styles.check} aria-label={t("m8")}><h3>{t("m8")}</h3><p>{translated(`q.${question.id}`,ko?question.ko:question.text)}</p>{question.options.map((option,i)=><label className={styles.option} key={option}><input type="radio" name="practice" disabled={busy} checked={answer===i} onChange={()=>setAnswer(i)}/>{translated(`q.${question.id}.${i}`,ko?question.koOptions[i]:option)}</label>)}<button disabled={busy||!loaded||!contentReady||answer===null} onClick={()=>void run({action:'practice',lesson:lesson.id,answer},d=>{if(d.correct){setState(d as unknown as LearningState);setNotice(t("m9"));}else setNotice(t("m10"));})}>{t("m11")}</button></section>}
+    {(preview||unit>=50)&&<section className={styles.check} aria-label={t("assignment")}><h3>{t("assignment")}</h3><p>{preview?t("previewEvidence"):help("learnProject")}</p><label>{t("evidence")}<textarea rows={10} maxLength={preview?1800:6000} value={artifact} disabled={busy||!draftReady} onChange={e=>{setArtifact(e.target.value);keepDraft(message,e.target.value);}}/></label><small>{artifact.trim().length} / {preview?1800:6000}</small><button disabled={!loaded||busy||state.completed.includes(lesson.id)||artifact.trim().length<(preview?1:150)} onClick={()=>preview?void run({action:'chat',course:curriculumId,lesson:lesson.id,message:`${t('previewReviewRequest')}\n${artifact.slice(0,1800)}`,history:[]},d=>{const history:Message[]=[...messages,{role:'user',content:artifact.slice(0,1800)},{role:'assistant',content:String(d.answer)}];showExplanation(history);savePosition(lesson.id,history);}):void run({action:'project',lesson:lesson.id,artifact},d=>{setState(d as unknown as LearningState);setNotice(`${d.projectScore} / 100 — ${d.feedback}`);})}>{t("submitFeedback")}</button>{state.work?.[lesson.id]&&<div><strong>{t(state.completed.includes(lesson.id)?"passedWork":"reviseWork")} · {state.work[lesson.id].score} / 100</strong><p>{state.work[lesson.id].feedback}</p></div>}</section>}
     {draftReady&&<p role="status">{t(draftError?'draftError':'draftSaved')}</p>}
     {notice&&<p role="status">{notice}</p>}
     {state.completed.includes(lesson.id)&&<div role="status"><strong>✓ {t("m5")}</strong>{nextLesson&&<button type="button" disabled={busy||!draftReady} onClick={()=>{setDay(nextLesson.day);selectUnit(unit+1);requestAnimationFrame(()=>document.getElementById(`lesson-${nextLesson.id}`)?.scrollIntoView({block:"start"}));}}>{t("nextLesson")}</button>}</div>}
    </article>}</section>})}
-  <section className={styles.exam} aria-label={t("finalExam")}><h2>{t("finalExam")}</h2><p>{help("learnExam")}</p>
+  {!preview&&<section className={styles.exam} aria-label={t("finalExam")}><h2>{t("finalExam")}</h2><p>{help("learnExam")}</p>
    {!finish&&<p>{t("m12")}</p>}
    <button disabled={!loaded||busy||!finish} onClick={()=>void run({action:'start'},d=>{setExam(d as unknown as {attempt:string;questions:Question[];expiresAt:string;serverNow:string});if(exam?.attempt!==d.attempt)setAnswers({});setScore(null);setClock(Date.now());setOffset(Date.now()-Date.parse(String(d.serverNow)));})}>{t(exam?'resumeExam':'startExam')}</button>
    {exam&&<div><p role="timer">{t("timeRemaining")}: {Math.floor(remaining/60)}:{String(remaining%60).padStart(2,'0')}</p>{remaining===0&&<p>{t("m2")}</p>}{exam.questions.map((q,n)=><fieldset key={q.id} disabled={busy||remaining===0}><legend>{n+1}. {ko?q.ko:q.text}</legend>{q.options.map((o,i)=><label className={styles.option} key={o}><input type="radio" name={q.id} checked={answers[q.id]===i} onChange={()=>setAnswers({...answers,[q.id]:i})}/>{ko?q.koOptions[i]:o}</label>)}</fieldset>)}<button disabled={busy||remaining===0||exam.questions.some(q=>answers[q.id]===undefined)} onClick={()=>void run({action:'submit',attempt:exam.attempt,answers:exam.questions.map(q=>answers[q.id])},d=>{setScore(Number(d.score));setState(d as unknown as LearningState);setExam(null);setAnswers({});})}>{t("m13")}</button></div>}
    {score!==null&&<p role="status">{score} / 100 — {score>=PASS_MARK?t("m14"):t("m15")}</p>}
    {state.certificate&&<div className={styles.award}><h3>✓ {t("m16")}</h3><a href={`/rcv3/learn/certificate/${state.certificate.id}?language=${locale}&country=${encodeURIComponent(country)}&entry=${entryPath==='/rcv4/learn'?'v4':'v3'}`}>{t("m17")}</a></div>}
-  </section>
-  <details className={styles.exam}><summary>{t("sources")}</summary><p>{t("sourceNote")}</p><ul><li><a href="https://home.dartmouth.edu/about/artificial-intelligence-ai-coined-dartmouth" target="_blank" rel="noreferrer">{t("sourceHistory")}</a></li><li><a href="https://doi.org/10.1609/aimag.v27i4.1904" target="_blank" rel="noreferrer">{t("sourceProposal")}</a></li><li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">{t("sourceTransformer")}</a></li><li><a href="https://hai.stanford.edu/ai-index/2026-ai-index-report" target="_blank" rel="noreferrer">{t("sourceIndex")}</a></li><li><a href="https://www.nist.gov/itl/ai-risk-management-framework" target="_blank" rel="noreferrer">{t("sourceRisk")}</a></li></ul></details>
+  </section>}
+  {!preview&&<details className={styles.exam}><summary>{t("sources")}</summary><p>{t("sourceNote")}</p><ul><li><a href="https://home.dartmouth.edu/about/artificial-intelligence-ai-coined-dartmouth" target="_blank" rel="noreferrer">{t("sourceHistory")}</a></li><li><a href="https://doi.org/10.1609/aimag.v27i4.1904" target="_blank" rel="noreferrer">{t("sourceProposal")}</a></li><li><a href="https://arxiv.org/abs/1706.03762" target="_blank" rel="noreferrer">{t("sourceTransformer")}</a></li><li><a href="https://hai.stanford.edu/ai-index/2026-ai-index-report" target="_blank" rel="noreferrer">{t("sourceIndex")}</a></li><li><a href="https://www.nist.gov/itl/ai-risk-management-framework" target="_blank" rel="noreferrer">{t("sourceRisk")}</a></li></ul></details>}
    </div>
    <aside className={styles.teacherColumn} aria-label={t("tutor")}>
   <div className={styles.teacherViewport}>
