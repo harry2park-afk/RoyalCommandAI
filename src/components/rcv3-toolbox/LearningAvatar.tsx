@@ -28,7 +28,7 @@ export default function LearningAvatar({ref,language,onTouch,label,disabled,comp
   <audio ref={audio} autoPlay hidden/>
   <button className={styles.stage} type="button" onClick={onTouch} aria-label={label} disabled={disabled}>
    <video ref={video} autoPlay playsInline muted className={styles.video} style={{visibility:status==='ready'?'visible':'hidden'}}/>
-   {status!=='ready'&&<Image src="/images/katie-avatar.png" alt="" fill sizes="(max-width:760px) 100vw, 50vw" className={styles.poster}/>}
+   {status!=='ready'&&<Image src={compact?'/images/rc-v4-male-teacher-20261001.png':'/images/katie-avatar.png'} alt="" fill sizes="(max-width:760px) 100vw, 50vw" className={styles.poster}/>}
   </button>
   {(!compact||status!=='offline')&&<small role="status">{learningLabel(status==='error'?'avatarError':status==='connecting'?'avatarConnecting':status==='ready'?'avatarLive':configured?'avatarReady':'avatarPending',language)}</small>}
  </div>;
