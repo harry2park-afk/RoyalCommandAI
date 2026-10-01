@@ -55,7 +55,7 @@
 @media(max-width:760px){.teacherViewport>div{order:-2;width:100%;box-sizing:border-box}}
 .composer{position:relative;flex:none}
 .composer label{display:block}
-.composer textarea{margin:0;padding-right:64px;resize:none;min-height:72px;max-height:min(22dvh,220px);overflow:auto;scrollbar-width:none}
+.composer textarea{margin:0;padding-left:64px;padding-right:64px;resize:none;min-height:72px;max-height:min(22dvh,220px);overflow:auto;scrollbar-width:none}
 .answerWindow{display:flex;gap:8px;min-height:56px;max-height:min(30dvh,320px);min-width:0}
 .answerWindow .messages{flex:1;min-width:0;min-height:0;margin:0;max-height:none;scrollbar-width:none}
 .answerWindow .messages p{margin:0 0 8px}
@@ -86,3 +86,6 @@
 .readingParagraph{border-left-color:#e7c46c;background:#e7c46c1a;color:#fff}
 
 .savedReadingParagraph{border-left-color:#e7c46c80;background:#e7c46c0a}
+
+.page .composer .microphone{position:absolute;left:10px;bottom:10px;display:grid;place-items:center;width:44px;height:44px;padding:0;background:#183348;border-color:#486476}
+.page .composer .microphone[aria-pressed=true]{background:#285747;border-color:#9ce4cb;color:#9ce4cb}

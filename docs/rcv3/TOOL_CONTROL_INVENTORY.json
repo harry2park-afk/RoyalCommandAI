@@ -536,12 +536,19 @@
     {
       "controlId": "src/app/rcv3/learn/LearningRoom.tsx#11",
       "toolId": "learning",
-      "sourceHash": "4aeba16a8afac5108135f3fc14ea5a1982dbbfb55d386685e3cdf0af75ba3913",
+      "sourceHash": "4df52c67878b9bc3c9c437d5fb275ce9b22b679fd00bf3c7ed5dc094fd77e766",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
     {
       "controlId": "src/app/rcv3/learn/LearningRoom.tsx#12",
+      "toolId": "learning",
+      "sourceHash": "4aeba16a8afac5108135f3fc14ea5a1982dbbfb55d386685e3cdf0af75ba3913",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/learn/LearningRoom.tsx#13",
       "toolId": "learning",
       "sourceHash": "acf1ac19f65e7470ec364c3c17e372db57db67584501c30e409b0a76839a3b0a",
       "mode": "context-bound",

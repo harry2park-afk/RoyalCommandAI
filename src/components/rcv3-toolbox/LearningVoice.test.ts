@@ -1,6 +1,6 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
-const m=vi.hoisted(()=>({stateIndex:0,avatarReady:null as boolean|null,effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>),stream:null as null|((job:unknown,text:string,signal:AbortSignal,reading:()=>void)=>Promise<boolean>),progress:null as null|((id:string,value:{elapsed:number;duration:number|null})=>void),canStream:false,pcmPlay:vi.fn(),refs:[] as {current:unknown}[]}));
+const m=vi.hoisted(()=>({stateIndex:0,avatarReady:null as boolean|null,effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;microphone:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>),stream:null as null|((job:unknown,text:string,signal:AbortSignal,reading:()=>void)=>Promise<boolean>),progress:null as null|((id:string,value:{elapsed:number;duration:number|null})=>void),canStream:false,pcmPlay:vi.fn(),refs:[] as {current:unknown}[]}));
 vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>{const i=m.stateIndex++;return [i===0?m.avatarReady:v,vi.fn()];},useRef:(v:unknown)=>{const ref={current:v};m.refs.push(ref);return ref;},useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
 vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{constructor(options:{load:typeof m.load;stream?:typeof m.stream;progress?:typeof m.progress}){m.progress=options.progress??null;m.load=options.load;m.stream=options.stream??null;}enqueue=m.enqueue;stop=m.stop;prime=m.prime;setVolume=vi.fn();}}));
 vi.mock('@/lib/client/pcm-speech-player',()=>({PcmSpeechPlayer:class{get available(){return m.canStream;}prime=vi.fn();play=m.pcmPlay;stop=vi.fn();dispose=vi.fn();setVolume=vi.fn();}}));
@@ -157,4 +157,16 @@ it('forwards playback progress only while a V4 daily lesson is active, never dur
  m.handle!.startDay();await Promise.resolve();await Promise.resolve();m.progress!('teacher',{elapsed:1,duration:4});expect(onDayProgress).toHaveBeenLastCalledWith({elapsed:1,duration:4});
  m.handle!.stop();const count=onDayProgress.mock.calls.length;m.progress!('teacher',{elapsed:3,duration:4});expect(onDayProgress).toHaveBeenCalledTimes(count);
  for(const c of cleanup)if(typeof c==='function')c();
+});
+
+
+it('exposes the same dictation handler for V4 input and preserves the draft on permission denial',()=>{
+ const onTranscript=vi.fn();LearningVoice({language:'ko',lessonId:'001',lessonText:'',answerText:'',draft:'Keep',disabled:false,onTranscript,compact:true});const cleanup=m.effects.map(f=>f());
+ m.handle!.microphone();expect(recog.lang).toBe('ko');recog.onresult({results:[[{transcript:'질문'}]]});expect(onTranscript).toHaveBeenLastCalledWith('Keep 질문');
+ recog.onerror({error:'not-allowed'});recog.onresult({results:[[{transcript:'late'}]]});expect(onTranscript).toHaveBeenCalledTimes(1);expect(recog.abort).toHaveBeenCalled();
+ for(const c of cleanup)if(typeof c==='function')c();
+});
+it('does not start exposed dictation while access is disabled',()=>{
+ const onTranscript=vi.fn();LearningVoice({language:'ko',lessonId:'001',lessonText:'',answerText:'',draft:'Keep',disabled:true,onTranscript,compact:true});
+ const start=recog?.start;start?.mockClear();m.handle!.microphone();expect(start).not.toHaveBeenCalled();expect(onTranscript).not.toHaveBeenCalled();
 });

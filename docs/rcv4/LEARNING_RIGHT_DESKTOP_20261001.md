@@ -277,3 +277,39 @@ Changed only the fixed V4 male speech profile from `onyx` to `ash`, replacing de
 Evidence: 5 relevant test files / 54 tests passed; speech route/test ESLint passed; `git diff --check` passed; `npm run build` exit 0 including TypeScript, 137 generated pages and toolbox gate (137 controls / 19 tools). Existing middleware deprecation warning remains. Official speech guide checked on 2026-10-01: https://developers.openai.com/api/docs/guides/text-to-speech confirms voice selection and instruction-controlled delivery.
 
 No real paid synthesis or acoustic audition performed: youth/brightness is the requested delivery profile, not a guaranteed measured timbre. No physical-device test or live authenticated TTS result claimed. Remote reflection requires unchanged parent, exact staged tree and exact-commit READY Preview with the existing branch alias; no Production promotion. Recovery covers tracked source/assets, not browser uploads, provider state or customer data.
+
+
+## V4 customer questions and left input microphone — 2026-10-01
+
+Owner scope: investigate missing/strange chat replies and put a microphone at the left of the existing V4 input. STANDARD; root sole Writer; startup_review read-only independent Reviewer. Same authorized Preview branch only. No replacement screen or destination. Recovery source `9306a1f41782dff20a32da9064cc10a07153ca52`, tree `a409a09be0a90596c8118e23a0bfccd16be0d5ad`, exact READY Preview `dpl_D5w81F1KJdggmSNZtNqaxHxiuuUj`.
+
+Baseline reproduction in actual React browser fixture: malformed HTTP-200 `{}` renders `undefined` and clears draft; V4 microphone count 0; HTTP-503 failure alert exists only in left curriculum while draft is retained. Remote Preview logs show POST `/api/rcv3/learn` HTTP 200 at 2026-10-01 05:26:40 UTC with existing gpt-4.1-mini provider routing. Logs do not expose the customer's original answer; the reported strange content's exact origin is not established from those logs.
+
+Reuse: registered `microphone` and `send` ToolButton v1. Existing LearningVoice.microphone/createDictation is exposed through the existing handle; selected language and listening pressed state are retained. Mic pauses/stops an active lecture and writes to the same owner-scoped input. Typing, Send, Stop, permission denial and cleanup discard delayed recognition events without erasing the draft. Dictation does not auto-submit: existing paper-plane Send submits the question. Composer reserves 64px at each end; only its left microphone and input padding change.
+
+V4 idle typed and active voice requests now show localized waiting/failure beside tutor chat. Only nonblank string answers count as successful V4 replies; malformed bodies cannot coerce to undefined/[object Object] or clear draft/history. Synchronous chatFlight plus generation-scoped feedback prevents repeated active Send and late failure/status overwrite. V3 adds no microphone/feedback and retains its legacy answer coercion. No API, authentication, provider configuration, payment, customer records, portrait, locale/country background, reading underline/resume or lesson content changes. Existing shared toolbox description/control inventory updated without weakening the gate.
+
+Verification: 7 relevant files / 86 tests passed; independent Reviewer 4 files / 61 tests passed with no material regression. Build exit 0, TypeScript passed, 137 pages generated; toolbox gate 138 registered controls / 19 installable tools. LearningVoice lint clean. LearningRoom lint is not fully passed: the same two pre-existing react-hooks/set-state-in-effect findings remain (before lines 57/104, after 59/106); no new lint findings or suppressions. Existing middleware deprecation warning remains. git diff --check passed.
+
+Controlled Chromium/React browser evidence (API/recognition fixture, not live customer microphone/provider testing):
+```json
+{
+  "dictationToInputThenOneSend": true,
+  "manualEditCancelsDictation": true,
+  "permissionDenialPreservesDraft": true,
+  "failureVisibleOnRight": true,
+  "malformedAnswerRetainsDraft": true,
+  "activeTypedQuestionAnsweredOnce": true,
+  "micInterruptsLessonAndWritesDraft": true,
+  "widths": [
+    1366,
+    1024,
+    1920,
+    390
+  ],
+  "v3HasNoNewMic": true,
+  "pageErrors": []
+}
+```
+
+No native physical microphone, live signed-in question synthesis or original customer reply content was tested. Remote reflection requires unchanged parent, identical staged tree and exact tested-commit READY Preview/branch alias. Source/assets recovery covers tracked files only, not provider state, R2/browser uploads or customer data. No Production promotion or external sending.

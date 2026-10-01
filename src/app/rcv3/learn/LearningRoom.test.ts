@@ -9,7 +9,7 @@ import LearningAutoTextarea from '@/components/rcv3-toolbox/LearningAutoTextarea
 import {sourceDay} from '@/lib/rcv3/learning/groups';
 import {lessons} from '@/lib/rcv3/learning/course';
 function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
-function render(unit:number,completed:string[],work={},language='ko',entryPath:'/rcv3/learn'|'/rcv4/learn'='/rcv3/learn',message=''){m.index=0;m.values=[{completed,certificate:null,work},[],sourceDay(lessons[unit].id),'',0,0,true,false,unit,[],message,null,false,true,'','',null,{},null,null,false,0,language,'',false,'',false,null];return nodes(LearningRoom({language,ownerId:'alice',entryPath}));}
+function render(unit:number,completed:string[],work={},language='ko',entryPath:'/rcv3/learn'|'/rcv4/learn'='/rcv3/learn',message=''){m.index=0;m.values=[{completed,certificate:null,work},[],sourceDay(lessons[unit].id),'',0,0,true,false,unit,[],message,null,false,true,'','',null,{},null,null,false,0,language,'',false,'',false,null];m.values[32]=false;m.values[33]=false;m.values[34]='';return nodes(LearningRoom({language,ownerId:'alice',entryPath}));}
 beforeEach(()=>{vi.unstubAllGlobals();m.changes=[];vi.stubGlobal('React',React);vi.stubGlobal('requestAnimationFrame',vi.fn());});
 it('moves a completed lesson to the next day without marking another lesson complete',()=>{const n=render(3,['004']);const b=n.find(e=>e.type==='button'&&e.props.children==='다음 과목')!;expect(b.props.disabled).toBe(false);b.props.onClick();expect(m.changes).toContainEqual([2,2]);expect(m.changes).toContainEqual([8,4]);expect(m.changes.some(([i])=>i===0)).toBe(false);});
 it('does not offer next-completion controls before completion or after lesson 100',()=>{for(const [unit,completed] of [[0,[]],[99,['100']]] as const){expect(render(unit,[...completed]).some(e=>e.type==='button'&&e.props.children==='다음 과목')).toBe(false);}});
@@ -182,4 +182,37 @@ it('keeps the stopped underline in place and resumes the same original paragraph
  saveTeachingBookmark(storage,'alice','ko',{day:1,lesson:'002',paragraph:1,finished:false});const mismatch=await teacher.props.onDayPlan(new AbortController().signal);expect(mismatch.parts[mismatch.index].startOffset).toBe(0);
  saveTeachingBookmark(storage,'alice','ko',{day:1,lesson:'001',paragraph:1,finished:false});
  saveReadingMarker(storage,'alice','ko',{...marker,source:'Changed stale public text.'});const stale=await teacher.props.onDayPlan(new AbortController().signal);expect(stale.parts[stale.index].startOffset).toBe(0);
+});
+
+
+it('places the existing microphone on the V4 input and invokes shared dictation without submitting',()=>{
+ const n=render(0,[],{},'ko','/rcv4/learn'),teacher=n.find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!,mic=n.find(e=>e.props.toolId==='microphone')!,microphone=vi.fn();
+ teacher.props.ref.current={microphone};expect(mic.props.disabled).toBe(false);expect(mic.props['aria-pressed']).toBe(false);mic.props.onClick();expect(microphone).toHaveBeenCalledOnce();teacher.props.onDictationChange(true);expect(m.changes).toContainEqual([32,true]);
+ expect(render(0,[],{},'ko','/rcv3/learn').some(e=>e.props.toolId==='microphone')).toBe(false);
+});
+it('keeps pending/error feedback beside V4 answers and disables duplicate sending',()=>{
+ render(0,[],{},'ko','/rcv4/learn','question');m.index=0;m.values[33]=true;
+ let n=nodes(LearningRoom({ownerId:'alice',language:'ko',entryPath:'/rcv4/learn'}));expect(n.find(e=>e.props.toolId==='send')!.props.disabled).toBe(true);expect(n.find(e=>e.props.toolId==='microphone')!.props.disabled).toBe(true);
+ expect(n.find(e=>e.type==='p'&&e.props.role==='status'&&e.props.children==='처리 중…')).toBeTruthy();
+ m.index=0;m.values[33]=false;m.values[34]='처리하지 못했습니다.';n=nodes(LearningRoom({ownerId:'alice',language:'ko',entryPath:'/rcv4/learn'}));expect(n.find(e=>e.type==='p'&&e.props.role==='alert')!.props.children).toBe('처리하지 못했습니다.');
+});
+it('rejects malformed successful V4 chat responses without clearing draft/history',async()=>{
+ for(const answer of [undefined,null,'   ',{},42]){
+  m.changes=[];vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({answer})})));
+  render(0,[],{},'ko','/rcv4/learn','Keep this question').find(e=>e.props.toolId==='send')!.props.onClick();
+  await vi.waitFor(()=>expect(m.changes).toContainEqual([33,false]));expect(m.changes).toContainEqual([34,'처리하지 못했습니다. 입력은 유지됩니다. 다시 시도하세요.']);expect(m.changes.some(([i])=>i===9||i===10)).toBe(false);
+ }
+});
+it('active voice question failures use the same V4 chat feedback and do not coerce answers',async()=>{
+ for(const answer of [{},'']){
+  m.changes=[];vi.stubGlobal('fetch',vi.fn(async()=>({ok:true,json:async()=>({answer})})));
+  const teacher=render(0,[],{},'ko','/rcv4/learn').find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;
+  await expect(teacher.props.onQuestion('질문입니다',new AbortController().signal,true)).rejects.toThrow('VOICE');
+  expect(m.changes).toContainEqual([33,true]);expect(m.changes).toContainEqual([33,false]);expect(m.changes).toContainEqual([34,'처리하지 못했습니다. 입력은 유지됩니다. 다시 시도하세요.']);expect(m.changes.some(([i])=>i===9||i===10)).toBe(false);
+ }
+});
+it('an aborted voice request releases waiting without adding an error or clearing input',async()=>{
+ const abort=new AbortController();vi.stubGlobal('fetch',vi.fn(async()=>{abort.abort();throw Error('AbortError');}));
+ const teacher=render(0,[],{},'ko','/rcv4/learn').find(e=>typeof e.type==='function'&&e.type.name==='LearningVoice')!;await expect(teacher.props.onQuestion('Keep',abort.signal,true)).rejects.toThrow();
+ expect(m.changes).toContainEqual([33,false]);expect(m.changes.some(([i,v])=>i===34&&Boolean(v))).toBe(false);expect(m.changes.some(([i])=>i===9||i===10)).toBe(false);
 });

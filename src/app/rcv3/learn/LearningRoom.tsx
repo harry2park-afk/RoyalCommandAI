@@ -2,7 +2,7 @@
 import ReadingProgress from '@/components/rcv3-toolbox/ReadingProgress';
 import {speechProgressRatio,resumeSentenceOffset,type SpeechProgress} from '@/lib/client/speech-progress';
 import {useEffect,useRef,useState,type ChangeEvent} from 'react';
-import {Send} from 'lucide-react';
+import {Mic,Send} from 'lucide-react';
 import ToolButton from '@/components/rcv3-toolbox/ToolButton';
 import LearningAutoTextarea from '@/components/rcv3-toolbox/LearningAutoTextarea';
 import {findHelp} from '@/lib/locale/help-catalog';
@@ -30,7 +30,6 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const chatScroll=useRef<HTMLDivElement|null>(null),curriculumScroll=useRef<HTMLDivElement|null>(null);
  const conversations=useRef<Record<string,{messages:Message[];message:string;answer:number|null}>>({});
  const [unit,setUnit]=useState(0),[messages,setMessages]=useState<Message[]>([]),[message,setMessage]=useState(''),[answer,setAnswer]=useState<number|null>(null);
- useEffect(()=>{const el=chatScroll.current;if(el)el.scrollTop=el.scrollHeight;},[messages]);
  const [requestBusy,setBusy]=useState(false),[loaded,setLoaded]=useState(Boolean(initialLearning)),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [exam,setExam]=useState<{attempt:string;questions:Question[];expiresAt:string;serverNow:string}|null>(null),[answers,setAnswers]=useState<Record<string,number>>({}),[score,setScore]=useState<number|null>(null);
  useEffect(()=>{if(!exam)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[exam]);
@@ -52,6 +51,9 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const markerRecord=useRef<{value:ReadingMarker;owner:string;language:string}|null>(null),markerTicks=useRef(0);
  const activeReading=useRef<{lesson:string;paragraph:number;source:string;base:number}|null>(null);
  const [preparedPlan,setPreparedPlan]=useState<{language:string;lesson:string;text:string}|null>(null);
+ const [dictating,setDictating]=useState(false),[chatPending,setChatPending]=useState(false),[chatError,setChatError]=useState('');
+ const chatTurn=useRef(0),chatFlight=useRef(false);
+ useEffect(()=>{const el=chatScroll.current;if(el)el.scrollTop=el.scrollHeight;},[messages,chatPending,chatError]);
  useEffect(()=>{
   try{
    for(const l of lessons){try{const saved=readLearningDraft(window.localStorage,ownerId,l.id);if(saved){localDrafts.current[l.id]=saved;drafts.current[l.id]=saved.artifact;}}catch{setDraftError(true);}}
@@ -116,8 +118,10 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  async function run(body:Record<string,unknown>,success:(data:Record<string,unknown>)=>void){
   if(flight.current)return;flight.current=true;setBusy(true);setError('');setNotice('');
   const abort=new AbortController();controller.current=abort;
-  try{const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,language:locale}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(65000)])});const d=await r.json();if(!r.ok){if(d.code==='RCV3_LIMIT')throw new Error(t("m1"));if(d.code==='RCV3_EXAM_EXPIRED')throw new Error(t("m2"));throw new Error(t("m3"));}if(!abort.signal.aborted)success(d);
-  }catch(e){if(!abort.signal.aborted)setError(e instanceof Error?e.message:t("m3"));}finally{flight.current=false;setBusy(false);}
+  const chatting=v4&&body.action==='chat',turn=chatting?++chatTurn.current:0;
+  if(chatting){chatFlight.current=true;setChatPending(true);setChatError('');}
+  try{const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...body,language:locale}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(65000)])});const d=await r.json();if(!r.ok){if(d.code==='RCV3_LIMIT')throw new Error(t("m1"));if(d.code==='RCV3_EXAM_EXPIRED')throw new Error(t("m2"));throw new Error(t("m3"));}if(chatting&&(typeof d?.answer!=='string'||!d.answer.trim()))throw new Error(t('m3'));if(!abort.signal.aborted)success(d);
+  }catch(e){if(!abort.signal.aborted){const error=e instanceof Error?e.message:t("m3");setError(error);if(chatting&&turn===chatTurn.current)setChatError(t('m3'));}}finally{flight.current=false;setBusy(false);if(chatting&&turn===chatTurn.current){chatFlight.current=false;setChatPending(false);}}
  }
  function selectUnit(index:number){
   conversations.current[lesson.id]={messages,message:localDrafts.current[lesson.id]?.message??message,answer};
@@ -151,8 +155,12 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
     if(!r.ok)throw Error('VOICE');const d=await r.json();spoken=d.text?.[`body.${target.id}`];if(!spoken)throw Error('VOICE');
    }
   }else{
-   const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat',course:COURSE,voice:true,lesson:target.id,language:locale,message:navigating?t('voiceOpening'):text,history:navigating?[]:prior.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))}),signal});
-   if(!r.ok)throw Error('VOICE');const d=await r.json();spoken=String(d.answer??'');if(!spoken.trim())throw Error('VOICE');
+   const turn=v4?++chatTurn.current:0;if(v4){chatFlight.current=true;setChatPending(true);setChatError('');}
+   try{
+    const r=await fetch('/api/rcv3/learn',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'chat',course:COURSE,voice:true,lesson:target.id,language:locale,message:navigating?t('voiceOpening'):text,history:navigating?[]:prior.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))}),signal});
+    if(!r.ok)throw Error('VOICE');const d=await r.json();if(v4&&(typeof d?.answer!=='string'||!d.answer.trim()))throw Error('VOICE');spoken=String(d?.answer??'');if(!spoken.trim())throw Error('VOICE');
+   }catch(e){if(v4&&turn===chatTurn.current&&!signal.aborted)setChatError(t('m3'));throw e;}
+   finally{if(v4&&turn===chatTurn.current){chatFlight.current=false;setChatPending(false);}}
   }
   if(signal.aborted)throw Error('CANCELLED');
   // The voice controller stays mounted across curriculum changes. Preserve each lesson's work.
@@ -251,13 +259,14 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const finish=state.completed.length===lessons.length;
  const visibleMessages=v4?(boardExplanation===null?[]:[{role:'assistant' as const,content:boardExplanation}]):messages;
  function sendMessage(){
+  if(v4){if(sendDisabled||chatFlight.current)return;voice.current?.stopDictation();}
   if(voiceActive){voice.current?.start(message,true);return;}
   void run({action:'chat',lesson:lesson.id,message,history:messages.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))},d=>{
    const history:Message[]=[...messages,{role:'user',content:message},{role:'assistant',content:String(d.answer)}];
    showExplanation(history);savePosition(lesson.id,history);setMessage('');keepDraft('',artifact);
   });
  }
- const sendDisabled=!loaded||requestBusy||!draftReady||Boolean(exam)||!message.trim();
+ const sendDisabled=!loaded||requestBusy||(v4&&chatPending)||!draftReady||Boolean(exam)||!message.trim();
  const messageField={
   'aria-label':t('m6'),maxLength:2000,rows:v4?1:3,value:message,
   onChange:(e:ChangeEvent<HTMLTextAreaElement>)=>{voice.current?.stopDictation();setMessage(e.target.value);keepDraft(e.target.value,artifact);},
@@ -299,14 +308,15 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    </div>
    <aside className={styles.teacherColumn} aria-label={t("tutor")}>
   <div className={styles.teacherViewport}>
-  <LearningVoice key={locale} ref={voice} compact={v4} prepareText={preparedPlan?.language===locale&&preparedPlan.lesson===lesson.id?preparedPlan.text:''} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onChooseLesson={v4?chooseLesson:undefined} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={voiceActivity} onPlaybackIdle={v4?playbackIdle:undefined} onDayProgress={v4?teachingProgress:undefined} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
+  <LearningVoice key={locale} ref={voice} compact={v4} prepareText={preparedPlan?.language===locale&&preparedPlan.lesson===lesson.id?preparedPlan.text:''} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onChooseLesson={v4?chooseLesson:undefined} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={voiceActivity} onPlaybackIdle={v4?playbackIdle:undefined} onDayProgress={v4?teachingProgress:undefined} onQuestion={voiceQuestion} onDictationChange={v4?setDictating:undefined} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
   </div>
     <section className={styles.tutor} aria-label={t("tutor")}>{!v4&&<h3>{t("chatWithTeacher")}</h3>}
      <div className={v4?styles.answerWindow:styles.legacyAnswer}>
-     <div ref={chatScroll} aria-live="polite" className={styles.messages}>{visibleMessages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}</div>
+     <div ref={chatScroll} aria-live="polite" className={styles.messages}>{visibleMessages.map((m,i)=><p key={i}><strong>{m.role==='user'?t('you'):t('tutor')}</strong><br/>{m.content}</p>)}{v4&&chatPending&&<p role="status">{t("m7")}</p>}{v4&&chatError&&<p role="alert">{chatError}</p>}</div>
      </div>
      {voiceTranscript&&<p className={styles.transcript} aria-live="polite">{voiceTranscript}</p>}
      <div className={v4?styles.composer:styles.legacyComposer}>
+     {v4&&<ToolButton toolId="microphone" className={styles.microphone} aria-label={t(dictating?"voiceFinish":"voiceMic")} title={t(dictating?"voiceFinish":"voiceMic")} aria-pressed={dictating} disabled={!loaded||requestBusy||chatPending||!draftReady||Boolean(exam)} onClick={()=>voice.current?.microphone()}><Mic size={20} aria-hidden="true"/></ToolButton>}
      <label>{!v4&&t("m6")}{v4?<LearningAutoTextarea {...messageField}/>:<textarea {...messageField}/>}</label>
      {v4?<ToolButton toolId="send" className={styles.send} aria-label={requestBusy?t("m7"):t("send")} title={requestBusy?t("m7"):t("send")} disabled={sendDisabled} onClick={sendMessage}><Send size={20} aria-hidden="true"/></ToolButton>:<button disabled={sendDisabled} onClick={sendMessage}>{requestBusy?t("m7"):t("send")}</button>}
      </div>
