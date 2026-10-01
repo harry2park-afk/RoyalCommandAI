@@ -16,9 +16,10 @@ import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
 import {readLearningDraft,saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,readLearningResume,saveLearningResume,nextLearningLesson,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
 type Message={role:'user'|'assistant';content:string};
-export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry="",entryPath="/rcv3/learn",homeHref="/rcv3"}:{language:string;ownerId:string;country?:string;entryPath?:"/rcv3/learn"|"/rcv4/learn";homeHref?:string}){
+type InitialLearning={state:LearningState;practice:Omit<Question,'answer'>[]};
+export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry="",entryPath="/rcv3/learn",homeHref="/rcv3",initialLearning}:{language:string;ownerId:string;country?:string;entryPath?:"/rcv3/learn"|"/rcv4/learn";homeHref?:string;initialLearning?:InitialLearning}){
  const v4=entryPath==='/rcv4/learn';
- const [state,setState]=useState<LearningState>({completed:[],certificate:null}),[practice,setPractice]=useState<Question[]>([]);
+ const [state,setState]=useState<LearningState>(initialLearning?.state??{completed:[],certificate:null}),[practice,setPractice]=useState<Omit<Question,'answer'>[]>(initialLearning?.practice??[]);
  const [day,setDay]=useState(1),[artifact,setArtifact]=useState(''),[clock,setClock]=useState(()=>Date.now()),[offset,setOffset]=useState(0);
  const drafts=useRef<Record<string,string>>({});
  const localDrafts=useRef<Record<string,LearningDraft>>({});
@@ -28,7 +29,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const conversations=useRef<Record<string,{messages:Message[];message:string;answer:number|null}>>({});
  const [unit,setUnit]=useState(0),[messages,setMessages]=useState<Message[]>([]),[message,setMessage]=useState(''),[answer,setAnswer]=useState<number|null>(null);
  useEffect(()=>{const el=chatScroll.current;if(el)el.scrollTop=el.scrollHeight;},[messages]);
- const [requestBusy,setBusy]=useState(false),[loaded,setLoaded]=useState(false),[error,setError]=useState(''),[notice,setNotice]=useState('');
+ const [requestBusy,setBusy]=useState(false),[loaded,setLoaded]=useState(Boolean(initialLearning)),[error,setError]=useState(''),[notice,setNotice]=useState('');
  const [exam,setExam]=useState<{attempt:string;questions:Question[];expiresAt:string;serverNow:string}|null>(null),[answers,setAnswers]=useState<Record<string,number>>({}),[score,setScore]=useState<number|null>(null);
  useEffect(()=>{if(!exam)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[exam]);
  const remaining=exam?Math.max(0,Math.ceil((Date.parse(exam.expiresAt)-(clock-offset))/1000)):EXAM_MINUTES*60;
@@ -43,6 +44,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const [resumed,setResumed]=useState(false);
  // A fresh board is presentation only; saved history and assessment records remain intact.
  const [boardExplanation,setBoardExplanation]=useState<string|null>(null);
+ const [preparedPlan,setPreparedPlan]=useState<{language:string;lesson:string;text:string}|null>(null);
  useEffect(()=>{
   try{
    for(const l of lessons){try{const saved=readLearningDraft(window.localStorage,ownerId,l.id);if(saved){localDrafts.current[l.id]=saved;drafts.current[l.id]=saved.artifact;}}catch{setDraftError(true);}}
@@ -82,7 +84,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  async function load(){try{const r=await fetch('/api/rcv3/learn',{cache:'no-store',signal:AbortSignal.timeout(20000)});if(!r.ok)throw new Error();const d=await r.json();setError('');setState(d);setPractice(d.practice);setLoaded(true);}catch{setError(t("m0"));}}
  // Loading remote progress updates state only after the network response.
  // eslint-disable-next-line react-hooks/set-state-in-effect
- useEffect(()=>{void load();return()=>controller.current?.abort();},[]); // eslint-disable-line react-hooks/exhaustive-deps
+ useEffect(()=>{if(!initialLearning)void load();return()=>controller.current?.abort();},[]); // eslint-disable-line react-hooks/exhaustive-deps
  async function run(body:Record<string,unknown>,success:(data:Record<string,unknown>)=>void){
   if(flight.current)return;flight.current=true;setBusy(true);setError('');setNotice('');
   const abort=new AbortController();controller.current=abort;
@@ -146,7 +148,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  async function dayPlan(signal:AbortSignal,requestedLesson?:string){
   const planDay=requestedLesson?sourceDay(requestedLesson):day;
   let text:Record<string,string>={};
-  if(!native){const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:planDay,language:locale}),signal});if(!r.ok)throw Error('CONTENT');text=(await r.json()).text;}
+  if(!native){if(content?.day===planDay&&content.language===locale)text=content.text;else{const r=await fetch('/api/rcv3/learn/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({day:planDay,language:locale}),signal});if(!r.ok)throw Error('CONTENT');text=(await r.json()).text;}}
   const parts=groups.filter(g=>g.day===planDay).flatMap(g=>g.sources).flatMap(id=>{
    const item=lessons.find(l=>l.id===id)!;const body=native?(ko?item.ko:item.body):text[`body.${id}`];
    if(!body)throw Error('CONTENT');const paragraphs=teachingParagraphs(id,body);const name=native?(ko?item.koTitle:item.title):text[`title.${id}`]??item.title;
@@ -157,6 +159,15 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
   if(v4&&parts[index])parts[index]={...parts[index],text:`${lessonGreeting(parts[index].lesson)} ${parts[index].text}`};
   return {parts,index};
  }
+ const planRef=useRef(dayPlan);
+ useEffect(()=>{planRef.current=dayPlan;});
+ useEffect(()=>{
+  if(!v4||!loaded||!draftReady||!contentReady)return;
+  const abort=new AbortController();
+  // Preparation never starts teaching or changes the saved teaching position.
+  void planRef.current(abort.signal).then(plan=>{if(!abort.signal.aborted)setPreparedPlan({language:locale,lesson:lessons[unit].id,text:plan.parts[plan.index]?.text??''});}).catch(()=>{});
+  return()=>abort.abort();
+ },[v4,loaded,draftReady,contentReady,day,unit,locale,content]);
  function teachingSegment(part:TeachingSegment){
   const target=lessons.findIndex(l=>l.id===part.lesson);
   const history=part.lesson===lesson.id?messages:conversations.current[part.lesson]?.messages??[];
@@ -235,7 +246,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
    </div>
    <aside className={styles.teacherColumn} aria-label={t("tutor")}>
   <div className={styles.teacherViewport}>
-  <LearningVoice key={locale} ref={voice} compact={v4} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onChooseLesson={v4?chooseLesson:undefined} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
+  <LearningVoice key={locale} ref={voice} compact={v4} prepareText={preparedPlan?.language===locale&&preparedPlan.lesson===lesson.id?preparedPlan.text:''} language={locale} lessonId={lesson.id} lessonTitle={`${groupForSource(lesson.id).id}. ${title(lesson)}`} resume={resumed||messages.length>0} lessonText={contentReady?translated(`body.${lesson.id}`,ko?lesson.ko:lesson.body):''} answerText={[...messages].reverse().find(m=>m.role==='assistant')?.content??''} draft={message} disabled={requestBusy||!loaded||!draftReady||Boolean(exam)} onChooseLesson={v4?chooseLesson:undefined} onDayPlan={dayPlan} onDaySegment={teachingSegment} onDayComplete={teachingFinished} onActiveChange={setVoiceActive} onQuestion={voiceQuestion} onTranscript={text=>{if(voiceActive){setVoiceTranscript(text);return;}setMessage(text);keepDraft(text,artifact);}}/>
   </div>
     <section className={styles.tutor} aria-label={t("tutor")}>{!v4&&<h3>{t("chatWithTeacher")}</h3>}
      <div className={v4?styles.answerWindow:styles.legacyAnswer}>

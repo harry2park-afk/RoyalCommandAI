@@ -7,11 +7,14 @@ import {LearningDayPlayer,teachingStopCommand,type TeachingSegment} from '@/lib/
 import {LearningConversation} from '@/lib/client/learning-conversation';
 import {AnswerSpeaker} from '@/lib/client/answer-speaker';
 import {PcmSpeechPlayer} from '@/lib/client/pcm-speech-player';
+import {PreparedLearningSpeech} from '@/lib/client/prepared-learning-speech';
 import {learningLabel,type LearningLabel} from '@/lib/locale/learning';
 export type LearningVoiceHandle={startDay:(lessonId?:string)=>void;stop:()=>void;stopDictation:()=>void;start:(question?:string,typed?:boolean)=>void};
-type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onDayPlan?:(signal:AbortSignal,lessonId?:string)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;onChooseLesson?:()=>void;compact?:boolean};
-export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange,onDayPlan,onDaySegment,onDayComplete,onChooseLesson,compact=false}:Props){
+type Props={ref?:Ref<LearningVoiceHandle>;language:string;lessonId:string;lessonTitle?:string;resume?:boolean;lessonText:string;answerText:string;draft:string;disabled:boolean;onTranscript:(text:string)=>void;onQuestion?:(text:string,signal:AbortSignal,typed?:boolean)=>Promise<string>;onActiveChange?:(active:boolean)=>void;onDayPlan?:(signal:AbortSignal,lessonId?:string)=>Promise<{parts:TeachingSegment[];index:number}>;onDaySegment?:(part:TeachingSegment)=>void;onDayComplete?:()=>void;onChooseLesson?:()=>void;compact?:boolean;prepareText?:string};
+export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=false,lessonText,answerText,draft,disabled,onTranscript,onQuestion,onActiveChange,onDayPlan,onDaySegment,onDayComplete,onChooseLesson,compact=false,prepareText=''}:Props){
  const avatar=useRef<LearningAvatarHandle|null>(null);
+ const prepared=useRef<PreparedLearningSpeech|null>(null),warmAttempted=useRef(false);
+ const [avatarReady,setAvatarReady]=useState<boolean|null>(null);
  const dayPlayer=useRef<LearningDayPlayer|null>(null),dayLoad=useRef<AbortController|null>(null),dayMic=useRef<ReturnType<typeof createDictation>|null>(null),dayRetry=useRef<ReturnType<typeof setTimeout>|null>(null);
  const [dayMicError,setDayMicError]=useState(false);
  const conversation=useRef<LearningConversation|null>(null),speechDone=useRef<{resolve:()=>void;reject:()=>void}|null>(null);
@@ -28,27 +31,35 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  useImperativeHandle(ref,()=>({stop,startDay:(lessonId?:string)=>{void startDay(lessonId);},stopDictation:()=>{if(recognition.current){recognition.current.cancel();recognition.current=null;setListening(false);setStatus(null);}},start:(question?:string,typed=false)=>{if(question||!talking)startConversation(question,typed);}}));
  useEffect(()=>{
   const pcm=new PcmSpeechPlayer();
-  const player=new AnswerSpeaker({load:async(_job,text,signal)=>{
-   const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language,...(compact?{tutor:'v4-male'}:{})}),signal});
-   if(!r.ok)throw Error('SPEECH');return r.blob();
-  },primeStream:()=>{if(compact)pcm.prime();},stream:compact?async(_job,text,signal,reading)=>{
+  const request=async(text:string,format:'pcm'|'blob',signal:AbortSignal)=>{
+   const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language,...(compact?{tutor:'v4-male'}:{}),...(format==='pcm'?{stream:true}:{})}),signal});
+   if(!r.ok)throw Error('SPEECH');return r;
+  };
+  const warm=new PreparedLearningSpeech(request);prepared.current=warm;warmAttempted.current=false;
+  const player=new AnswerSpeaker({load:(_job,text,signal)=>warm.consume(text,'blob',signal,r=>r.blob()),
+  primeStream:()=>{if(compact)pcm.prime();},stream:compact?async(_job,text,signal,reading)=>{
    // Live video keeps its existing blob transport. Unsupported audio contexts
    // fall back before requesting anything, without duplicate quota/provider use.
    if(!pcm.available||avatar.current?.hasLiveVideo())return false;
-   const r=await fetch('/api/rcv3/learn/speech',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,language,tutor:'v4-male',stream:true}),signal});
-   if(!r.ok)throw Error('SPEECH');await pcm.play(r,signal,reading);return true;
+   await warm.consume(text,'pcm',signal,async r=>{await pcm.play(r,signal,reading);});return true;
   }:undefined,play:(blob,signal)=>avatar.current?.play(blob,signal)??Promise.resolve(false),stopPlayback:()=>{pcm.stop();avatar.current?.stop();},status:(_id,value)=>{setStatus(value==='error'?'voiceError':value==='preparing'?'voicePreparing':value==='reading'?'voiceReading':null);if(value==='idle')speechDone.current?.resolve();if(value==='error')speechDone.current?.reject();}});
   speaker.current=player;
-  const halt=()=>{cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};
-  const hide=()=>{if(document.hidden){cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;setListening(false);if(!background.current){player.stop();setStatus(null);}}};
+  const halt=()=>{warm.clear();cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;player.stop();setListening(false);setStatus(null);};
+  const hide=()=>{if(document.hidden){warm.clear();cancelDay();conversation.current?.stop();setTalking(false);setPaused(false);latest.current.onActiveChange?.(false);recognition.current?.cancel();recognition.current=null;setListening(false);if(!background.current){player.stop();setStatus(null);}}};
   document.addEventListener('visibilitychange',hide);
   navigator.mediaDevices?.addEventListener('devicechange',halt);
-  return()=>{cancelDay();conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();pcm.dispose();speaker.current=null;};
+  return()=>{warm.clear();prepared.current=null;cancelDay();conversation.current?.stop();latest.current.onActiveChange?.(false);document.removeEventListener('visibilitychange',hide);navigator.mediaDevices?.removeEventListener('devicechange',halt);recognition.current?.cancel();recognition.current=null;player.stop();pcm.dispose();speaker.current=null;};
  },[language,compact]);
+ useEffect(()=>{
+  if(!compact||disabled||draft.trim()||!prepareText||avatarReady===null||document.hidden||warmAttempted.current||!prepared.current)return;
+  warmAttempted.current=true;
+  const canStream=Boolean(window.AudioContext||(window as unknown as {webkitAudioContext?:unknown}).webkitAudioContext);
+  prepared.current.prepare(prepareText,canStream&&!avatarReady?'pcm':'blob');
+ },[compact,disabled,draft,prepareText,avatarReady]);
  // External speech sessions must stop immediately when access or exam state disables voice.
  // stop reads refs only; rerun this external cancellation only when disabled changes.
  // eslint-disable-next-line react-hooks/set-state-in-effect, react-hooks/exhaustive-deps
- useEffect(()=>{if(disabled)stop();},[disabled]);
+ useEffect(()=>{if(disabled){prepared.current?.clear();stop();}},[disabled]);
  useEffect(()=>{seenAnswer.current=answerText;if(!conversation.current&&!dayPlayer.current){recognition.current?.cancel();recognition.current=null;speaker.current?.stop();setListening(false);setStatus(null);}},[lessonId]); // eslint-disable-line react-hooks/exhaustive-deps
  useEffect(()=>{if(answerText===seenAnswer.current)return;seenAnswer.current=answerText;if(!conversation.current&&!dayPlayer.current&&auto&&answerText&&!document.hidden&&!recognition.current)speaker.current?.enqueue({id:'tutor',text:answerText});},[answerText,auto]);
  function speakText(text:string,signal:AbortSignal){return new Promise<void>((resolve,reject)=>{
@@ -57,7 +68,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   speechDone.current={resolve:()=>finish(),reject:()=>finish(true)};signal.addEventListener('abort',abort,{once:true});speaker.current?.enqueue({id:'conversation',text});
  });}
  async function startDay(requestedLesson?:string){
-  if(disabled||!latest.current.onDayPlan)return;stop();setDayMicError(false);setAuto(false);background.current=false;setListenOnly(false);speaker.current?.prime();avatar.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);setStatus('voicePreparing');
+  if(disabled||!latest.current.onDayPlan)return;warmAttempted.current=true;stop();setDayMicError(false);setAuto(false);background.current=false;setListenOnly(false);speaker.current?.prime();avatar.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);setStatus('voicePreparing');
   const abort=new AbortController();dayLoad.current=abort;
   try{
    const plan=await latest.current.onDayPlan(AbortSignal.any([abort.signal,AbortSignal.timeout(65000)]),requestedLesson);if(abort.signal.aborted)return;
@@ -76,7 +87,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  function startConversation(opening?:string,typed=false){
   if(talking&&!opening){stop();return;}
   if(disabled||(!opening&&draft.trim()))return;
-  stop();setAuto(false);background.current=false;setListenOnly(false);
+  warmAttempted.current=true;stop();setAuto(false);background.current=false;setListenOnly(false);
   speaker.current?.prime();avatar.current?.prime();setTalking(true);latest.current.onActiveChange?.(true);
   let typedTurn=typed;
   const engine=new LearningConversation({
@@ -89,7 +100,7 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
   });
   conversation.current=engine;engine.start(opening||t(resume?'voiceContinueOpening':'voiceOpening'));
  }
- function read(text:string){stop();speaker.current?.prime();avatar.current?.prime();speaker.current?.enqueue({id:'tutor',text});}
+ function read(text:string){warmAttempted.current=true;stop();speaker.current?.prime();avatar.current?.prime();speaker.current?.enqueue({id:'tutor',text});}
  function microphone(){
   if(listening){recognition.current?.stop();recognition.current=null;setListening(false);return;}
   stop();
@@ -102,10 +113,10 @@ export default function LearningVoice({ref,language,lessonId,lessonTitle,resume=
  }
  function startLesson(){if(disabled)return;if(compact&&onChooseLesson){stop();onChooseLesson();}else void startDay();}
  function touchTeacher(){if(dayPlayer.current||dayLoad.current){stop();return;}if(!talking){startLesson();return;}if(paused)conversation.current?.resume();else conversation.current?.pause();}
- const controls=<div className={styles.actions}>{compact&&<button type="button" disabled={disabled||talking||(!onChooseLesson&&(Boolean(draft.trim())||!onDayPlan))} aria-haspopup={onChooseLesson?'dialog':undefined} onClick={startLesson}>{t('teacherStart')}</button>}<button type="button" onClick={stop}>{t('teacherStop')}</button>{!compact&&talking&&<button type="button" onClick={touchTeacher}>{t(paused?'teacherResume':'teacherPause')}</button>}</div>;
+ const controls=<div className={styles.actions}>{compact&&<button type="button" disabled={disabled||talking||(!onChooseLesson&&(Boolean(draft.trim())||!onDayPlan))} aria-haspopup={onChooseLesson?'dialog':undefined} onClick={startLesson}>{t('teacherStart')}</button>}<button type="button" onClick={()=>{warmAttempted.current=true;prepared.current?.clear();stop();}}>{t('teacherStop')}</button>{!compact&&talking&&<button type="button" onClick={touchTeacher}>{t(paused?'teacherResume':'teacherPause')}</button>}</div>;
  return <div className={`${styles.voice}${compact?` ${styles.compact}`:''}`} aria-label={t('voiceTitle')}>
   <div className={styles.teacher}>
-   <LearningAvatar ref={avatar} language={language} compact={compact} disabled={!talking&&(disabled||Boolean(draft.trim()))} onTouch={touchTeacher} label={t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}/>
+   <LearningAvatar ref={avatar} language={language} compact={compact} disabled={!talking&&(disabled||Boolean(draft.trim()))} onTouch={touchTeacher} onReady={compact?setAvatarReady:undefined} label={t(talking?(paused?'teacherResume':'teacherPause'):'teacherStart')}/>
    {(!compact||status==='voiceError'||status==='voiceMicError')&&<div className={styles.caption}>{!compact&&<><strong>{t('teacherReady')}</strong><small>{lessonTitle}</small></>}<span role="status" aria-live="polite">{status?t(status):t('teacherHint')}</span></div>}
    {controls}
   </div>

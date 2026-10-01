@@ -6,17 +6,17 @@ import {primeSpeechElement} from '@/lib/client/answer-speaker';
 import type {LearningAvatarPlayer,AvatarState} from '@/lib/client/learning-avatar';
 import styles from './LearningAvatar.module.css';
 export type LearningAvatarHandle={play:(blob:Blob,signal:AbortSignal)=>Promise<boolean>;stop:()=>void;prime:()=>void;hasLiveVideo:()=>boolean};
-export default function LearningAvatar({ref,language,onTouch,label,disabled,compact=false}:{ref?:Ref<LearningAvatarHandle>;language:string;onTouch:()=>void;label:string;disabled:boolean;compact?:boolean}){
+export default function LearningAvatar({ref,language,onTouch,label,disabled,compact=false,onReady}:{ref?:Ref<LearningAvatarHandle>;language:string;onTouch:()=>void;label:string;disabled:boolean;compact?:boolean;onReady?:(liveVideo:boolean)=>void}){
  const video=useRef<HTMLVideoElement|null>(null),player=useRef<LearningAvatarPlayer|null>(null);
  const audio=useRef<HTMLAudioElement|null>(null);
  const available=useRef(false),mounted=useRef(false),generation=useRef(0);
  const [status,setStatus]=useState<AvatarState>('offline'),[configured,setConfigured]=useState(false);
  useEffect(()=>{mounted.current=true;const controller=new AbortController();
-  void fetch('/api/rcv3/learn/avatar',{signal:controller.signal,cache:'no-store'}).then(r=>r.ok?r.json():{ready:false}).then(data=>{if(mounted.current){available.current=data.ready===true;setConfigured(available.current);}}).catch(()=>{});
+  void fetch('/api/rcv3/learn/avatar',{signal:AbortSignal.any([controller.signal,AbortSignal.timeout(20000)]),cache:'no-store'}).then(r=>r.ok?r.json():{ready:false}).then(data=>{if(mounted.current){available.current=data.ready===true;setConfigured(available.current);onReady?.(available.current);}}).catch(()=>{if(mounted.current)onReady?.(false);});
   // Generation is a cancellation counter, not a DOM ref.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   return()=>{mounted.current=false;generation.current++;controller.abort();player.current?.stop();player.current=null;};
- },[]);
+ },[onReady]);
  useImperativeHandle(ref,()=>({hasLiveVideo:()=>available.current,prime:()=>{if(audio.current)primeSpeechElement(audio.current);},stop:()=>{generation.current++;player.current?.stop();},play:async(blob,signal)=>{
   if(!available.current)return false;const current=generation.current;
   const {LearningAvatarPlayer}=await import('@/lib/client/learning-avatar');

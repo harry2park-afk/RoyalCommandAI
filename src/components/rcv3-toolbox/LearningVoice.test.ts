@@ -1,14 +1,14 @@
 import React from 'react';
 import {beforeEach,expect,it,vi} from 'vitest';
-const m=vi.hoisted(()=>({effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>),stream:null as null|((job:unknown,text:string,signal:AbortSignal,reading:()=>void)=>Promise<boolean>),canStream:false,pcmPlay:vi.fn(),refs:[] as {current:unknown}[]}));
-vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>[v,vi.fn()],useRef:(v:unknown)=>{const ref={current:v};m.refs.push(ref);return ref;},useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
+const m=vi.hoisted(()=>({stateIndex:0,avatarReady:null as boolean|null,effects:[] as (()=>unknown)[],handle:null as null|{start:(text?:string,typed?:boolean)=>void;stop:()=>void;stopDictation:()=>void;startDay:()=>void},enqueue:vi.fn(),stop:vi.fn(),prime:vi.fn(),load:null as null|((job:unknown,text:string,signal:AbortSignal)=>Promise<Blob>),stream:null as null|((job:unknown,text:string,signal:AbortSignal,reading:()=>void)=>Promise<boolean>),canStream:false,pcmPlay:vi.fn(),refs:[] as {current:unknown}[]}));
+vi.mock('react',async original=>({...await original<typeof import('react')>(),useEffect:(f:()=>unknown)=>m.effects.push(f),useState:(v:unknown)=>{const i=m.stateIndex++;return [i===0?m.avatarReady:v,vi.fn()];},useRef:(v:unknown)=>{const ref={current:v};m.refs.push(ref);return ref;},useImperativeHandle:(_ref:unknown,f:()=>typeof m.handle)=>{m.handle=f();}}));
 vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{constructor(options:{load:typeof m.load;stream?:typeof m.stream}){m.load=options.load;m.stream=options.stream??null;}enqueue=m.enqueue;stop=m.stop;prime=m.prime;}}));
 vi.mock('@/lib/client/pcm-speech-player',()=>({PcmSpeechPlayer:class{get available(){return m.canStream;}prime=vi.fn();play=m.pcmPlay;stop=vi.fn();dispose=vi.fn();}}));
 import LearningVoice from './LearningVoice';
 function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
 let recog:any;
 class Recognition{lang='';onresult:any;onend:any;onerror:any;start=vi.fn();abort=vi.fn();constructor(){recog=this;}}
-beforeEach(()=>{vi.clearAllMocks();m.effects=[];m.refs=[];m.canStream=false;vi.stubGlobal('React',React);vi.stubGlobal('window',{SpeechRecognition:Recognition});vi.stubGlobal('document',{hidden:false,addEventListener:vi.fn(),removeEventListener:vi.fn()});vi.stubGlobal('navigator',{mediaDevices:{addEventListener:vi.fn(),removeEventListener:vi.fn()}});});
+beforeEach(()=>{vi.clearAllMocks();m.effects=[];m.refs=[];m.stateIndex=0;m.avatarReady=null;m.canStream=false;vi.stubGlobal('React',React);vi.stubGlobal('window',{SpeechRecognition:Recognition});vi.stubGlobal('document',{hidden:false,addEventListener:vi.fn(),removeEventListener:vi.fn()});vi.stubGlobal('navigator',{mediaDevices:{addEventListener:vi.fn(),removeEventListener:vi.fn()}});});
 function setup(){const onTranscript=vi.fn();const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'answer',draft:'existing',disabled:false,onTranscript}));const cleanup=m.effects.map(f=>f());return {onTranscript,tree,cleanup};}
 it('adds spoken text to existing draft, does not submit, and ignores delayed results after cleanup',()=>{const {tree,onTranscript,cleanup}=setup();tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick();expect(recog.lang).toBe('ko');recog.onresult({results:[[{transcript:'질문'}]]});expect(onTranscript).toHaveBeenLastCalledWith('existing 질문');expect(m.stop).toHaveBeenCalled();for(const c of cleanup)if(typeof c==='function')c();recog.onresult({results:[[{transcript:'late'}]]});expect(onTranscript).toHaveBeenCalledTimes(1);expect(recog.abort).toHaveBeenCalled();});
 it('starts playback from a user gesture and cancels playback through stop control',()=>{const {tree}=setup();tree.find(n=>n.type==='button'&&n.props.children==='강의 듣기')!.props.onClick();expect(m.prime).toHaveBeenCalled();expect(m.enqueue).toHaveBeenCalledWith({id:'tutor',text:'lesson'});tree.find(n=>n.type==='button'&&n.props.children==='음성 중지')!.props.onClick();expect(m.stop.mock.calls.length).toBeGreaterThan(1);});
@@ -85,7 +85,7 @@ it('forwards an explicit listed source to the existing daily player and cancels 
 
 it('requests the fixed male profile only for V4 and preserves locale/text/cancellation',async()=>{
  for(const compact of [true,false]){
-  m.effects=[];m.refs=[];m.canStream=false;vi.stubGlobal('fetch',vi.fn(async()=>new Response('audio')));
+  m.effects=[];m.refs=[];m.stateIndex=0;m.avatarReady=null;m.canStream=false;vi.stubGlobal('fetch',vi.fn(async()=>new Response('audio')));
   LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),compact});
   const cleanup=m.effects.map(f=>f()),signal=new AbortController().signal;
   await m.load!({},'original lesson or answer',signal);
@@ -122,4 +122,29 @@ it('uses the original transport without a streaming request for unsupported Web 
   m.refs[0].current={hasLiveVideo:()=>live};expect(await m.stream!({},'lesson',new AbortController().signal,vi.fn())).toBe(false);
  }
  m.effects=[];LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn()});m.effects.map(f=>f());expect(m.stream).toBeNull();expect(fetch).not.toHaveBeenCalled();
+});
+
+
+it('prepares one first paragraph without playback and consumes it without a second request',async()=>{
+ m.avatarReady=false;m.canStream=true;vi.stubGlobal('window',{SpeechRecognition:Recognition,AudioContext:class{}});
+ const fetch=vi.fn(async()=>new Response('audio',{headers:{'Content-Type':'audio/pcm'}}));vi.stubGlobal('fetch',fetch);
+ LearningVoice({compact:true,prepareText:'Prepared first paragraph',language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn()});
+ const cleanups=m.effects.map(f=>f());await Promise.resolve();expect(fetch).toHaveBeenCalledTimes(1);expect(m.enqueue).not.toHaveBeenCalled();expect(m.prime).not.toHaveBeenCalled();expect(m.pcmPlay).not.toHaveBeenCalled();
+ await m.stream!(null,'Prepared first paragraph',new AbortController().signal,vi.fn());expect(fetch).toHaveBeenCalledTimes(1);expect(m.pcmPlay).toHaveBeenCalled();
+ for(const cleanup of cleanups)if(typeof cleanup==='function')cleanup();
+});
+it('does not late-prepare another request once the selected lesson has started',async()=>{
+ m.avatarReady=false;vi.stubGlobal('window',{SpeechRecognition:Recognition,AudioContext:class{}});const fetch=vi.fn(async()=>new Response('audio'));vi.stubGlobal('fetch',fetch);
+ LearningVoice({compact:true,prepareText:'First paragraph',language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'',disabled:false,onTranscript:vi.fn(),onDayPlan:async()=>({parts:[{lesson:'001',paragraph:0,text:'First paragraph'}],index:0})});
+ const cleanups=[m.effects[0]()];m.handle!.startDay();m.effects[1]();await Promise.resolve();expect(fetch).not.toHaveBeenCalled();
+ for(const cleanup of cleanups)if(typeof cleanup==='function')cleanup();
+});
+it('keeps background preparation disabled for V3, blocked access, drafts and unknown avatar capability',()=>{
+ const fetch=vi.fn();vi.stubGlobal('fetch',fetch);
+ for(const props of [{compact:false,disabled:false,draft:''},{compact:true,disabled:true,draft:''},{compact:true,disabled:false,draft:'Keep draft'},{compact:true,disabled:false,draft:''}]){
+  m.effects=[];m.stateIndex=0;m.avatarReady=null;
+  LearningVoice({...props,prepareText:'paragraph',language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',onTranscript:vi.fn()});
+  const cleanups=m.effects.map(f=>f());for(const cleanup of cleanups)if(typeof cleanup==='function')cleanup();
+ }
+ expect(fetch).not.toHaveBeenCalled();
 });

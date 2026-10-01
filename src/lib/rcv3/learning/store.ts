@@ -12,7 +12,12 @@ export async function learningState(owner:string):Promise<LearningState>{
 }
 export async function reserveLearning(owner:string,kind:'chat'|'exam'){
  const db=learningDB(),day=new Date().toISOString().slice(0,10),limit=kind==='chat'?30:3;
+ // Read once; the unique key still atomically enforces the quota under concurrency.
+ const used=await db.from(tables.usage).select('slot').eq('owner_id',owner).eq('day',day).eq('kind',kind);
+ if(used.error||!used.data)throw new Error('RCV3_STORAGE');
+ const occupied=new Set(used.data.map(row=>row.slot));
  for(let slot=0;slot<limit;slot++){
+  if(occupied.has(slot))continue;
   const r=await db.from(tables.usage).insert({owner_id:owner,day,kind,slot});
   if(!r.error)return;
   if(r.error.code!=='23505')throw new Error('RCV3_STORAGE');
