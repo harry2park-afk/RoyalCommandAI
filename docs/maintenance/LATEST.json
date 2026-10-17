@@ -1,0 +1,48 @@
+{
+  "task": "RC staged hardening and recovery",
+  "date": "2026-10-18",
+  "stage": 1,
+  "status": "PATCH_VERIFIED_FULL_GATE_BLOCKED",
+  "report": "docs/verification/rc-phase1-20261018.md",
+  "plan": "docs/maintenance/RC_IMPROVEMENT_PLAN.md",
+  "branch": "work/rc-phase1-access-checks-20261018",
+  "base_sha": "bae794bf6c5cfb34e3e5e82f83d3d183388bbdee",
+  "production_changed": false,
+  "source_restore": {
+    "report": "docs/verification/rc-phase1-source-restore-20261018.json",
+    "files": 1006,
+    "result": "PASS"
+  },
+  "checks": {
+    "vitest": {
+      "passed": 753,
+      "failed": 0
+    },
+    "node_existing": 16,
+    "ci_selection": 4,
+    "typecheck": "PASS",
+    "build": "PASS",
+    "changed_file_lint": "PASS",
+    "full_quality_lint": "FAIL_PRE_EXISTING_15_ERRORS"
+  },
+  "reviewed_file_sha256": {
+    "src/lib/execution/directExecutionController.ts": "2567c53a05c277d5d4f5e56a04507d59b0959b61fb6a175672ae4591cf4064c0",
+    "src/lib/execution/directExecutionController.test.ts": "51c2bf4475721e0fbd083ea4285dceebfc236998d189cb535904d3407060aad2",
+    ".github/workflows/quality-gate.yml": "511e6b9f4d1625ba1563f5b195b074736590bdcc29c744d6b261ffb59f3d912f",
+    "scripts/quality-gate-lint.mjs": "a10e979c97d16371103dc967ee77e15401a815ef21f52b377d78d710394b8f44",
+    "scripts/quality-gate-lint.test.mjs": "27d423d18e0a9e8c830797bba69578ea5a0031bf93cdeb8d62544fe9b3f2b6b1"
+  },
+  "next_priority": [
+    "Protect profile privilege columns with isolated DB proof",
+    "Repair existing learning/test lint failures without suppression",
+    "Verify owned customer journey and sandbox entitlement",
+    "Add document search and cited answers",
+    "Exercise full data/file restoration"
+  ],
+  "limits": [
+    "No Production promotion",
+    "No paid phone or payment calls",
+    "Preview and hosted authenticated flow not yet verified",
+    "Source-only restoration is not full customer-data restoration"
+  ]
+}

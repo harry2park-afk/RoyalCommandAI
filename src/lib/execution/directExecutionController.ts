@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getCurrentUser } from "@/lib/auth";
+import { canManageToolbox } from "@/lib/rcv3/toolbox-authority";
 
 export type ExecutionActor = {
   id: string;
@@ -27,6 +28,13 @@ export async function requireExecutionContext(): Promise<ExecutionContext> {
   const user = await getCurrentUser();
   if (!user) {
     throw new ExecutionError("Authentication required.", 401, "AUTH_REQUIRED");
+  }
+
+  // These legacy operations spend RC's shared provider credentials. Room
+  // ownership, a local demo session or caller-supplied metadata is not RC
+  // authority. Customer-owned phone execution uses its separate verified path.
+  if (!canManageToolbox(user)) {
+    throw new ExecutionError("RC owner access is required.", 403, "RC_OWNER_REQUIRED");
   }
 
   return {
