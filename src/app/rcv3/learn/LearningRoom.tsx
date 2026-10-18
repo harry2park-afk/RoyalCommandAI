@@ -1,7 +1,7 @@
 'use client';
 import ReadingProgress from '@/components/rcv3-toolbox/ReadingProgress';
 import {speechProgressRatio,resumeSentenceOffset,type SpeechProgress} from '@/lib/client/speech-progress';
-import {useEffect,useRef,useState,type ChangeEvent} from 'react';
+import {useEffect,useMemo,useRef,useState,useSyncExternalStore,type ChangeEvent} from 'react';
 import {Mic,Send} from 'lucide-react';
 import ToolButton from '@/components/rcv3-toolbox/ToolButton';
 import LearningAutoTextarea from '@/components/rcv3-toolbox/LearningAutoTextarea';
@@ -17,12 +17,15 @@ import LearningLessonList,{type LearningLessonListHandle} from '@/components/rcv
 import LearningRegion from '@/components/rcv3-toolbox/LearningRegion';
 import {learningCountry,learningRegionUrl} from '@/lib/rcv3/learning/regions';
 import {learningDraftStore,type ReadingMarker,type LearningDraft} from '@/components/rcv3-toolbox/learning-drafts';
+import {createLearningRestore,type LearningRestoreSnapshot} from './learning-restore';
 type Message={role:'user'|'assistant';content:string};
 type InitialLearning={state:LearningState;practice:Omit<Question,'answer'>[]};
 export default function LearningRoom({language:initialLanguage,ownerId,country:initialCountry="",entryPath="/rcv3/learn",homeHref="/rcv3",initialLearning,curriculumId=COURSE}:{language:string;ownerId:string;country?:string;entryPath?:"/rcv3/learn"|"/rcv4/learn";homeHref?:string;initialLearning?:InitialLearning;curriculumId?:string}){
  const v4=entryPath==='/rcv4/learn';
  const {lessons,groups,sourceDay,groupForSource,groupComplete,completedGroupCount,nextLearningLesson,preview}=learningCurriculum(curriculumId);
- const {readLearningDraft,saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,readLearningResume,saveLearningResume,readReadingMarker,saveReadingMarker}=learningDraftStore(curriculumId);
+ const {saveLearningDraft,readTeachingBookmark,saveTeachingBookmark,saveLearningResume,readReadingMarker,saveReadingMarker}=learningDraftStore(curriculumId);
+ const restoreStore=useMemo(()=>createLearningRestore(curriculumId,ownerId,learningLanguage(initialLanguage),v4,()=>window.localStorage),[curriculumId,ownerId,initialLanguage,v4]);
+ const restore=useSyncExternalStore(restoreStore.subscribe,restoreStore.getSnapshot,restoreStore.getServerSnapshot);
  const [state,setState]=useState<LearningState>(initialLearning?.state??{completed:[],certificate:null}),[practice,setPractice]=useState<Omit<Question,'answer'>[]>(initialLearning?.practice??[]);
  const [day,setDay]=useState(1),[artifact,setArtifact]=useState(''),[clock,setClock]=useState(()=>Date.now()),[offset,setOffset]=useState(0);
  const drafts=useRef<Record<string,string>>({});
@@ -37,7 +40,7 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  useEffect(()=>{if(!exam)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>clearInterval(timer);},[exam]);
  const remaining=exam?Math.max(0,Math.ceil((Date.parse(exam.expiresAt)-(clock-offset))/1000)):EXAM_MINUTES*60;
  const controller=useRef<AbortController|null>(null),flight=useRef(false);
- const [content,setContent]=useState<{day:number;language:string;text:Record<string,string>}|null>(null),[translationError,setTranslationError]=useState(false),[translationRetry,setTranslationRetry]=useState(0);
+ const [content,setContent]=useState<{day:number;language:string;text:Record<string,string>}|null>(null),[translationStatus,setTranslationStatus]=useState<{key:string;failed:boolean}|null>(null),[translationRetry,setTranslationRetry]=useState(0);
  const [chosenLanguage,setChosenLanguage]=useState(initialLanguage),[chosenCountry,setChosenCountry]=useState(initialCountry);
  const [voiceActive,setVoiceActive]=useState(false),[voiceTranscript,setVoiceTranscript]=useState('');
  const busy=requestBusy||Boolean(voiceActive);
@@ -56,23 +59,24 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  const [dictating,setDictating]=useState(false),[chatPending,setChatPending]=useState(false),[chatError,setChatError]=useState('');
  const chatTurn=useRef(0),chatFlight=useRef(false);
  useEffect(()=>{const el=chatScroll.current;if(el)el.scrollTop=el.scrollHeight;},[messages,chatPending,chatError]);
+ // Apply browser recovery once, before committing the restored UI. Ordinary edits
+ // never refresh this snapshot or reset the customer's current draft.
+ const [restoredSnapshot,setRestoredSnapshot]=useState<LearningRestoreSnapshot|null>(null);
+ if(restore&&restore!==restoredSnapshot){
+  setRestoredSnapshot(restore);setUnit(restore.unit);setDay(restore.day);
+  setBoardExplanation(null);setReadingMarker(restore.marker);
+  setMessages(restore.messages);setResumed(restore.resumed);setAnswer(null);
+  const draft=restore.drafts[lessons[restore.unit].id];
+  setMessage(draft?.message??'');setArtifact(draft?.artifact??'');
+  setDraftError(restore.error);setDraftReady(true);
+ }
  useEffect(()=>{
-  try{
-   for(const l of lessons){try{const saved=readLearningDraft(window.localStorage,ownerId,l.id);if(saved){localDrafts.current[l.id]=saved;drafts.current[l.id]=saved.artifact;}}catch{setDraftError(true);}}
-   const saved=readLearningResume(window.localStorage,ownerId,learningLanguage(initialLanguage));
-   let bookmark:ReturnType<typeof readTeachingBookmark>=null;
-   if(v4){try{bookmark=readTeachingBookmark(window.localStorage,ownerId,learningLanguage(initialLanguage));}catch{setDraftError(true);}}
-   let id=saved?.lesson??bookmark?.lesson??lessons[0].id;
-   if(bookmark?.finished&&id===bookmark.lesson)id=lessons.find(l=>sourceDay(l.id)>bookmark.day)?.id??id;
-   const index=Math.max(0,lessons.findIndex(l=>l.id===id));
-   setUnit(index);setDay(sourceDay(lessons[index].id));
-   setBoardExplanation(null);
-   activeReading.current=null;markerRecord.current=null;setReadingMarker(null);
-   if(v4){try{const marker=readReadingMarker(window.localStorage,ownerId,learningLanguage(initialLanguage));if(marker){markerRecord.current={value:marker,owner:ownerId,language:learningLanguage(initialLanguage)};setReadingMarker(marker);}}catch{setDraftError(true);}}
-   if(saved){setMessages(id===saved.lesson?saved.messages:[]);setResumed(true);}
-   const draft=localDrafts.current[lessons[index].id];setMessage(draft?.message??'');setArtifact(draft?.artifact??'');
-  }catch{setDraftError(true);}finally{setDraftReady(true);}
- },[ownerId,initialLanguage,v4,lessons,readLearningDraft,readLearningResume,readReadingMarker,readTeachingBookmark,sourceDay]);
+  if(!restore)return;
+  localDrafts.current={...restore.drafts};
+  drafts.current=Object.fromEntries(Object.entries(restore.drafts).map(([id,draft])=>[id,draft.artifact]));
+  conversations.current={};activeReading.current=null;
+  markerRecord.current=restore.marker?{value:restore.marker,owner:ownerId,language:learningLanguage(initialLanguage)}:null;
+ },[restore,ownerId,initialLanguage]);
  function savePosition(id:string,history:Message[]){
   try{saveLearningResume(window.localStorage,ownerId,locale,{lesson:id,messages:history.slice(-8).map(m=>({...m,content:m.content.slice(0,3000)}))});}catch{setDraftError(true);}
  }
@@ -104,11 +108,14 @@ export default function LearningRoom({language:initialLanguage,ownerId,country:i
  }
  useEffect(()=>{if(draftReady&&loaded&&!localDrafts.current[lesson.id]&&drafts.current[lesson.id]===undefined){setArtifact(state.work?.[lesson.id]?.artifact??'');}},[draftReady,loaded,lesson.id,state.work]);
  const native=locale==='en'||locale==='ko',contentReady=native||(content?.day===day&&content?.language===locale);
+ const translationKey=JSON.stringify([day,locale,translationRetry,curriculumId]);
+ if(translationStatus?.key!==translationKey)setTranslationStatus({key:translationKey,failed:false});
+ const translationError=!native&&translationStatus?.key===translationKey&&translationStatus.failed;
  useEffect(()=>{
-  if(native)return;const abort=new AbortController();setTranslationError(false);
-  fetch("/api/rcv3/learn/content",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({day,language:locale,course:curriculumId}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(65000)])}).then(async r=>{if(!r.ok)throw Error();const value=await r.json();if(!abort.signal.aborted)setContent(value);}).catch(()=>{if(!abort.signal.aborted)setTranslationError(true);});
+  if(native)return;const abort=new AbortController();
+  fetch("/api/rcv3/learn/content",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({day,language:locale,course:curriculumId}),signal:AbortSignal.any([abort.signal,AbortSignal.timeout(65000)])}).then(async r=>{if(!r.ok)throw Error();const value=await r.json();if(!abort.signal.aborted){setContent(value);setTranslationStatus({key:translationKey,failed:false});}}).catch(()=>{if(!abort.signal.aborted)setTranslationStatus({key:translationKey,failed:true});});
   return()=>abort.abort();
- },[day,locale,native,translationRetry,curriculumId]);
+ },[day,locale,native,translationRetry,curriculumId,translationKey]);
  const translated=(key:string,fallback:string)=>native?fallback:contentReady?content?.text[key]??t('translationError'):t('translating');
  const help=(key:string)=>{const value=findHelp(key);return translated(key,(ko?value?.ko:value?.en)??'');};
  const title=(l:typeof lessons[number])=>translated(`title.${l.id}`,ko?l.koTitle:l.title);

@@ -9,10 +9,11 @@ function render(account:unknown,agreed=true,signature="Harry Park",disabled=fals
  state.index=0;state.values=[account,false,false,"",agreed,"",false,"","",null,"",false,false,signature,false];
  return PreviewTokenPanel({...props,disabled});
 }
-function nodes(value:unknown):React.ReactElement<Record<string,any>>[]{
+type NodeProps=Record<string,unknown>&{children?:unknown;onClick:()=>void};
+function nodes(value:unknown):React.ReactElement<NodeProps>[]{
  if(Array.isArray(value))return value.flatMap(nodes);
  if(!React.isValidElement(value))return [];
- const element=value as React.ReactElement<Record<string,any>>;
+ const element=value as React.ReactElement<NodeProps>;
  return [element,...nodes(element.props.children)];
 }
 function createButton(tree:unknown){return nodes(tree).find(n=>n.type==="button"&&n.props.children==="방 만들기")!;}
