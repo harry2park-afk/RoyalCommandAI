@@ -15,3 +15,10 @@ it('localizes requested languages and never invents local FX prices',()=>{
   expect(html).toContain('USD');expect(html).toContain('JPY');expect(html).toContain('disabled=""');
  }
 });
+it('keeps server country labels independent of the server ICU version',()=>{
+ const names=vi.spyOn(Intl,'DisplayNames').mockImplementation(()=>{throw new Error('Server ICU differs');});
+ try{
+  const html=renderToStaticMarkup(React.createElement(LearningRegion,{language:'ko',country:'AU',disabled:false,onChange:()=>{}}));
+  expect(html).toContain('value="HK"');expect(names).not.toHaveBeenCalled();
+ }finally{names.mockRestore();}
+});

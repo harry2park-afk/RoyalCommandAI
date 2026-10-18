@@ -74,3 +74,8 @@ Harry 지시: 툴박스는 RC가 관리하며 Harry 허가하에 사용한다. �
 - Harry clarified total 20 video-call designs. Existing Meeting Rooms registry had 10; added the final 10 brown-desk/chair Sydney Harbour images made in mobile ChatGPT that morning (Library source timestamps 2026-09-21 20:37 UTC / 06:37 Sydney). Earlier white/black-chair trials are not added as duplicates.
 - One shared `rc-office-designs.ts` feeds both Meeting Rooms (20 total) and Create Room → RC Office (10 added designs). Original mapping and checksums: `docs/rcv3/RC_OFFICE_SOURCES.json`. Existing rooms and customer data unchanged.
 - FAST artwork/catalog registration work; existing toolbox `meetings` and `create-room` controls reused. No new call transport: the existing meeting page is local camera/background preview, not proof of a remote video call connection.
+
+
+## RC 단계적 보강 시작 — 2026-10-18
+
+Harry가 전체 검토 후 보강·복구·검증을 순차 진행하도록 승인했다. 다음 작업은 [최신 상태](docs/maintenance/LATEST.json), [우선순위](docs/maintenance/RC_IMPROVEMENT_PLAN.md), [1단계 증거](docs/verification/rc-phase1-20261018.md)를 먼저 읽는다. 별도 시험 브랜치의 전화 소유자 권한·CI 수정은 로컬 검사 통과, 기존 lint 15개 오류로 전체 gate 차단. 프로필 권한 열 보호가 다음 최우선. 운영·고객 자료·실제 결제/전화 변경 없음. 소스 복원 1,006개 파일 검증은 전체 고객자료 복구가 아니다.

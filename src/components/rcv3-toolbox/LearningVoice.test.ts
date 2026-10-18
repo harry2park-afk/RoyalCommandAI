@@ -5,12 +5,18 @@ vi.mock('react',async original=>({...await original<typeof import('react')>(),us
 vi.mock('@/lib/client/answer-speaker',()=>({AnswerSpeaker:class{constructor(options:{load:typeof m.load;stream?:typeof m.stream;progress?:typeof m.progress}){m.progress=options.progress??null;m.load=options.load;m.stream=options.stream??null;}enqueue=m.enqueue;stop=m.stop;prime=m.prime;setVolume=vi.fn();}}));
 vi.mock('@/lib/client/pcm-speech-player',()=>({PcmSpeechPlayer:class{get available(){return m.canStream;}prime=vi.fn();play=m.pcmPlay;stop=vi.fn();dispose=vi.fn();setVolume=vi.fn();}}));
 import LearningVoice from './LearningVoice';
-function nodes(v:unknown):React.ReactElement<Record<string,any>>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<Record<string,any>>;return [e,...nodes(e.props.children)];}
-let recog:any;
-class Recognition{lang='';onresult:any;onend:any;onerror:any;start=vi.fn();abort=vi.fn();constructor(){recog=this;}}
+type NodeProps=Record<string,unknown>&{children?:unknown;onClick:()=>void;onChange:(event:{target:{checked:boolean}})=>void};
+function nodes(v:unknown):React.ReactElement<NodeProps>[]{if(Array.isArray(v))return v.flatMap(nodes);if(!React.isValidElement(v))return [];const e=v as React.ReactElement<NodeProps>;return [e,...nodes(e.props.children)];}
+type RecognitionEvent={resultIndex?:number;results:({transcript:string}[]&{isFinal?:boolean})[]};
+const recognitions:Recognition[]=[];
+function recognition(){return recognitions.at(-1)!;}
+class Recognition{
+ lang='';onresult!:(event:RecognitionEvent)=>void;onend!:()=>void;onerror!:(event:{error:string})=>void;
+ start=vi.fn();abort=vi.fn();constructor(){recognitions.push(this);}
+}
 beforeEach(()=>{vi.clearAllMocks();m.effects=[];m.refs=[];m.stateIndex=0;m.avatarReady=null;m.canStream=false;vi.stubGlobal('React',React);vi.stubGlobal('window',{SpeechRecognition:Recognition});vi.stubGlobal('document',{hidden:false,addEventListener:vi.fn(),removeEventListener:vi.fn()});vi.stubGlobal('navigator',{mediaDevices:{addEventListener:vi.fn(),removeEventListener:vi.fn()}});});
 function setup(){const onTranscript=vi.fn();const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'answer',draft:'existing',disabled:false,onTranscript}));const cleanup=m.effects.map(f=>f());return {onTranscript,tree,cleanup};}
-it('adds spoken text to existing draft, does not submit, and ignores delayed results after cleanup',()=>{const {tree,onTranscript,cleanup}=setup();tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick();expect(recog.lang).toBe('ko');recog.onresult({results:[[{transcript:'질문'}]]});expect(onTranscript).toHaveBeenLastCalledWith('existing 질문');expect(m.stop).toHaveBeenCalled();for(const c of cleanup)if(typeof c==='function')c();recog.onresult({results:[[{transcript:'late'}]]});expect(onTranscript).toHaveBeenCalledTimes(1);expect(recog.abort).toHaveBeenCalled();});
+it('adds spoken text to existing draft, does not submit, and ignores delayed results after cleanup',()=>{const {tree,onTranscript,cleanup}=setup();tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick();expect(recognition().lang).toBe('ko');recognition().onresult({results:[[{transcript:'질문'}]]});expect(onTranscript).toHaveBeenLastCalledWith('existing 질문');expect(m.stop).toHaveBeenCalled();for(const c of cleanup)if(typeof c==='function')c();recognition().onresult({results:[[{transcript:'late'}]]});expect(onTranscript).toHaveBeenCalledTimes(1);expect(recognition().abort).toHaveBeenCalled();});
 it('starts playback from a user gesture and cancels playback through stop control',()=>{const {tree}=setup();tree.find(n=>n.type==='button'&&n.props.children==='강의 듣기')!.props.onClick();expect(m.prime).toHaveBeenCalled();expect(m.enqueue).toHaveBeenCalledWith({id:'tutor',text:'lesson'});tree.find(n=>n.type==='button'&&n.props.children==='음성 중지')!.props.onClick();expect(m.stop.mock.calls.length).toBeGreaterThan(1);});
 it('unsupported microphone leaves the typed draft untouched',()=>{vi.stubGlobal('window',{});const {tree,onTranscript}=setup();expect(()=>tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick()).not.toThrow();expect(onTranscript).not.toHaveBeenCalled();});
 it('keeps playback on hide only after explicit listen-only selection, but stops on device change',()=>{
@@ -39,7 +45,7 @@ it('number selection starts the requested lesson and typed questions interrupt s
 });
 it('typing cancels standalone dictation so delayed transcript cannot overwrite manual edits',()=>{
  const {tree,onTranscript,cleanup}=setup();tree.find(n=>n.type==='button'&&n.props.children==='마이크')!.props.onClick();
- m.handle!.stopDictation();recog.onresult({results:[[{transcript:'late dictation'}]]});expect(onTranscript).not.toHaveBeenCalled();expect(recog.abort).toHaveBeenCalled();
+ m.handle!.stopDictation();recognition().onresult({results:[[{transcript:'late dictation'}]]});expect(onTranscript).not.toHaveBeenCalled();expect(recognition().abort).toHaveBeenCalled();
  for(const c of cleanup)if(typeof c==='function')c();
 });
 it('uses the existing daily start and stop handlers in the V4 tutor without static guidance or settings',async()=>{
@@ -70,7 +76,7 @@ it('starts continuous daily teaching and recognizes Stop after earlier microphon
  const tree=nodes(LearningVoice({language:'ko',lessonId:'001',lessonText:'lesson',answerText:'',draft:'preserve draft',disabled:false,onTranscript:vi.fn(),onActiveChange,onDayPlan:async()=>({parts:[{lesson:'001',paragraph:0,text:'first teaching'},{lesson:'002',paragraph:0,text:'second teaching'}],index:0}),onDaySegment,onDayComplete}));
  const cleanup=m.effects.map(f=>f());m.handle!.startDay();await Promise.resolve();await Promise.resolve();expect(m.enqueue).toHaveBeenCalledWith({id:'conversation',text:'first teaching'});expect(onDaySegment).toHaveBeenCalledOnce();
  const earlier=Object.assign([{transcript:'previous speech'}],{isFinal:true}),command=Object.assign([{transcript:'오늘은 그만 하자'}],{isFinal:true});
- recog.onresult({resultIndex:1,results:[earlier,command,Object.assign([{transcript:'interim'}],{isFinal:false})]});await Promise.resolve();expect(onActiveChange).toHaveBeenLastCalledWith(false);expect(onDayComplete).not.toHaveBeenCalled();expect(m.enqueue).toHaveBeenCalledTimes(1);
+ recognition().onresult({resultIndex:1,results:[earlier,command,Object.assign([{transcript:'interim'}],{isFinal:false})]});await Promise.resolve();expect(onActiveChange).toHaveBeenLastCalledWith(false);expect(onDayComplete).not.toHaveBeenCalled();expect(m.enqueue).toHaveBeenCalledTimes(1);
  expect(tree.some(n=>n.type==='button'&&n.props.children==='스톱')).toBe(true);expect(tree.some(n=>n.type==='button'&&n.props.children==='수업 시작')).toBe(false);
  for(const c of cleanup)if(typeof c==='function')c();
 });
@@ -162,11 +168,11 @@ it('forwards playback progress only while a V4 daily lesson is active, never dur
 
 it('exposes the same dictation handler for V4 input and preserves the draft on permission denial',()=>{
  const onTranscript=vi.fn();LearningVoice({language:'ko',lessonId:'001',lessonText:'',answerText:'',draft:'Keep',disabled:false,onTranscript,compact:true});const cleanup=m.effects.map(f=>f());
- m.handle!.microphone();expect(recog.lang).toBe('ko');recog.onresult({results:[[{transcript:'질문'}]]});expect(onTranscript).toHaveBeenLastCalledWith('Keep 질문');
- recog.onerror({error:'not-allowed'});recog.onresult({results:[[{transcript:'late'}]]});expect(onTranscript).toHaveBeenCalledTimes(1);expect(recog.abort).toHaveBeenCalled();
+ m.handle!.microphone();expect(recognition().lang).toBe('ko');recognition().onresult({results:[[{transcript:'질문'}]]});expect(onTranscript).toHaveBeenLastCalledWith('Keep 질문');
+ recognition().onerror({error:'not-allowed'});recognition().onresult({results:[[{transcript:'late'}]]});expect(onTranscript).toHaveBeenCalledTimes(1);expect(recognition().abort).toHaveBeenCalled();
  for(const c of cleanup)if(typeof c==='function')c();
 });
 it('does not start exposed dictation while access is disabled',()=>{
  const onTranscript=vi.fn();LearningVoice({language:'ko',lessonId:'001',lessonText:'',answerText:'',draft:'Keep',disabled:true,onTranscript,compact:true});
- const start=recog?.start;start?.mockClear();m.handle!.microphone();expect(start).not.toHaveBeenCalled();expect(onTranscript).not.toHaveBeenCalled();
+ const start=recognition()?.start;start?.mockClear();m.handle!.microphone();expect(start).not.toHaveBeenCalled();expect(onTranscript).not.toHaveBeenCalled();
 });

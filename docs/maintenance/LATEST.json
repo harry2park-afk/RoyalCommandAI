@@ -1,0 +1,49 @@
+{
+  "task": "RC staged hardening: repair remaining Quality Gate errors",
+  "date": "2026-10-18",
+  "stage": "quality_repair",
+  "status": "LOCAL_CHECKS_PASSED_REMOTE_EVIDENCE_IN_PR",
+  "report": "docs/verification/rc-quality-repair-20261018.md",
+  "previous_report": "docs/verification/rc-phase1-20261018.md",
+  "remote_evidence": "https://github.com/harry2park-afk/RoyalCommandAI/pull/863",
+  "plan": "docs/maintenance/RC_IMPROVEMENT_PLAN.md",
+  "branch": "work/rc-phase1-access-checks-20261018",
+  "base_sha": "9bddda03971d1a9e7070dc3a7986e6ff470465cd",
+  "production_changed": false,
+  "checks": {
+    "lint_errors": 0,
+    "lint_warnings": 23,
+    "vitest_passed": 760,
+    "vitest_failed": 0,
+    "node_existing": 16,
+    "ci_selection_and_domain": 7,
+    "typecheck": "PASS",
+    "build": "PASS",
+    "browser_scenarios": 8,
+    "browser_hydration_errors": 0,
+    "independent_review": "PASS"
+  },
+  "reviewed_file_sha256": {
+    "src/app/rcv3/create/PreviewTokenPanel.test.ts": "4bfc9d9d6780220fef6fc7126eb5765566dd96b4064225a14f88265fad6f87e7",
+    "src/app/rcv3/learn/LearningRoom.test.ts": "2d45ab4b39a45e16848792b051580c39c9e3ef9db5dceec638daecd19d8f942a",
+    "src/app/rcv3/learn/LearningRoom.tsx": "3799ac1706795d868bae50af42491728d4d9ce1b056c76f2bc4007fa7e056432",
+    "src/app/rcv3/learn/learning-restore.ts": "310f7413184988c0aac303d72beab29a1e6c3c1f0ba03de0fa368487b9abc321",
+    "src/app/rcv3/learn/learning-restore.test.ts": "cdc04414ad9545fb268935a777c38ec265a2907a16848011e382c7c58cfde9ba",
+    "src/components/rcv3-toolbox/LearningLessonList.test.ts": "d19576aaa6aea9406e271378e8eb5fcb22bf68c9ef479485a48091bd7828ace9",
+    "src/components/rcv3-toolbox/LearningVoice.test.ts": "615c28f65f6caba2ddb651f17ff3a35f6840a5e01642eb71915247b879c9ebf8",
+    "src/components/rcv3-toolbox/LearningRegion.tsx": "26d898fdf1781349339e380239b0be2831d2ab8e448763921330289f657e83aa",
+    "src/components/rcv3-toolbox/LearningRegion.test.ts": "70fd5a01111fac04802b9dd6bd7ce33dc57ce80d4b1b16fe9f931d8e76f81a70",
+    "scripts/learning-recovery-smoke.mjs": "a10cd22a99df5f0d5bf9eec01ea9965a75c85fb8bebaf001eff089d91489f283"
+  },
+  "next_priority": [
+    "Protect profile privilege columns with isolated DB proof",
+    "Verify owned customer journey and sandbox entitlement",
+    "Exercise full data/file restoration"
+  ],
+  "limits": [
+    "See PR for final remote SHA, CI, deployment and source restore evidence",
+    "No Production promotion or DB/payment/phone/customer-message mutation",
+    "Mocked browser APIs do not prove hosted authenticated or provider flow",
+    "Source restoration does not restore full customer data"
+  ]
+}
