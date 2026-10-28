@@ -8,6 +8,10 @@ import { simpleCreateText, roomFeatureLabel } from "@/lib/locale/rcv3-simple-cre
 import { applyRoomBrief, recommendedDesigns } from "@/lib/rcv3/room-recommendations";
 import RoomNavigation from "@/components/rcv3-toolbox/RoomNavigation";
 import ExplicitSaveButton from "@/components/rcv3-toolbox/ExplicitSaveButton";
+import CheckoutPanel from "./CheckoutPanel";
+import {useWideRoomLayout} from "@/lib/rcv3/use-wide-room-layout";
+import {roomPurposeCatalog,catalogLabel,selectRoomPurpose} from "@/lib/rcv3/room-purpose-catalog";
+import {roomFlowText} from "@/lib/locale/room-creation-flow";
 import PreviewTokenPanel from "./PreviewTokenPanel";
 import CustomerConnections from "./CustomerConnections";
 import SearchableChoices from "@/components/rcv3-toolbox/SearchableChoices";
@@ -32,6 +36,13 @@ async function cancelDraftRequest(id:string,expectedRevision:number):Promise<Dra
 export default function CreateRoomWizard({ language, providers, accountEmail, accountName, country }: {
   helperAvailable: boolean; accountEmail: string; accountName: string; country: string; language: string; providers: { id: AIProviderId; label: string }[];
 }) {
+  const wide=useWideRoomLayout();
+  const SettingsContainer=wide?"details":"div";
+  const TrialContainer=wide?"details":"div";
+  const [purposeSearch,setPurposeSearch]=useState("");
+  const flow=(key:Parameters<typeof roomFlowText>[0])=>roomFlowText(key,language);
+  const purposeField=useRef<HTMLTextAreaElement>(null);
+  const designSection=useRef<HTMLElement>(null),paymentSection=useRef<HTMLElement>(null);
   const defaultInput = useCallback((): RoomDraftInput => ({...newRoomDraft(),onboarding:{country:COUNTRY_ROOM_PRESETS.some(c=>c.id===country)?country:"",aiSources:{},emailEnabled:false,phoneRequested:false,phoneOfferId:""},providers:providers.some(p=>p.id==="openai")?["openai"]:providers[0]?[providers[0].id]:[]}),[providers,country]);
   const [input, setInput] = useState<RoomDraftInput>(defaultInput);
   const [registry, setRegistry] = useState<DraftRegistry>({ revision: 0, drafts: [] });
@@ -133,16 +144,27 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
       <ExplicitSaveButton disabled={!loaded} busy={busy} label={t("save")} busyLabel={t("saving")} onSave={()=>save(false,true)}/>
     </header>
     <div className={styles.layout}><section className={styles.workspace} aria-label={t("title")}>
-      <button type="button" disabled={!loaded||busy} onClick={()=>void cancelDraft()}>{t("cancel")}</button>
+      {!wide&&<button type="button" disabled={!loaded||busy} onClick={()=>void cancelDraft()}>{t("cancel")}</button>}
       {error && <div role="alert" className={styles.error}>{selectedCreationText(error,language)}{loaded?<button disabled={busy} onClick={()=>void save(error==="conflict")}>{t(error==="conflict"?"fork":"retry")}</button>:<button onClick={()=>window.location.reload()}>{t("retry")}</button>}</div>}
       <fieldset disabled={!loaded} className={styles.form}>
-        <section className={styles.verticalSection}>
+{!wide&&<section className={styles.verticalSection}>
           <label className={styles.question}>{t("name")}<input autoComplete="off" maxLength={80} value={input.name} onChange={e=>update({...input,name:e.target.value})}/></label>
-        </section>
+        </section>}
         <section className={styles.verticalSection}>
-          <label className={styles.question}>{t("purpose")}<textarea rows={3} maxLength={300} placeholder={t("example")} value={input.brief ?? input.answers.purpose?.[0] ?? ""}
-            onChange={e=>{setPurposeChosen(false);update(applyRoomBrief(input,e.target.value));}}
+          {wide&&<>
+            <h2>{flow("purpose")}</h2>
+            <label>{flow("search")}<input type="search" value={purposeSearch} onChange={e=>setPurposeSearch(e.target.value)} maxLength={80}/></label>
+            <div className={styles.purposeCatalog}>{[...new Set(roomPurposeCatalog.map(item=>item.group[0]))].map(group=>{
+              const entries=roomPurposeCatalog.filter(item=>item.group[0]===group&&[...item.name,...item.group].join(" ").toLocaleLowerCase().includes(purposeSearch.trim().toLocaleLowerCase()));
+              return entries.length?<fieldset key={group}><legend>{catalogLabel(entries[0].group,language)}</legend>{entries.map(entry=><button key={entry.id} aria-pressed={input.purpose===entry.purpose&&input.brief===(language.startsWith("ko")?entry.name[1]:entry.name[0])} type="button" onClick={()=>{update(selectRoomPurpose(input,entry.id,language));setPurposeChosen(true);purposeField.current?.focus();}}>{catalogLabel(entry.name,language)}</button>)}</fieldset>:null;
+            })}</div>
+            {!roomPurposeCatalog.some(item=>[...item.name,...item.group].join(" ").toLocaleLowerCase().includes(purposeSearch.trim().toLocaleLowerCase()))&&<p>{flow("empty")}</p>}
+            <button type="button" onClick={()=>{const next=changePurpose(input,"custom");update({...next,brief:input.brief,answers:{purpose:input.brief?.trim()?[input.brief]:[]}});purposeField.current?.focus();}}>{flow("custom")}</button>
+          </>}
+          <label className={styles.question}>{wide?flow("task"):t("purpose")}<textarea ref={purposeField} rows={3} maxLength={300} placeholder={t("example")} value={input.brief ?? input.answers.purpose?.[0] ?? ""}
+            onChange={e=>{setPurposeChosen(false);const brief=e.target.value;update(wide?{...input,brief,answers:input.purpose==="custom"?{purpose:brief.trim()?[brief]:[]}:input.answers}:applyRoomBrief(input,brief));}}
             onBlur={e=>setPurposeChosen(!!e.target.value.trim())}/></label>
+          {(!wide||(input.purpose==="legal"&&!!input.brief?.trim()))&&<SettingsContainer>{wide&&input.purpose==="legal"&&!!input.brief?.trim()&&<summary>{flow("settings")}</summary>}
           {input.purpose === "legal" && !!input.brief?.trim() && purpose.fields.filter(field=>field.id==="practice"&&field.options).map(field=><div key={field.id} className={styles.practiceChoices}>
             <strong>{t("legalPractice")}</strong>
             <div className={styles.choices}>{field.options!.map(option=><label key={option}><input type="checkbox" checked={input.answers[field.id]?.includes(option)||false} onChange={()=>{const old=input.answers[field.id]||[];const answers={...input.answers,[field.id]:old.includes(option)?old.filter(x=>x!==option):[...old,option]};if(option==="Other"&&old.includes(option))delete answers.otherPractice;update({...input,answers});}}/>{roomFeatureLabel(option,language)}</label>)}</div>
@@ -166,16 +188,20 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
             <p>{t("legalRequestStatus")}</p>
             <p>{t("legalSetupNotice")}</p>
           </div>}
+          </SettingsContainer>}
         </section>
+        {wide&&<button type="button" className={styles.fieldNext} disabled={!input.brief?.trim()} onClick={()=>{setPurposeChosen(true);designSection.current?.scrollIntoView({behavior:"smooth",block:"start"});}}>{flow("next")}</button>}
+        {wide&&<section ref={designSection} className={styles.verticalSection}><h2>{flow("design")}</h2><label className={styles.question}>{flow("name")}<input autoComplete="off" maxLength={80} value={input.name} onChange={e=>update({...input,name:e.target.value})}/></label></section>}
         {!ready && <p role="status">{t("required")}</p>}
         {ready && <>
           <section className={styles.verticalSection}>
-            <h2>{t("design")}</h2><div className={styles.designs}>{designs.map(design=><button type="button" key={design.id} aria-pressed={design.id===input.templateId} onClick={()=>update({...input,templateId:design.id})}>
+            {!wide&&<h2>{t("design")}</h2>}<div className={styles.designs}>{designs.map(design=><button type="button" key={design.id} aria-pressed={design.id===input.templateId} onClick={()=>update({...input,templateId:design.id})}>
               <img loading="lazy" src={templateImage(design)} alt="" width={1672} height={941}/><span>{design.name}{design.id===input.templateId?" ✓":""}</span>
             </button>)}</div>
             {!showAllDesigns && <button type="button" onClick={()=>setShowAllDesigns(true)}>{t("more")}</button>}
           </section>
           <section className={styles.verticalSection}>
+           <SettingsContainer>{wide&&<summary>{flow("settings")}</summary>}
             <h2>{t("options")}</h2><p>{t("recommended")}</p>
             {input.purpose !== "legal" && <div className={styles.choices}>{purpose.suggestedAgents.map(task=><label key={task}><input type="checkbox" checked={input.tasks.includes(task)} onChange={()=>update({...input,tasks:input.tasks.includes(task)?input.tasks.filter(x=>x!==task):[...input.tasks,task]})}/>{roomFeatureLabel(task,language)}</label>)}</div>}
             <details><summary>{t("settings")}</summary>
@@ -188,11 +214,14 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
               {input.secretary && <>{input.purpose!=="legal"&&<label>{t("email")}<input type="email" maxLength={254} value={input.secretarySetup.email} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,email:e.target.value}})}/></label>}<label>{t("phone")}<input type="tel" maxLength={40} value={input.secretarySetup.phone} onChange={e=>update({...input,secretarySetup:{...input.secretarySetup,phone:e.target.value}})}/></label></>}
               <CustomerConnections key={draftId} input={input} setup={setup} update={update} save={()=>save()} providers={providers} language={language} disabled={busy||!loaded}/>
             </details>
+           </SettingsContainer>
+           {wide&&<button type="button" className={styles.fieldNext} onClick={()=>paymentSection.current?.scrollIntoView({behavior:"smooth",block:"start"})}>{flow("next")}</button>}
           </section>
-          <section className={styles.verticalSection}>
-            <h2>{t("payment")}</h2>
+          <section ref={paymentSection} className={styles.verticalSection}>
+            <h2>{wide?flow("payment"):t("payment")}</h2>
+            {wide&&<><p>{input.name} · {input.brief} · {selectedDesign.name}</p><p>{flow("preview")}</p><CheckoutPanel autoEnter key={`${draftId}-${registry.revision}`} draftId={draftId} revision={registry.revision} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)} language={language} onFork={()=>void save(true)}/></>}
             {(!setup.country||!input.providers.length||!secretarySetupValid(input))&&<p role="status">{selectedCreationText("setupRequired",language)}</p>}
-            <PreviewTokenPanel key={draftId} draftId={draftId} revision={registry.revision} accountName={accountName} roomName={input.name} designName={selectedDesign.name} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/>
+            <TrialContainer>{wide&&<summary>{flow("trial")}</summary>}<PreviewTokenPanel key={draftId} draftId={draftId} revision={registry.revision} accountName={accountName} roomName={input.name} designName={selectedDesign.name} disabled={busy||dirty||!loaded||!setup.country||!input.providers.length||!secretarySetupValid(input)||!!input.answers.customRequest?.[0]?.trim()||(!!input.answers.practice?.includes("Other")&&!input.answers.otherPractice?.[0]?.trim())} language={language}/></TrialContainer>
           </section>
         </>}
       </fieldset>

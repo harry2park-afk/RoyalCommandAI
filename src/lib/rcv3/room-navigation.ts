@@ -7,3 +7,9 @@ export function roomNavigationTarget(rooms:NavigationRoom[],id:string) {
 export function basicNavigationRoom(rooms:NavigationRoom[],basicRoomId?:string|null) {
  return basicRoomId?rooms.find(room=>room.id===basicRoomId)??null:null;
 }
+
+// Database draft rooms are created preview rooms. Form drafts are stored elsewhere.
+export function compactRoomNavigation(rooms:NavigationRoom[],hasMore=false){
+ const owned=[...new Map(rooms.filter(room=>room.status!=="archived").map(room=>[room.id,room])).values()];
+ return {visible:owned.slice(0,5),overflow:hasMore||owned.length>5};
+}

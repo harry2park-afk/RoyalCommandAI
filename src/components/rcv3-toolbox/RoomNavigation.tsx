@@ -1,14 +1,28 @@
 "use client";
 import {useEffect,useImperativeHandle,useRef,useState,type Ref} from "react";
+import {useWideRoomLayout} from "@/lib/rcv3/use-wide-room-layout";
+import {roomFlowText} from "@/lib/locale/room-creation-flow";
 import ToolButton from "./ToolButton";
 import ConfirmDeleteButton from "./ConfirmDeleteButton";
-import {basicNavigationRoom,roomNavigationTarget,type NavigationRoom} from "@/lib/rcv3/room-navigation";
+import {basicNavigationRoom,roomNavigationTarget,compactRoomNavigation,type NavigationRoom} from "@/lib/rcv3/room-navigation";
 import {navigationText} from "@/lib/locale/room-navigation";
 import styles from "./room-navigation.module.css";
 // basicRoom is supplied only after the caller resolves the authenticated account's
 // canonical basic room. Never guess it from creation order or the current room.
 export type RoomNavigationHandle={open:()=>void};
 export default function RoomNavigation({language,currentRoomId,basicRoom,disabled=false,onOpen,ref}:{language:string;currentRoomId?:string;basicRoom?:NavigationRoom|null;disabled?:boolean;onOpen?:(id:string)=>void;ref?:Ref<RoomNavigationHandle>}) {
+ const wide=useWideRoomLayout();
+ const [top,setTop]=useState<{rooms:NavigationRoom[];hasMore:boolean}|null>(null),[topFailed,setTopFailed]=useState(false),[topRetry,setTopRetry]=useState(0);
+ useEffect(()=>{
+  if(!wide)return;
+  const controller=new AbortController();
+  fetch("/api/rcv3/rooms?navigation=1",{cache:"no-store",signal:controller.signal})
+   .then(async response=>{if(!response.ok)throw new Error("rooms");return response.json();})
+   .then(result=>{if(!controller.signal.aborted){setTop(result);setTopFailed(false);}})
+   .catch(()=>{if(!controller.signal.aborted)setTopFailed(true);});
+  return()=>controller.abort();
+ },[wide,topRetry,currentRoomId]);
+ const compact=compactRoomNavigation(top?.rooms??[],top?.hasMore);
  const [open,setOpen]=useState(false),[rooms,setRooms]=useState<NavigationRoom[]>([]),[query,setQuery]=useState("");
  const [loading,setLoading]=useState(false),[failed,setFailed]=useState(false),[offset,setOffset]=useState(0),[more,setMore]=useState(false),[retry,setRetry]=useState(0);
  const [actionError,setActionError]=useState("");
@@ -32,7 +46,7 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
  async function remove(room:NavigationRoom){
   const response=await fetch(`/api/rcv3/rooms/${encodeURIComponent(room.id)}`,{method:"DELETE",headers:{"Content-Type":"application/json"},signal:AbortSignal.timeout(20000)});
   if(!response.ok)throw new Error("delete");
-  setRooms(previous=>previous.filter(item=>item.id!==room.id));
+  setRooms(previous=>previous.filter(item=>item.id!==room.id));setTopRetry(value=>value+1);
   if(room.id===currentRoomId){close();window.location.assign("/rcv3");}
  }
  async function restore(room:NavigationRoom){
@@ -41,13 +55,17 @@ export default function RoomNavigation({language,currentRoomId,basicRoom,disable
    const response=await fetch(`/api/rcv3/rooms/${encodeURIComponent(room.id)}`,{method:"PATCH",signal:AbortSignal.timeout(20000)});
    if(!response.ok)throw new Error("restore");
    setRooms(previous=>previous.map(item=>item.id===room.id?{...item,status:"draft"}:item));
-   go({...room,status:"draft"});
+   setTopRetry(value=>value+1);go({...room,status:"draft"});
   } catch {setActionError(t("restoreError"));}
  }
  const base=basicNavigationRoom(basicRoom?[basicRoom]:[],basicRoom?.id);
  return <nav className={styles.navigation} aria-label={t("list")}>
-  {base&&base.id!==currentRoomId&&<ToolButton toolId="room-list" disabled={disabled} onClick={()=>go(base)}>← {base.name}</ToolButton>}
-  <span ref={element=>{trigger.current=element?.querySelector("button")??null;}}><ToolButton toolId="room-list" disabled={disabled} aria-haspopup="dialog" onClick={show}>{t("list")}</ToolButton></span>
+  {!wide&&base&&base.id!==currentRoomId&&<ToolButton toolId="room-list" disabled={disabled} onClick={()=>go(base)}>← {base.name}</ToolButton>}
+  {wide&&<>
+   {topFailed&&<span role="alert">{t("error")} <ToolButton toolId="room-list" onClick={()=>setTopRetry(value=>value+1)}>{t("retry")}</ToolButton></span>}
+   {compact.visible.map(room=><ToolButton key={room.id} toolId="room-list" disabled={disabled||room.id===currentRoomId} aria-current={room.id===currentRoomId?"page":undefined} onClick={()=>go(room)}>{room.name}</ToolButton>)}
+  </>}
+  {(!wide||compact.overflow)&&<span ref={element=>{trigger.current=element?.querySelector("button")??null;}}><ToolButton toolId="room-list" disabled={disabled} aria-haspopup="dialog" onClick={show}>{wide?roomFlowText("more",language):t("list")}</ToolButton></span>}
   <dialog ref={dialog} className={styles.dialog} onCancel={close} onClose={()=>setOpen(false)} aria-label={t("list")}>
    <header><h2>{t("list")}</h2><ToolButton toolId="room-list" onClick={close}>{t("close")}</ToolButton></header>
    <label>{t("search")}<input autoFocus value={query} maxLength={80} onChange={event=>{setLoading(true);setMore(false);setQuery(event.target.value);setOffset(0);setRooms([]);}}/></label>

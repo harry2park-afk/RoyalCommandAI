@@ -7,11 +7,12 @@ async function post(path:string,body:unknown) {
  const r=await fetch(`/api/rcv3/checkout/${path}`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:AbortSignal.timeout(60000)});
  const d=await r.json();if(!r.ok)throw new Error(d.code||"RCV3_ERROR");return d;
 }
-export default function CheckoutPanel({draftId,revision,disabled,language,onFork}:{onFork:()=>void;draftId:string;revision:number;disabled:boolean;language:string}) {
+export default function CheckoutPanel({draftId,revision,disabled,language,onFork,autoEnter=false}:{autoEnter?:boolean;onFork:()=>void;draftId:string;revision:number;disabled:boolean;language:string}) {
  const [quote,setQuote]=useState<Quote|null>(null),[accepted,setAccepted]=useState(false),[signature,setSignature]=useState("");
  const [busy,setBusy]=useState(false),[message,setMessage]=useState<CreationMessage|"">("");
  const [checking,setChecking]=useState(false),[roomUrl,setRoomUrl]=useState("");
  const flight=useRef(false);
+ useEffect(()=>{if(autoEnter&&/^\/rcv3\?room=[a-f0-9-]+$/.test(roomUrl))window.location.assign(roomUrl);},[autoEnter,roomUrl]);
  const t=(key:Parameters<typeof simpleCreateText>[0])=>simpleCreateText(key,language);
  async function run(action:()=>Promise<void>) {
   if(flight.current)return;flight.current=true;setBusy(true);setMessage("");

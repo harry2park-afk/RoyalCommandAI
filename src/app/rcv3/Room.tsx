@@ -20,6 +20,7 @@ import HelpText from "@/components/help/HelpText";
 import { getTool, placeTool, removeTool, runTool, type ToolId, type ToolActions } from "@/lib/rcv3/toolbox";
 import PersonalAI from "./PersonalAI";
 import { visibleRoomButtons, showRoomCanvas } from "@/lib/rcv3/room-display";
+import {roomNavigationTarget,type NavigationRoom} from "@/lib/rcv3/room-navigation";
 import { appearanceLimits } from "@/lib/rcv3/appearance-limits";
 
 type VoiceElement = HTMLElement & { toggle:()=>void; autoSubmit:boolean; liveDictation:boolean; language:string; cancel:()=>void; transcribe: (blob: Blob, options: { signal: AbortSignal }) => Promise<string>; start: () => Promise<void>; stop: () => void };
@@ -103,7 +104,17 @@ export default function Room({ providers, secretaryRooms, language, toolboxManag
       window.history.replaceState(null,"",`/rcv3?room=${encodeURIComponent(id)}`);
     } catch(e){if(token===generation.current)setError((e as Error).message);}
   },[]);
-  useEffect(()=>{let active=true; api("rooms").then(result=>{if(!active)return;setRooms(result.rooms); const requested=new URLSearchParams(window.location.search).get("room"); const id=requested||result.rooms.find((room:{kind?:string;status?:string})=>room.kind!=="existing"&&room.status!=="archived")?.id;if(id)void openRoom(id);}).catch(e=>setError(e.message));return()=>{active=false;};},[openRoom]);
+  useEffect(()=>{let active=true;const wide=window.matchMedia("(min-width: 761px)").matches;
+    api(wide?"rooms?navigation=1":"rooms").then(result=>{
+      if(!active)return;setRooms(result.rooms);
+      const requested=new URLSearchParams(window.location.search).get("room");
+      const available:NavigationRoom[]=result.rooms.filter((room:NavigationRoom)=>room.status!=="archived");
+      if(wide&&!requested&&!result.hasMore){
+        if(!available.length){window.location.replace("/rcv3/create");return;}
+        if(available.length===1&&available[0].kind==="existing"){window.location.replace(roomNavigationTarget(available,available[0].id));return;}
+      }
+      const id=requested||available.find(room=>room.kind!=="existing")?.id;if(id)void openRoom(id);
+    }).catch(e=>setError(e.message));return()=>{active=false;};},[openRoom]);
   useEffect(()=>{if(!roomId||paymentRequired)return;let active=true;setTurns([]);api(`chat?room=${roomId}&scope=${scope}`).then(r=>{if(active)setTurns(current=>[...new Map([...r.turns,...current].map((t:Turn)=>[t.requestId,t])).values()].sort((a,b)=>a.at.localeCompare(b.at)));}).catch(e=>{if(active)setError(e.message);});return()=>{active=false;};},[roomId,scope,paymentRequired]);
   useEffect(()=>{import("../../../rcv3/voice-control.mjs").then(()=>setVoiceLoaded(true)).catch(()=>setError("Could not load microphone."));return()=>{audioRef.current?.pause();};},[]);
   useEffect(()=>{const el=voiceRef.current;if(!el||!roomId||!voiceLoaded)return;

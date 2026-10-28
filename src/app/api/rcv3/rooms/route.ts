@@ -11,6 +11,7 @@ export async function GET(request:Request) {
     let list=db.from("rooms").select("id,name,description,status").eq("room_owner_id", user.id)
       .or(`status.eq.active,and(description.eq.${RCV3_MARKER},status.in.(draft,archived))`)
       .order("created_at", { ascending: false }).order("id", {ascending:false});
+    if(params.get("navigation")==="1")list=list.neq("status","archived");
     if(query)list=list.ilike("name",`%${query.replace(/[\\%_]/g,"\\$&")}%`);
     const r=await list.range(offset,offset+100);
     if (r.error) throw new Error("RCV3_STORAGE");
