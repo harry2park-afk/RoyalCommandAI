@@ -1,4 +1,6 @@
 {
+  "packId": "country-us",
+  "status": "READY",
   "countryCode": "US",
   "locale": "en-US",
   "secondaryLocale": null,

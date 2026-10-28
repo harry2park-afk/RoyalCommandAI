@@ -9,7 +9,6 @@ import SavedConversationInspector from "./SavedConversationInspector";
 import FirstRoomWelcome from "./FirstRoomWelcome";
 import AIHelperChat from "./AIHelperChat";
 import LiveAvatarLayer from "./LiveAvatarLayer";
-import AIHelperVoiceBridge from "./AIHelperVoiceBridge";
 import MainChatMicBridge from "./MainChatMicBridge";
 import IntegratedAnswerInlineStatus from "./IntegratedAnswerInlineStatus";
 import LegalRoomStarter from "./LegalRoomStarter";
@@ -19,6 +18,7 @@ import LegalRoomLayoutBridge from "./LegalRoomLayoutBridge";
 import AISelectionAccountRestore from "./AISelectionAccountRestore";
 import RCFileDestinationBridge from "./RCFileDestinationBridge";
 import RoomConnectorPanel from "./RoomConnectorPanel";
+import CustomerAISecretary from "./CustomerAISecretary";
 
 type Conversation = {
   id: string;
@@ -201,11 +201,11 @@ export default function StableRoomV3() {
       <RCFileDestinationBridge />
       <SavedConversationInspector />
       <AIHelperChat />
+      <CustomerAISecretary roomId={roomId} />
       <RoomConnectorPanel />
       <LegalHelperOpenBridge />
       <LegalCaseSelectorBridge />
       <LegalRoomLayoutBridge />
-      <AIHelperVoiceBridge />
       <MainChatMicBridge />
       <LiveAvatarLayer />
       <IntegratedAnswerInlineStatus />

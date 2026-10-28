@@ -1,5 +1,6 @@
 "use client";
 
+import LoginPortal from "./LoginPortal";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FormEvent, Suspense, useEffect, useMemo, useRef, useState } from "react";
@@ -62,7 +63,7 @@ function supabaseConfigured() {
   );
 }
 
-function LoginForm() {
+function LoginForm({ compact = false }: { compact?: boolean }) {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");
@@ -81,6 +82,8 @@ function LoginForm() {
   const restartTimer = useRef<number | null>(null);
 
   useEffect(() => {
+    // Navigator language is browser-only and is read exactly once after hydration.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLocale(navigator.language || "en-AU");
     return () => {
       if (restartTimer.current) window.clearTimeout(restartTimer.current);
@@ -119,7 +122,8 @@ function LoginForm() {
     stopListeningForTyping();
     setGateState("gate-opening");
     setTimeout(() => {
-      router.push(params.get("next") || "/dashboard");
+      const next = params.get("next");
+      router.push(next && next.startsWith("/") && !next.startsWith("//") && !next.includes("\\") ? next : compact ? "/rcv3" : "/dashboard");
       router.refresh();
     }, 900);
   }
@@ -241,11 +245,11 @@ function LoginForm() {
   }
 
   useEffect(() => {
-    if (!locale || autoStarted.current) return;
+    if (compact || !locale || autoStarted.current) return;
     autoStarted.current = true;
     const timer = window.setTimeout(() => startWakeListening(false), 500);
     return () => window.clearTimeout(timer);
-  }, [locale]);
+  }, [locale, compact]);
 
   async function verifyChallengeTranscript(transcript: string) {
     if (!challenge?.challengeToken) return false;
@@ -337,10 +341,10 @@ function LoginForm() {
   const gateOpen = gateState === "gate-opening";
 
   return (
-    <main className="relative min-h-screen overflow-hidden px-4 py-8 md:px-6">
+    <main className={`${compact ? "rc-login-compact" : "rc-login-legacy"} relative min-h-screen overflow-hidden px-4 py-8 md:px-6`}>
       <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(212,175,55,0.12),transparent_38%)]" />
       <div className="relative mx-auto grid min-h-[90vh] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <section className="flex flex-col items-center text-center">
+        {!compact && <section className="flex flex-col items-center text-center">
           <Link href="/" className="mb-7 text-sm text-[var(--muted)]">← RoyalCommand.ai</Link>
           <div className="relative h-64 w-64 overflow-hidden rounded-[2.5rem] border border-[var(--gold)]/35 bg-black/30 shadow-2xl md:h-80 md:w-80">
             <div className="absolute inset-y-0 left-0 w-1/2 border-r border-[var(--gold)]/25 bg-[linear-gradient(90deg,rgba(17,24,39,0.98),rgba(55,45,15,0.88))] transition-transform duration-1000" style={{ transform: gateOpen ? "translateX(-102%)" : "translateX(0)" }} />
@@ -375,12 +379,12 @@ function LoginForm() {
             {heard ? <div className="mt-1 text-xs">Last heard: “{heard}”</div> : null}
           </div>
           <div className="mt-5 flex flex-wrap justify-center gap-2 text-xs text-[var(--muted)]"><span className="rounded-full border border-white/10 px-3 py-2"><Volume2 size={13} className="mr-1 inline" /> Voice</span><span className="rounded-full border border-white/10 px-3 py-2"><Fingerprint size={13} className="mr-1 inline" /> Face / fingerprint</span><span className="rounded-full border border-white/10 px-3 py-2"><KeyRound size={13} className="mr-1 inline" /> Passkey</span></div>
-        </section>
+        </section>}
         <section className="rc-card p-6 md:p-8">
-          <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Secure entry</p><h2 className="mt-1 text-3xl" style={{ fontFamily: "var(--font-display), serif" }}>Voice, Passkey or account</h2><p className="mt-2 text-sm text-[var(--muted)]">Speak immediately when this page opens, use a registered Passkey, or type your account details. Typing automatically closes the microphone.</p>
+          <p className="text-xs uppercase tracking-[0.2em] text-[var(--gold-soft)]">Secure entry</p><h2 className="mt-1 text-3xl" style={{ fontFamily: "var(--font-display), serif" }}>{compact ? "Welcome back" : "Voice, Passkey or account"}</h2><p className="mt-2 text-sm text-[var(--muted)]">{compact ? "Sign in with your account or a registered passkey." : "Speak immediately when this page opens, use a registered Passkey, or type your account details. Typing automatically closes the microphone."}</p>
           <button type="button" onClick={() => void signInWithPasskey()} className="rc-btn rc-btn-primary mt-6 w-full py-3" disabled={!configured || gateState === "passkey-verifying" || gateOpen}><Fingerprint size={18} /> {gateState === "passkey-verifying" ? "Verifying Passkey…" : "Enter with Face / Fingerprint / Passkey"}</button>
           <div className="my-6 flex items-center gap-3 text-xs text-[var(--muted)]"><div className="h-px flex-1 bg-white/10" />Or type<div className="h-px flex-1 bg-white/10" /></div>
-          <form onSubmit={onSubmit} className="space-y-4"><input className="rc-input" type="email" autoComplete="username" value={email} onFocus={stopListeningForTyping} onChange={(e) => { stopListeningForTyping(); setEmail(e.target.value); }} placeholder="Email" required /><input className="rc-input" type="password" autoComplete="current-password" value={password} onFocus={stopListeningForTyping} onChange={(e) => { stopListeningForTyping(); setPassword(e.target.value); }} placeholder="Password" required />{error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}<button className="rc-btn rc-btn-ghost w-full" disabled={loading || gateOpen}>{loading ? "Signing in…" : "Secure account sign in"}</button></form>
+          <form onSubmit={onSubmit} className="space-y-4"><input className="rc-input" aria-label="Email" type="email" autoComplete="username" value={email} onFocus={stopListeningForTyping} onChange={(e) => { stopListeningForTyping(); setEmail(e.target.value); }} placeholder="Email" required /><input className="rc-input" aria-label="Password" type="password" autoComplete="current-password" value={password} onFocus={stopListeningForTyping} onChange={(e) => { stopListeningForTyping(); setPassword(e.target.value); }} placeholder="Password" required />{error ? <p className="text-sm text-[var(--danger)]">{error}</p> : null}<button className="rc-btn rc-btn-ghost w-full" disabled={loading || gateOpen}>{loading ? "Signing in…" : "Secure account sign in"}</button></form>
           <p className="mt-6 text-sm text-[var(--muted)]">New here? <Link href="/signup" className="text-[var(--gold-soft)]">Create account</Link></p>
         </section>
       </div>
@@ -391,7 +395,7 @@ function LoginForm() {
 export default function LoginPage() {
   return (
     <Suspense fallback={<main className="p-8 text-[var(--muted)]">Loading…</main>}>
-      <LoginForm />
+      <LoginPortal mobile={<LoginForm />} form={<LoginForm compact />} />
     </Suspense>
   );
 }

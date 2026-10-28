@@ -1,5 +1,6 @@
 "use client";
 
+import HelpText from "@/components/help/HelpText";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
@@ -65,6 +66,8 @@ export default function DashboardPage() {
   }
 
   useEffect(() => {
+    // Initial authenticated data hydration runs once and is guarded by this empty dependency list.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, []);
 
@@ -187,7 +190,7 @@ export default function DashboardPage() {
           <div className="rounded-3xl border border-[var(--gold)]/25 bg-[var(--gold)]/[0.035] p-5 md:p-7">
             <p className="text-xs font-semibold uppercase tracking-[0.28em] text-[var(--gold-soft)]">Royal Command Room Builder</p>
             <h2 className="mt-2 text-4xl font-semibold tracking-wide md:text-5xl" style={{ fontFamily: "var(--font-display), serif" }}>COMMAND YOUR DOMAIN</h2>
-            <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)] md:text-lg">From Earth to space — declare your vision. Royal Command builds your AI Room.</p>
+            <p className="mt-3 max-w-3xl text-base leading-7 text-[var(--muted)] md:text-lg"><HelpText helpKey="dashboard"/></p>
 
             <div className="mt-6 rounded-2xl border-2 border-[var(--gold)]/45 bg-black/25 p-3 shadow-[0_0_28px_rgba(212,175,55,0.08)] focus-within:border-[var(--gold)]">
               <label className="mb-2 block text-sm font-medium text-[var(--gold-soft)]">What do you want to create?</label>
@@ -204,13 +207,13 @@ export default function DashboardPage() {
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {cards.map((item) => (
-              <button key={item.id} type="button" onClick={() => openTemplate(item.id)} className="group min-h-32 rounded-2xl border-2 border-[var(--gold)]/25 bg-black/25 p-4 text-left shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--gold)] hover:bg-[var(--gold)]/[0.09] hover:shadow-[0_10px_32px_rgba(212,175,55,0.16)] focus-visible:border-[var(--gold)] focus-visible:bg-[var(--gold)]/[0.12] focus-visible:outline-none active:scale-[0.985] active:border-[var(--gold)] active:bg-[var(--gold)]/[0.16]">
-                <div className="flex items-start justify-between gap-3">
+              <article key={item.id} className="group min-h-32 rounded-2xl border-2 border-[var(--gold)]/25 bg-black/25 p-4 text-left shadow-[0_8px_24px_rgba(0,0,0,0.18)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--gold)] hover:bg-[var(--gold)]/[0.09] hover:shadow-[0_10px_32px_rgba(212,175,55,0.16)] focus-visible:border-[var(--gold)] focus-visible:bg-[var(--gold)]/[0.12] focus-visible:outline-none active:scale-[0.985] active:border-[var(--gold)] active:bg-[var(--gold)]/[0.16]">
+                <button type="button" onClick={() => openTemplate(item.id)} className="flex w-full items-start justify-between gap-3 text-left">
                   <span className="text-base font-semibold leading-6 group-hover:text-[var(--gold-soft)]">{item.name}</span>
                   <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[var(--gold)]/35 bg-[var(--gold)]/[0.06] transition group-hover:border-[var(--gold)] group-hover:bg-[var(--gold)]/15"><Check size={15} className="text-[var(--gold-soft)]" /></span>
-                </div>
-                <p className="mt-3 text-sm leading-5 text-[var(--muted)]">{item.shortDescription}</p>
-              </button>
+                </button>
+                <p className="mt-3 text-sm leading-5 text-[var(--muted)]"><HelpText helpKey={`purpose.${item.id}`}/></p>
+              </article>
             ))}
           </div>
         </section>

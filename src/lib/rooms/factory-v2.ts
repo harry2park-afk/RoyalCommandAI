@@ -24,6 +24,7 @@ export type CapabilityBundleId =
   | "commerce"
   | "project"
   | "design"
+  | "website-studio"
   | "technical"
   | "learning"
   | "operations"
@@ -180,6 +181,12 @@ export const CAPABILITY_BUNDLES: Record<CapabilityBundleId, CapabilityBundle> = 
     outcomes: ["prepare design briefs", "analyse references", "organise drawing requirements", "prepare presentation notes"],
     materialIds: ["document-reader", "web-search"],
   },
+  "website-studio": {
+    id: "website-studio",
+    label: "Website Studio",
+    outcomes: ["prepare a website brief", "design pages and content", "build and review website changes", "verify a safe Preview before release"],
+    materialIds: ["website-builder", "document-reader", "web-search", "supporting-ai", "preview", "human-approval", "delete-approval"],
+  },
   technical: {
     id: "technical",
     label: "Technical Support",
@@ -269,6 +276,7 @@ export const DOMAIN_PROFILES: Record<string, DomainProfile> = {
   migration: D("migration", "Migration Room", ["documents", "research", "booking", "regulated-intake"], ["Organise visa documents", "Prepare a checklist", "Prepare for an adviser"], ["booking-platform", "esign", "human-expert"], "regulated", "AI may organise migration information and documents; personalised immigration legal advice may require an authorised professional."),
   recruitment: D("recruitment", "Recruitment Room", ["documents", "customer-service", "booking", "operations"], ["Review a candidate", "Prepare an interview", "Organise a vacancy"], ["crm", "booking-platform", "email-send", "database"]),
   technology: D("technology", "Technology Room", ["technical", "project", "documents", "research"], ["Troubleshoot a problem", "Plan a software task", "Review technical documentation"], ["github", "vercel", "database"]),
+  website: D("website", "Website Studio", ["website-studio", "design", "technical", "project"], ["Plan my website", "Design or improve a page", "Build and verify a Preview"], ["github", "vercel", "database"]),
   telecom: D("telecom", "Telecommunications Room", ["technical", "customer-service", "operations"], ["Troubleshoot a service", "Prepare a customer response", "Plan a connection"], ["phone", "sms", "database"]),
   electronics: D("electronics", "Electronics Room", ["technical", "commerce", "customer-service"], ["Find the right product", "Troubleshoot an issue", "Prepare warranty information"], ["crm", "database", "payment"]),
   marketing: D("marketing", "Marketing Room", ["office", "project", "research", "customer-service"], ["Plan a campaign", "Draft content", "Prepare a client update"], ["crm", "email-send", "database"]),

@@ -50,6 +50,7 @@ export const TEMPLATE_MATERIAL_PRESETS: Record<string, string[]> = {
   accounting: ["data-isolation", "room-identity", "room-history", "primary-ai", "room-memory", "document-reader", "spreadsheet", "email-draft", "owner-role", "staff-role", "human-approval", "external-send-approval", "preview"],
   business: ["data-isolation", "room-identity", "room-history", "primary-ai", "supporting-ai", "room-memory", "document-reader", "email-draft", "calendar", "crm", "owner-role", "staff-role", "human-approval", "preview"],
   technology: ["data-isolation", "room-identity", "room-history", "primary-ai", "supporting-ai", "room-memory", "document-reader", "web-search", "github", "vercel", "database-read", "owner-role", "staff-role", "human-approval", "delete-approval", "preview"],
+  website: ["data-isolation", "room-identity", "room-history", "primary-ai", "supporting-ai", "room-memory", "document-reader", "web-search", "website-builder", "owner-role", "staff-role", "human-approval", "delete-approval", "preview"],
   education: ["data-isolation", "room-identity", "room-history", "primary-ai", "room-memory", "document-reader", "web-search", "calendar", "owner-role", "viewer-role", "preview"],
   custom: ["data-isolation", "room-identity", "room-history", "primary-ai", "room-memory", "owner-role", "human-approval", "preview"],
 };

@@ -1,0 +1,15 @@
+import {beforeEach,describe,it,expect,vi} from "vitest";
+const m=vi.hoisted(()=>({auth:vi.fn(),db:vi.fn()}));
+vi.mock("@/lib/auth",()=>({getCurrentUser:m.auth}));vi.mock("@/lib/supabase/server",()=>({createClient:m.db}));
+import {POST} from "./route";
+import {trialAccess,trialId,defaultTrialProfile,trialProfileSchema,TRIAL_MARKER} from "@/lib/rooms/room6-trial";
+const user="11111111-1111-4111-8111-111111111111";
+let rows:Map<string,Record<string,unknown>>,inserts:number;
+beforeEach(()=>{vi.stubEnv("VERCEL_ENV","preview");vi.clearAllMocks();rows=new Map();inserts=0;m.auth.mockResolvedValue({id:user,mode:"supabase"});m.db.mockResolvedValue({from:(table:string)=>{const filters:Record<string,unknown>={};const q={select:()=>q,eq:(k:string,v:unknown)=>{filters[k]=v;return q;},maybeSingle:async()=>({data:[...rows.values()].find(r=>r.table===table&&Object.entries(filters).every(([k,v])=>r[k]===v))||null,error:null}),insert:async(value:Record<string,unknown>)=>{const k=table+value.id;if(rows.has(k))return {error:{code:"23505"}};inserts++;rows.set(k,{...value,table});return {error:null};}};return q;}});});
+describe("new Room6 trial",()=>{
+ it("uses saved account language before auth metadata fallback",async()=>{m.auth.mockResolvedValue({id:user,mode:"supabase",defaultLanguage:"en",countryCode:"AU"});rows.set("profiles"+user,{table:"profiles",id:user,default_language:"ko",ui_preferences:{}});expect((await trialAccess(false)).user.defaultLanguage).toBe("ko");});
+ it("creates an isolated draft once across duplicate and concurrent requests",async()=>{const r=await Promise.all([POST(),POST()]);expect(r.map(r=>r.status)).toEqual([200,200]);expect(inserts).toBe(2);expect(rows.get("rooms"+trialId(user,"room"))).toMatchObject({status:"draft",description:TRIAL_MARKER,household_id:trialId(user,"household"),room_owner_id:user});expect(trialId(user,"room")).not.toBe(trialId(user,"household"));});
+ it("does not overwrite archived trial or identity collision",async()=>{rows.set("rooms"+trialId(user,"room"),{table:"rooms",id:trialId(user,"room"),room_owner_id:user,status:"archived",description:TRIAL_MARKER,household_id:trialId(user,"household")});expect((await POST()).status).toBe(503);expect(inserts).toBe(0);});
+ it("denies production and unauthenticated calls before writes",async()=>{vi.stubEnv("VERCEL_ENV","production");expect((await POST()).status).toBe(404);expect(m.auth).not.toHaveBeenCalled();vi.stubEnv("VERCEL_ENV","preview");m.auth.mockResolvedValue(null);expect((await POST()).status).toBe(401);expect(inserts).toBe(0);});
+ it("keeps login language independent of country and rejects executable config",()=>{for(const country of ["AU","KR","US","CA","JP","GB"]){const p=defaultTrialProfile(country,"ko-KR");expect(p.language).toBe("ko-KR");expect(trialProfileSchema.safeParse(p).success).toBe(true);}expect(trialProfileSchema.safeParse({...defaultTrialProfile("AU","ko"),script:"run()"}).success).toBe(false);expect(trialProfileSchema.safeParse({...defaultTrialProfile("AU","ko"),timeZone:"invalid"}).success).toBe(false);});
+});

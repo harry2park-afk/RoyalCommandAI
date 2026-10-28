@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, Search } from "lucide-react";
 import { ROOM_DIRECTORY } from "@/lib/rooms/directory";
+import { ACCOUNTING_PROFESSIONAL_DIRECTORY, LEGAL_PROFESSIONAL_DIRECTORY } from "@/lib/rooms/professional-room-directory";
 
 const EXTRA_SPECIAL_ROOMS = [
   { id: "hobby-room", label: "Hobby Room", ko: "취미룸", templateId: "custom" },
@@ -31,7 +32,15 @@ const EXTRA_SPECIAL_ROOMS = [
   { id: "swimming-open-water", label: "Swimming & Open Water", ko: "수영·오픈워터", templateId: "fitness" },
 ] as const;
 
-const ALL_ROOMS = [...ROOM_DIRECTORY, ...EXTRA_SPECIAL_ROOMS];
+const PROFESSIONAL_ROOMS = [...LEGAL_PROFESSIONAL_DIRECTORY, ...ACCOUNTING_PROFESSIONAL_DIRECTORY].map((room) => ({
+  id: room.id,
+  label: room.label,
+  ko: room.domain === "legal" ? "Legal Professional Room" : "Accounting Professional Room",
+  templateId: room.templateId,
+  catalogId: room.id,
+}));
+
+const ALL_ROOMS = [...PROFESSIONAL_ROOMS, ...ROOM_DIRECTORY, ...EXTRA_SPECIAL_ROOMS];
 
 type Category = {
   id: string;
@@ -43,6 +52,8 @@ type Category = {
 };
 
 const CATEGORIES: Category[] = [
+  { id: "legal-professional", label: "Legal Professional Rooms", ko: "법률 전문 Room", icon: "⚖️", advanced: "Design Contract v2.3 · governed legal capability and safety policy", roomIds: LEGAL_PROFESSIONAL_DIRECTORY.map((room) => room.id) },
+  { id: "accounting-professional", label: "Accounting Professional Rooms", ko: "회계 전문 Room", icon: "📊", advanced: "Design Contract v2.3 · governed accounting capability and safety policy", roomIds: ACCOUNTING_PROFESSIONAL_DIRECTORY.map((room) => room.id) },
   { id: "business", label: "Business & Office", ko: "사업·회사", icon: "💼", advanced: "AI agents · workflow automation · live analytics · smart CRM", roomIds: ["business-operations", "executive-office", "customer-service", "reception", "sales", "hr-recruitment", "project-management", "crm-client-management", "billing-payments", "procurement", "consulting"] },
   { id: "legal-finance", label: "Legal, Finance & Compliance", ko: "법률·금융·규정", icon: "⚖️", advanced: "AI legal research · contract automation · risk scoring · secure e-sign", roomIds: ["legal", "accounting-tax", "finance", "insurance", "immigration-visa", "patent-ip", "compliance-risk", "documents-contracts", "esign-approval", "personal-finance"] },
   { id: "property-home", label: "Property, Building & Home", ko: "부동산·건축·주택", icon: "🏠", advanced: "3D digital twin · AI design · drones · smart-home & BIM", roomIds: ["real-estate", "property-management", "construction-trades", "architecture-design", "dream-home-3d", "renovation-home-repair", "building-materials", "hardware-tools", "energy-solar"] },
@@ -87,6 +98,7 @@ export default function RoomDirectoryPicker() {
     next.searchParams.set("template", room.templateId);
     next.searchParams.set("name", room.label);
     next.searchParams.set("roomType", room.id);
+    if ("catalogId" in room && typeof room.catalogId === "string") next.searchParams.set("professionalCatalog", room.catalogId);
     if (returnRoom) next.searchParams.set("returnRoom", returnRoom);
     window.location.assign(next.toString());
   }

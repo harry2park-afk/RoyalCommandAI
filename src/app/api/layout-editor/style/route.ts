@@ -10,13 +10,17 @@ import {
 } from "@/lib/layout-editor-style";
 import {
   LAYOUT_EDITOR_DEVICE_COOKIE,
+  LAYOUT_EDITOR_PASSWORD_COOKIE,
   LAYOUT_EDITOR_SESSION_COOKIE,
+  readPasswordEditorProof,
   sha256Hex,
 } from "@/lib/layout-editor-security";
 
-async function hasUnlockedTrustedLayoutSession(userId: string) {
+async function hasUnlockedLayoutSession(userId: string) {
   try {
     const cookieStore = await cookies();
+    if (readPasswordEditorProof(cookieStore.get(LAYOUT_EDITOR_PASSWORD_COOKIE)?.value, userId)) return true;
+
     const deviceToken = cookieStore.get(LAYOUT_EDITOR_DEVICE_COOKIE)?.value;
     const sessionToken = cookieStore.get(LAYOUT_EDITOR_SESSION_COOKIE)?.value;
     if (!deviceToken || !sessionToken) return false;
@@ -81,8 +85,8 @@ export async function PUT(request: Request) {
     .single();
   if (readError) return NextResponse.json({ error: readError.message }, { status: 500 });
   if (current?.role !== "admin") return NextResponse.json({ error: "Administrator access required." }, { status: 403 });
-  if (!(await hasUnlockedTrustedLayoutSession(user.id))) {
-    return NextResponse.json({ error: "Unlock Layout Editor with a trusted device passkey first." }, { status: 403 });
+  if (!(await hasUnlockedLayoutSession(user.id))) {
+    return NextResponse.json({ error: "Enter the administrator password in Layout Editor first." }, { status: 403 });
   }
 
   const existing = current?.ui_preferences && typeof current.ui_preferences === "object" && !Array.isArray(current.ui_preferences)

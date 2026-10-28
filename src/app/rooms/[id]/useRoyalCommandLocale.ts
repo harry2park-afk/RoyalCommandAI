@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import { GLOBAL_FALLBACK_LOCALE, resolveGlobalLocale } from "@/lib/locale/globalLocaleCore";
+import { useDomainRuntime } from "@/components/DomainRuntimeProvider";
 
 const SELECTED_KEY = "royalcommand:selected-language";
 const UI_LOCALE_KEY = "royalcommand:ui-locale";
 const COUNTRY_KEY = "royalcommand:country-code";
 const RESOLVED_ATTRIBUTE = "data-rc-resolved-locale";
 
-function readLegacyRaw() {
-  if (typeof window === "undefined") return "en";
-  return window.localStorage.getItem(SELECTED_KEY) || document.documentElement.lang || "en";
+function readLegacyRaw(defaultLocale: string) {
+  if (typeof window === "undefined") return defaultLocale;
+  return window.localStorage.getItem(SELECTED_KEY) || document.documentElement.lang || defaultLocale;
 }
 
-function readResolvedLocale() {
-  if (typeof window === "undefined") return GLOBAL_FALLBACK_LOCALE;
+function readResolvedLocale(defaultLocale: string) {
+  if (typeof window === "undefined") return defaultLocale;
   const selectedLanguage = window.localStorage.getItem(SELECTED_KEY);
   const countryCode = window.localStorage.getItem(COUNTRY_KEY);
 
@@ -30,17 +31,18 @@ function readResolvedLocale() {
 
   return resolveGlobalLocale({
     explicitUiLocale: window.localStorage.getItem(UI_LOCALE_KEY),
-    legacyLanguage: readLegacyRaw(),
+    legacyLanguage: readLegacyRaw(defaultLocale),
     countryCode,
   }).locale;
 }
 
 export function useRoyalCommandLocale() {
-  const [locale, setLocale] = useState<string>(GLOBAL_FALLBACK_LOCALE);
+  const runtimeContext = useDomainRuntime();
+  const [locale, setLocale] = useState<string>(runtimeContext.locale || GLOBAL_FALLBACK_LOCALE);
 
   useEffect(() => {
     const sync = () => {
-      const resolved = readResolvedLocale();
+      const resolved = readResolvedLocale(runtimeContext.locale);
       setLocale(resolved);
       document.documentElement.setAttribute(RESOLVED_ATTRIBUTE, resolved);
     };
@@ -66,7 +68,7 @@ export function useRoyalCommandLocale() {
       window.removeEventListener("royalcommand:language-change", onCustom);
       document.documentElement.removeAttribute(RESOLVED_ATTRIBUTE);
     };
-  }, []);
+  }, [runtimeContext.locale]);
 
   return locale;
 }

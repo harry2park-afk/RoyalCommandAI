@@ -1,0 +1,9 @@
+{
+  "packId": "region-global",
+  "regionCode": "GLOBAL",
+  "status": "READY",
+  "locale": "en",
+  "currency": "USD",
+  "phoneCountryCode": null,
+  "timeZone": "UTC"
+}

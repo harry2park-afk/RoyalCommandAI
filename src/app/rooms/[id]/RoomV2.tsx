@@ -104,6 +104,8 @@ export default function RoomV2() {
     }
   }
 
+  // Room data is intentionally refreshed from the server when the Room ID changes.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void load(); }, [roomId]);
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages, loading]);
 

@@ -1,3 +1,4 @@
+import { HelpTranslationProvider } from "@/components/help/HelpText";
 import type { Metadata } from "next";
 import Script from "next/script";
 import CustomerRoomDesigner from "@/components/CustomerRoomDesigner";
@@ -24,7 +25,7 @@ export default function RootLayout({
       <body className="min-h-full antialiased">
         <Script src="/rca-fetch-bridge.js" strategy="beforeInteractive" />
         <Script src="/rca-ui-seed.js" strategy="beforeInteractive" />
-        {children}
+        <HelpTranslationProvider>{children}</HelpTranslationProvider>
         <RetellRoomVoiceBridge />
         <RoomPreferenceAuthority />
         <ScopedRoomHeaderStyleAuthority />

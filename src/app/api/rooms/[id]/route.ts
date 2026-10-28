@@ -4,6 +4,8 @@ import { localDb } from "@/lib/local-store";
 import { resolveRoomRouteId } from "@/lib/rooms/resolve-room-id";
 import { isSupabaseConfigured } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
+import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
+import { toPublicDomainRuntimeContext } from "@/config/countryResolver";
 
 const MAX_ROOM_MESSAGES = 250;
 
@@ -35,6 +37,8 @@ export async function GET(
 ) {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const runtimeContext = await getServerDomainRuntimeContext();
+  if (!runtimeContext) return NextResponse.json({ error: "Domain runtime context unavailable" }, { status: 404 });
 
   const { id: routeId } = await context.params;
   const id = resolveRoomRouteId(routeId);
@@ -70,6 +74,7 @@ export async function GET(
       messages: normaliseMessages((messages || []).reverse()),
       documents: documents || [],
       user: currentUser,
+      runtimeContext: toPublicDomainRuntimeContext(runtimeContext),
     });
   }
 
@@ -82,6 +87,7 @@ export async function GET(
     messages: normaliseMessages(localDb.listMessages(id)),
     documents: localDb.listDocuments(id),
     user: currentUser,
+    runtimeContext: toPublicDomainRuntimeContext(runtimeContext),
   });
 }
 

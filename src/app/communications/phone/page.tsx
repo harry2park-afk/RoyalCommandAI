@@ -37,6 +37,8 @@ export default function RCPhonePage() {
     setStatus("");
   }
 
+  // The initial request resolves before it updates UI state; it is not a synchronous render loop.
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { void refresh(); }, []);
 
   async function savePhone() {

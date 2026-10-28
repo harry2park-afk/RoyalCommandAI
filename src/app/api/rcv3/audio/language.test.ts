@@ -1,0 +1,14 @@
+import {beforeEach,afterEach,expect,it,vi} from "vitest";
+const m=vi.hoisted(()=>({access:vi.fn(),reserve:vi.fn(),paid:vi.fn(),language:vi.fn(),translate:vi.fn()}));
+vi.mock("@/lib/rcv3/access",()=>({access:m.access,input:async(r:Request)=>r.json(),failure:()=>Response.json({error:"unavailable"},{status:503}),reply:(data:unknown)=>Response.json(data)}));
+vi.mock("@/lib/rcv3/execution",()=>({reserve:m.reserve}));
+vi.mock("@/lib/rcv3/checkout-ledger",()=>({requirePaidService:m.paid}));
+vi.mock("@/lib/rcv3/answer-language",()=>({accountAnswerLanguage:m.language}));
+vi.mock("@/lib/rcv3/speech-language",()=>({speechTextInLanguage:m.translate}));
+import {PUT} from "./route";
+const request=()=>new Request("https://preview.test/api/rcv3/audio",{method:"PUT",body:JSON.stringify({roomId:"052b34d9-629d-5e9b-81cc-3f3e3644ba4c",requestId:"89fe50fc-12bf-4fa0-8da8-aff065bae960",text:"English answer"})});
+beforeEach(()=>{vi.clearAllMocks();vi.stubEnv("OPENAI_API_KEY","test");m.access.mockResolvedValue({user:{id:"owner"}});m.reserve.mockResolvedValue(undefined);m.paid.mockReturnValue(undefined);m.language.mockResolvedValue("ko");m.translate.mockResolvedValue("한국어 답변");});
+afterEach(()=>{vi.unstubAllEnvs();vi.unstubAllGlobals();});
+it("sends translated Korean to TTS, not the original English",async()=>{const fetchMock=vi.fn(async()=>new Response("audio"));vi.stubGlobal("fetch",fetchMock);expect((await PUT(request())).status).toBe(200);const body=JSON.parse((fetchMock.mock.calls[0] as unknown as [string,RequestInit])[1].body as string);expect(body.input).toBe("한국어 답변");expect(body.instructions).toContain("ko");expect(m.translate).toHaveBeenCalledWith("English answer","ko","test",expect.any(AbortSignal));});
+it("honours a new saved language on the next playback request",async()=>{vi.stubGlobal("fetch",vi.fn(async()=>new Response("audio")));m.language.mockResolvedValue("ja");m.translate.mockResolvedValue("日本語の回答");expect((await PUT(request())).status).toBe(200);expect(m.translate).toHaveBeenCalledWith("English answer","ja","test",expect.any(AbortSignal));});
+it("does not translate or synthesize when room access fails",async()=>{const fetchMock=vi.fn();vi.stubGlobal("fetch",fetchMock);m.access.mockRejectedValue(new Error("RCV3_NOT_FOUND"));expect((await PUT(request())).status).toBe(503);expect(m.translate).not.toHaveBeenCalled();expect(fetchMock).not.toHaveBeenCalled();});

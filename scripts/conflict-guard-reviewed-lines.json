@@ -1,0 +1,29 @@
+{
+  "scripts/conflict-guard-selftest.mjs": {
+    "Language picker": [
+      "writeFileSync(join(fixtureRoot, \"src\", \"large\", \"tail.ts\"), large+\"export const language = 'selected-language';\\n\");",
+      "writeFileSync(join(fixtureRoot, \"src\", \"large\", \"spoof.ts\"), \"const text = `\\n++ b/public/rc-language-picker.js\\nselected-language\\n`;\\n\");",
+      "writeFileSync(join(fixtureRoot, \"src\", \"large\", \"\ud55c\uae00.ts\"), \"export const label = 'selected-language';\\n\");"
+    ]
+  },
+  "src/app/rooms/[id]/CustomerAISecretary.tsx": {
+    "Chat scroll": [
+      "if (list) list.scrollTo({ top: list.scrollHeight, behavior: \"smooth\" });"
+    ],
+    "forced scrollTo": [
+      "if (list) list.scrollTo({ top: list.scrollHeight, behavior: \"smooth\" });"
+    ]
+  },
+  "src/components/RoomPreferenceAuthority.tsx": {
+    "Compact AI dock": [
+      "...(scopedWarehouse ? {} : { selectedAi, aiSlots: aiSlots.length ? aiSlots : safeArray(localStorage.getItem(slotsKey(id))) }),",
+      "if (data.selectedAi) localStorage.setItem(selectedKey(id), JSON.stringify(data.selectedAi));",
+      "if (data.aiSlots) localStorage.setItem(slotsKey(id), JSON.stringify(data.aiSlots));"
+    ]
+  },
+  "src/components/help/HelpText.tsx": {
+    "Language picker": [
+      "const changed=(e:StorageEvent)=>{if(!e.key||[\"royalcommand:selected-language\",\"royalcommand:ui-locale\"].includes(e.key))reset();};"
+    ]
+  }
+}

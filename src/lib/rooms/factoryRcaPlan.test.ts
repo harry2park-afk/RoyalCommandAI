@@ -14,6 +14,19 @@ function blueprint() {
   });
 }
 
+function websiteBlueprint() {
+  return compileRoomFactoryBlueprint({
+    roomName: "Website Studio",
+    templateId: "website",
+    countryCode: "AU",
+    languageTag: "en-AU",
+    timeZone: "Australia/Sydney",
+    currencyCode: "AUD",
+    approvalMode: "approval",
+    websiteKit: true,
+  });
+}
+
 describe("Room Factory RCA V2 control plan", () => {
   it("uses only explicitly selected AIs and gives write authority to one Writer", () => {
     const plan = buildRoomFactoryRcaControlPlan(blueprint(), ["openai", "anthropic", "google"]);
@@ -47,5 +60,20 @@ describe("Room Factory RCA V2 control plan", () => {
     expect(plan.selectedProviders).toEqual([]);
     expect(plan.writer).toBeNull();
     expect(plan.readyForExecutionPreparation).toBe(false);
+  });
+
+  it("assigns Codex as the sole Website Studio writer regardless of selection order", () => {
+    const plan = buildRoomFactoryRcaControlPlan(websiteBlueprint(), ["openai", "anthropic", "codex"]);
+    expect(plan.writer).toBe("codex");
+    expect(plan.reviewers).toEqual(["openai", "anthropic"]);
+    expect(plan.taskPlan?.lanes.every((lane) => lane.writer === "codex")).toBe(true);
+    expect(plan.readyForExecutionPreparation).toBe(true);
+  });
+
+  it("blocks Website Studio execution when Codex is not selected", () => {
+    const plan = buildRoomFactoryRcaControlPlan(websiteBlueprint(), ["openai", "anthropic"]);
+    expect(plan.writer).toBeNull();
+    expect(plan.readyForExecutionPreparation).toBe(false);
+    expect(plan.blockers.join(" ")).toMatch(/Website Studio requires Codex/i);
   });
 });

@@ -31,6 +31,8 @@ export default function StepUpPanel() {
   const [voiceHeard, setVoiceHeard] = useState("");
 
   useEffect(() => {
+    // Browser passkey capability is external state detected once after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPasskeyCapable(
       typeof window !== "undefined" &&
         "PublicKeyCredential" in window &&

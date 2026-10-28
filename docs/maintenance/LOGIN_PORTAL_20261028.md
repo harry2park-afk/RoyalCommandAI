@@ -1,0 +1,11 @@
+# Approved login doorway — 2026-10-28
+
+Scope: STANDARD, existing Preview branch only. Owner approved the lavender doorway image. Desktop/tablet width >=761px uses that asset, centered Login and signup, existing account/password/passkey form in a native modal. Width <=760px retains legacy login markup and voice behaviour. No production, payment, customer-data or provider configuration changes.
+
+Control inventory: reused LoginForm.onSubmit -> POST /api/auth/login; reused signInWithPasskey -> existing Supabase client; signup -> existing /signup. Portal Login opens native dialog; Close and Escape close it and restore focus. Existing GET /api/auth/me verifies Supabase session before presenting room entry. Local demo session is not treated as RCv3 membership. Safe local next query is preserved. Locale uses existing customer preference keys and shared resolution/translation resources, English fallback. No new authentication endpoint or entitlement.
+
+Validation: 12 real Chromium UI fixture checks passed: login modal, password failure, unavailable passkey, Escape/focus restoration, language switch, verified session entry and next, local-session distinction, password success handler and next, desktop/tablet sizes, 760px legacy screen. Fixture success is not evidence of live customer login or provider authentication. Lint has no errors, one pre-existing voice-hook dependency warning. Production Next build includes TypeScript verification; final result is recorded in execution output. Two focused suites (14 tests) passed. Independent reviewer identified differing default destinations; compact login now defaults to /rcv3, with its success path tested. Existing phone destination remains /dashboard.
+
+Recovery baseline: previous Preview source 3755d9fc8b3b7feb48b0661034df548d516ab828 remains intact in history. New source includes generated WebP asset. Git source/basic assets only; not Supabase database, R2 uploads, customer files or full operational restoration. No STABLE claim before owner smoke test. Deployment SHA/READY must be verified independently after publication.
+
+Local production server render inspected with actual global styles; portal and modal rendered, compact main width 430px at 1440px viewport. Final modal button spacing refined. Live provider sign-in remains unverified.
