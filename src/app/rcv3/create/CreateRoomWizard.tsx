@@ -37,6 +37,9 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
   helperAvailable: boolean; accountEmail: string; accountName: string; country: string; language: string; providers: { id: AIProviderId; label: string }[];
 }) {
   const wide=useWideRoomLayout();
+  const designDialog=useRef<HTMLDialogElement>(null);
+  const [previewOpen,setPreviewOpen]=useState(false),[previewList,setPreviewList]=useState(true);
+
   const SettingsContainer=wide?"details":"div";
   const TrialContainer=wide?"details":"div";
   const [purposeSearch,setPurposeSearch]=useState("");
@@ -131,6 +134,11 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
       setError(e instanceof Error&&e.message==="RCV3_CONFLICT"?"conflict":"error");
     } finally {saving.current=false;setBusy(false);}
   }
+  function previewDesign(templateId:string){
+    update({...input,templateId});
+    if(wide){setPreviewOpen(true);setPreviewList(true);designDialog.current?.showModal();}
+  }
+
   const providerToggle = (id: AIProviderId) => {
     const selected = input.providers.includes(id) ? input.providers.filter(p => p !== id) : [...input.providers, id];
     const aiSources = Object.fromEntries(Object.entries(setup.aiSources).filter(([key])=>selected.includes(key as AIProviderId)));
@@ -195,7 +203,7 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
         {!ready && <p role="status">{t("required")}</p>}
         {ready && <>
           <section className={styles.verticalSection}>
-            {!wide&&<h2>{t("design")}</h2>}<div className={styles.designs}>{designs.map(design=><button type="button" key={design.id} aria-pressed={design.id===input.templateId} onClick={()=>update({...input,templateId:design.id})}>
+            {!wide&&<h2>{t("design")}</h2>}<div className={styles.designs}>{designs.map(design=><button type="button" key={design.id} aria-pressed={design.id===input.templateId} onClick={()=>previewDesign(design.id)}>
               <img loading="lazy" src={templateImage(design)} alt="" width={1672} height={941}/><span>{design.name}{design.id===input.templateId?" ✓":""}</span>
             </button>)}</div>
             {!showAllDesigns && <button type="button" onClick={()=>setShowAllDesigns(true)}>{t("more")}</button>}
@@ -227,5 +235,27 @@ export default function CreateRoomWizard({ language, providers, accountEmail, ac
       </fieldset>
     </section>
     </div>
+    {wide&&<dialog ref={designDialog} className={styles.designDialog} aria-label={flow("previewTitle")} onClose={()=>setPreviewOpen(false)}>
+      {previewOpen&&<>
+        <header className={styles.previewHeader}>
+          <div><h2>{flow("previewTitle")} · {input.name}</h2><p>{flow("designOnly")}</p></div>
+          <button type="button" aria-expanded={previewList} aria-controls="room-design-choices" onClick={()=>setPreviewList(value=>!value)}>{flow("designList")}</button>
+          <button type="button" onClick={()=>designDialog.current?.close()}>{flow("backToForm")}</button>
+        </header>
+        <div className={styles.previewStage}>
+          <img src={templateImage(selectedDesign)} alt={selectedDesign.name}/>
+          <strong>{selectedDesign.name}</strong>
+        </div>
+        {previewList&&<div id="room-design-choices" className={styles.previewChoices} aria-label={flow("designList")}>
+          {roomTemplates.map(design=><button key={design.id} type="button" aria-pressed={input.templateId===design.id} onClick={()=>update({...input,templateId:design.id})}>
+            <img loading="lazy" src={templateImage(design)} alt="" width={160} height={90}/><span>{design.name}</span>
+          </button>)}
+        </div>}
+        <footer className={styles.previewActions}>
+          <span role={error?"alert":"status"}>{error?selectedCreationText(error,language):busy||dirty?t("saving"):t("autoSaved")}</span>
+          <button type="button" className={styles.primary} disabled={busy||dirty||!!error} onClick={()=>{designDialog.current?.close();paymentSection.current?.scrollIntoView({behavior:"smooth",block:"start"});}}>{flow("useDesign")}</button>
+        </footer>
+      </>}
+    </dialog>}
   </main>;
 }

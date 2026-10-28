@@ -1,4 +1,9 @@
 const text={
+ previewTitle:["Room design preview","방 디자인 둘러보기"],
+ designList:["Room designs","방 디자인 목록"],
+ useDesign:["Continue with this design","이 디자인으로 계속"],
+ backToForm:["Back to form","작성 화면으로 돌아가기"],
+ designOnly:["Preview only. Your room is created after the remaining steps.","디자인 미리보기입니다. 남은 절차를 마치면 내 방이 만들어집니다."],
  purpose:["1. What kind of room would you like?","1. 어떤 방을 만들까요?"],
  search:["Search 60 room ideas","60개 방 용도 검색"],
  custom:["Something else — describe your own","목록에 없는 용도 직접 입력"],

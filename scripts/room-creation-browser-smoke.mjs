@@ -25,7 +25,7 @@ if(route==='/api/rcv3/checkout/quote')return Response.json({code:'RCV3_CHECKOUT_
 throw new Error('Unexpected request '+url);};
 createRoot(document.getElementById('root')).render(<Wizard helperAvailable={false} accountName="Fixture" accountEmail="fixture@example.test" country="AU" language="ko" providers={[{id:'openai',label:'OpenAI'}]}/>);
 `);
-const server=await createServer({root:temp,configFile:false,plugins:[react()],resolve:{alias:{'@':path.join(root,'src')}},server:{host:'127.0.0.1',port:4179,strictPort:true,fs:{allow:[root]}}});
+const server=await createServer({root:temp,publicDir:path.join(root,"public"),configFile:false,plugins:[react()],resolve:{alias:{'@':path.join(root,'src')}},server:{host:'127.0.0.1',port:4179,strictPort:true,fs:{allow:[root]}}});
 await server.listen();
 const browser=await chromium.launch({executablePath:process.env.RC_BROWSER_PATH||await bundled.executablePath(),args:bundled.args,headless:true});
 const errors=[];let checks=0;
@@ -47,6 +47,14 @@ try{
  await page.waitForFunction(()=>window.registry.drafts[0]?.input.answers.purpose?.[0]==='내가 원하는 새로운 방');checks++;
  await page.goto('http://127.0.0.1:4179/?draft=22222222-2222-4222-8222-222222222222');await page.getByRole('heading',{name:'1. 어떤 방을 만들까요?'}).waitFor();
  assert.equal(await page.locator('input[autocomplete="off"]').inputValue(),'Saved guitar room');await page.getByRole('searchbox').fill('기타');await page.getByRole('button',{name:'Guitar · 기타 배우기',exact:true}).click();assert.equal(await page.locator('input[autocomplete="off"]').inputValue(),'Saved guitar room');checks++;
+ // Enter the actual design preview, switch design, persist, close and reopen.
+ await page.locator('button:has(img)').first().click();const preview=page.getByRole('dialog',{name:'방 디자인 둘러보기'});await preview.waitFor();
+ await preview.getByRole('button',{name:'방 디자인 목록',exact:true}).click();assert.equal(await preview.locator('#room-design-choices').count(),0);
+ await preview.getByRole('button',{name:'방 디자인 목록',exact:true}).click();const choice=preview.locator('#room-design-choices button').nth(1);const chosenName=(await choice.innerText()).trim();await choice.click();
+ await page.waitForFunction(()=>window.registry.drafts[0]?.input.templateId&&document.querySelector('dialog strong')?.textContent===document.querySelector('#room-design-choices button[aria-pressed=true] span')?.textContent);
+ assert.equal((await preview.locator('strong').innerText()).trim(),chosenName);assert.equal(await page.locator('input[autocomplete="off"]').inputValue(),'Saved guitar room');
+ await preview.getByRole('button',{name:'이 디자인으로 계속'}).click();await preview.waitFor({state:'hidden'});checks++;
+ await page.locator('button:has(img)[aria-pressed=true]').first().click();await preview.waitFor();assert.equal((await preview.locator('strong').innerText()).trim(),chosenName);await page.keyboard.press('Escape');await preview.waitFor({state:'hidden'});checks++;
  await page.goto('http://127.0.0.1:4179/?failSave=1');await page.getByRole('heading',{name:'1. 어떤 방을 만들까요?'}).waitFor();await page.getByRole('searchbox').fill('기타');await page.getByRole('button',{name:'Guitar · 기타 배우기',exact:true}).click();await page.getByRole('alert').waitFor();assert.equal(await page.locator('input[autocomplete="off"]').inputValue(),'기타 배우기');checks++;
  await page.goto('http://127.0.0.1:4179/?failRooms=1');await page.locator('header nav [role="alert"]').waitFor();assert.equal(await page.locator('header nav').getByRole('button',{name:'다른 방 보기'}).count(),0);checks++;
  await page.setViewportSize({width:800,height:1280});await page.goto('http://127.0.0.1:4179/');await page.getByRole('heading',{name:'1. 어떤 방을 만들까요?'}).waitFor();assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));if(process.env.RC_SCREENSHOT)await page.screenshot({path:process.env.RC_SCREENSHOT,fullPage:true});checks++;

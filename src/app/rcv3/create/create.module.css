@@ -27,3 +27,12 @@
 @media(min-width:761px){
  .page .header,.layout,.workspace{max-width:1080px}.page .header{grid-template-columns:1fr auto}.page .header>button{display:block}.header nav{grid-column:1/-1}.verticalSection{padding:14px 0}.question{padding:14px;margin:12px 0}.form section>label{margin:10px 0}.purposeCatalog{max-height:340px;overflow:auto;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:14px 0}.purposeCatalog fieldset{min-width:0;border:1px solid #415b70;border-radius:12px;padding:10px;display:flex;gap:8px;flex-wrap:wrap}.purposeCatalog legend{padding:0 6px;color:#b8ccdc}.purposeCatalog button{flex:1 1 140px;text-align:left}.verticalSection .designs{grid-template-columns:repeat(2,minmax(0,1fr))}.form details{margin-top:12px}.choices{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
+
+@media(min-width:761px){
+ .designDialog{position:fixed;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;margin:0;border:0;padding:16px;background:#07111c;color:#eef4fa;box-sizing:border-box;overflow:auto}
+ .designDialog[open]{display:flex;flex-direction:column;gap:12px}.designDialog::backdrop{background:#000b}
+ .previewHeader{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.previewHeader>div{flex:1;min-width:240px}.previewHeader h2{margin:0;font-size:22px}.previewHeader p{margin:4px 0;font-size:14px;color:#b8ccdc}
+ .previewStage{flex:1;min-height:220px;position:relative;display:grid;place-items:center;overflow:hidden;background:#02070b;border-radius:12px}.previewStage>img{width:100%;height:100%;max-height:60dvh;object-fit:contain}.previewStage>strong{position:absolute;bottom:12px;left:12px;padding:8px 14px;background:#07111ce6;border-radius:8px}
+ .previewChoices{display:flex;gap:10px;overflow-x:auto;flex-shrink:0;padding:4px 2px 12px}.previewChoices button{flex:0 0 170px;padding:0;overflow:hidden;text-align:left}.previewChoices img{display:block;width:100%;height:90px;object-fit:cover}.previewChoices span{display:block;padding:8px}.previewChoices button[aria-pressed=true]{outline:3px solid #77edca;outline-offset:-3px}
+ .previewActions{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}.previewActions>span{flex:1;min-width:200px}
+}

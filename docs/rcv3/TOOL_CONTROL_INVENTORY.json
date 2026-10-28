@@ -375,7 +375,7 @@
     {
       "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#7",
       "toolId": "create-room",
-      "sourceHash": "ea168ec88caf240f64a0ae57834e6becbf0072bfd03fddade61228fb588fbe11",
+      "sourceHash": "30a7019946b8347a02adca158e1ced8de06e5da839d948dbb46c8978824466c6",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
@@ -390,6 +390,34 @@
       "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#9",
       "toolId": "create-room",
       "sourceHash": "5b3a6896e7440d7b47a956cd93ec75e07ac0719ab1ff3b453c5a0b26a38070c6",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#10",
+      "toolId": "create-room",
+      "sourceHash": "aa624edb9d7fbf5d3683461f72d0a9ecb56e5d5086d338a599ec19280222fce2",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#11",
+      "toolId": "create-room",
+      "sourceHash": "39ded25bf0638f0bd7c83e415f0e39a77bf2869b079cd75add3137f06be2efd6",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#12",
+      "toolId": "create-room",
+      "sourceHash": "aefc597f6406c561a437ee70d81b608eb70116bf0903116c72502da59121e9cf",
+      "mode": "context-bound",
+      "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
+    },
+    {
+      "controlId": "src/app/rcv3/create/CreateRoomWizard.tsx#13",
+      "toolId": "create-room",
+      "sourceHash": "c16ae83a169d69563ab5add8c4c2aaed814b0054b6947963b28118b493447664",
       "mode": "context-bound",
       "note": "Reuse through the owning component and its state/handlers; never copy markup alone."
     },
