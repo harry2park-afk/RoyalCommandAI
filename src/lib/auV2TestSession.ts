@@ -3,16 +3,13 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 export const AU_V2_COOKIE = "rc_au_v2_test";
 const FOUR_HOURS_MS = 4 * 60 * 60 * 1000;
 
+const PRODUCTION_RCA_HOSTS = new Set([
+  "atyourcommandai.com.au",
+  "www.atyourcommandai.com.au",
+]);
+
 function getSecret() {
-  return (
-    process.env.AU_V2_SESSION_SECRET ||
-    process.env.OPENAI_API_KEY ||
-    process.env.ANTHROPIC_API_KEY ||
-    process.env.GOOGLE_API_KEY ||
-    process.env.GEMINI_API_KEY ||
-    process.env.XAI_API_KEY ||
-    ""
-  );
+  return (process.env.AU_V2_SESSION_SECRET || "").trim();
 }
 
 function sign(payload: string) {
@@ -53,6 +50,6 @@ export function verifyAuV2SessionToken(token?: string | null) {
 
 export function isAustraliaV2Host(request: Request) {
   const host = new URL(request.url).hostname.toLowerCase();
-  if (host === "atyourcommandai.com.au" || host === "www.atyourcommandai.com.au") return true;
+  if (PRODUCTION_RCA_HOSTS.has(host)) return true;
   return process.env.VERCEL_ENV !== "production";
 }
