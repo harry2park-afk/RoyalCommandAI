@@ -49,6 +49,10 @@ export default function HomePage() {
             <span className="mt-1 block text-sm text-white/70">Sign in</span>
           </Link>
         </div>
+
+        <div className="text-center text-xs text-gray-500 dark:text-gray-400 my-4">
+          RCA Developer Relay Test
+        </div>
       </div>
     </main>
   );
