@@ -17,6 +17,7 @@ function signingSecret() {
     process.env.GOOGLE_API_KEY ||
     process.env.GEMINI_API_KEY ||
     process.env.XAI_API_KEY ||
+    process.env.GOOGLE_AI_API_KEY ||
     ""
   );
 }

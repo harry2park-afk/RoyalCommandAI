@@ -12,6 +12,9 @@ import { useDomainRuntime } from "@/components/DomainRuntimeProvider";
 import { getIntegrationEligibility } from "@/lib/ai/integrationEligibility";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex" | "astra";
+type Integrator = "openai" | "google";
+type IntegrationDetails = { engine: Integrator; sources: string[]; inputKey: string };
+const ENGINE_LABELS = { openai: "ChatGPT", google: "Gemini" } as const;
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string; title?: string; titleEdited?: boolean };
 type ProviderInfo = { id: string; name: string; available: boolean; configured: boolean };
 type CustomerRoom = { id: string; roomId?: string; name: string; status?: string; templateId?: string };
@@ -167,13 +170,15 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [expandedAnswers, setExpandedAnswers] = useState<Partial<Record<ProviderId, boolean>>>({});
   const [frozenResults, setFrozenResults] = useState<Record<string, ProviderResult>>({});
   const [frozenQuestion, setFrozenQuestion] = useState("");
+  const [engine, setEngine] = useState<Integrator>("openai");
+  const [integrationDetails, setIntegrationDetails] = useState<IntegrationDetails | null>(null);
   const [integrated, setIntegrated] = useState("");
   const [integrating, setIntegrating] = useState(false);
   const [integrationError, setIntegrationError] = useState("");
   const [integrationSnapshotLoaded, setIntegrationSnapshotLoaded] = useState(false);
   const [globalError, setGlobalError] = useState("");
   const aborters = useRef(new Map<string, AbortController>());
-  const integrationInFlightRef = useRef(false);
+  const integrationRequest = useRef<AbortController | null>(null);
   const executionGeneration = useRef(0);
   const recognitionRef = useRef<any>(null);
   const recognitionActiveRef = useRef(false);
@@ -279,10 +284,18 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
         question?: unknown;
         results?: unknown;
         integrated?: unknown;
+        details?: Partial<IntegrationDetails>;
+        engine?: unknown;
       } | null;
       if (savedIntegration && typeof savedIntegration.question === "string" && savedIntegration.results && typeof savedIntegration.results === "object") {
         setFrozenQuestion(savedIntegration.question);
         setFrozenResults(savedIntegration.results as Record<string, ProviderResult>);
+        if (roomId === "rca" && savedIntegration.engine === "google") setEngine("google");
+        const details = savedIntegration.details;
+        if (details && (details.engine === "google" || details.engine === "openai") &&
+            Array.isArray(details.sources) && details.sources.every((id) => typeof id === "string") && typeof details.inputKey === "string") {
+          setIntegrationDetails({ engine: details.engine, sources: details.sources, inputKey: details.inputKey });
+        }
         if (typeof savedIntegration.integrated === "string") setIntegrated(savedIntegration.integrated);
       }
     } catch {
@@ -434,11 +447,12 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     localStorage.setItem(integrationSnapshotKey(roomId), JSON.stringify({
       question: frozenQuestion,
       results: frozenResults,
-      integrated,
+      integrated, engine, details: integrationDetails,
     }));
-  }, [frozenQuestion, frozenResults, integrated, integrationSnapshotLoaded, roomId]);
+  }, [frozenQuestion, frozenResults, integrated, engine, integrationDetails, integrationSnapshotLoaded, roomId]);
 
   useEffect(() => () => {
+    integrationRequest.current?.abort();
     aborters.current.forEach((controller) => controller.abort());
     aborters.current.clear();
     recognitionGenerationRef.current += 1;
@@ -464,7 +478,17 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   );
   const frozenList = integrationEligibility.successfulResults;
   const failedFrozenList = integrationEligibility.failedResults;
-  const canIntegrate = Boolean(frozenQuestion && integrationEligibility.canIntegrate && !integrated);
+  const integrationKey = JSON.stringify([engine, ...frozenList.map((result) => result.requestId).sort()]);
+  const geminiConfigured = providerRegistry.some((provider) => provider.id === "google" && provider.configured);
+  const canIntegrate = Boolean(frozenQuestion && connected.has(engine) && (engine !== "google" || geminiConfigured) && integrationEligibility.canIntegrate &&
+    (!integrated || integrationDetails?.inputKey !== integrationKey));
+
+  function cancelIntegration() {
+    integrationRequest.current?.abort();
+    integrationRequest.current = null;
+    setIntegrating(false);
+    setIntegrationDetails(null);
+  }
 
   function setProviderState(provider: ProviderId, patch: Partial<RoomState>) {
     setRooms((prev) => ({ ...prev, [provider]: { ...prev[provider], ...patch } }));
@@ -758,7 +782,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     aborters.current.forEach((controller) => controller.abort());
     aborters.current.clear();
     const generation = ++executionGeneration.current;
-    integrationInFlightRef.current = false;
+    cancelIntegration();
     setFrozenQuestion(prompt);
     setFrozenResults({});
     setIntegrated("");
@@ -859,6 +883,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
         });
       }
     }
+    cancelAll();
     setRooms(Object.fromEntries(PROVIDERS.map((provider) => [provider.id, { ...EMPTY, history: [...(histories[provider.id] || [])] }])) as Record<ProviderId, RoomState>);
     activeChatSessionIdRef.current = session.id; setActiveChatSessionId(session.id); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError(""); setMenuOpen(false);
   }
@@ -976,6 +1001,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   }
 
   function cancelAll() {
+    cancelIntegration();
     executionGeneration.current += 1;
     aborters.current.forEach((controller) => controller.abort());
     aborters.current.clear();
@@ -983,28 +1009,33 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   }
 
   async function integrate() {
-    if (!canIntegrate || integrating || integrationInFlightRef.current) return;
-    integrationInFlightRef.current = true;
+    if (!canIntegrate || integrating || integrationRequest.current) return;
+    const controller = new AbortController();
+    integrationRequest.current = controller;
     setIntegrating(true);
     setIntegrationError("");
-    let succeeded = false;
     try {
       const res = await fetch("/api/ai/integrate", {
+        signal: controller.signal,
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ integrationId: uid("integration"), prompt: frozenQuestion, language, frozenResults: frozenList }),
+        body: JSON.stringify({ integrationId: uid("integration"), integrator: engine, roomId, prompt: frozenQuestion, language, frozenResults: frozenList }),
       });
       const data = await res.json().catch(() => ({}));
+      if (controller.signal.aborted) return;
       if (!res.ok || data?.error) throw new Error(data?.error || "Integration failed");
       const content = String(data.content || "").trim();
       if (!content) throw new Error("Integration returned no answer");
+      if (data.provider !== engine || !Array.isArray(data.sourceProviders)) throw new Error("Unexpected integration response");
       setIntegrated(content);
-      succeeded = true;
+      setIntegrationDetails({ engine, sources: data.sourceProviders, inputKey: integrationKey });
     } catch (error) {
-      setIntegrationError(error instanceof Error ? error.message : "Integration failed");
+      if (!controller.signal.aborted) setIntegrationError(error instanceof Error ? error.message : "Integration failed");
     } finally {
-      if (!succeeded) integrationInFlightRef.current = false;
-      setIntegrating(false);
+      if (integrationRequest.current === controller) {
+        integrationRequest.current = null;
+        setIntegrating(false);
+      }
     }
   }
 
@@ -1051,6 +1082,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     return Array.from(entries.entries());
   }, [hiddenCountries]);
 
+  const korean = language === "ko";
   const selectedCountryCode = countryCodeForLocale(selectedLocale);
   const sendLabel = SEND_LABELS[selectedLocale.split("-")[0].toLowerCase()] || SEND_LABELS.en;
   const createRoomLocale = CREATE_ROOM_COUNTRIES.find((country) => country.code === selectedCountryCode)?.locale || "en";
@@ -1124,7 +1156,16 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
                 </article>;
               })}
 
-              <article className="flex min-h-[360px] flex-col rounded-2xl border border-[#7a5b18]/60 bg-[#17130a] p-4 shadow-lg"><div className="flex items-center justify-between"><div><h3 className="text-xl font-semibold text-[#f0d36a]">Final Integrator</h3><p className="text-xs text-[#a59a76]">Read-only · Frozen results only</p></div><span className={`h-2 w-2 rounded-full ${canIntegrate ? "bg-emerald-400" : "bg-slate-600"}`}/></div><div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#7a5b18]/30 bg-black/15 p-3 text-[15px] leading-6 text-[#d6cfb5]">{integrating ? "Creating integrated answer…" : integrated ? integrated : integrationError ? `Integration failed: ${integrationError}` : canIntegrate ? `${frozenList.length} successful result${frozenList.length === 1 ? "" : "s"} ready.` : frozenQuestion && failedFrozenList.length ? "Integration unavailable: no successful AI answers." : "No integrated answer yet"}</div>{failedFrozenList.length ? <div className="mt-2 rounded-lg border border-red-400/25 bg-red-950/20 px-3 py-2 text-xs text-red-200"><div className="font-semibold">Excluded failed AI</div>{failedFrozenList.map((result) => <div key={result.provider}>{result.providerName}: {result.error || "No completed answer"}</div>)}</div> : null}<button disabled={!canIntegrate || integrating} onClick={integrate} className="mt-3 w-full rounded-lg border border-[#d7b64d]/40 bg-[#2a2109] px-3 py-2.5 text-sm font-semibold text-[#f0d36a] disabled:opacity-35">{integrating ? "Integrating…" : integrated ? "Integrated answer created" : "Create integrated answer"}</button></article>
+              <article className="flex min-h-[360px] flex-col rounded-2xl border border-[#7a5b18]/60 bg-[#17130a] p-4 shadow-lg"><div className="flex items-center justify-between"><div><h3 className="text-xl font-semibold text-[#f0d36a]">{korean ? "최종 통합 답변" : "Final Integrator"}</h3>
+                {roomId === "rca" && <label className="mt-2 flex items-center gap-2 text-sm">{korean ? "답변을 종합할 AI" : "Combine answers with"}
+                  <select value={engine} disabled={integrating} onChange={(event) => { setEngine(event.target.value === "google" ? "google" : "openai"); setIntegrationError(""); }} className="rounded border border-[#7a5b18] bg-[#17130a] px-2 py-1">
+                    {(["openai", "google"] as const).map((id) => <option key={id} value={id} disabled={!connected.has(id) || (id === "google" && !geminiConfigured)}>{ENGINE_LABELS[id]}</option>)}
+                  </select>
+                </label>}</div><span className={`h-2 w-2 rounded-full ${canIntegrate ? "bg-emerald-400" : "bg-slate-600"}`}/></div><div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#7a5b18]/30 bg-black/15 p-3 text-[15px] leading-6 text-[#d6cfb5]">{integrating ? (korean ? "통합 답변 작성 중…" : "Creating integrated answer…") : integrationError ? `Integration failed: ${integrationError}` : integrated ? integrated : canIntegrate ? `${frozenList.length} successful result${frozenList.length === 1 ? "" : "s"} ready.` : frozenQuestion && failedFrozenList.length ? "Integration unavailable: no successful AI answers." : "No integrated answer yet"}</div>
+              {integrated && integrationDetails && !integrating && !integrationError && <p className="mt-2 text-sm text-[#d6cfb5]">
+                {korean ? "통합 작성" : "Written by"} {ENGINE_LABELS[integrationDetails.engine]} · {korean ? "포함한 답변" : "Answers from"} {integrationDetails.sources.map((id) => PROVIDERS.find((p) => p.id === id)?.name || id).join(", ")}
+              </p>}
+              {failedFrozenList.length ? <div className="mt-2 rounded-lg border border-red-400/25 bg-red-950/20 px-3 py-2 text-xs text-red-200"><div className="font-semibold">Excluded failed AI</div>{failedFrozenList.map((result) => <div key={result.provider}>{result.providerName}: {result.error || "No completed answer"}</div>)}</div> : null}<button disabled={!canIntegrate || integrating} onClick={integrate} className="mt-3 w-full rounded-lg border border-[#d7b64d]/40 bg-[#2a2109] px-3 py-2.5 text-sm font-semibold text-[#f0d36a] disabled:opacity-35">{integrating ? (korean ? "작성 중…" : "Integrating…") : integrated && !canIntegrate ? (korean ? "통합 답변 작성됨" : "Integrated answer created") : (korean ? "통합 답변 만들기" : "Create integrated answer")}</button></article>
             </section>
           </>
         ) : (
