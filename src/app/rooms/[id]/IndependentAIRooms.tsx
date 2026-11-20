@@ -9,6 +9,7 @@ import { moveLanguageCountryLocale, normaliseLanguageCountryOrder, promoteLangua
 import { CREATE_ROOM_COUNTRIES, createRoomCopy } from "@/lib/rooms/create-room-i18n";
 import styles from "./IndependentAIRooms.module.css";
 import { useDomainRuntime } from "@/components/DomainRuntimeProvider";
+import { copyText } from "@/components/rcv3-toolbox/CopyText";
 import { getIntegrationEligibility } from "@/lib/ai/integrationEligibility";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex" | "astra";
@@ -127,6 +128,55 @@ function ProviderBrandLogo({ provider }: { provider: ProviderId }) {
   return <span className={baseClass} style={{ background: "#000000" }}>𝕏</span>;
 }
 
+function IntegratedAnswerCopy({ answer, korean, answerElement }: {
+  answer: string;
+  korean: boolean;
+  answerElement: React.RefObject<HTMLDivElement | null>;
+}) {
+  const [status, setStatus] = useState<"idle" | "copied" | "manual">("idle");
+
+  async function copyAnswer() {
+    try {
+      await copyText(answer);
+      setStatus("copied");
+    } catch {
+      const element = answerElement.current;
+      if (!element || element.textContent !== answer) return;
+      const selection = window.getSelection();
+      if (selection) {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        try {
+          if (document.execCommand("copy")) {
+            selection.removeAllRanges();
+            setStatus("copied");
+            return;
+          }
+        } catch {
+          // Leave the answer selected for the browser's Copy command.
+        }
+      }
+      setStatus("manual");
+    }
+  }
+
+  return (
+    <div className="flex flex-col items-end gap-1">
+      <button type="button" onClick={copyAnswer}
+        className="flex min-h-11 items-center gap-2 rounded-lg border border-[#d7b64d]/65 bg-[#2a2109] px-3 text-sm font-semibold text-[#f0d36a] hover:bg-[#3a3013]">
+        {status === "copied" ? <Check size={16} aria-hidden="true" /> : <Copy size={16} aria-hidden="true" />}
+        {korean ? "답변 복사" : "Copy answer"}
+      </button>
+      <span role="status" className="text-right text-sm text-[#e8dbaa]">
+        {status === "copied" && (korean ? "복사됨" : "Copied")}
+        {status === "manual" && (korean ? "답변을 선택한 뒤 기기의 복사 메뉴를 이용하세요." : "Use your device’s Copy command on the answer text.")}
+      </span>
+    </div>
+  );
+}
+
 export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: string } = {}) {
   const runtimeContext = useDomainRuntime();
   const params = useParams<{ id: string }>();
@@ -168,6 +218,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [attachments, setAttachments] = useState<File[]>([]);
   const [cardPrompts, setCardPrompts] = useState<Record<ProviderId, string>>({ openai: "", anthropic: "", google: "", xai: "", codex: "", astra: "" });
   const [expandedAnswers, setExpandedAnswers] = useState<Partial<Record<ProviderId, boolean>>>({});
+  const integratedAnswerRef = useRef<HTMLDivElement>(null);
   const [frozenResults, setFrozenResults] = useState<Record<string, ProviderResult>>({});
   const [frozenQuestion, setFrozenQuestion] = useState("");
   const [engine, setEngine] = useState<Integrator>("openai");
@@ -1156,12 +1207,17 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
                 </article>;
               })}
 
-              <article className="flex min-h-[360px] flex-col rounded-2xl border border-[#7a5b18]/60 bg-[#17130a] p-4 shadow-lg"><div className="flex items-center justify-between"><div><h3 className="text-xl font-semibold text-[#f0d36a]">{korean ? "최종 통합 답변" : "Final Integrator"}</h3>
+              <article className="flex min-h-[360px] flex-col rounded-2xl border border-[#7a5b18]/60 bg-[#17130a] p-4 shadow-lg"><div className="flex flex-wrap items-start justify-between gap-2"><div><h3 className="text-xl font-semibold text-[#f0d36a]">{korean ? "최종 통합 답변" : "Final Integrator"}</h3>
                 {roomId === "rca" && <label className="mt-2 flex items-center gap-2 text-sm">{korean ? "답변을 종합할 AI" : "Combine answers with"}
                   <select value={engine} disabled={integrating} onChange={(event) => { setEngine(event.target.value === "google" ? "google" : "openai"); setIntegrationError(""); }} className="rounded border border-[#7a5b18] bg-[#17130a] px-2 py-1">
                     {(["openai", "google"] as const).map((id) => <option key={id} value={id} disabled={!connected.has(id) || (id === "google" && !geminiConfigured)}>{ENGINE_LABELS[id]}</option>)}
                   </select>
-                </label>}</div><span className={`h-2 w-2 rounded-full ${canIntegrate ? "bg-emerald-400" : "bg-slate-600"}`}/></div><div className="mt-4 min-h-0 flex-1 overflow-y-auto rounded-xl border border-[#7a5b18]/30 bg-black/15 p-3 text-[15px] leading-6 text-[#d6cfb5]">{integrating ? (korean ? "통합 답변 작성 중…" : "Creating integrated answer…") : integrationError ? `Integration failed: ${integrationError}` : integrated ? integrated : canIntegrate ? `${frozenList.length} successful result${frozenList.length === 1 ? "" : "s"} ready.` : frozenQuestion && failedFrozenList.length ? "Integration unavailable: no successful AI answers." : "No integrated answer yet"}</div>
+                </label>}</div>
+                <div className="flex items-start gap-2">
+                  {integrated && !integrating && !integrationError && <IntegratedAnswerCopy key={integrated} answer={integrated} korean={korean} answerElement={integratedAnswerRef} />}
+                  <span className={`mt-2 h-2 w-2 shrink-0 rounded-full ${canIntegrate ? "bg-emerald-400" : "bg-slate-600"}`}/>
+                </div>
+              </div><div ref={integratedAnswerRef} className="mt-4 min-h-0 flex-1 overflow-y-auto whitespace-pre-wrap break-words rounded-xl border border-[#7a5b18]/30 bg-black/15 p-3 text-[15px] leading-6 text-[#d6cfb5]">{integrating ? (korean ? "통합 답변 작성 중…" : "Creating integrated answer…") : integrationError ? `Integration failed: ${integrationError}` : integrated ? integrated : canIntegrate ? `${frozenList.length} successful result${frozenList.length === 1 ? "" : "s"} ready.` : frozenQuestion && failedFrozenList.length ? "Integration unavailable: no successful AI answers." : "No integrated answer yet"}</div>
               {integrated && integrationDetails && !integrating && !integrationError && <p className="mt-2 text-sm text-[#d6cfb5]">
                 {korean ? "통합 작성" : "Written by"} {ENGINE_LABELS[integrationDetails.engine]} · {korean ? "포함한 답변" : "Answers from"} {integrationDetails.sources.map((id) => PROVIDERS.find((p) => p.id === id)?.name || id).join(", ")}
               </p>}
