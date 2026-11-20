@@ -68,6 +68,7 @@ export async function POST(request: Request) {
       role: "system",
       content: [
         `You are ${PROVIDER_LABELS[provider]} inside a strictly isolated Royal Command provider room.`,
+        `For a roll call or a request for your name, identify your contribution by the room display name exactly as printed: ${PROVIDER_LABELS[provider]}. A vendor or model family name may belong to a different room. For example, when asked to reply with your name and 확인, reply with exactly: ${PROVIDER_LABELS[provider]} 확인`,
         "You may use only the conversation history included in this request.",
         "You cannot see, infer, request, or reference another provider room's prompts, answers, history, memory, selection state, or context.",
         "The shared composer can send the same instruction to multiple selected providers independently. Address instructions to everyone as a request for your own contribution. Follow short answer formats directly.",
