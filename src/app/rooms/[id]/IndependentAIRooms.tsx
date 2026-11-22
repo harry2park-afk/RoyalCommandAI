@@ -871,14 +871,16 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     }));
   }
 
-  function attachmentList(scope: AttachmentScope) {
+  function attachmentList(scope: AttachmentScope, cardSend?: { run: () => void; disabled: boolean }) {
     const draft = attachmentDrafts[scope];
     if (!draft?.files.length && !draft?.error) return null;
     return <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs" aria-live="polite">
+      {draft.files.length > 0 && <span className="text-white/75">Attached:</span>}
       {draft.files.map((file, index) => <span key={index} className="flex max-w-full items-center gap-1 rounded border border-white/15 bg-[#0b1524] px-2 py-1 text-[#f0d36a]">
         <span className="truncate" title={file.name}>{file.name || "Screenshot"}</span>
         <button type="button" onClick={() => removeAttachments(scope, [file])} className="shrink-0 p-1" aria-label={`Remove ${file.name || "screenshot"}`}><X size={12}/></button>
       </span>)}
+      {cardSend && draft.files.length > 0 && <button type="button" onClick={cardSend.run} disabled={cardSend.disabled} className="flex min-h-8 items-center gap-1.5 rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] px-3 font-semibold text-[#f8df7a] disabled:opacity-35"><Send size={13}/>Send</button>}
       {draft.error && <span className="basis-full text-red-200" role="status">{attachmentText(draft.error, language)}</span>}
     </div>;
   }
@@ -897,7 +899,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     try {
       let images: InlineImage[];
       try { images = await encodeComposerImages(files); }
-      catch { noteAttachment(scope, "IMAGE_READ_FAILED", epoch); return; }
+      catch (error) { noteAttachment(scope, error instanceof Error && error.message === "IMAGE_LIMIT" ? "IMAGE_LIMIT" : "IMAGE_READ_FAILED", epoch); return; }
       if (epoch !== attachmentEpoch.current) return;
       if (files.length) noteAttachment(scope, undefined, epoch);
       const status = await send(prompt, images, epoch);
@@ -1301,7 +1303,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
                 return <article key={provider.id} data-rc-multi-ai-card="true" data-rc-multi-ai-active={active ? "true" : "false"} data-rc-multi-ai-expanded={expanded ? "true" : "false"} style={{ display: active ? "flex" : "none" }} className={`min-h-[360px] flex-col rounded-2xl border px-3 py-4 shadow-lg ${active ? "border-[#d7b64d]/70 bg-[#10223f]" : "border-white/10 bg-[#0b1524]"}`}>
                   <div className="flex min-h-0 flex-1 flex-col">
                       <div className="flex items-center gap-2"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`grid h-6 w-6 shrink-0 place-items-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <X size={14}/> : null}</button><button type="button" onClick={() => setOpenRoom(provider.id)} className="shrink-0 rounded-md border border-white/15 bg-[#07101d] px-2 py-1 text-xs font-semibold leading-none hover:border-[#d7b64d]/50">Open</button><div className="ml-1 flex w-36 shrink-0 items-center gap-2"><ProviderBrandLogo provider={provider.id}/><h3 className="min-w-0 truncate text-lg font-semibold leading-none">{provider.name}</h3><span className={`ml-auto h-2 w-2 shrink-0 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div><textarea rows={1} onPaste={(event) => pasteAttachments(event, provider.id)} value={cardPrompts[provider.id]} onChange={(event) => setCardPrompts((current) => ({ ...current, [provider.id]: event.target.value }))} onInput={(event) => autoSizeCardPrompt(event.currentTarget)} onKeyDown={(event) => handleCardPromptKeyDown(event, provider.id)} disabled={!available || room.loading} aria-label={`Ask ${provider.name}`} placeholder={`Ask ${provider.name}...`} className="min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-white/15 bg-[#07101d] px-3 py-2 text-sm leading-5 outline-none focus:border-[#d7b64d]/60 disabled:opacity-40"/></div>
-                      {attachmentList(provider.id)}
+                      {attachmentList(provider.id, { run: () => { void submitCard(provider.id); }, disabled: !available || room.loading })}
                       {latestQuestion ? <div className="mt-3 truncate border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]" title={latestQuestion.content}>{latestQuestion.title || latestQuestion.content}</div> : null}
                       <div role="button" tabIndex={0} aria-expanded={expanded} onClick={() => latestAnswer && setExpandedAnswers((current) => ({ ...current, [provider.id]: !expanded }))} onKeyDown={(event) => { if (latestAnswer && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setExpandedAnswers((current) => ({ ...current, [provider.id]: !expanded })); } }} className={`mt-2 min-h-0 flex-1 rounded-xl border border-white/10 bg-black/15 p-3 text-[15px] leading-6 ${latestAnswer ? "cursor-pointer" : ""} ${expanded ? "overflow-visible whitespace-pre-wrap" : "overflow-hidden"}`}>
                         {latestAnswer ? <><div className="mb-2 border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]">{latestAnswer.title || fallbackTitle(latestAnswer.content)}</div>{latestAnswer.content}</> : room.loading ? `${provider.name} is working…` : <span className="text-[#c8d0dc]">No answer yet</span>}

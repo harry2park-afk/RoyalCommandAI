@@ -20,11 +20,12 @@ describe("AI composer clipboard", () => {
     expect(mergeComposerImages([first], [first, next])).toEqual({ files: [first, next] });
   });
 
-  it("rejects unsupported and oversize images without mutating the existing draft", () => {
+  it("keeps real-sized captures in the draft while rejecting a fifth file or an unsupported image", () => {
     const draft = [screenshot()];
-    const big = new File([new Uint8Array(MAX_INLINE_IMAGE_BYTES)], "large.png", { type: "image/png" });
+    const big = new File([new Uint8Array(MAX_INLINE_IMAGE_BYTES + 1)], "large.png", { type: "image/png" });
     const fake = new File(["test"], "no.svg", { type: "image/svg+xml" });
-    expect(mergeComposerImages(draft, [big])).toEqual({ error: "IMAGE_LIMIT" });
+    expect(mergeComposerImages(draft, [big])).toEqual({ files: [draft[0], big] });
+    expect(mergeComposerImages(draft, [big, screenshot(), screenshot(), screenshot()])).toEqual({ error: "IMAGE_COUNT" });
     expect(mergeComposerImages(draft, [fake])).toEqual({ error: "IMAGE_INVALID" });
     expect(draft).toHaveLength(1);
   });
