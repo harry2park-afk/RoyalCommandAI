@@ -21,6 +21,7 @@ const openRouterClaude = new OpenRouterCatalogConnector(
 );
 
 export class AnthropicConnector implements AIConnector {
+  supportsInlineImages = true;
   id = "anthropic" as const;
   displayName = "Claude";
 
@@ -52,7 +53,14 @@ export class AnthropicConnector implements AIConnector {
         const system = request.messages.filter((m) => m.role === "system").map((m) => m.content).join("\n");
         const messages = request.messages
           .filter((m) => m.role !== "system")
-          .map((m) => ({ role: m.role, content: m.content }));
+          .map((m, index, turns) => ({
+            role: m.role,
+            content: request.images?.length && m.role === "user" && index === turns.length - 1
+              ? [{ type: "text", text: m.content }, ...request.images.map((image) => ({
+                type: "image", source: { type: "base64", media_type: image.mime, data: image.base64 },
+              }))]
+              : m.content,
+          }));
         const maxTokens = Math.min(request.maxTokens ?? CLAUDE_DIRECT_MAX_TOKENS, CLAUDE_DIRECT_MAX_TOKENS);
         const requestBody: Record<string, unknown> = {
           model,
@@ -82,7 +90,7 @@ export class AnthropicConnector implements AIConnector {
 
         const data = await res.json();
         if (!res.ok) {
-          const message = data?.error?.message || `Anthropic HTTP ${res.status}`;
+          const message = (!request.images?.length && data?.error?.message) || `Anthropic HTTP ${res.status}`;
           logger.warn("ai.provider.failed", {
             provider: this.displayName,
             model,
@@ -113,7 +121,7 @@ export class AnthropicConnector implements AIConnector {
           error: tokenLimited ? "Claude response ended at its output-token limit before completion" : undefined,
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown Anthropic error";
+        const message = !request.images?.length && error instanceof Error ? error.message : "Unknown Anthropic error";
         logger.warn("ai.provider.exception", {
           provider: this.displayName,
           model,
@@ -135,7 +143,7 @@ export class AnthropicConnector implements AIConnector {
       if (!directResult.error && directResult.content?.trim()) return directResult;
 
       // Explicit Phase 4 model selection must not fall back to a different model.
-      if (!explicitModel && process.env.OPENROUTER_API_KEY) {
+      if (!request.images?.length && !explicitModel && process.env.OPENROUTER_API_KEY) {
         const routedRequest: AIRequest = {
           ...request,
           maxTokens: Math.min(request.maxTokens ?? CLAUDE_OPENROUTER_MAX_TOKENS, CLAUDE_OPENROUTER_MAX_TOKENS),
@@ -166,7 +174,7 @@ export class AnthropicConnector implements AIConnector {
       return directResult;
     }
 
-    if (!explicitModel && process.env.OPENROUTER_API_KEY) {
+    if (!request.images?.length && !explicitModel && process.env.OPENROUTER_API_KEY) {
       const routedRequest: AIRequest = {
         ...request,
         maxTokens: Math.min(request.maxTokens ?? CLAUDE_OPENROUTER_MAX_TOKENS, CLAUDE_OPENROUTER_MAX_TOKENS),

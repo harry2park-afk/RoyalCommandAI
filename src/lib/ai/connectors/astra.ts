@@ -1,3 +1,4 @@
+import { responsesMessages } from "../inlineImages";
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 
 const ASTRA_MODEL = "gpt-6-astra";
@@ -23,6 +24,7 @@ function extractText(data: unknown) {
 }
 
 export class AstraConnector implements AIConnector {
+  supportsInlineImages = true;
   id = "astra" as const;
   displayName = "Astra Light";
 
@@ -44,7 +46,7 @@ export class AstraConnector implements AIConnector {
         signal: controller.signal,
         body: JSON.stringify({
           model: ASTRA_MODEL,
-          input: request.messages,
+          input: request.images?.length ? responsesMessages(request) : request.messages,
           max_output_tokens: request.maxTokens || 4096,
           reasoning: { effort: "low" },
           text: { verbosity: "low" },

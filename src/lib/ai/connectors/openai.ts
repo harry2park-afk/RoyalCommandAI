@@ -1,3 +1,4 @@
+import { chatMessages } from "../inlineImages";
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 import { logger } from "@/lib/logger";
 import { extractProviderText } from "./openrouter";
@@ -41,7 +42,7 @@ function transientOpenAIError(message: string) {
 async function callOpenAI(request: AIRequest, model: string, timeoutMs: number) {
   const requestBody: Record<string, unknown> = {
     model,
-    messages: request.messages,
+    messages: request.images?.length ? chatMessages(request) : request.messages,
     max_completion_tokens: outputTokenLimit(request),
   };
   if (request.temperature !== undefined) requestBody.temperature = request.temperature;
@@ -110,6 +111,7 @@ async function callOpenRouterFallback(request: AIRequest) {
 }
 
 export class OpenAIConnector implements AIConnector {
+  supportsInlineImages = true;
   id = "openai" as const;
   displayName = "ChatGPT";
 
@@ -174,7 +176,7 @@ export class OpenAIConnector implements AIConnector {
             raw: result.tokenLimited ? { ...result.raw, rcTruncated: true } : result.raw,
           };
         } catch (error) {
-          const message = error instanceof Error ? error.message : "Unknown OpenAI error";
+          const message = request.images?.length ? "OpenAI image request failed" : error instanceof Error ? error.message : "Unknown OpenAI error";
           errors.push(message);
           logger.warn("ai.provider.failed", {
             provider: this.displayName,
@@ -193,7 +195,7 @@ export class OpenAIConnector implements AIConnector {
     }
 
     // Explicit model selections are never silently substituted with another model.
-    if (!explicitModel && process.env.OPENROUTER_API_KEY) {
+    if (!request.images?.length && !explicitModel && process.env.OPENROUTER_API_KEY) {
       logger.warn("ai.provider.fallback", {
         provider: this.displayName,
         from: "OpenAI direct",

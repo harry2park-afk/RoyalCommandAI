@@ -55,6 +55,7 @@ async function wait(ms: number) {
 }
 
 export class GoogleConnector implements AIConnector {
+  supportsInlineImages = true;
   id = "google" as const;
   displayName = "Gemini";
 
@@ -85,9 +86,14 @@ export class GoogleConnector implements AIConnector {
           .join("\n");
         const contents = boundedRequest.messages
           .filter((m) => m.role !== "system")
-          .map((m) => ({
+          .map((m, index, turns) => ({
             role: m.role === "assistant" ? "model" : "user",
-            parts: [{ text: m.content }],
+            parts: [
+              { text: m.content },
+              ...(boundedRequest.images?.length && m.role === "user" && index === turns.length - 1
+                ? boundedRequest.images.map((image) => ({ inlineData: { mimeType: image.mime, data: image.base64 } }))
+                : []),
+            ],
           }));
 
         const generationConfig: Record<string, unknown> = {
@@ -110,7 +116,7 @@ export class GoogleConnector implements AIConnector {
 
         const data = await res.json();
         if (!res.ok) {
-          const message = data?.error?.message || `Google AI HTTP ${res.status}`;
+          const message = (!request.images?.length && data?.error?.message) || `Google AI HTTP ${res.status}`;
           logger.warn("ai.provider.failed", {
             provider: this.displayName,
             model: targetModel,
@@ -153,7 +159,7 @@ export class GoogleConnector implements AIConnector {
           error: tokenLimited && content.length <= 200 ? "Gemini response ended at its output-token limit before completion" : undefined,
         };
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Unknown Google error";
+        const message = !request.images?.length && error instanceof Error ? error.message : "Unknown Google error";
         logger.warn("ai.provider.exception", {
           provider: this.displayName,
           model: targetModel,
@@ -206,7 +212,7 @@ export class GoogleConnector implements AIConnector {
     }
 
     // Explicit model selections are never silently substituted with another model.
-    if (!explicitModel && process.env.OPENROUTER_API_KEY) {
+    if (!request.images?.length && !explicitModel && process.env.OPENROUTER_API_KEY) {
       const routedRequest: AIRequest = {
         ...boundedRequest,
         model: undefined,

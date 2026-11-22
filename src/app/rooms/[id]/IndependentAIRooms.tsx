@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import type { KeyboardEvent as ReactKeyboardEvent } from "react";
+import type { ClipboardEvent as ReactClipboardEvent, KeyboardEvent as ReactKeyboardEvent } from "react";
 import { useParams } from "next/navigation";
 import { Check, ChevronDown, Copy, GripVertical, Menu, MessageSquare, Mic, Paperclip, Pencil, Plus, Search, Send, Sparkles, Trash2, X } from "lucide-react";
 import { FEATURED_LANGUAGE_ENTRIES, LOCALE_SEARCH_REGISTRY } from "@/lib/locale/localeSearchRegistry";
@@ -11,9 +11,16 @@ import styles from "./IndependentAIRooms.module.css";
 import { useDomainRuntime } from "@/components/DomainRuntimeProvider";
 import { copyText } from "@/components/rcv3-toolbox/CopyText";
 import { getIntegrationEligibility } from "@/lib/ai/integrationEligibility";
+import { clipboardFiles, encodeComposerImages, mergeComposerImages } from "@/lib/ai/composerClipboard";
+import type { InlineImage } from "@/lib/ai/inlineImages";
+import { attachmentText } from "@/lib/locale/aiAttachmentCopy";
 
 type ProviderId = "openai" | "anthropic" | "google" | "xai" | "codex" | "astra";
 type Integrator = "openai" | "google";
+type AttachmentScope = ProviderId | "all";
+type AttachmentDraft = { files: File[]; error?: string };
+
+const EMPTY_FILES: File[] = [];
 type IntegrationDetails = { engine: Integrator; sources: string[]; inputKey: string };
 const ENGINE_LABELS = { openai: "ChatGPT", google: "Gemini" } as const;
 type ChatItem = { id: string; role: "user" | "assistant"; content: string; createdAt: string; title?: string; titleEdited?: boolean };
@@ -215,7 +222,9 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [roomPrompt, setRoomPrompt] = useState("");
   const [allPrompt, setAllPrompt] = useState("");
-  const [attachments, setAttachments] = useState<File[]>([]);
+  const [attachmentDrafts, setAttachmentDrafts] = useState<Partial<Record<AttachmentScope, AttachmentDraft>>>({});
+  const encodingScopes = useRef(new Set<AttachmentScope>());
+  const attachmentEpoch = useRef(0);
   const [cardPrompts, setCardPrompts] = useState<Record<ProviderId, string>>({ openai: "", anthropic: "", google: "", xai: "", codex: "", astra: "" });
   const [expandedAnswers, setExpandedAnswers] = useState<Partial<Record<ProviderId, boolean>>>({});
   const integratedAnswerRef = useRef<HTMLDivElement>(null);
@@ -774,7 +783,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     setChatSessions((current) => current.map((session) => session.id === conversationId ? { ...session, title } : session));
   }
 
-  async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number, chatTitlePromise?: Promise<string>, updateServerTitleOnce = true) {
+  async function askProvider(provider: ProviderId, prompt: string, selectedSet: ProviderId[], generation: number, chatTitlePromise?: Promise<string>, updateServerTitleOnce = true, images: InlineImage[] = []) {
     if (!connected.has(provider)) return null;
     const requestId = uid(`${provider}-request`);
     const controller = new AbortController();
@@ -788,16 +797,21 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     if (chatTitlePromise) void chatTitlePromise.then((title) => { applyGeneratedTitle(provider, userItemId, title); if (updateServerTitleOnce) void updateServerChatTitle(title); });
 
     try {
-      const history = rooms[provider].history.slice(-24).map((item) => ({ role: item.role, content: item.content }));
+      const history = rooms[provider].history.slice(-24).map((item) => ({
+        role: item.role,
+        content: images.length ? item.content.slice(0, 8000) : item.content,
+      }));
       const res = await fetch("/api/ai/independent", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
-        body: JSON.stringify({ requestId, provider, selectedProviders: selectedSet, prompt, language, history }),
+        body: JSON.stringify({ requestId, provider, selectedProviders: selectedSet, prompt, language, history, ...(images.length ? { images } : {}) }),
       });
       const data = await res.json().catch(() => ({}));
       if (generation !== executionGeneration.current) return null;
-      if (!res.ok || data?.error) throw new Error(data?.error || "AI request failed");
+      if (!res.ok || data?.error) {
+        throw new Error(data?.error || (images.length && res.status === 413 ? "IMAGE_LIMIT" : "AI request failed"));
+      }
       const result = data as ProviderResult;
       const assistantItemId = uid("assistant");
       const assistantItem: ChatItem = { id: assistantItemId, role: "assistant", content: result.content, createdAt: new Date().toISOString(), title: answerTitle(prompt, result.content) };
@@ -808,7 +822,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     } catch (error) {
       if (controller.signal.aborted || generation !== executionGeneration.current) return null;
       const message = error instanceof Error ? error.message : "AI request failed";
-      setProviderState(provider, { loading: false, error: message });
+      setProviderState(provider, { loading: false, error: images.length ? attachmentText(message, language) : message });
       return { requestId, provider, providerName: PROVIDERS.find((p) => p.id === provider)?.name || provider, content: "", error: message } as ProviderResult;
     } finally {
       aborters.current.delete(provider);
@@ -816,58 +830,145 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     }
   }
 
+  function filesFor(scope: AttachmentScope) {
+    return attachmentDrafts[scope]?.files ?? EMPTY_FILES;
+  }
+
+  function noteAttachment(scope: AttachmentScope, error?: string, epoch = attachmentEpoch.current) {
+    if (epoch !== attachmentEpoch.current) return;
+    setAttachmentDrafts((drafts) => ({
+      ...drafts,
+      [scope]: { files: drafts[scope]?.files ?? EMPTY_FILES, error },
+    }));
+  }
+
+  function addAttachments(scope: AttachmentScope, files: FileList | File[]) {
+    const incoming = Array.from(files);
+    if (!incoming.length) return;
+    setAttachmentDrafts((drafts) => {
+      const current = drafts[scope]?.files ?? EMPTY_FILES;
+      const updated = mergeComposerImages(current, incoming);
+      return { ...drafts, [scope]: updated.files ? { files: updated.files } : { files: current, error: updated.error } };
+    });
+  }
+
+  function pasteAttachments(event: ReactClipboardEvent<HTMLTextAreaElement>, scope: AttachmentScope) {
+    const files = clipboardFiles(event.clipboardData);
+    if (!files.length) return; // Let the browser paste ordinary text at the caret.
+    if (!event.clipboardData.getData("text/plain")) event.preventDefault();
+    addAttachments(scope, files);
+  }
+
+  function resetAttachmentDrafts() {
+    attachmentEpoch.current += 1;
+    setAttachmentDrafts({});
+  }
+
+  function removeAttachments(scope: AttachmentScope, files: readonly File[], epoch = attachmentEpoch.current) {
+    if (epoch !== attachmentEpoch.current) return;
+    setAttachmentDrafts((drafts) => ({
+      ...drafts, [scope]: { files: (drafts[scope]?.files ?? EMPTY_FILES).filter((file) => !files.includes(file)) },
+    }));
+  }
+
+  function attachmentList(scope: AttachmentScope) {
+    const draft = attachmentDrafts[scope];
+    if (!draft?.files.length && !draft?.error) return null;
+    return <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs" aria-live="polite">
+      {draft.files.map((file, index) => <span key={index} className="flex max-w-full items-center gap-1 rounded border border-white/15 bg-[#0b1524] px-2 py-1 text-[#f0d36a]">
+        <span className="truncate" title={file.name}>{file.name || "Screenshot"}</span>
+        <button type="button" onClick={() => removeAttachments(scope, [file])} className="shrink-0 p-1" aria-label={`Remove ${file.name || "screenshot"}`}><X size={12}/></button>
+      </span>)}
+      {draft.error && <span className="basis-full text-red-200" role="status">{attachmentText(draft.error, language)}</span>}
+    </div>;
+  }
+
+  async function withAttachments(
+    scope: AttachmentScope,
+    rawPrompt: string,
+    send: (prompt: string, images: InlineImage[], epoch: number) => Promise<"sent" | "partial" | "failed" | "stale">,
+    onImageSuccess: () => void,
+  ) {
+    const files = filesFor(scope);
+    const prompt = rawPrompt.trim() || (files.length ? "Please describe the attached image." : "");
+    if (!prompt || encodingScopes.current.has(scope)) return;
+    const epoch = attachmentEpoch.current;
+    if (files.length) encodingScopes.current.add(scope);
+    try {
+      let images: InlineImage[];
+      try { images = await encodeComposerImages(files); }
+      catch { noteAttachment(scope, "IMAGE_READ_FAILED", epoch); return; }
+      if (epoch !== attachmentEpoch.current) return;
+      if (files.length) noteAttachment(scope, undefined, epoch);
+      const status = await send(prompt, images, epoch);
+      if (!files.length || epoch !== attachmentEpoch.current || status === "stale") return;
+      if (status === "sent") { removeAttachments(scope, files, epoch); onImageSuccess(); }
+      else if (status === "partial") noteAttachment(scope, "IMAGE_PARTIAL", epoch);
+    } finally {
+      if (files.length) encodingScopes.current.delete(scope);
+    }
+  }
+
   async function submitSingle(e?: FormEvent) {
     e?.preventDefault();
-    if (!openRoom || !roomPrompt.trim()) return;
-    const prompt = roomPrompt.trim();
-    setRoomPrompt("");
-    const generation = ++executionGeneration.current;
-    await askProvider(openRoom, prompt, [openRoom], generation, generateChatTitle(prompt));
+    if (!openRoom || !connected.has(openRoom) || rooms[openRoom].loading) return;
+    const provider = openRoom, before = roomPrompt;
+    await withAttachments(provider, before, async (prompt, images, epoch) => {
+      if (!images.length) setRoomPrompt("");
+      const generation = ++executionGeneration.current;
+      const result = await askProvider(provider, prompt, [provider], generation, generateChatTitle(prompt), true, images);
+      if (!result || generation !== executionGeneration.current) return "stale";
+      if (result.error && images.length) noteAttachment(provider, result.error, epoch);
+      return result.error ? "failed" : "sent";
+    }, () => setRoomPrompt((current) => current === before ? "" : current));
   }
 
   async function submitSelected(e?: FormEvent) {
     e?.preventDefault();
-    const prompt = allPrompt.trim();
     const target = selectedConnected;
-    if (!prompt || !target.length) return;
-    aborters.current.forEach((controller) => controller.abort());
-    aborters.current.clear();
-    const generation = ++executionGeneration.current;
-    cancelIntegration();
-    setFrozenQuestion(prompt);
-    setFrozenResults({});
-    setIntegrated("");
-    setIntegrationError("");
-    setGlobalError("");
-    const snapshot = [...target];
-    const chatTitlePromise = generateChatTitle(prompt);
-    setAllPrompt("");
-    setAttachments([]);
+    if (!target.length) return;
+    const before = allPrompt;
+    await withAttachments("all", before, async (prompt, images, epoch) => {
+      aborters.current.forEach((controller) => controller.abort());
+      aborters.current.clear();
+      const generation = ++executionGeneration.current;
+      cancelIntegration();
+      setFrozenQuestion(prompt);
+      setFrozenResults({});
+      setIntegrated("");
+      setIntegrationError("");
+      setGlobalError("");
+      const chatTitlePromise = generateChatTitle(prompt);
+      if (!images.length) setAllPrompt("");
 
-    await Promise.all(snapshot.map(async (provider, index) => {
-      const result = await askProvider(provider, prompt, snapshot, generation, chatTitlePromise, index === 0);
-      if (!result || generation !== executionGeneration.current) return;
-      setFrozenResults((prev) => ({ ...prev, [provider]: Object.freeze({ ...result }) }));
-    }));
-  }
-
-  function addAttachments(files: FileList | File[]) {
-    setAttachments((current) => {
-      const next = [...current];
-      for (const file of Array.from(files)) {
-        if (!next.some((item) => item.name === file.name && item.size === file.size && item.lastModified === file.lastModified)) next.push(file);
-      }
-      return next;
-    });
+      const results = await Promise.all(target.map(async (provider, index) => {
+        const result = await askProvider(provider, prompt, target, generation, chatTitlePromise, index === 0, images);
+        if (result && generation === executionGeneration.current) {
+          setFrozenResults((prev) => ({ ...prev, [provider]: Object.freeze({ ...result }) }));
+        }
+        return result;
+      }));
+      if (generation !== executionGeneration.current) return "stale";
+      const successes = results.filter((result) => result && !result.error).length;
+      if (successes === target.length) return "sent";
+      if (successes) return "partial";
+      if (images.length) noteAttachment("all", results.find((result) => result?.error)?.error || "IMAGE_PROVIDER_FAILED", epoch);
+      return "failed";
+    }, () => setAllPrompt((current) => current === before ? "" : current));
   }
 
   async function submitCard(provider: ProviderId) {
-    const prompt = cardPrompts[provider].trim();
-    if (!prompt || !connected.has(provider) || rooms[provider].loading) return;
-    setCardPrompts((current) => ({ ...current, [provider]: "" }));
-    setExpandedAnswers((current) => ({ ...current, [provider]: false }));
-    const generation = executionGeneration.current;
-    await askProvider(provider, prompt, [provider], generation, generateChatTitle(prompt));
+    if (!connected.has(provider) || rooms[provider].loading) return;
+    const before = cardPrompts[provider];
+    await withAttachments(provider, before, async (prompt, images, epoch) => {
+      if (!images.length) setCardPrompts((current) => ({ ...current, [provider]: "" }));
+      setExpandedAnswers((current) => ({ ...current, [provider]: false }));
+      const generation = executionGeneration.current;
+      const result = await askProvider(provider, prompt, [provider], generation, generateChatTitle(prompt), true, images);
+      if (!result || generation !== executionGeneration.current) return "stale";
+      if (result.error && images.length) noteAttachment(provider, result.error, epoch);
+      return result.error ? "failed" : "sent";
+    }, () => setCardPrompts((current) => current[provider] === before ? { ...current, [provider]: "" } : current));
   }
 
   function handleCardPromptKeyDown(event: ReactKeyboardEvent<HTMLTextAreaElement>, provider: ProviderId) {
@@ -908,6 +1009,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   function startNewChat() {
     archiveCurrentSession();
     cancelAll();
+    resetAttachmentDrafts();
     setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY }, astra: { ...EMPTY } });
     activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError(""); setMenuOpen(false);
   }
@@ -935,6 +1037,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
       }
     }
     cancelAll();
+    resetAttachmentDrafts();
     setRooms(Object.fromEntries(PROVIDERS.map((provider) => [provider.id, { ...EMPTY, history: [...(histories[provider.id] || [])] }])) as Record<ProviderId, RoomState>);
     activeChatSessionIdRef.current = session.id; setActiveChatSessionId(session.id); setDeleteConfirmId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError(""); setMenuOpen(false);
   }
@@ -960,6 +1063,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
 
   function clearCurrentChatWithoutArchive() {
     cancelAll();
+    resetAttachmentDrafts();
     stopMic();
     setRooms({ openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY }, astra: { ...EMPTY } });
     activeChatSessionIdRef.current = null; setActiveChatSessionId(null); setOpenRoom(null); setFrozenQuestion(""); setFrozenResults({}); setIntegrated(""); setIntegrationError(""); setGlobalError("");
@@ -1171,10 +1275,9 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
         {!openRoom ? (
           <>
             <section className="relative mb-3 rounded-xl border border-white/10 bg-[#0b1524] p-2 sm:p-3">
-              <form onSubmit={submitSelected} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDrop={(event) => { event.preventDefault(); if (event.dataTransfer.files.length) addAttachments(event.dataTransfer.files); }} data-rc-composer-enhanced="true" className="relative">
-                <textarea value={allPrompt} onChange={(e) => setAllPrompt(e.target.value)} className="min-h-32 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-4 pr-48 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder="Ask the selected AI rooms..."/>
-                <input id="rca-chat-file-input" type="file" multiple accept="image/*,.pdf,.doc,.docx,.txt,.rtf,.odt" onChange={(event) => { if (event.target.files) addAttachments(event.target.files); event.currentTarget.value = ""; }} className="sr-only" aria-label="Attach files"/>
-                {attachments.length ? <div className="absolute bottom-[72px] left-3 right-52 flex min-w-0 gap-1.5 overflow-x-auto"><span className="shrink-0 rounded-md border border-[#d7b64d]/30 bg-[#0b1524] px-2 py-1 text-xs text-[#f0d36a]">Attached {attachments.length}</span>{attachments.map((file, index) => <span key={`${file.name}-${file.size}-${file.lastModified}`} className="flex min-w-0 max-w-48 shrink-0 items-center gap-1 rounded-md border border-white/15 bg-[#0b1524] px-2 py-1 text-xs text-[#c9d1dc]"><span className="truncate" title={file.name}>{file.name}</span><button type="button" onClick={() => setAttachments((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="shrink-0 text-[#8d98a8] hover:text-white" aria-label={`Remove ${file.name}`}><X size={12}/></button></span>)}</div> : null}
+              <form onSubmit={submitSelected} onDragOver={(event) => { event.preventDefault(); event.dataTransfer.dropEffect = "copy"; }} onDrop={(event) => { event.preventDefault(); if (event.dataTransfer.files.length) addAttachments("all", event.dataTransfer.files); }} data-rc-composer-enhanced="true" className="relative">
+                <textarea onPaste={(event) => pasteAttachments(event, "all")} value={allPrompt} onChange={(e) => setAllPrompt(e.target.value)} className="min-h-32 w-full resize-y rounded-xl border border-white/10 bg-[#07101d] p-4 pr-48 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder="Ask the selected AI rooms..."/>
+                <input id="rca-chat-file-input" type="file" multiple accept="image/png,image/jpeg,.png,.jpg,.jpeg" onChange={(event) => { if (event.target.files) addAttachments("all", event.target.files); event.currentTarget.value = ""; }} className="sr-only" aria-label="Attach files"/>
                 {helperOpen && <div className="absolute bottom-14 right-3 z-20 w-72 rounded-xl border border-[#d7b64d]/35 bg-[#0b1524] p-3 shadow-2xl"><div className="mb-2 flex items-center justify-between"><div className="font-semibold text-[#f0d36a]">AI Helper</div><button type="button" onClick={() => setHelperOpen(false)} className="grid h-7 w-7 place-items-center rounded-md border border-white/10"><X size={14}/></button></div><div className="text-sm leading-6 text-[#c9d1dc]">질문을 입력한 뒤 원하는 AI 카드만 선택하세요. 여러 AI를 선택하면 각 AI가 서로 독립적으로 같은 질문을 받습니다.</div><div className="mt-3 flex gap-2"><button type="button" onClick={() => setSelected(roomProviders.filter((p) => connected.has(p.id)).map((p) => p.id))} className="rounded-lg border border-white/15 px-2 py-1.5 text-xs hover:bg-white/10">전체 선택</button><button type="button" onClick={() => setSelected([])} className="rounded-lg border border-white/15 px-2 py-1.5 text-xs hover:bg-white/10">선택 해제</button></div></div>}
                 <div data-rc-composer-controls="true" className="absolute bottom-3 right-3 flex items-center gap-1.5">
                   <button type="button" onClick={() => toggleMic("all")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524] text-[#d8dee8]"}`} title="Microphone"><Mic size={17}/></button>
@@ -1183,6 +1286,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
                   <button type="submit" disabled={!selectedConnected.length} aria-label={sendLabel} title={sendLabel} className="grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-40"><span>{sendLabel}</span><Send size={17}/></button>
                 </div>
               </form>
+              {attachmentList("all")}
             </section>
 
             <section data-rc-multi-ai-grid="true" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -1196,7 +1300,8 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
                 const expanded = Boolean(expandedAnswers[provider.id]);
                 return <article key={provider.id} data-rc-multi-ai-card="true" data-rc-multi-ai-active={active ? "true" : "false"} data-rc-multi-ai-expanded={expanded ? "true" : "false"} style={{ display: active ? "flex" : "none" }} className={`min-h-[360px] flex-col rounded-2xl border px-3 py-4 shadow-lg ${active ? "border-[#d7b64d]/70 bg-[#10223f]" : "border-white/10 bg-[#0b1524]"}`}>
                   <div className="flex min-h-0 flex-1 flex-col">
-                      <div className="flex items-center gap-2"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`grid h-6 w-6 shrink-0 place-items-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <X size={14}/> : null}</button><button type="button" onClick={() => setOpenRoom(provider.id)} className="shrink-0 rounded-md border border-white/15 bg-[#07101d] px-2 py-1 text-xs font-semibold leading-none hover:border-[#d7b64d]/50">Open</button><div className="ml-1 flex w-36 shrink-0 items-center gap-2"><ProviderBrandLogo provider={provider.id}/><h3 className="min-w-0 truncate text-lg font-semibold leading-none">{provider.name}</h3><span className={`ml-auto h-2 w-2 shrink-0 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div><textarea rows={1} value={cardPrompts[provider.id]} onChange={(event) => setCardPrompts((current) => ({ ...current, [provider.id]: event.target.value }))} onInput={(event) => autoSizeCardPrompt(event.currentTarget)} onKeyDown={(event) => handleCardPromptKeyDown(event, provider.id)} disabled={!available || room.loading} aria-label={`Ask ${provider.name}`} placeholder={`Ask ${provider.name}...`} className="min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-white/15 bg-[#07101d] px-3 py-2 text-sm leading-5 outline-none focus:border-[#d7b64d]/60 disabled:opacity-40"/></div>
+                      <div className="flex items-center gap-2"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`grid h-6 w-6 shrink-0 place-items-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <X size={14}/> : null}</button><button type="button" onClick={() => setOpenRoom(provider.id)} className="shrink-0 rounded-md border border-white/15 bg-[#07101d] px-2 py-1 text-xs font-semibold leading-none hover:border-[#d7b64d]/50">Open</button><div className="ml-1 flex w-36 shrink-0 items-center gap-2"><ProviderBrandLogo provider={provider.id}/><h3 className="min-w-0 truncate text-lg font-semibold leading-none">{provider.name}</h3><span className={`ml-auto h-2 w-2 shrink-0 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div><textarea rows={1} onPaste={(event) => pasteAttachments(event, provider.id)} value={cardPrompts[provider.id]} onChange={(event) => setCardPrompts((current) => ({ ...current, [provider.id]: event.target.value }))} onInput={(event) => autoSizeCardPrompt(event.currentTarget)} onKeyDown={(event) => handleCardPromptKeyDown(event, provider.id)} disabled={!available || room.loading} aria-label={`Ask ${provider.name}`} placeholder={`Ask ${provider.name}...`} className="min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-white/15 bg-[#07101d] px-3 py-2 text-sm leading-5 outline-none focus:border-[#d7b64d]/60 disabled:opacity-40"/></div>
+                      {attachmentList(provider.id)}
                       {latestQuestion ? <div className="mt-3 truncate border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]" title={latestQuestion.content}>{latestQuestion.title || latestQuestion.content}</div> : null}
                       <div role="button" tabIndex={0} aria-expanded={expanded} onClick={() => latestAnswer && setExpandedAnswers((current) => ({ ...current, [provider.id]: !expanded }))} onKeyDown={(event) => { if (latestAnswer && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); setExpandedAnswers((current) => ({ ...current, [provider.id]: !expanded })); } }} className={`mt-2 min-h-0 flex-1 rounded-xl border border-white/10 bg-black/15 p-3 text-[15px] leading-6 ${latestAnswer ? "cursor-pointer" : ""} ${expanded ? "overflow-visible whitespace-pre-wrap" : "overflow-hidden"}`}>
                         {latestAnswer ? <><div className="mb-2 border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]">{latestAnswer.title || fallbackTitle(latestAnswer.content)}</div>{latestAnswer.content}</> : room.loading ? `${provider.name} is working…` : <span className="text-[#c8d0dc]">No answer yet</span>}
@@ -1228,7 +1333,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
           <section className="mx-auto flex min-h-[calc(100dvh-86px)] max-w-6xl flex-col rounded-2xl border border-white/10 bg-[#0b1524] shadow-2xl">
             <div className="flex items-center gap-3 border-b border-white/10 p-3"><button onClick={() => { stopMic(); setOpenRoom(null); }} className="grid h-9 w-9 place-items-center rounded-lg border border-white/15 hover:bg-white/10"><X size={17}/></button><div><h2 className="text-xl font-semibold">{openMeta?.name}</h2><p className="text-xs text-[#8f9baa]">Strict isolated provider room</p></div><span className={`ml-auto h-2.5 w-2.5 rounded-full ${openRoom && connected.has(openRoom) ? "bg-emerald-400" : "bg-slate-600"}`}/></div>
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-3 sm:p-4">{rooms[openRoom].history.length ? rooms[openRoom].history.map((item) => <div key={item.id} className={`max-w-[88%] whitespace-pre-wrap rounded-xl border px-3 py-2 text-[15px] leading-7 ${item.role === "user" ? "ml-auto border-[#d7b64d]/35 bg-[#1e3a8a]" : "mr-auto border-white/10 bg-[#07101d]"}`}>{item.role === "assistant" && item.title ? <div className="mb-1 text-xs font-semibold text-[#f1d77a]">{item.title}</div> : null}{item.content}</div>) : <div className="py-20 text-center text-[#8d99a8]">Start a private conversation with {openMeta?.name}.</div>}{rooms[openRoom].loading && <div className="text-sm text-[#f0d36a]">{openMeta?.name} is working…</div>}{rooms[openRoom].error && <div className="rounded-lg border border-red-400/30 bg-red-950/30 p-3 text-sm text-red-200">{rooms[openRoom].error}</div>}</div>
-            <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="relative"><textarea ref={roomPromptRef} value={roomPrompt} onChange={(event) => handleRoomPromptChange(event.currentTarget)} onInput={(event) => autoSizeRoomPrompt(event.currentTarget)} onScroll={(event) => handleRoomPromptScroll(event.currentTarget)} className="min-h-28 max-h-[38dvh] w-full resize-none overflow-y-hidden rounded-xl border border-white/10 bg-[#07101d] p-3 pb-14 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/>{interimTranscript && userWantsListening ? <div className="pointer-events-none absolute bottom-14 left-3 right-14 truncate text-xs text-white/35">{interimTranscript}</div> : null}<div className="absolute bottom-3 left-3 flex items-center gap-2"><button type="button" aria-pressed={userWantsListening} data-recognition-active={recognitionActive ? "true" : "false"} data-manual-stop={manualStop ? "true" : "false"} onClick={() => toggleMic("room")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524]"}`}><Mic size={17}/></button><div aria-hidden="true" className="flex h-8 items-center gap-1"><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "0ms", animationDuration: "650ms" } : undefined}/><span className={`h-4 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "90ms", animationDuration: "650ms" } : undefined}/><span className={`h-6 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "180ms", animationDuration: "650ms" } : undefined}/><span className={`h-3 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "270ms", animationDuration: "650ms" } : undefined}/><span className={`h-5 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "360ms", animationDuration: "650ms" } : undefined}/><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "450ms", animationDuration: "650ms" } : undefined}/></div></div><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div></form>
+            <form onSubmit={submitSingle} className="border-t border-white/10 p-3"><div className="relative"><textarea ref={roomPromptRef} onPaste={(event) => pasteAttachments(event, openRoom)} value={roomPrompt} onChange={(event) => handleRoomPromptChange(event.currentTarget)} onInput={(event) => autoSizeRoomPrompt(event.currentTarget)} onScroll={(event) => handleRoomPromptScroll(event.currentTarget)} className="min-h-28 max-h-[38dvh] w-full resize-none overflow-y-hidden rounded-xl border border-white/10 bg-[#07101d] p-3 pb-14 text-base leading-7 outline-none focus:border-[#d7b64d]/60" placeholder={`Message ${openMeta?.name} only...`}/>{interimTranscript && userWantsListening ? <div className="pointer-events-none absolute bottom-14 left-3 right-14 truncate text-xs text-white/35">{interimTranscript}</div> : null}<div className="absolute bottom-3 left-3 flex items-center gap-2"><button type="button" aria-pressed={userWantsListening} data-recognition-active={recognitionActive ? "true" : "false"} data-manual-stop={manualStop ? "true" : "false"} onClick={() => toggleMic("room")} className={`grid h-10 w-10 place-items-center rounded-lg border ${userWantsListening ? "border-emerald-400 bg-emerald-500/15 text-emerald-300" : "border-white/15 bg-[#0b1524]"}`}><Mic size={17}/></button><div aria-hidden="true" className="flex h-8 items-center gap-1"><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "0ms", animationDuration: "650ms" } : undefined}/><span className={`h-4 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "90ms", animationDuration: "650ms" } : undefined}/><span className={`h-6 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "180ms", animationDuration: "650ms" } : undefined}/><span className={`h-3 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "270ms", animationDuration: "650ms" } : undefined}/><span className={`h-5 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "360ms", animationDuration: "650ms" } : undefined}/><span className={`h-2 w-0.5 rounded-full ${userWantsListening ? "animate-pulse bg-[#f0d36a]" : "bg-white/20"}`} style={userWantsListening ? { animationDelay: "450ms", animationDuration: "650ms" } : undefined}/></div></div><button disabled={!openRoom || !connected.has(openRoom) || rooms[openRoom].loading} className="absolute bottom-3 right-3 grid h-10 w-10 place-items-center rounded-lg border border-[#d7b64d]/50 bg-[#1e3a8a] text-[#f8df7a] disabled:opacity-35"><Send size={17}/></button></div>{attachmentList(openRoom)}</form>
           </section>
         )}
       </div>

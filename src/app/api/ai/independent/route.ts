@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getAvailableProviderIds, getConnector } from "@/lib/ai/connectors";
 import { AI_PROVIDER_IDS, PROVIDER_LABELS, type AIMessage, type AIProviderId } from "@/lib/ai/types";
 import { signIndependentReceipt, type IndependentReceiptPayload } from "@/lib/ai/independentReceipt";
+import { validateInlineImages } from "@/lib/ai/validateInlineImages";
 import { isDomainFeatureReady } from "@/config/countryResolver";
 import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
 
@@ -15,7 +16,7 @@ function isProviderId(value: unknown): value is AIProviderId {
   return typeof value === "string" && AI_PROVIDER_IDS.includes(value as AIProviderId);
 }
 
-function sanitizeHistory(value: unknown): AIMessage[] {
+function sanitizeHistory(value: unknown, maxChars: number = MAX_PROMPT_CHARS): AIMessage[] {
   if (!Array.isArray(value)) return [];
   return value
     .slice(-MAX_HISTORY)
@@ -24,7 +25,7 @@ function sanitizeHistory(value: unknown): AIMessage[] {
       const row = item as Record<string, unknown>;
       return (row.role === "user" || row.role === "assistant") && typeof row.content === "string";
     })
-    .map((item) => ({ role: item.role, content: item.content.slice(0, MAX_PROMPT_CHARS) }));
+    .map((item) => ({ role: item.role, content: item.content.slice(0, maxChars) }));
 }
 
 export async function POST(request: Request) {
@@ -61,8 +62,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `${PROVIDER_LABELS[provider]} is not connected` }, { status: 503 });
   }
 
+  const checkedImages = validateInlineImages(body?.images);
+  if ("error" in checkedImages) return NextResponse.json({ error: checkedImages.error }, { status: checkedImages.status });
+  const { images } = checkedImages;
   const connector = getConnector(provider);
-  const history = sanitizeHistory(body?.history);
+  if (images.length && !connector.supportsInlineImages) {
+    return NextResponse.json({ error: "IMAGE_UNSUPPORTED" }, { status: 422 });
+  }
+  const history = sanitizeHistory(body?.history, images.length ? 8_000 : MAX_PROMPT_CHARS);
   const messages: AIMessage[] = [
     {
       role: "system",
@@ -83,7 +90,7 @@ export async function POST(request: Request) {
 
   try {
     const startedAt = Date.now();
-    const result = await connector.complete({ messages });
+    const result = await connector.complete(images.length ? { messages, images } : { messages });
     const finishedAt = Date.now();
     const receipt: IndependentReceiptPayload = { requestId, provider, terminal: true, completedAt: new Date(finishedAt).toISOString() };
 
@@ -92,16 +99,16 @@ export async function POST(request: Request) {
       provider,
       providerName: PROVIDER_LABELS[provider],
       model: result.model,
-      content: result.content,
+      content: images.length && result.error ? "" : result.content,
       latencyMs: result.latencyMs || finishedAt - startedAt,
-      error: result.error || null,
+      error: result.error ? (images.length ? "IMAGE_PROVIDER_FAILED" : result.error) : null,
       receipt: { ...receipt, signature: signIndependentReceipt(user.id, receipt) },
     }, { status: result.error ? 502 : 200 });
   } catch (error) {
     return NextResponse.json({
       requestId,
       provider,
-      error: error instanceof Error ? error.message : "Provider request failed",
+      error: images.length ? "IMAGE_PROVIDER_FAILED" : error instanceof Error ? error.message : "Provider request failed",
       receipt: {
         requestId,
         provider,

@@ -1,3 +1,4 @@
+import { responsesMessages } from "../inlineImages";
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 
 const DEFAULT_CODEX_MODEL = "gpt-5.3-codex";
@@ -46,6 +47,7 @@ function extractResponsesText(data: unknown) {
 }
 
 export class CodexConnector implements AIConnector {
+  supportsInlineImages = true;
   id = "codex" as const;
   displayName = "Codex";
 
@@ -73,7 +75,7 @@ export class CodexConnector implements AIConnector {
       const reasoningEffort = requestedMaxTokens > 8192 ? "medium" : "low";
       const body: Record<string, unknown> = {
         model,
-        input: request.messages,
+        input: request.images?.length ? responsesMessages(request) : request.messages,
         max_output_tokens: requestedMaxTokens,
         reasoning: { effort: reasoningEffort },
         text: { verbosity: "low" },
