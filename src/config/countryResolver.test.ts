@@ -5,6 +5,7 @@ import {
   getCountryConfigByCountryCode,
   getCountryConfigByDomain,
   getCountryConfigForRequest,
+  getDomainRuntimeContext,
   hasCountryConfig,
 } from "./countryResolver";
 
@@ -29,6 +30,19 @@ describe("country domain routing", () => {
     expect(getCountryConfigByDomain("royalcommand.ai")).toBeNull();
     expect(getCountryConfigByDomain("www.royalcommand.ai")).toBeNull();
     expect(getCountryConfigByDomain("royalcommandai.com")).toBeNull();
+  });
+
+  it("resolves one Core plus country and policy overlays", () => {
+    expect(getDomainRuntimeContext("royalcommand.ai", "production")).toMatchObject({
+      countryCode: "GLOBAL", locale: "en", currency: "USD", phoneCountryCode: null,
+    });
+    expect(getDomainRuntimeContext("atyourcommandai.com.au", "production")).toMatchObject({
+      countryCode: "AU", locale: "en-AU", currency: "AUD", phoneCountryCode: "+61",
+    });
+    expect(getDomainRuntimeContext("atyourcommandai.com", "production")).toMatchObject({
+      countryCode: "US", locale: "en-US", currency: "USD", phoneCountryCode: "+1",
+    });
+    expect(getDomainRuntimeContext("royalcommandai.cn", "production")).toBeNull();
   });
 
   it("allows explicit Canada selection only on the North America domain", () => {

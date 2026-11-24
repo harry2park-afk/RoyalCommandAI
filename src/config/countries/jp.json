@@ -1,4 +1,6 @@
 {
+  "packId": "country-jp",
+  "status": "READY",
   "countryCode": "JP",
   "locale": "ja-JP",
   "secondaryLocale": null,

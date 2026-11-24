@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
-import { encryptToken, exchangeCode, googleApi, verifyOAuthState } from "@/lib/google-workspace";
+import { encryptToken, exchangeCode, oauthReturnPath, verifyOAuthState } from "@/lib/google-workspace";
 
 export async function GET(request: Request) {
   try {
@@ -11,7 +11,11 @@ export async function GET(request: Request) {
     const code = url.searchParams.get("code") || "";
     const state = url.searchParams.get("state") || "";
     const oauthError = url.searchParams.get("error");
-    if (oauthError) return NextResponse.redirect(new URL(`/rooms?google_workspace=error&reason=${encodeURIComponent(oauthError)}`, request.url));
+    if (oauthError) {
+      const destination = new URL(oauthReturnPath(state, user.id) || "/rooms", request.url);
+      destination.searchParams.set("google_workspace", "error");
+      return NextResponse.redirect(destination);
+    }
     if (!code || !verifyOAuthState(state, user.id)) return NextResponse.json({ error: "Invalid Google OAuth callback" }, { status: 400 });
 
     const tokens = await exchangeCode(code);
@@ -36,7 +40,9 @@ export async function GET(request: Request) {
     }, { onConflict: "user_id" });
     if (error) throw new Error(error.message);
 
-    return NextResponse.redirect(new URL("/dashboard?google_workspace=connected", request.url));
+    const destination = new URL(oauthReturnPath(state, user.id) || "/dashboard", request.url);
+    destination.searchParams.set("google_workspace", "connected");
+    return NextResponse.redirect(destination);
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Google OAuth callback failed" }, { status: 500 });
   }

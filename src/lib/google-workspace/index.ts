@@ -53,9 +53,18 @@ function sign(payload: string) {
   return crypto.createHmac("sha256", keyBytes()).update(payload).digest("base64url");
 }
 
-export function createOAuthState(userId: string) {
-  const payload = Buffer.from(JSON.stringify({ userId, nonce: crypto.randomUUID(), ts: Date.now() }), "utf8").toString("base64url");
+export function onboardingReturnPath(value: unknown): string | undefined {
+  return typeof value === "string" && /^\/rcv3\/create\?draft=[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/.test(value) ? value : undefined;
+}
+export function createOAuthState(userId: string, returnTo?: string) {
+  const payload = Buffer.from(JSON.stringify({ userId, nonce: crypto.randomUUID(), ts: Date.now(), ...(onboardingReturnPath(returnTo) ? {returnTo} : {}) }), "utf8").toString("base64url");
   return `${payload}.${sign(payload)}`;
+}
+
+export function oauthReturnPath(state: string, userId: string) {
+  if (!verifyOAuthState(state, userId)) return undefined;
+  try { return onboardingReturnPath(JSON.parse(Buffer.from(state.split(".")[0], "base64url").toString("utf8")).returnTo); }
+  catch { return undefined; }
 }
 
 export function verifyOAuthState(state: string, userId: string) {
@@ -103,10 +112,11 @@ export async function exchangeCode(code: string) {
   return data as { access_token: string; refresh_token?: string; scope?: string; expires_in?: number };
 }
 
-async function refreshAccessToken(refreshToken: string) {
+async function refreshAccessToken(refreshToken: string, signal?: AbortSignal) {
   const response = await fetch("https://oauth2.googleapis.com/token", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    signal: signal || AbortSignal.timeout(15000),
     body: new URLSearchParams({
       client_id: CLIENT_ID(),
       client_secret: CLIENT_SECRET(),
@@ -119,8 +129,8 @@ async function refreshAccessToken(refreshToken: string) {
   return String(data.access_token || "");
 }
 
-export async function getGoogleConnection(userId: string) {
-  const supabase = await createClient();
+export async function getGoogleConnection(userId: string, db?: Awaited<ReturnType<typeof createClient>>) {
+  const supabase = db || await createClient();
   const { data, error } = await supabase
     .from("google_workspace_connections")
     .select("user_id,google_email,refresh_token_ciphertext,scopes,connected_at,updated_at")
@@ -130,14 +140,14 @@ export async function getGoogleConnection(userId: string) {
   return data;
 }
 
-export async function getGoogleAccessToken(userId: string) {
-  const connection = await getGoogleConnection(userId);
+export async function getGoogleAccessToken(userId: string, db?: Awaited<ReturnType<typeof createClient>>, signal?: AbortSignal) {
+  const connection = await getGoogleConnection(userId, db);
   if (!connection?.refresh_token_ciphertext) throw new Error("Google Workspace is not connected for this Royal Command account");
-  return refreshAccessToken(decryptToken(connection.refresh_token_ciphertext));
+  return refreshAccessToken(decryptToken(connection.refresh_token_ciphertext), signal);
 }
 
-export async function googleApi(userId: string, url: string, init?: RequestInit) {
-  const accessToken = await getGoogleAccessToken(userId);
+export async function googleApi(userId: string, url: string, init?: RequestInit, db?: Awaited<ReturnType<typeof createClient>>) {
+  const accessToken = await getGoogleAccessToken(userId, db, init?.signal || undefined);
   const response = await fetch(url, {
     ...init,
     headers: { Authorization: `Bearer ${accessToken}`, ...(init?.headers || {}) },

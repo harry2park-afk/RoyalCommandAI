@@ -1,5 +1,6 @@
 "use client";
 
+import HelpText from "@/components/help/HelpText";
 import { useMemo, useState } from "react";
 import CreateRoomPremiumWizard from "./CreateRoomPremiumWizard";
 
@@ -35,7 +36,7 @@ export default function CreateRoomExperience({ customer }: { customer: CustomerI
         <section className="rounded-[28px] border border-[var(--gold)]/35 bg-black/25 p-5 shadow-[0_20px_70px_rgba(0,0,0,.25)] md:p-7">
           <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--gold-soft)]">Royal Command · {isKorean ? "가입 고객 정보" : "Customer Profile"}</div>
           <h1 className="mt-2 text-2xl font-semibold md:text-3xl">{isKorean ? "먼저 가입 정보를 확인해 주세요" : "First, confirm your account details"}</h1>
-          <p className="mt-2 text-sm leading-6 text-[var(--muted)]">{isKorean ? "이미 가입할 때 등록된 정보는 다시 입력하지 않습니다. 저장되지 않은 항목만 나중에 보완할 수 있습니다." : "Information already saved at sign-up is shown automatically. Only missing details need to be added later."}</p>
+          <p className="mt-2 text-sm leading-6 text-[var(--muted)]"><HelpText helpKey="profile"/></p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Info label={isKorean ? "성명" : "Name"} value={customer.fullName || (isKorean ? "등록되지 않음" : "Not registered")} />
@@ -50,7 +51,7 @@ export default function CreateRoomExperience({ customer }: { customer: CustomerI
             <label className="block">
               <span className="text-sm font-semibold text-[var(--gold-soft)]">{isKorean ? "이 Room의 이름을 정해 주세요" : "Choose a name for this Room"}</span>
               <input className="rc-input mt-2" value={roomName} onChange={(event) => setRoomName(event.target.value.slice(0, 120))} placeholder={isKorean ? "예: 박 회계사 사무실" : "e.g. Park Accounting Office"} />
-              <p className="mt-2 text-xs text-[var(--muted)]">{isKorean ? "고객이 원하는 이름으로 정하고 나중에도 변경할 수 있습니다." : "Choose the Room name you want and change it later if needed."}</p>
+              <p className="mt-2 text-xs text-[var(--muted)]"><HelpText helpKey="roomName"/></p>
             </label>
 
             <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4">

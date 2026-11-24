@@ -31,8 +31,17 @@ export default function AISelectionAccountRestore() {
     if (sessionStorage.getItem(reloadKey) === "1") return;
 
     let cancelled = false;
-    void fetch("/api/user/preferences", { cache: "no-store" })
-      .then(async (response) => response.ok ? response.json() : null)
+    const waitForScope = async (): Promise<boolean> => {
+      while (!cancelled) {
+        const scope = document.querySelector('[data-warehouse-scope]')?.getAttribute("data-warehouse-scope");
+        if (scope === "studio") return false;
+        if (scope === "legacy") return true;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      return false;
+    };
+    void waitForScope().then((legacy) => legacy ? fetch("/api/user/preferences", { cache: "no-store" }) : null)
+      .then(async (response) => response?.ok ? response.json() : null)
       .then((payload) => {
         if (cancelled) return;
         const account = cleanIds(payload?.preferences?.selectedAi);

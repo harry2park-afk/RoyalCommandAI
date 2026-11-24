@@ -1,0 +1,26 @@
+.rc-login-loading{padding:40px}
+@media(min-width:761px){
+html:has(.rc-login-portal),body:has(.rc-login-portal){height:auto!important;min-height:100%;overflow:auto!important;position:static!important}
+.rc-login-portal{position:relative;min-height:760px;height:100dvh;width:100%;isolation:isolate;background:#f6f4f8 url('/login-door.webp') center center/cover no-repeat;color:#292639;font-family:Arial,sans-serif}
+.rc-login-portal header{position:absolute;top:30px;left:5%;right:5%;display:flex;align-items:center;justify-content:space-between;z-index:1}
+.rc-login-portal header>a{font-weight:700;font-size:32px;color:#7268ae;text-decoration:none}
+.rc-login-portal header span{font-size:11px;display:block;font-weight:400;letter-spacing:1px}
+.rc-login-portal select{background:#ffffffb8;color:#514966;border:1px solid #dcd5e6;border-radius:20px;padding:8px 14px}
+.rc-login-caption{position:absolute;top:13%;left:0;width:100%;text-align:center}
+.rc-login-caption h1{font-size:clamp(26px,3vw,40px);font-weight:600;letter-spacing:-1px;margin:0}
+.rc-login-caption p{font-size:16px;color:#736d80;margin:12px 0}
+.rc-login-actions{position:absolute;top:82%;left:50%;transform:translateX(-50%);text-align:center;width:280px}
+.rc-login-actions>button{width:100%;border:0;border-radius:15px;background:#8572d8;color:white;padding:16px 20px;font-size:19px;font-weight:600;cursor:pointer;box-shadow:0 8px 24px #7660ba28}
+.rc-login-actions p{font-size:13px;color:#71697c;margin-top:16px}.rc-login-actions a{color:#7761b4;font-weight:600;margin-left:6px}
+.rc-login-portal button:focus-visible,.rc-login-portal a:focus-visible,.rc-login-portal select:focus-visible{outline:3px solid #49308d;outline-offset:4px}
+.rc-login-dialog{position:fixed;inset:0;margin:auto;width:min(480px,90vw);max-height:90dvh;overflow:auto;border:1px solid #ded5f0;border-radius:24px;padding:24px;background:#faf8ff;color:#292639}
+.rc-login-dialog::backdrop{background:#27203866;backdrop-filter:blur(5px)}
+.rc-login-close{position:absolute;top:8px;right:16px;font-size:28px;z-index:2;background:none;border:0;color:#514565;cursor:pointer}
+.rc-login-dialog .rc-login-compact{width:100%!important;max-width:100%!important;min-height:0!important;padding:12px 0!important;overflow:visible!important}
+.rc-login-compact>div:first-child{display:none}.rc-login-compact>div.relative.mx-auto.grid{display:block;min-height:0!important}
+.rc-login-compact .rc-card{padding:0;background:transparent;border:0;box-shadow:none;--muted:#70667d;--gold-soft:#7255a4;--danger:#b42335;color:#292639}
+.rc-login-compact .rc-input{color:#292639;background:white;border:1px solid #cfc5dd;width:100%}
+.rc-login-compact .rc-btn{display:flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;padding:12px 16px;min-height:46px;background:#eee7f8;color:#49356b;border:1px solid #cfc5dd}
+.rc-login-dialog .rc-login-compact form button{background:#8572d8;color:white}
+@media(max-aspect-ratio:1/1){.rc-login-portal{background-size:auto 100%}.rc-login-caption{top:15%}}
+}

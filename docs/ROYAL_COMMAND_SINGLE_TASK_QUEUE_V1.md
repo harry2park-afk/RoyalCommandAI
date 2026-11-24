@@ -1,39 +1,26 @@
-# Royal Command Single-Task Queue v1.1
+# Royal Command Work Queue
 
-Status: OWNER STANDARD
-Owner: Royal Command Pty Ltd
-Effective: 2026-08-26
+Status: OWNER STANDARD, subordinate to `ROYAL_COMMAND_LAW.md`.
 
-## Core principle
+## Principle
+Multiple Orders In, Controlled Non-Conflicting Work Out.
 
-Multiple Orders In, One Controlled Change Out.
+The Owner may provide several instructions together. Organise them internally without requiring repetition.
 
-The owner may give several instructions together. Royal Command must organise them internally rather than forcing the owner to repeat requests one by one.
+## Concurrency
+- There is no project-wide one-active-task limit.
+- Non-overlapping tasks may run in parallel on isolated branches.
+- The same file or conflicting resource boundary has one active Writer at a time.
+- Conflicting work waits, is serialized or receives an explicit ownership handoff.
+- Do not silently expand a task into unrelated work.
 
-## Active-code limit
-
-At most one primary code-change ticket is ACTIVE at a time, plus one BLOCKED/parked ticket.
-
-An explicit owner order assigning several AIs to the same primary goal may use multiple provider-isolated `rc-work` branches and PRs under that one ACTIVE ticket and host Work ID/Revision. This is still one controlled task, not permission to start unrelated parallel changes.
-
-## Provider execution
-
-ChatGPT, Claude, Gemini, and Grok have equal execution authority. When one or more providers are explicitly assigned, each executor uses the shared host routing policy and `/api/dev/agent` execution contract.
-
-Every GitHub write must carry host Work ID, Revision, and Provider identity. Provider branches must remain isolated and must never write directly to `master`.
+Provider execution, Work metadata, branch isolation and master restrictions are defined only in `AI_EXECUTION_ISOLATION_RULES.md`.
 
 ## Queue handling
+1. Record the complete order and separate independent from conflicting work.
+2. Assign one Writer to each conflicting boundary.
+3. Keep related dependent steps together when needed for safe completion.
+4. Review competing implementations before selecting or integrating one.
+5. Apply FAST, STANDARD or HIGH-RISK validation from `ROYAL_COMMAND_LAW.md`.
 
-1. Record the owner's complete order.
-2. Identify the one primary active goal.
-3. Keep related dependent steps under the same ticket when they are necessary to complete that goal safely.
-4. Put unrelated discovered work into backlog rather than silently expanding scope.
-5. If multiple AIs are explicitly assigned, keep their implementation branches separate and review each PR independently.
-6. Do not merge conflicting provider implementations until the conflict is resolved.
-7. Compatibility endpoints must not create parallel execution queues or independent GitHub writers.
-
-## Completion
-
-The active ticket is complete only after applicable Change Control, Conflict Guard, Quality Gate, tests/build, Preview, and approval gates pass and no known material execution conflict remains.
-
-Production merge/deploy is a separate approval-controlled action.
+Production merge/deploy remains a separate approval-controlled action with Preview, evidence and rollback requirements.

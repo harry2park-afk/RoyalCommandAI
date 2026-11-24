@@ -7,6 +7,8 @@ export default function CommandRoomReturnButton() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    // The return target is browser URL state hydrated once after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setReturnRoom(params.get("returnRoom") || "");
   }, []);
 

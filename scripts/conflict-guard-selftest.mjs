@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, writeFileSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -68,6 +68,37 @@ try {
 
   expectStatus(runGuard({ base: "definitely-not-a-ref" }), 2, "strict scanner failure");
   expectStatus(runGuard({ strict: false, base: "definitely-not-a-ref" }), 0, "warning-only scanner failure");
+
+  mkdirSync(join(fixtureRoot, "src", "large"), { recursive: true });
+  const large = Array.from({length:60000}, (_,i)=>`export const safe${i} = ${i};`).join("\n")+"\n";
+  writeFileSync(join(fixtureRoot, "src", "large", "large.ts"), large);
+  commit("safe diff over one MiB");
+  expectStatus(runGuard(), 0, "large clean diff streams without ENOBUFS");
+  writeFileSync(join(fixtureRoot, "src", "large", "tail.ts"), large+"export const language = 'selected-language';\n");
+  commit("conflict at end of large diff");
+  expectStatus(runGuard(), 1, "large diff still detects final ownership conflict");
+
+  writeFileSync(join(fixtureRoot, "src", "large", "spoof.ts"), "const text = `\n++ b/public/rc-language-picker.js\nselected-language\n`;\n");
+  commit("diff header lookalike inside valid template literal");
+  expectStatus(runGuard(), 1, "added content cannot spoof ownership header");
+  writeFileSync(join(fixtureRoot, "src", "large", "한글.ts"), "export const label = 'selected-language';\n");
+  commit("unicode path still scanned");
+  expectStatus(runGuard(), 1, "unicode filename ownership finding, not parse failure");
+
+  // Reviewed adapters do not grant whole-file control privileges.
+  const reviewed = JSON.parse(readFileSync(join(scriptDir, "conflict-guard-reviewed-lines.json"), "utf8"));
+  for (const [path, checks] of Object.entries(reviewed)) {
+    if (path === "scripts/conflict-guard-selftest.mjs") continue;
+    const fixture = join(fixtureRoot, path);
+    mkdirSync(dirname(fixture), { recursive: true });
+    writeFileSync(fixture, [...new Set(Object.values(checks).flat())].join("\n") + "\n");
+    commit(`reviewed adapter ${path}`);
+    expectStatus(runGuard(), 0, `reviewed exact statements: ${path}`);
+    const unreviewed = path.includes("CustomerAISecretary") ? "window.scroll" + "To(0, 0);\n" : path.includes("RoomPreferenceAuthority") ? "const selected" + "Ai = [];\n" : "export const changed = 'selected" + "-language';\n";
+    writeFileSync(fixture, unreviewed);
+    commit(`unreviewed mutation in ${path}`);
+    expectStatus(runGuard(), 1, `same-file unreviewed statements still fail: ${path}`);
+  }
 
   console.log("Conflict Guard self-test passed: clean=0, conflict=1, strict scanner failure=2, warning-only scanner failure=0.");
 } finally {

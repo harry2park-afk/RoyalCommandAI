@@ -8,6 +8,7 @@ export const LAYOUT_EDITOR_REAUTH_SECONDS = 300;
 export const LAYOUT_EDITOR_DEVICE_COOKIE = "rc_layout_device";
 export const LAYOUT_EDITOR_SESSION_COOKIE = "rc_layout_session";
 export const LAYOUT_EDITOR_REAUTH_COOKIE = "rc_layout_reauth";
+export const LAYOUT_EDITOR_PASSWORD_COOKIE = "rc_layout_password_session";
 
 const DEFAULT_RC_HEADQUARTERS_HOSTS = ["royalcommand.ai", "www.royalcommand.ai"];
 
@@ -54,13 +55,13 @@ function signingKey() {
   return createHmac("sha256", seed).update("royal-command/layout-editor/security-gate/v1").digest();
 }
 
-export function signReauthProof(userId: string) {
-  const body = Buffer.from(JSON.stringify({ userId, issuedAt: Date.now() })).toString("base64url");
+function signTimedProof(userId: string, purpose: string) {
+  const body = Buffer.from(JSON.stringify({ userId, purpose, issuedAt: Date.now() })).toString("base64url");
   const signature = createHmac("sha256", signingKey()).update(body).digest("base64url");
   return `${body}.${signature}`;
 }
 
-export function readReauthProof(value: string | undefined, userId: string) {
+function readTimedProof(value: string | undefined, userId: string, purpose: string, maxAgeMs: number) {
   if (!value) return false;
   const [body, signature] = value.split(".");
   if (!body || !signature) return false;
@@ -68,13 +69,30 @@ export function readReauthProof(value: string | undefined, userId: string) {
   const actual = Buffer.from(signature, "base64url");
   if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) return false;
   try {
-    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as { userId?: string; issuedAt?: number };
+    const parsed = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as { userId?: string; purpose?: string; issuedAt?: number };
     return parsed.userId === userId
+      && parsed.purpose === purpose
       && typeof parsed.issuedAt === "number"
-      && Date.now() - parsed.issuedAt <= LAYOUT_EDITOR_REAUTH_SECONDS * 1000;
+      && Date.now() - parsed.issuedAt <= maxAgeMs;
   } catch {
     return false;
   }
+}
+
+export function signReauthProof(userId: string) {
+  return signTimedProof(userId, "reauth");
+}
+
+export function readReauthProof(value: string | undefined, userId: string) {
+  return readTimedProof(value, userId, "reauth", LAYOUT_EDITOR_REAUTH_SECONDS * 1000);
+}
+
+export function signPasswordEditorProof(userId: string) {
+  return signTimedProof(userId, "password-editor");
+}
+
+export function readPasswordEditorProof(value: string | undefined, userId: string) {
+  return readTimedProof(value, userId, "password-editor", LAYOUT_EDITOR_SESSION_MINUTES * 60_000);
 }
 
 export function newOpaqueToken(bytes = 32) {

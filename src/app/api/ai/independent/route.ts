@@ -1,0 +1,120 @@
+import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { getAvailableProviderIds, getConnector } from "@/lib/ai/connectors";
+import { AI_PROVIDER_IDS, PROVIDER_LABELS, type AIMessage, type AIProviderId } from "@/lib/ai/types";
+import { signIndependentReceipt, type IndependentReceiptPayload } from "@/lib/ai/independentReceipt";
+import { validateInlineImages } from "@/lib/ai/validateInlineImages";
+import { isDomainFeatureReady } from "@/config/countryResolver";
+import { getServerDomainRuntimeContext } from "@/lib/runtime/serverDomainContext";
+
+export const maxDuration = 120;
+
+const MAX_HISTORY = 24;
+const MAX_PROMPT_CHARS = 40_000;
+
+function isProviderId(value: unknown): value is AIProviderId {
+  return typeof value === "string" && AI_PROVIDER_IDS.includes(value as AIProviderId);
+}
+
+function sanitizeHistory(value: unknown, maxChars: number = MAX_PROMPT_CHARS): AIMessage[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .slice(-MAX_HISTORY)
+    .filter((item): item is { role: "user" | "assistant"; content: string } => {
+      if (!item || typeof item !== "object") return false;
+      const row = item as Record<string, unknown>;
+      return (row.role === "user" || row.role === "assistant") && typeof row.content === "string";
+    })
+    .map((item) => ({ role: item.role, content: item.content.slice(0, maxChars) }));
+}
+
+export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const runtimeContext = await getServerDomainRuntimeContext();
+  if (!runtimeContext || !isDomainFeatureReady(runtimeContext, "ai")) {
+    return NextResponse.json({ error: "AI is unavailable for this domain policy" }, { status: 403 });
+  }
+
+  const body = await request.json().catch(() => ({}));
+  const provider = body?.provider;
+  const prompt = typeof body?.prompt === "string" ? body.prompt.trim() : "";
+  const language = typeof body?.language === "string" ? body.language : user.defaultLanguage || runtimeContext.locale;
+  const requestId = typeof body?.requestId === "string" ? body.requestId : "";
+
+  if (!requestId) return NextResponse.json({ error: "requestId is required" }, { status: 400 });
+  if (!isProviderId(provider)) return NextResponse.json({ error: "Invalid provider" }, { status: 400 });
+  if (!prompt) return NextResponse.json({ error: "Prompt is required" }, { status: 400 });
+  if (prompt.length > MAX_PROMPT_CHARS) return NextResponse.json({ error: "Prompt is too long" }, { status: 413 });
+
+  const selectedProviders = Array.isArray(body?.selectedProviders)
+    ? body.selectedProviders.filter(isProviderId)
+    : [provider];
+
+  // Selected Provider Set is the authoritative runtime contract.
+  // No fallback, relay, reviewer, hidden fan-out, or implicit provider invocation is allowed here.
+  if (!selectedProviders.includes(provider)) {
+    return NextResponse.json({ error: "Provider is not in the authoritative selected provider set" }, { status: 403 });
+  }
+
+  const available = new Set(getAvailableProviderIds());
+  if (!available.has(provider)) {
+    return NextResponse.json({ error: `${PROVIDER_LABELS[provider]} is not connected` }, { status: 503 });
+  }
+
+  const checkedImages = validateInlineImages(body?.images);
+  if ("error" in checkedImages) return NextResponse.json({ error: checkedImages.error }, { status: checkedImages.status });
+  const { images } = checkedImages;
+  const connector = getConnector(provider);
+  if (images.length && !connector.supportsInlineImages) {
+    return NextResponse.json({ error: "IMAGE_UNSUPPORTED" }, { status: 422 });
+  }
+  const history = sanitizeHistory(body?.history, images.length ? 8_000 : MAX_PROMPT_CHARS);
+  const messages: AIMessage[] = [
+    {
+      role: "system",
+      content: [
+        `You are ${PROVIDER_LABELS[provider]} inside a strictly isolated Royal Command provider room.`,
+        `For a roll call or a request for your name, identify your contribution by the room display name exactly as printed: ${PROVIDER_LABELS[provider]}. A vendor or model family name may belong to a different room. For example, when asked to reply with your name and 확인, reply with exactly: ${PROVIDER_LABELS[provider]} 확인`,
+        "You may use only the conversation history included in this request.",
+        "You cannot see, infer, request, or reference another provider room's prompts, answers, history, memory, selection state, or context.",
+        "The shared composer can send the same instruction to multiple selected providers independently. Address instructions to everyone as a request for your own contribution. Follow short answer formats directly.",
+        "In the RCA joint room, for a combined answer the user can choose ChatGPT or Gemini in the separate Final Integrator and press Create integrated answer after receiving responses. Your private provider chat has no access to those other responses.",
+        "Do not claim another AI said or saw anything unless the user explicitly pasted that content into this room.",
+        `Reply in ${language === "ko" ? "Korean" : language === "en" ? "English" : language} unless the user requests another language.`,
+      ].join("\n"),
+    },
+    ...history,
+    { role: "user", content: prompt },
+  ];
+
+  try {
+    const startedAt = Date.now();
+    const result = await connector.complete(images.length ? { messages, images } : { messages });
+    const finishedAt = Date.now();
+    const receipt: IndependentReceiptPayload = { requestId, provider, terminal: true, completedAt: new Date(finishedAt).toISOString() };
+
+    return NextResponse.json({
+      requestId,
+      provider,
+      providerName: PROVIDER_LABELS[provider],
+      model: result.model,
+      content: images.length && result.error ? "" : result.content,
+      latencyMs: result.latencyMs || finishedAt - startedAt,
+      error: result.error ? (images.length ? "IMAGE_PROVIDER_FAILED" : result.error) : null,
+      receipt: { ...receipt, signature: signIndependentReceipt(user.id, receipt) },
+    }, { status: result.error ? 502 : 200 });
+  } catch (error) {
+    return NextResponse.json({
+      requestId,
+      provider,
+      error: images.length ? "IMAGE_PROVIDER_FAILED" : error instanceof Error ? error.message : "Provider request failed",
+      receipt: {
+        requestId,
+        provider,
+        terminal: true,
+        completedAt: new Date().toISOString(),
+      },
+    }, { status: 502 });
+  }
+}

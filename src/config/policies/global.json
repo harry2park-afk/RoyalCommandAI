@@ -1,0 +1,14 @@
+{
+  "packId": "policy-global",
+  "status": "READY",
+  "features": {
+    "core": "READY",
+    "auth": "READY",
+    "ai": "READY",
+    "legal": "NEEDS_REVIEW",
+    "tax": "NEEDS_REVIEW",
+    "medical": "NEEDS_REVIEW",
+    "investment": "NEEDS_REVIEW",
+    "privacy": "NEEDS_REVIEW"
+  }
+}

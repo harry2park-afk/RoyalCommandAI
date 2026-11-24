@@ -1,0 +1,7 @@
+{
+  "base": "1701e56db0679dab9415029c7eb7e51643adb119",
+  "filesCompared": 922,
+  "archiveSha256": "b7783f26795dfbb8aede875fbc80fe4e22774fdbde6f26c59672f2b878666d89",
+  "status": "PASS",
+  "scope": "Git source and included assets only; excludes live DB, R2, customer data, credentials and provider configuration"
+}

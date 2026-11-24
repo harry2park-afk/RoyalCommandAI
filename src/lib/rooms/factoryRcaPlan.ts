@@ -44,11 +44,16 @@ export function buildRoomFactoryRcaControlPlan(
   providers: AIProviderId[],
 ): RoomFactoryRcaControlPlan {
   const selectedProviders = uniqueProviders(providers);
-  const writer = selectedProviders[0] || null;
+  const websiteStudio = blueprint.room.templateId === "website";
+  const writer = websiteStudio
+    ? (selectedProviders.includes("codex") ? "codex" : null)
+    : selectedProviders[0] || null;
   const reviewers = writer ? selectedProviders.filter((provider) => provider !== writer) : [];
   const blockers = [...blueprint.readiness.blockers];
 
-  if (!writer) blockers.push("At least one explicitly selected connected AI is required for a Writer.");
+  if (!writer) blockers.push(websiteStudio
+    ? "Website Studio requires Codex to be explicitly selected and connected as the sole Writer."
+    : "At least one explicitly selected connected AI is required for a Writer.");
   if (!reviewers.length) blockers.push("At least one independent selected AI is required for review before PASS.");
 
   if (!writer) {

@@ -1,3 +1,5 @@
+import { guardPaidRoom } from "@/lib/rcv3/paid-service-guard";
+import { getCurrentUser } from "@/lib/auth";
 import { createHash, randomUUID } from "node:crypto";
 import { orchestrate, type OrchestrateInput, type OrchestrateResult } from "./orchestrator";
 import { boundClientHistory, normalizeRoomHistory, MAX_ROOM_HISTORY_MESSAGES } from "./roomConversationMemory";
@@ -373,6 +375,17 @@ async function loadRoomContext(roomId: string, input: OrchestrateInput): Promise
 }
 
 export async function orchestrateRoom(roomId: string, input: OrchestrateInput): Promise<OrchestrateRoomResult> {
+  if(process.env.VERCEL_ENV==="preview" || process.env.NODE_ENV==="development") {
+    const user=await getCurrentUser();
+    if(!user)throw new Error("RCV3_AUTH");
+    const entitlement=await guardPaidRoom(user.id,roomId);
+    if(entitlement) {
+      const providers=input.providers?.length?input.providers:entitlement.providers;
+      if(!providers.length||providers.some(id=>!entitlement.providers.includes(id)))throw new Error("RCV3_SERVICE_NOT_INCLUDED");
+      input={...input,providers,prompt:`Customer-provided room setup: ${JSON.stringify({purpose:entitlement.purpose,tasks:entitlement.tasks,answers:entitlement.answers}).slice(0,6000)}\n\n${input.prompt}`};
+    }
+  }
+
   const { documentContext, history } = await loadRoomContext(roomId, input);
   const work = await resolveWorkMetadata(roomId, input.prompt, history);
   const systemExtra = [workSystemContext(work), input.systemExtra, documentContext]

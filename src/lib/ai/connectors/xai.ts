@@ -1,7 +1,9 @@
+import { chatMessages } from "../inlineImages";
 import type { AIConnector, AIProviderResponse, AIRequest } from "../types";
 import { extractProviderText } from "./openrouter";
 
 export class XAIConnector implements AIConnector {
+  supportsInlineImages = true;
   id = "xai" as const;
   displayName = "Grok";
 
@@ -15,7 +17,7 @@ export class XAIConnector implements AIConnector {
     try {
       const requestBody: Record<string, unknown> = {
         model,
-        messages: request.messages,
+        messages: request.images?.length ? chatMessages(request) : request.messages,
       };
       if (request.temperature !== undefined) requestBody.temperature = request.temperature;
       if (request.maxTokens) requestBody.max_tokens = request.maxTokens;

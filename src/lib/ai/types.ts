@@ -1,3 +1,5 @@
+import type { InlineImage } from "./inlineImages";
+
 export const AI_PROVIDER_IDS = [
   "openai",
   "anthropic",
@@ -25,6 +27,7 @@ export const AI_PROVIDER_IDS = [
   "zeroone",
   "tencent",
   "codex",
+  "astra",
 ] as const;
 
 export type AIProviderId = (typeof AI_PROVIDER_IDS)[number];
@@ -36,6 +39,8 @@ export interface AIMessage {
 
 export interface AIRequest {
   messages: AIMessage[];
+  /** Validated image bytes for the final user turn only. */
+  images?: readonly InlineImage[];
   temperature?: number;
   maxTokens?: number;
   /** Exact provider API model ID from an explicit Phase 4 model binding. */
@@ -55,6 +60,7 @@ export interface AIConnector {
   id: AIProviderId;
   displayName: string;
   isConfigured(): boolean;
+  supportsInlineImages?: boolean;
   complete(request: AIRequest): Promise<AIProviderResponse>;
 }
 
@@ -85,4 +91,5 @@ export const PROVIDER_LABELS: Record<AIProviderId, string> = {
   zeroone: "01.AI",
   tencent: "Tencent Hunyuan",
   codex: "Codex",
+  astra: "Astra Light",
 };
