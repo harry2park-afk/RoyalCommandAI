@@ -1,18 +1,19 @@
 {
   "scope": "existing-joint-ai-preview-only",
   "date": "2026-11-24",
-  "report": "docs/maintenance/JOINT_AI_ENTRY_20261124.md",
-  "applicationSourceSha": "57e42a7924313c27f3f4de960df6b941bcef5f1f",
-  "applicationDeploymentId": "dpl_8cxEd2jZXfkQrf7fLCBqefxRkrB5",
-  "restoration": {
-    "filesCompared": 949,
-    "mismatches": 0,
-    "archiveSha256": "104a63713eaff0f0a2e805cde4ab891bc473446eb9baffa8b35eb63c849ad0e5"
-  },
+  "report": "docs/maintenance/JOINT_AI_HEADER_20261124.md",
+  "applicationSourceSha": "161c566090a0c3ab4216e017fd0c5f12988c0516",
+  "applicationDeploymentId": "dpl_3QexAktx49TkFbVUZJR1ZUephUE7",
   "deploymentState": "READY",
+  "restoration": {
+    "filesCompared": 951,
+    "mismatches": 0,
+    "archiveSha256": "ecee21e7e8d1119d512919d52e6e1636fa7668e697c74cfc3331eee68439c4ab"
+  },
   "priorReports": [
+    "docs/maintenance/JOINT_AI_ENTRY_20261124.md",
     "docs/maintenance/JOINT_AI_GRID_20261124.md",
     "docs/maintenance/V4_HOME_RETURN_20261124.md"
   ],
-  "browserVerification": "Complete six-panel layout and saved history observed; no live AI send"
+  "browserVerification": "Header links removed; AI List opens; Create Room absent; saved panels visible; no live AI send"
 }
