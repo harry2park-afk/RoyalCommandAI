@@ -364,3 +364,10 @@
     display: none;
   }
 }
+
+/* A compact composer opens its help below, where the whole panel is visible. */
+.root[data-rc-joint-overview="true"] [data-rc-helper-panel] {
+  top: calc(100% + 8px);
+  bottom: auto;
+  z-index: 30;
+}
