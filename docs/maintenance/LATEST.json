@@ -1,0 +1,18 @@
+{
+  "scope": "existing-joint-ai-preview-only",
+  "date": "2026-11-24",
+  "report": "docs/maintenance/JOINT_AI_ENTRY_20261124.md",
+  "applicationSourceSha": "57e42a7924313c27f3f4de960df6b941bcef5f1f",
+  "applicationDeploymentId": "dpl_8cxEd2jZXfkQrf7fLCBqefxRkrB5",
+  "restoration": {
+    "filesCompared": 949,
+    "mismatches": 0,
+    "archiveSha256": "104a63713eaff0f0a2e805cde4ab891bc473446eb9baffa8b35eb63c849ad0e5"
+  },
+  "deploymentState": "READY",
+  "priorReports": [
+    "docs/maintenance/JOINT_AI_GRID_20261124.md",
+    "docs/maintenance/V4_HOME_RETURN_20261124.md"
+  ],
+  "browserVerification": "Complete six-panel layout and saved history observed; no live AI send"
+}
