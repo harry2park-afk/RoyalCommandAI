@@ -371,3 +371,8 @@
   bottom: auto;
   z-index: 30;
 }
+
+/* Keep the owner Preview marker with the brand so it cannot cover navigation. */
+.root::after{display:none}
+.root [data-rc-top-controls]>.rcPreviewBrand{flex-shrink:0}
+.root [data-rc-top-controls]{height:auto;min-height:56px;flex-wrap:wrap}
