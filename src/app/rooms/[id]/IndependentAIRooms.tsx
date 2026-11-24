@@ -190,10 +190,12 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
   const params = useParams<{ id: string }>();
   const roomId = roomIdProp || params.id || "rca";
   const [connected, setConnected] = useState<Set<string>>(new Set());
+  const [providerStatusLoaded, setProviderStatusLoaded] = useState(false);
   const [isWebsiteStudio, setIsWebsiteStudio] = useState(false);
   const [studioTools, setStudioTools] = useState<Record<"github" | "vercel", StudioToolStatus>>({ github: "not_connected", vercel: "not_connected" });
   const [selected, setSelected] = useState<ProviderId[]>(DEFAULT_SELECTED_PROVIDERS);
-  const [selectedLoaded, setSelectedLoaded] = useState(false);
+  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
+  const selectedLoaded = selectedRoomId === roomId;
   const [studioContextRoomId, setStudioContextRoomId] = useState<string | null>(null);
   const [rooms, setRooms] = useState<Record<ProviderId, RoomState>>({
     openai: { ...EMPTY }, anthropic: { ...EMPTY }, google: { ...EMPTY }, xai: { ...EMPTY }, codex: { ...EMPTY }, astra: { ...EMPTY },
@@ -269,7 +271,8 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
         setProviderRegistry(registry);
         setConnected(ids);
       })
-      .catch(() => setGlobalError("AI provider status could not be loaded."));
+      .catch(() => setGlobalError("AI provider status could not be loaded."))
+      .finally(() => setProviderStatusLoaded(true));
 
     void Promise.all([
       fetch("/api/rooms", { cache: "no-store" }).then((res) => res.ok ? res.json() : { rooms: [] }),
@@ -329,7 +332,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
     } catch {
       setSelected(DEFAULT_SELECTED_PROVIDERS);
     } finally {
-      setSelectedLoaded(true);
+      setSelectedRoomId(roomId);
     }
     try {
       const savedProviderOrder = JSON.parse(localStorage.getItem(providerOrderKey(roomId)) || "[]") as string[];
@@ -1293,16 +1296,18 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
               {attachmentList("all")}
             </section>
 
-            <section data-rc-multi-ai-grid="true" className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
+            <section data-rc-multi-ai-grid="true" aria-busy={roomId === "rca" && !selectedLoaded} style={{ visibility: roomId === "rca" && !selectedLoaded ? "hidden" : undefined }} className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
               {roomProviders.map((provider) => {
                 const room = rooms[provider.id];
                 const available = connected.has(provider.id);
                 const active = selected.includes(provider.id) && available;
+                // Restore the saved layout together; connection checks must not add/remove RCA cards.
+                const visible = roomId === "rca" ? selected.includes(provider.id) : active;
                 const latestQuestionIndex = room.history.map((item) => item.role).lastIndexOf("user");
                 const latestQuestion = latestQuestionIndex >= 0 ? room.history[latestQuestionIndex] : undefined;
                 const latestAnswer = latestQuestionIndex >= 0 ? room.history.slice(latestQuestionIndex + 1).find((item) => item.role === "assistant") : undefined;
                 const expanded = Boolean(expandedAnswers[provider.id]);
-                return <article key={provider.id} data-rc-multi-ai-card="true" data-rc-multi-ai-active={active ? "true" : "false"} data-rc-multi-ai-expanded={expanded ? "true" : "false"} style={{ display: active ? "flex" : "none" }} className={`min-h-[360px] flex-col rounded-2xl border px-3 py-4 shadow-lg ${active ? "border-[#d7b64d]/70 bg-[#10223f]" : "border-white/10 bg-[#0b1524]"}`}>
+                return <article key={provider.id} data-rc-multi-ai-card="true" data-rc-multi-ai-active={active ? "true" : "false"} data-rc-multi-ai-expanded={expanded ? "true" : "false"} style={{ display: visible ? "flex" : "none" }} className={`min-h-[360px] flex-col rounded-2xl border px-3 py-4 shadow-lg ${visible ? "border-[#d7b64d]/70 bg-[#10223f]" : "border-white/10 bg-[#0b1524]"}`}>
                   <div className="flex min-h-0 flex-1 flex-col">
                       <div data-rc-provider-header className="flex items-center gap-2"><button type="button" onClick={() => toggleSelected(provider.id)} disabled={!available} className={`grid h-6 w-6 shrink-0 place-items-center rounded border ${active ? "border-[#d7b64d] bg-[#d7b64d] text-[#07101d]" : "border-white/25"} disabled:opacity-30`}>{active ? <X size={14}/> : null}</button><button type="button" onClick={() => setOpenRoom(provider.id)} className="shrink-0 rounded-md border border-white/15 bg-[#07101d] px-2 py-1 text-xs font-semibold leading-none hover:border-[#d7b64d]/50">Open</button><div className="ml-1 flex w-36 shrink-0 items-center gap-2"><ProviderBrandLogo provider={provider.id}/><h3 className="min-w-0 truncate text-lg font-semibold leading-none">{provider.name}</h3><span className={`ml-auto h-2 w-2 shrink-0 rounded-full ${available ? "bg-emerald-400" : "bg-slate-600"}`}/></div>{roomId === "rca" && expanded && <button type="button" onClick={() => setExpandedAnswers((current) => ({ ...current, [provider.id]: false }))} className="ml-auto rounded-md border border-white/20 px-2 py-1 text-xs">Collapse</button>}<textarea rows={1} onPaste={(event) => pasteAttachments(event, provider.id)} value={cardPrompts[provider.id]} onChange={(event) => setCardPrompts((current) => ({ ...current, [provider.id]: event.target.value }))} onInput={(event) => autoSizeCardPrompt(event.currentTarget)} onKeyDown={(event) => handleCardPromptKeyDown(event, provider.id)} disabled={!available || room.loading} aria-label={`Ask ${provider.name}`} placeholder={`Ask ${provider.name}...`} className="min-w-0 flex-1 resize-none overflow-hidden rounded-lg border border-white/15 bg-[#07101d] px-3 py-2 text-sm leading-5 outline-none focus:border-[#d7b64d]/60 disabled:opacity-40"/></div>
                       {attachmentList(provider.id, { run: () => { void submitCard(provider.id); }, disabled: !available || room.loading })}
@@ -1311,7 +1316,7 @@ export default function IndependentAIRooms({ roomId: roomIdProp }: { roomId?: st
                         {latestAnswer ? <><div className="mb-2 border-b border-white/10 pb-2 text-sm font-semibold text-[#f1d77a]">{latestAnswer.title || fallbackTitle(latestAnswer.content)}</div>{latestAnswer.content}</> : room.loading ? `${provider.name} is working…` : <span className="text-[#c8d0dc]">No answer yet</span>}
                         {expanded && latestAnswer ? <div className="mt-4 flex justify-end gap-2 border-t border-white/10 pt-3"><button type="button" onClick={(event) => { event.stopPropagation(); void navigator.clipboard.writeText(latestAnswer.content); }} className="flex items-center gap-1.5 rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/10"><Copy size={13}/>Copy</button><button type="button" onClick={(event) => { event.stopPropagation(); setExpandedAnswers((current) => ({ ...current, [provider.id]: false })); }} className="rounded-lg border border-white/15 px-3 py-1.5 text-xs hover:bg-white/10">Collapse</button></div> : null}
                       </div>
-                      {room.loading || room.error || !available ? <div className="mt-2 text-[11px] text-[#8e99a8]">{room.loading ? "Working…" : room.error ? "Error" : "Not connected"}</div> : null}
+                      {room.loading || room.error || !available ? <div className="mt-2 text-[11px] text-[#8e99a8]">{room.loading ? "Working…" : room.error ? "Error" : roomId === "rca" && !providerStatusLoaded ? (korean ? "연결 확인 중…" : "Checking connection…") : "Not connected"}</div> : null}
                   </div>
                 </article>;
               })}
