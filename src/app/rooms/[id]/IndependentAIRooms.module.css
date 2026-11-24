@@ -217,3 +217,150 @@
     padding: 4px 7px;
   }
 }
+
+
+/* The joint room keeps all five providers and the integrator in one workspace.
+   Other independent/studio rooms retain their existing layout. */
+.root[data-rc-joint-overview="true"] {
+  display: flex;
+  flex-direction: column;
+  width: 100% !important;
+  max-width: none !important;
+  height: 100dvh;
+  min-height: 0 !important;
+  font-family: Arial, sans-serif;
+}
+
+.root[data-rc-joint-overview="true"] > header {
+  flex-shrink: 0;
+}
+
+.root[data-rc-joint-overview="true"] [data-rc-workspace] {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.root[data-rc-joint-overview="true"] [data-rc-shared-question] {
+  flex-shrink: 0;
+  margin-bottom: 8px;
+  padding: 8px;
+}
+
+.root[data-rc-joint-overview="true"] form[data-rc-composer-enhanced="true"] > textarea {
+  height: 88px !important;
+  min-height: 88px !important;
+  padding-right: 116px !important;
+}
+
+.root[data-rc-joint-overview="true"] form[data-rc-composer-enhanced="true"] button[title="AI Helper"] {
+  width: 100px !important;
+  min-width: 100px !important;
+  height: 94px !important;
+  bottom: 4px !important;
+}
+
+.root[data-rc-joint-overview="true"] form[data-rc-composer-enhanced="true"] button[title="AI Helper"]::before {
+  top: 24px;
+  left: 0;
+}
+
+.root[data-rc-joint-overview="true"] form[data-rc-composer-enhanced="true"] button[type="submit"] {
+  bottom: 0 !important;
+  right: 3px !important;
+  width: 100px !important;
+  min-width: 100px !important;
+}
+
+.root[data-rc-joint-overview="true"] section[data-rc-multi-ai-grid="true"] {
+  flex: 1;
+  min-height: 0;
+  max-height: none !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  grid-auto-rows: minmax(220px, 1fr);
+  overflow-y: auto !important;
+  padding-right: 0;
+}
+
+.root[data-rc-joint-overview="true"] section[data-rc-multi-ai-grid="true"] > article {
+  height: auto !important;
+  min-height: 0 !important;
+  max-height: none !important;
+  min-width: 0;
+  padding: 10px;
+  overflow-y: auto !important;
+}
+
+/* Keep attachments and controls reachable even with unusually long drafts. */
+.root[data-rc-joint-overview="true"] [data-rc-multi-ai-card="true"] > div {
+  overflow-y: auto;
+}
+
+.root[data-rc-joint-overview="true"] [data-rc-provider-header] {
+  flex-wrap: wrap;
+  flex-shrink: 0;
+  gap: 6px;
+}
+
+.root[data-rc-joint-overview="true"] [data-rc-provider-header] > textarea {
+  flex: 0 0 100%;
+  width: 100%;
+  min-height: 36px;
+  max-height: 64px;
+  overflow-y: auto;
+}
+
+.root[data-rc-joint-overview="true"] [aria-live="polite"] {
+  flex-shrink: 0;
+  max-height: 64px;
+  overflow-y: auto;
+}
+
+.root[data-rc-joint-overview="true"] [data-rc-provider-answer] {
+  min-height: 48px;
+  overflow-y: auto !important;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overscroll-behavior: contain;
+  font-size: 16px;
+  line-height: 1.5;
+  padding: 10px;
+}
+
+/* Clicking an answer still enlarges it, without stretching the six-panel grid. */
+.root[data-rc-joint-overview="true"] section[data-rc-multi-ai-grid="true"] > article[data-rc-multi-ai-expanded="true"] {
+  position: fixed;
+  inset: 64px 16px 16px;
+  z-index: 40;
+  width: auto !important;
+  box-shadow: 0 0 0 100vmax rgba(0, 0, 0, .65);
+}
+
+@media (min-width: 701px) and (max-width: 1099px) {
+  .root[data-rc-joint-overview="true"] section[data-rc-multi-ai-grid="true"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    grid-auto-rows: minmax(210px, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .root[data-rc-joint-overview="true"] {
+    height: auto;
+    min-height: 100dvh !important;
+  }
+  .root[data-rc-joint-overview="true"] [data-rc-top-controls] {
+    height: auto;
+    min-height: 56px;
+    flex-wrap: wrap;
+    padding: 8px;
+  }
+  .root[data-rc-joint-overview="true"] section[data-rc-multi-ai-grid="true"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+    grid-auto-rows: 360px;
+    overflow: visible !important;
+  }
+  .root[data-rc-joint-overview="true"]::after {
+    display: none;
+  }
+}
